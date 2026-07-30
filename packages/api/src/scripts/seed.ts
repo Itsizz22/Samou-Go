@@ -353,11 +353,13 @@ const ORDERS: SeedOrder[] = [
 async function seedOrders(): Promise<void> {
   const today = new Date();
 
+  // Wipe all seed orders before recreating — order numbers are date-based so
+  // a previous run with different ids would collide on the UNIQUE constraint.
+  await prisma.order.deleteMany({});
+  console.log('  ♻️  Cleared existing orders');
+
   for (const order of ORDERS) {
     const totals = calculateOrderTotals(order.lines, env.deliveryFeeConfig);
-
-    // Replace children wholesale — cheaper than diffing, and this is dev data.
-    await prisma.order.deleteMany({ where: { id: order.id } });
 
     await prisma.order.create({
       data: {

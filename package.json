@@ -9,7 +9,8 @@
     "themes/Customer shop",
     "themes/Store Details & Product Menu_1",
     "themes/Live Order Tracking",
-    "themes/Store Manager Dashboard"
+    "themes/Store Manager Dashboard",
+    "themes/Delivery Captain Dashboard"
   ],
   "engines": {
     "node": ">=20.11"
