@@ -1,0 +1,221 @@
+// =============================================================================
+// Samou' Go — PostgreSQL schema
+// -----------------------------------------------------------------------------
+// Hyper-local delivery for Samou', Hebron, Palestine.
+//
+// Two deliberate constraints shape this model:
+//   1. NO GPS. Samou' has no reliable street addressing, and the platform ships
+//      no live map. Destinations are free text (neighbourhood / landmark) and
+//      the captain phones the customer. There is no lat/lng column anywhere.
+//   2. Money is Decimal(10,2), never Float. Prisma returns Decimal objects;
+//      `src/modules/**/**.mapper.ts` converts them to numbers at the edge.
+//
+// Enum string values MUST stay byte-identical to packages/shared-types/src/enums.ts
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+enum UserRole {
+  CUSTOMER
+  STORE_MANAGER
+  CAPTAIN
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  READY_FOR_PICKUP
+  ON_THE_WAY
+  DELIVERED
+  CANCELLED
+}
+
+/// Samou' is a cash economy; COD is the only live method.
+/// Declared as an enum so adding card/wallet later is a migration, not a refactor.
+enum PaymentMethod {
+  COD
+}
+
+// =============================================================================
+// Models
+// =============================================================================
+
+/// One account, one role. Phone is the login identifier — Samou' users do not
+/// reliably have email.
+model User {
+  id           String   @id @default(cuid())
+  name         String   @db.VarChar(120)
+  /// Canonical Palestinian mobile: 10 digits, `05XXXXXXXX`.
+  phone        String   @unique @db.VarChar(20)
+  /// bcrypt hash. Never selected into an API response.
+  passwordHash String
+  role         UserRole @default(CUSTOMER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  managedStores   Store[]              @relation("StoreManager")
+  customerOrders  Order[]              @relation("OrderCustomer")
+  captainOrders   Order[]              @relation("OrderCaptain")
+  statusChanges   OrderStatusHistory[] @relation("StatusChangedBy")
+
+  @@index([role, isActive])
+  @@map("users")
+}
+
+/// A shop in Samou'. `managerId` is the STORE_MANAGER who runs it; one manager
+/// may run several shops.
+model Store {
+  id        String   @id @default(cuid())
+  nameAr    String   @db.VarChar(160)
+  nameEn    String   @db.VarChar(160)
+  logoUrl   String?
+  phone     String   @db.VarChar(20)
+  isActive  Boolean  @default(true)
+  managerId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  manager    User       @relation("StoreManager", fields: [managerId], references: [id], onDelete: Restrict)
+  categories Category[]
+  products   Product[]
+  orders     Order[]
+
+  @@index([managerId])
+  @@index([isActive])
+  @@index([nameAr])
+  @@map("stores")
+}
+
+/// A menu section, scoped to one store. Two stores may both have "مشروبات".
+model Category {
+  id        String   @id @default(cuid())
+  nameAr    String   @db.VarChar(120)
+  nameEn    String   @db.VarChar(120)
+  storeId   String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([storeId, nameEn])
+  @@index([storeId, sortOrder])
+  @@map("categories")
+}
+
+/// A sellable item. `price` is the *current* price; an order captures its own
+/// `unitPrice` so repricing never rewrites history.
+model Product {
+  id          String   @id @default(cuid())
+  nameAr      String   @db.VarChar(160)
+  description String?  @db.Text
+  price       Decimal  @db.Decimal(10, 2)
+  imageUrl    String?
+  isAvailable Boolean  @default(true)
+  categoryId  String?
+  storeId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category   Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  store      Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([storeId, isAvailable])
+  @@index([categoryId])
+  @@index([nameAr])
+  @@map("products")
+}
+
+/// A basket that has been committed. Financials are written by the server only —
+/// `deliveryFee` always comes from `calculateDeliveryFee(itemCount)` in
+/// @samou-go/shared-types, never from the client.
+model Order {
+  id          String @id @default(cuid())
+  /// Human-facing reference shown to the customer: `SG-260728-0042`.
+  orderNumber String @unique @db.VarChar(24)
+
+  customerId String
+  storeId    String
+  /// Null until an admin or the captain themselves takes the job.
+  captainId  String?
+
+  status OrderStatus @default(PENDING)
+
+  /// Free-text destination: neighbourhood, street, landmark. No GPS by design.
+  customerAddressText String  @db.VarChar(500)
+  /// Optional extra directions, e.g. "بجانب مسجد عمر، الطابق الثاني".
+  addressNote         String? @db.VarChar(500)
+
+  subtotal    Decimal       @db.Decimal(10, 2)
+  deliveryFee Decimal       @db.Decimal(10, 2)
+  totalAmount Decimal       @db.Decimal(10, 2)
+  paymentMethod PaymentMethod @default(COD)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer      User                 @relation("OrderCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  store         Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  captain       User?                @relation("OrderCaptain", fields: [captainId], references: [id], onDelete: SetNull)
+  items         OrderItem[]
+  statusHistory OrderStatusHistory[]
+
+  @@index([customerId, createdAt])
+  @@index([storeId, status])
+  @@index([captainId, status])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+/// One basket line. `unitPrice` and `totalPrice` are frozen at order time.
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  productId  String
+  quantity   Int
+  unitPrice  Decimal @db.Decimal(10, 2)
+  totalPrice Decimal @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  /// One row per product per order — quantity carries the count.
+  @@unique([orderId, productId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+/// Append-only audit trail. This is what the Live Order Tracking screen renders
+/// as a timeline, and what settles "who cancelled my order?" disputes.
+model OrderStatusHistory {
+  id              String      @id @default(cuid())
+  orderId         String
+  status          OrderStatus
+  /// Null for system-driven transitions (e.g. auto-expiry jobs).
+  changedByUserId String?
+  note            String?     @db.VarChar(500)
+  createdAt       DateTime    @default(now())
+
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy User? @relation("StatusChangedBy", fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@index([changedByUserId])
+  @@map("order_status_history")
+}

@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    // Pure types — no ambient globals. Empty so TypeScript does not sweep the
+    // hoisted root node_modules/@types (which belongs to the Vite frontends).
+    "types": []
+  },
+  "include": ["src/**/*.ts"]
+}

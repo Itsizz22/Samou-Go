@@ -1,0 +1,42 @@
+{
+  "name": "samou-go",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Samou' Go — hyper-local delivery platform for Samou', Hebron, Palestine",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "packages/*",
+    "themes/Customer shop",
+    "themes/Store Details & Product Menu_1",
+    "themes/Live Order Tracking",
+    "themes/Store Manager Dashboard"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "build": "tsc -b packages/shared-types packages/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck:server": "tsc -b packages/shared-types packages/api --force",
+    "typecheck:web-customer": "npm run typecheck --workspace @samou-go/web-customer",
+    "typecheck:web-checkout": "npm run typecheck --workspace @samou-go/web-checkout",
+    "typecheck:web-order-tracking": "npm run typecheck --workspace @samou-go/web-order-tracking",
+    "typecheck:web-store-manager": "npm run typecheck --workspace @samou-go/web-store-manager",
+    "clean": "tsc -b packages/shared-types packages/api --clean",
+    "dev:api": "npm run dev --workspace @samou-go/api",
+    "start:api": "npm run start --workspace @samou-go/api",
+    "dev:web-customer": "npm run dev --workspace @samou-go/web-customer",
+    "dev:web-checkout": "npm run dev --workspace @samou-go/web-checkout",
+    "dev:web-order-tracking": "npm run dev --workspace @samou-go/web-order-tracking",
+    "dev:web-store-manager": "npm run dev --workspace @samou-go/web-store-manager",
+    "db:generate": "npm run prisma:generate --workspace @samou-go/api",
+    "db:migrate": "npm run prisma:migrate --workspace @samou-go/api",
+    "db:push": "npm run prisma:push --workspace @samou-go/api",
+    "db:studio": "npm run prisma:studio --workspace @samou-go/api",
+    "db:seed": "npm run prisma:seed --workspace @samou-go/api",
+    "test:e2e": "npm run test:e2e --workspace @samou-go/api"
+  },
+  "devDependencies": {
+    "typescript": "~5.7.2"
+  }
+}
