@@ -12,7 +12,7 @@
  * for any active order.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   BarChart3,
@@ -40,7 +40,9 @@ import {
   useAuth,
   useMutation,
   useOrders,
+  useToast,
 } from '@samou-go/api-client';
+import { playNewOrderChime } from '@/lib/chime';
 import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_SEQUENCE,
@@ -116,9 +118,9 @@ const ACTIVE_TAB_LABEL: Record<string, string> = {
 
 export function SamouGoStoreManager() {
   const auth = useAuth();
+  const toast = useToast();
   const [isOpen, setIsOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('home');
-  const [notice, setNotice] = useState<string | null>(null);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
   /* ---- Role gate --------------------------------------------------------- */
@@ -128,13 +130,14 @@ export function SamouGoStoreManager() {
   /* ---- Data -------------------------------------------------------------- */
 
   // The kitchen's inbox: anything not yet terminal and not yet on the road.
+  // Polled every 10 s so a new PENDING order chimes without a manual refresh.
   const incoming = useOrders(
     { status: OrderStatus.PENDING, pageSize: 20 },
-    { enabled: Boolean(auth.user) && isManager }
+    { enabled: Boolean(auth.user) && isManager, pollMs: 10_000 }
   );
   const preparing = useOrders(
     { status: OrderStatus.PREPARING, pageSize: 20 },
-    { enabled: Boolean(auth.user) && isManager }
+    { enabled: Boolean(auth.user) && isManager, pollMs: 10_000 }
   );
   // Counts for the KPI tiles — we only need totals, so `pageSize: 1` is enough.
   const deliveredToday = useOrders(
@@ -144,6 +147,35 @@ export function SamouGoStoreManager() {
 
   const incomingItems = useMemo(() => incoming.data?.items ?? [], [incoming.data]);
   const preparingItems = useMemo(() => preparing.data?.items ?? [], [preparing.data]);
+
+  /* ---- New-order chime + toast ------------------------------------------- */
+
+  // Track the set of PENDING ids we have already announced so the same order
+  // does not re-chime on every poll while it sits in the inbox.
+  const announcedIds = useRef<Set<string>>(new Set());
+  const hasLoadedOnce = useRef(false);
+
+  useEffect(() => {
+    if (incoming.loading || !isManager || !auth.user) return;
+    const ids = new Set(incomingItems.map((order) => order.id));
+    const fresh = incomingItems.filter((order) => !announcedIds.current.has(order.id));
+
+    // The first successful load seeds the set without announcing history.
+    if (!hasLoadedOnce.current) {
+      hasLoadedOnce.current = true;
+      announcedIds.current = ids;
+      return;
+    }
+
+    if (fresh.length > 0) {
+      for (const order of fresh) announcedIds.current.add(order.id);
+      // One chime + one toast per poll batch, not per order.
+      playNewOrderChime();
+      const orderLabel = fresh.length === 1 ? `طلب ${fresh[0].orderNumber}` : `${fresh.length} طلبات جديدة`;
+      toast.info(`🔔 ${orderLabel} جديد`, `${fresh.length} new order${fresh.length === 1 ? '' : 's'} arrived`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingItems, incoming.loading, isManager, auth.user]);
   const inbox: OrderSummary[] = useMemo(
     // The "incoming" list as the design mockup showed it — PENDING on top,
     // then PREPARING. Both arrive from the API rather than from a local array.
@@ -167,19 +199,23 @@ export function SamouGoStoreManager() {
     en: string
   ): Promise<void> => {
     setPendingOrderId(orderId);
-    setNotice(null);
     const result = await transition.run({ status: next });
     setPendingOrderId(null);
     if (result) {
-      setNotice(`${ar} · ${en}`);
-      window.setTimeout(() => setNotice(null), 2200);
+      toast.success(ar, en);
       void incoming.reload();
       void preparing.reload();
+    } else if (transition.error) {
+      toast.error(
+        'تعذّر تحديث حالة الطلب',
+        transition.error.message,
+        { duration: 5_000 }
+      );
     }
   };
 
   const handleAccept = (orderId: string) =>
-    void runTransition(orderId, OrderStatus.ACCEPTED, 'تم قبول الطلب', 'Order accepted');
+    void runTransition(orderId, OrderStatus.ACCEPTED, 'تم قبول الطلب بنجاح', 'Order accepted successfully');
   const handleReject = (orderId: string) =>
     void runTransition(orderId, OrderStatus.CANCELLED, 'تم رفض الطلب', 'Order rejected');
 
@@ -374,9 +410,9 @@ export function SamouGoStoreManager() {
             <button
               type="button"
               onClick={() => {
-                void incoming.reload();
-                void preparing.reload();
-                void deliveredToday.reload();
+                void incoming.refresh();
+                void preparing.refresh();
+                void deliveredToday.refresh();
               }}
               disabled={incoming.refreshing || preparing.refreshing}
               className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
@@ -460,7 +496,7 @@ export function SamouGoStoreManager() {
             <button
               key={action.en}
               type="button"
-              onClick={() => setNotice(`${action.ar} — ${action.en}`)}
+              onClick={() => toast.info(`${action.ar}`, `${action.en}`)}
               className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 text-end shadow-card transition hover:border-brand-tint hover:bg-brand-surface focus:outline-none focus:ring-2 focus:ring-brand/30"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
@@ -512,15 +548,6 @@ export function SamouGoStoreManager() {
           </ol>
         )}
       </section>
-
-      {notice && (
-        <p
-          role="status"
-          className="fixed bottom-20 start-4 end-4 z-30 mx-auto max-w-md rounded-xl bg-ink px-4 py-3 text-center text-xs font-bold text-white shadow-raised"
-        >
-          {notice}
-        </p>
-      )}
 
       <nav
         className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface px-3 safe-bottom pt-2 shadow-raised"

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { ChevronRight, Plus, Star, Clock3, MapPin, Minus } from 'lucide-react';
 import { HeaderNav } from './HeaderNav';
 import { BottomTabs } from './BottomTabs';
@@ -65,6 +66,7 @@ export const StoreDetailsMenu = () => {
   const visibleProducts = activeCategory === 'all' ? products : products.filter(product => product.category === activeCategory);
   const itemCount = Object.values(cartItems).reduce((total, count) => total + count, 0);
   const updateCart = (id: string, change: number) => {
+    const previousCount = cartItems[id] || 0;
     setCartItems(current => {
       const nextCount = (current[id] || 0) + change;
       if (nextCount <= 0) {
@@ -79,6 +81,14 @@ export const StoreDetailsMenu = () => {
         [id]: nextCount
       };
     });
+
+    // Feedback the moment an item lands in the cart for the first time.
+    if (change > 0 && previousCount === 0) {
+      const product = products.find(p => p.id === id);
+      if (product) {
+        toast.success(`تمت إضافة ${product.arabicName} إلى السلة · ${product.name} added to cart`);
+      }
+    }
   };
   return <div dir="rtl" className="min-h-screen bg-canvas text-ink pb-36">
       <HeaderNav title="Store Details" arabicTitle="تفاصيل المتجر" showBack={true} showCart={true} cartCount={itemCount} />

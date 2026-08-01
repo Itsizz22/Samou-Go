@@ -144,7 +144,7 @@ export function SamouGoHome() {
             <h2 className="mt-3 text-sm font-extrabold">تعذّر تحميل المتاجر</h2>
             <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">Could not load stores</p>
             <p className="mt-2 text-xs text-ink-soft">{stores.error.message}</p>
-            <button type="button" onClick={stores.reload} disabled={stores.refreshing} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-60">
+            <button type="button" onClick={stores.refresh} disabled={stores.refreshing} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-60">
               {stores.refreshing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
               إعادة المحاولة <span dir="ltr">Retry</span>
             </button>

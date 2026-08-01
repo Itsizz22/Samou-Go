@@ -33,6 +33,7 @@ import {
   useResource,
   useStore,
   useStores,
+  useToast,
 } from '@samou-go/api-client';
 import type {
   CreateOrderInput,
@@ -42,7 +43,11 @@ import type {
   Product,
 } from '@samou-go/shared-types';
 import { DeliveryFee } from '@/components/ui/DeliveryFee';
-import { CURRENCY, formatCurrency } from '@/lib/delivery';
+import {
+  CURRENCY,
+  calculateDeliveryFee,
+  formatCurrency,
+} from '@/lib/delivery';
 import { HeaderNav } from './HeaderNav';
 import { BottomTabs } from './BottomTabs';
 
@@ -73,6 +78,7 @@ function tileTone(index: number): string {
 
 export const CartCheckoutSummary = () => {
   const auth = useAuth();
+  const toast = useToast();
 
   /* ---- Which store are we ordering from? ------------------------------- */
 
@@ -112,7 +118,7 @@ export const CartCheckoutSummary = () => {
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const hasItems = items.length > 0;
 
-  const setQuantity = (productId: string, delta: number) =>
+  const setQuantity = (productId: string, delta: number) => {
     setQuantities((current) => {
       const next = { ...current };
       const quantity = Math.max(0, (current[productId] ?? 0) + delta);
@@ -121,6 +127,22 @@ export const CartCheckoutSummary = () => {
       else next[productId] = quantity;
       return next;
     });
+
+    // Feedback the moment something lands in the basket — the basket itself is
+    // a different tab, so the toast is the only "added" cue.
+    if (delta > 0 && (quantities[productId] ?? 0) === 0) {
+      const product = products.find((p) => p.id === productId);
+      if (product) {
+        toast.success(`تمت إضافة ${product.nameAr} إلى السلة`, `Added to cart`);
+      }
+    }
+  };
+
+  /* ---- Instant delivery-tariff preview ----------------------------------- */
+
+  // The server quote debounces by 300 ms; this preview keeps the fee honest in
+  // the gap, using the exact rule the server prices with (3 ₪ / 5 ₪ ≥ 5 items).
+  const previewDeliveryFee = hasItems ? calculateDeliveryFee(itemCount) : 0;
 
   /* ---- Quote ------------------------------------------------------------ */
 
@@ -171,14 +193,17 @@ export const CartCheckoutSummary = () => {
 
   const canSubmit = hasItems && addressValid && !quoteStale && !submit.pending && Boolean(storeId);
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (!canSubmit || !storeId) return;
-    void submit.run({
+    const result = await submit.run({
       storeId,
       items,
       customerAddressText: address.trim(),
       ...(addressNote.trim() ? { addressNote: addressNote.trim() } : {}),
     });
+    if (result) {
+      toast.success('تم إرسال طلبك بنجاح 🎉', 'Your order has been submitted', { duration: 4_500 });
+    }
   };
 
   /* ---- Gates ------------------------------------------------------------ */
@@ -309,7 +334,7 @@ export const CartCheckoutSummary = () => {
               <p className="mt-2 text-xs text-ink-soft">{catalogueError.message}</p>
               <button
                 type="button"
-                onClick={storeIdParam ? store.reload : storeList.reload}
+                onClick={storeIdParam ? store.refresh : storeList.refresh}
                 disabled={store.refreshing || storeList.refreshing}
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
               >
@@ -532,6 +557,15 @@ export const CartCheckoutSummary = () => {
               <div className="h-4 w-2/3 animate-pulse rounded bg-line-soft" />
               <div className="h-7 w-1/2 animate-pulse rounded bg-line-soft" />
             </div>
+          )}
+
+          {/* Instant delivery-tariff preview — shown while the debounced server
+              quote is still in flight, so the fee never "jumps in" late. Uses the
+              exact rule the server prices with (3 ₪ base, 5 ₪ ≥ 5 items). */}
+          {hasItems && (quoteStale || !bill) && (
+            <dl className="space-y-3 border-t border-dashed border-line pt-3 text-sm" aria-label="Delivery fee preview">
+              <DeliveryFee amount={previewDeliveryFee} variant="row" showIcon note="تقدير فوري · Instant estimate" />
+            </dl>
           )}
 
           {hasItems && bill && (

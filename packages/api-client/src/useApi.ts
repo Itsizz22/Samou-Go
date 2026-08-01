@@ -43,6 +43,11 @@ export interface Resource<T> {
   error: ApiError | null;
   /** Re-runs the request. Safe to pass straight to `onClick`. */
   reload: () => void;
+  /**
+   * Alias of `reload` — used by error/retry cards so the handler reads as
+   * `onClick={refresh}`. Same behaviour: re-runs the request.
+   */
+  refresh: () => void;
 }
 
 export interface ResourceOptions {
@@ -133,7 +138,7 @@ export function useResource<T>(
     return () => clearInterval(timer);
   }, [enabled, pollMs, reload]);
 
-  return { data, loading, refreshing, error, reload };
+  return { data, loading, refreshing, error, reload, refresh: reload };
 }
 
 /* ---------------------------------------------------------------------------

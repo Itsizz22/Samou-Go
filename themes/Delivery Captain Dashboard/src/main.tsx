@@ -50,9 +50,11 @@ document.addEventListener('DOMContentLoaded', forceLightMode);
 // Override system preference changes
 const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 mediaQuery.addEventListener('change', forceLightMode);
+import { Toaster } from 'sonner';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
 createRoot(document.getElementById('root')!).render(<StrictMode>
     <App />
+    <Toaster />
   </StrictMode>);

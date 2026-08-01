@@ -221,7 +221,7 @@ export const LiveOrderTracking = () => {
               <p className="mt-2 text-xs text-ink-soft">{error.message}</p>
               <button
                 type="button"
-                onClick={orderIdParam ? order.reload : recent.reload}
+                onClick={orderIdParam ? order.refresh : recent.refresh}
                 disabled={order.refreshing || recent.refreshing}
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
               >
@@ -330,7 +330,10 @@ export const LiveOrderTracking = () => {
                         {step.state === 'completed' ? (
                           <Check className="h-4 w-4" strokeWidth={3} aria-label="Completed" />
                         ) : step.state === 'active' ? (
-                          <span className="h-2.5 w-2.5 rounded-full bg-brand" aria-label="Active" />
+                          <span
+                            className="h-2.5 w-2.5 animate-pulse rounded-full bg-brand"
+                            aria-label="Active"
+                          />
                         ) : (
                           <span className="h-2 w-2 rounded-full bg-line" aria-label="Pending" />
                         )}
