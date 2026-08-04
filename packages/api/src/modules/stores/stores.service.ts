@@ -1,9 +1,16 @@
 import type { Prisma } from '@prisma/client';
-import type { Paginated, Product, Store, StoreWithCatalogue } from '@samou-go/shared-types';
+import type { Paginated, Product, Store, StoreWithCatalogue, UserRole } from '@samou-go/shared-types';
+import { UserRole as UserRoleEnum } from '@samou-go/shared-types';
 import { prisma } from '../../lib/prisma';
-import { notFound } from '../../lib/http-error';
+import { forbidden, notFound } from '../../lib/http-error';
 import { toProduct, toStore, toStoreWithCatalogue } from './stores.mapper';
-import type { ProductListQuery, StoreListQuery } from './stores.schemas';
+import type {
+  CreateProductBody,
+  ProductListQuery,
+  StoreListQuery,
+  UpdateProductBody,
+  UpdateStoreBody,
+} from './stores.schemas';
 
 function paginate<T>(items: T[], total: number, page: number, pageSize: number): Paginated<T> {
   return {
@@ -14,6 +21,10 @@ function paginate<T>(items: T[], total: number, page: number, pageSize: number):
     totalPages: pageSize > 0 ? Math.ceil(total / pageSize) : 0,
   };
 }
+
+/* ---------------------------------------------------------------------------
+ * Public reads
+ * ------------------------------------------------------------------------- */
 
 export async function listStores(query: StoreListQuery): Promise<Paginated<Store>> {
   const where: Prisma.StoreWhereInput = {
@@ -88,4 +99,143 @@ export async function listStoreProducts(
   ]);
 
   return paginate(rows.map(toProduct), total, query.page, query.pageSize);
+}
+
+/* ---------------------------------------------------------------------------
+ * Ownership guard
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Asserts that `userId` manages `storeId`, or that the caller is an ADMIN.
+ * Throws 403/404 otherwise.
+ */
+export async function assertStoreAccess(
+  storeId: string,
+  userId: string,
+  role: UserRole
+): Promise<void> {
+  if (role === UserRoleEnum.ADMIN) return;
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { managerId: true },
+  });
+  if (!store) throw notFound('المتجر غير موجود / Store not found');
+  if (store.managerId !== userId) {
+    throw forbidden('هذا المتجر لا يخصّك / This store does not belong to you');
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Write operations
+ * ------------------------------------------------------------------------- */
+
+/** PATCH /stores/:storeId */
+export async function updateStore(storeId: string, body: UpdateStoreBody): Promise<Store> {
+  const existing = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true } });
+  if (!existing) throw notFound('المتجر غير موجود / Store not found');
+
+  const updated = await prisma.store.update({
+    where: { id: storeId },
+    data: {
+      ...(body.nameAr !== undefined ? { nameAr: body.nameAr } : {}),
+      ...(body.nameEn !== undefined ? { nameEn: body.nameEn } : {}),
+      ...(body.phone !== undefined ? { phone: body.phone } : {}),
+      ...(body.logoUrl !== undefined ? { logoUrl: body.logoUrl } : {}),
+      ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
+    },
+  });
+  return toStore(updated);
+}
+
+/** POST /stores/:storeId/products */
+export async function createProduct(
+  storeId: string,
+  body: CreateProductBody
+): Promise<Product> {
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true } });
+  if (!store) throw notFound('المتجر غير موجود / Store not found');
+
+  if (body.categoryId) {
+    const cat = await prisma.category.findUnique({
+      where: { id: body.categoryId },
+      select: { storeId: true },
+    });
+    if (!cat || cat.storeId !== storeId) {
+      throw notFound('القسم غير موجود في هذا المتجر / Category not found in this store');
+    }
+  }
+
+  const product = await prisma.product.create({
+    data: {
+      nameAr: body.nameAr,
+      description: body.description ?? null,
+      price: body.price,
+      imageUrl: body.imageUrl ?? null,
+      isAvailable: body.isAvailable ?? true,
+      categoryId: body.categoryId ?? null,
+      storeId,
+    },
+  });
+  return toProduct(product);
+}
+
+/** PATCH /stores/:storeId/products/:productId */
+export async function updateProduct(
+  storeId: string,
+  productId: string,
+  body: UpdateProductBody
+): Promise<Product> {
+  const existing = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { storeId: true },
+  });
+  if (!existing) throw notFound('المنتج غير موجود / Product not found');
+  if (existing.storeId !== storeId) {
+    throw forbidden('المنتج لا ينتمي لهذا المتجر / Product does not belong to this store');
+  }
+
+  if (body.categoryId !== undefined && body.categoryId !== null) {
+    const cat = await prisma.category.findUnique({
+      where: { id: body.categoryId },
+      select: { storeId: true },
+    });
+    if (!cat || cat.storeId !== storeId) {
+      throw notFound('القسم غير موجود في هذا المتجر / Category not found in this store');
+    }
+  }
+
+  const updated = await prisma.product.update({
+    where: { id: productId },
+    data: {
+      ...(body.nameAr !== undefined ? { nameAr: body.nameAr } : {}),
+      ...(body.description !== undefined ? { description: body.description } : {}),
+      ...(body.price !== undefined ? { price: body.price } : {}),
+      ...(body.imageUrl !== undefined ? { imageUrl: body.imageUrl } : {}),
+      ...(body.isAvailable !== undefined ? { isAvailable: body.isAvailable } : {}),
+      ...(body.categoryId !== undefined ? { categoryId: body.categoryId } : {}),
+    },
+  });
+  return toProduct(updated);
+}
+
+/** DELETE /stores/:storeId/products/:productId — soft-deactivates the product.
+ *  Hard delete is intentionally avoided: OrderItem references products with
+ *  `onDelete: Restrict`, so a hard delete of any product with orders would
+ *  fail at the DB layer anyway.
+ */
+export async function deactivateProduct(storeId: string, productId: string): Promise<Product> {
+  const existing = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { storeId: true },
+  });
+  if (!existing) throw notFound('المنتج غير موجود / Product not found');
+  if (existing.storeId !== storeId) {
+    throw forbidden('المنتج لا ينتمي لهذا المتجر / Product does not belong to this store');
+  }
+
+  const updated = await prisma.product.update({
+    where: { id: productId },
+    data: { isAvailable: false },
+  });
+  return toProduct(updated);
 }

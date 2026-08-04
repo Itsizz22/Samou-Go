@@ -10,6 +10,7 @@ import { ok } from '../lib/respond';
 import { authRouter } from '../modules/auth/auth.routes';
 import { storesRouter } from '../modules/stores/stores.routes';
 import { ordersRouter } from '../modules/orders/orders.routes';
+import { usersRouter } from '../modules/users/users.routes';
 
 export const apiRouter: Router = Router();
 
@@ -32,3 +33,4 @@ apiRouter.get('/meta', (_req, res) => {
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/stores', storesRouter);
 apiRouter.use('/orders', ordersRouter);
+apiRouter.use('/users', usersRouter);

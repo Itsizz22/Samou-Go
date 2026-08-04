@@ -160,3 +160,58 @@ export interface OrderQuote {
 export type OrderDetailResponse = ApiSuccess<OrderDetail>;
 export type OrderListResponse = ApiSuccess<Paginated<OrderSummary>>;
 export type AuthSuccessResponse = ApiSuccess<AuthResponse>;
+
+/* ---------------------------------------------------------------------------
+ * Catalogue management (store manager / admin write operations)
+ * ------------------------------------------------------------------------- */
+
+export interface CreateProductInput {
+  nameAr: string;
+  description?: string;
+  price: number;
+  imageUrl?: string;
+  isAvailable?: boolean;
+  categoryId?: string;
+}
+
+export interface UpdateProductInput {
+  nameAr?: string;
+  description?: string;
+  price?: number;
+  imageUrl?: string;
+  isAvailable?: boolean;
+  categoryId?: string;
+}
+
+export interface UpdateStoreInput {
+  nameAr?: string;
+  nameEn?: string;
+  phone?: string;
+  logoUrl?: string;
+  isActive?: boolean;
+}
+
+/* ---------------------------------------------------------------------------
+ * User / profile management
+ * ------------------------------------------------------------------------- */
+
+export interface UpdateProfileInput {
+  name?: string;
+  phone?: string;
+  /** Requires `currentPassword` to be provided when changing password. */
+  newPassword?: string;
+  currentPassword?: string;
+}
+
+export interface UserListQuery extends PaginationQuery {
+  role?: UserRole;
+  isActive?: boolean;
+  search?: string;
+}
+
+export interface UpdateUserInput {
+  name?: string;
+  isActive?: boolean;
+  /** Only ADMIN may change roles. */
+  role?: UserRole;
+}

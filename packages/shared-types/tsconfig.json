@@ -8,5 +8,6 @@
     // hoisted root node_modules/@types (which belongs to the Vite frontends).
     "types": []
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "src/__tests__"]
 }

@@ -48,5 +48,52 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'كلمة المرور مطلوبة / Password is required'),
 });
 
+/** PATCH /auth/me — caller updates their own profile. */
+export const updateProfileSchema = z
+  .object({
+    name: z.string().trim().min(2).max(120).optional(),
+    phone: phoneSchema.optional(),
+    /** Requires currentPassword to be present when provided. */
+    newPassword: passwordSchema.optional(),
+    currentPassword: z.string().min(1).optional(),
+  })
+  .refine(
+    data => {
+      // If newPassword is given, currentPassword must also be present.
+      if (data.newPassword && !data.currentPassword) return false;
+      return true;
+    },
+    { message: 'كلمة المرور الحالية مطلوبة لتغيير كلمة المرور / currentPassword required to set a new password', path: ['currentPassword'] }
+  )
+  .refine(data => Object.keys(data).length > 0, {
+    message: 'يجب توفير حقل واحد على الأقل للتحديث / At least one field required',
+  });
+
+/** PATCH /users/:id — admin updates any user's account. */
+export const adminUpdateUserSchema = z
+  .object({
+    name: z.string().trim().min(2).max(120).optional(),
+    isActive: z.boolean().optional(),
+    role: z.nativeEnum(UserRole).optional(),
+  })
+  .refine(data => Object.keys(data).length > 0, {
+    message: 'يجب توفير حقل واحد على الأقل للتحديث / At least one field required',
+  });
+
+/** GET /users — admin list query. */
+export const userListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+  role: z.nativeEnum(UserRole).optional(),
+  isActive: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform(v => (v === undefined ? undefined : v === 'true')),
+  search: z.string().trim().min(1).max(120).optional(),
+});
+
 export type RegisterBody = z.infer<typeof registerSchema>;
 export type LoginBody = z.infer<typeof loginSchema>;
+export type UpdateProfileBody = z.infer<typeof updateProfileSchema>;
+export type AdminUpdateUserBody = z.infer<typeof adminUpdateUserSchema>;
+export type UserListQuery = z.infer<typeof userListQuerySchema>;

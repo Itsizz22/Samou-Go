@@ -6,36 +6,46 @@
   "license": "UNLICENSED",
   "workspaces": [
     "packages/*",
-    "themes/Customer shop",
-    "themes/Store Details & Product Menu_1",
-    "themes/Live Order Tracking",
-    "themes/Store Manager Dashboard",
-    "themes/Delivery Captain Dashboard"
+    "themes/web-customer",
+    "themes/web-store-details",
+    "themes/web-checkout",
+    "themes/web-order-tracking",
+    "themes/web-store-manager",
+    "themes/web-captain",
+    "themes/web-admin"
   ],
   "engines": {
     "node": ">=20.11"
   },
   "scripts": {
     "build": "tsc -b packages/shared-types packages/api",
+    "build:all": "npm run build && npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck:all": "npm run typecheck && tsc -b packages/shared-types packages/api",
     "typecheck:server": "tsc -b packages/shared-types packages/api --force",
     "typecheck:web-customer": "npm run typecheck --workspace @samou-go/web-customer",
+    "typecheck:web-store-details": "npm run typecheck --workspace @samou-go/web-store-details",
     "typecheck:web-checkout": "npm run typecheck --workspace @samou-go/web-checkout",
     "typecheck:web-order-tracking": "npm run typecheck --workspace @samou-go/web-order-tracking",
     "typecheck:web-store-manager": "npm run typecheck --workspace @samou-go/web-store-manager",
+    "typecheck:web-captain": "npm run typecheck --workspace @samou-go/web-captain",
+    "typecheck:web-admin": "npm run typecheck --workspace @samou-go/web-admin",
     "clean": "tsc -b packages/shared-types packages/api --clean",
     "dev:api": "npm run dev --workspace @samou-go/api",
-    "start:api": "npm run start --workspace @samou-go/api",
     "dev:web-customer": "npm run dev --workspace @samou-go/web-customer",
+    "dev:web-store-details": "npm run dev --workspace @samou-go/web-store-details",
     "dev:web-checkout": "npm run dev --workspace @samou-go/web-checkout",
     "dev:web-order-tracking": "npm run dev --workspace @samou-go/web-order-tracking",
     "dev:web-store-manager": "npm run dev --workspace @samou-go/web-store-manager",
+    "dev:web-captain": "npm run dev --workspace @samou-go/web-captain",
+    "dev:web-admin": "npm run dev --workspace @samou-go/web-admin",
     "db:generate": "npm run prisma:generate --workspace @samou-go/api",
     "db:migrate": "npm run prisma:migrate --workspace @samou-go/api",
     "db:push": "npm run prisma:push --workspace @samou-go/api",
     "db:studio": "npm run prisma:studio --workspace @samou-go/api",
     "db:seed": "npm run prisma:seed --workspace @samou-go/api",
-    "test:e2e": "npm run test:e2e --workspace @samou-go/api"
+    "test:e2e": "npm run test:e2e --workspace @samou-go/api",
+    "test": "npm run test --workspace @samou-go/shared-types"
   },
   "devDependencies": {
     "typescript": "~5.7.2"

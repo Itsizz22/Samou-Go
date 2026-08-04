@@ -1,11 +1,18 @@
-import type { AuthResponse, PublicUser } from '@samou-go/shared-types';
+import type { Prisma } from '@prisma/client';
+import type { AuthResponse, Paginated, PublicUser } from '@samou-go/shared-types';
 import { UserRole } from '@samou-go/shared-types';
 import { prisma } from '../../lib/prisma';
-import { conflict, forbidden, unauthorized } from '../../lib/http-error';
+import { conflict, forbidden, notFound, unauthorized, unprocessable } from '../../lib/http-error';
 import { signAccessToken } from '../../lib/jwt';
 import { hashPassword, verifyPassword } from '../../lib/password';
 import { toPublicUser } from './auth.mapper';
-import type { LoginBody, RegisterBody } from './auth.schemas';
+import type {
+  AdminUpdateUserBody,
+  LoginBody,
+  RegisterBody,
+  UpdateProfileBody,
+  UserListQuery,
+} from './auth.schemas';
 
 /** Roles a caller may create without being an admin. */
 const SELF_SERVICE_ROLES: readonly UserRole[] = [UserRole.CUSTOMER];
@@ -73,4 +80,108 @@ export async function getProfile(userId: string): Promise<PublicUser> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw unauthorized('الحساب غير موجود / Account no longer exists');
   return toPublicUser(user);
+}
+
+/* ---------------------------------------------------------------------------
+ * PATCH /auth/me — caller updates their own profile
+ * ------------------------------------------------------------------------- */
+
+export async function updateProfile(
+  userId: string,
+  body: UpdateProfileBody
+): Promise<PublicUser> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw unauthorized('الحساب غير موجود / Account no longer exists');
+
+  // Password change requires the current password to be verified first.
+  if (body.newPassword) {
+    if (!body.currentPassword) {
+      throw unprocessable(
+        'CURRENT_PASSWORD_REQUIRED',
+        'كلمة المرور الحالية مطلوبة لتغيير كلمة المرور / currentPassword is required to set a new password'
+      );
+    }
+    const matches = await verifyPassword(body.currentPassword, user.passwordHash);
+    if (!matches) {
+      throw unprocessable(
+        'WRONG_PASSWORD',
+        'كلمة المرور الحالية غير صحيحة / Current password is incorrect'
+      );
+    }
+  }
+
+  // Phone uniqueness check — only if changing phone.
+  if (body.phone && body.phone !== user.phone) {
+    const conflict_ = await prisma.user.findUnique({ where: { phone: body.phone } });
+    if (conflict_) {
+      throw conflict('رقم الجوال مسجّل مسبقاً / This phone number is already in use');
+    }
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(body.name !== undefined ? { name: body.name } : {}),
+      ...(body.phone !== undefined ? { phone: body.phone } : {}),
+      ...(body.newPassword ? { passwordHash: await hashPassword(body.newPassword) } : {}),
+    },
+  });
+
+  return toPublicUser(updated);
+}
+
+/* ---------------------------------------------------------------------------
+ * Admin user management — GET /users and PATCH /users/:id
+ * ------------------------------------------------------------------------- */
+
+export async function listUsers(query: UserListQuery): Promise<Paginated<PublicUser>> {
+  const where: Prisma.UserWhereInput = {
+    ...(query.role !== undefined ? { role: query.role } : {}),
+    ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
+    ...(query.search
+      ? {
+          OR: [
+            { name: { contains: query.search, mode: 'insensitive' } },
+            { phone: { contains: query.search } },
+          ],
+        }
+      : {}),
+  };
+
+  const [rows, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      orderBy: [{ role: 'asc' }, { name: 'asc' }],
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize,
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return {
+    items: rows.map(toPublicUser),
+    page: query.page,
+    pageSize: query.pageSize,
+    total,
+    totalPages: Math.ceil(total / query.pageSize),
+  };
+}
+
+export async function adminUpdateUser(
+  targetId: string,
+  body: AdminUpdateUserBody
+): Promise<PublicUser> {
+  const user = await prisma.user.findUnique({ where: { id: targetId } });
+  if (!user) throw notFound('المستخدم غير موجود / User not found');
+
+  const updated = await prisma.user.update({
+    where: { id: targetId },
+    data: {
+      ...(body.name !== undefined ? { name: body.name } : {}),
+      ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
+      ...(body.role !== undefined ? { role: body.role } : {}),
+    },
+  });
+
+  return toPublicUser(updated);
 }

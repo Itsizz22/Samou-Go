@@ -179,7 +179,10 @@ function isOrderNumberCollision(error: unknown): boolean {
   const candidate = error as { code?: unknown; meta?: { target?: unknown } };
   if (candidate.code !== 'P2002') return false;
   const target = candidate.meta?.target;
-  return Array.isArray(target) ? target.includes('orderNumber') : true;
+  // Only retry when the collision is specifically on orderNumber.
+  // Returning true for an unknown target would swallow unrelated P2002s
+  // (e.g. a productId unique violation inside the same transaction).
+  return Array.isArray(target) && target.includes('orderNumber');
 }
 
 /* ---------------------------------------------------------------------------
@@ -363,24 +366,47 @@ export async function updateOrderStatus(
   const assignCaptainOnClaim =
     actor.role === UserRole.CAPTAIN && order.captainId === null && next === OrderStatus.ON_THE_WAY;
 
-  const updated = await prisma.$transaction(async tx => {
-    const result = await tx.order.update({
-      where: { id: orderId },
-      data: {
-        status: next,
-        ...(assignCaptainOnClaim ? { captainId: actor.sub } : {}),
-        statusHistory: {
-          create: {
-            status: next,
-            changedByUserId: actor.sub,
-            note: body.note ?? null,
+  let updated;
+  try {
+    updated = await prisma.$transaction(async tx => {
+      const result = await tx.order.update({
+        where: {
+          id: orderId,
+          // Optimistic lock for captain claim: if another captain already
+          // claimed this order between our read and this write, Prisma will
+          // throw P2025 (record not found for the filter) and we surface a
+          // 409 instead of silently overwriting the first captain's assignment.
+          ...(assignCaptainOnClaim ? { captainId: null } : {}),
+        },
+        data: {
+          status: next,
+          ...(assignCaptainOnClaim ? { captainId: actor.sub } : {}),
+          statusHistory: {
+            create: {
+              status: next,
+              changedByUserId: actor.sub,
+              note: body.note ?? null,
+            },
           },
         },
-      },
-      include: DETAIL_INCLUDE,
+        include: DETAIL_INCLUDE,
+      });
+      return result;
     });
-    return result;
-  });
+  } catch (err) {
+    // P2025 on a claim attempt means another captain got there first.
+    if (
+      assignCaptainOnClaim &&
+      err instanceof Error &&
+      'code' in err &&
+      (err as { code?: string }).code === 'P2025'
+    ) {
+      throw conflict(
+        'الطلب مُسند لكابتن آخر / This order was just claimed by another captain'
+      );
+    }
+    throw err;
+  }
 
   return toOrderDetail(updated);
 }

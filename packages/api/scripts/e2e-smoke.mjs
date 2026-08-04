@@ -119,8 +119,7 @@ check('history recorded every step', done.json.data.statusHistory.length === 6, 
 const afterClose = await setStatus(manager, 'CANCELLED');
 check('closed order is immutable', afterClose.status === 422 && afterClose.json.error.code === 'ORDER_CLOSED', afterClose.status);
 
-console.log('\n[7] role-scoped visibility');
-const otherCustomer = await login('0567300102');
+console.log('\n[7] role-scoped visibility');const otherCustomer = await login('0567300102');
 const peek = await call('GET', '/orders/' + order.id, { token: otherCustomer });
 check('another customer -> 403', peek.status === 403, peek.status);
 
@@ -138,6 +137,41 @@ const esc = await call('POST', '/auth/register', {
   body: { name: 'مهاجم', phone: '0599888777', password: 'samou1234', role: 'ADMIN' },
 });
 check('self-registering as ADMIN -> 403', esc.status === 403, esc.status);
+
+console.log('\n[9] captain race condition (optimistic lock)');
+// Place a fresh order and walk it to READY_FOR_PICKUP so two captains can race.
+const raceOrder = (await call('POST', '/orders', {
+  token: customer,
+  body: {
+    storeId: 'store-shawarma',
+    items: [{ productId: 'p-shawarma-chicken', quantity: 1 }],
+    customerAddressText: 'حارة الرأس، بجانب المسجد',
+  },
+})).json.data;
+
+const captain2 = await login('0567200102');
+check('second captain logged in', Boolean(captain2));
+
+// Walk to READY_FOR_PICKUP with manager token
+await call('PATCH', '/orders/' + raceOrder.id + '/status', { token: manager, body: { status: 'ACCEPTED' } });
+await call('PATCH', '/orders/' + raceOrder.id + '/status', { token: manager, body: { status: 'PREPARING' } });
+await call('PATCH', '/orders/' + raceOrder.id + '/status', { token: manager, body: { status: 'READY_FOR_PICKUP' } });
+
+// Both captains claim simultaneously — only one should win
+const [claim1, claim2] = await Promise.all([
+  call('PATCH', '/orders/' + raceOrder.id + '/status', { token: captain, body: { status: 'ON_THE_WAY' } }),
+  call('PATCH', '/orders/' + raceOrder.id + '/status', { token: captain2, body: { status: 'ON_THE_WAY' } }),
+]);
+
+const statuses = [claim1.status, claim2.status].sort();
+check(
+  'concurrent claims: one 200 and one 409',
+  statuses[0] === 200 && statuses[1] === 409,
+  `statuses: ${statuses.join(', ')}`
+);
+
+const winner = claim1.status === 200 ? claim1 : claim2;
+check('winning captain is assigned on the order', winner.json.data?.captainId !== null, JSON.stringify(winner.json.error ?? ''));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

@@ -9,7 +9,7 @@
             "name": "Run Script: dev (Store Manager Dashboard)",
             "request": "launch",
             "command": "npm run dev",
-            "cwd": "${workspaceFolder}\\themes\\Store Manager Dashboard"
+            "cwd": "${workspaceFolder}\\themes\\web-store-manager"
         }
     ]
 }
