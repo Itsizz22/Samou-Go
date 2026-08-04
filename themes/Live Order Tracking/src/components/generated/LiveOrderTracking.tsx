@@ -286,8 +286,8 @@ export const LiveOrderTracking = () => {
             <p className="mt-1 text-sm text-ink-muted" dir="ltr">
               {ORDER_STATUS_LABELS.CANCELLED.en}
             </p>
-            {detail.statusHistory.at(-1)?.note && (
-              <p className="mt-3 text-xs text-ink-soft">{detail.statusHistory.at(-1)?.note}</p>
+            {detail.statusHistory[detail.statusHistory.length - 1]?.note && (
+              <p className="mt-3 text-xs text-ink-soft">{detail.statusHistory[detail.statusHistory.length - 1]?.note}</p>
             )}
           </section>
         )}
