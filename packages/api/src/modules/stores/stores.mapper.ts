@@ -20,6 +20,7 @@ export function toStore(store: PrismaStore): Store {
     logoUrl: store.logoUrl,
     phone: store.phone,
     isActive: store.isActive,
+    isApproved: store.isApproved,
     managerId: store.managerId,
     createdAt: store.createdAt.toISOString(),
   };

@@ -15,9 +15,24 @@ ordersRouter.post('/quote', optionalAuthenticate, asyncHandler(controller.quoteO
 // Everything below requires a token.
 ordersRouter.use(authenticate);
 
-ordersRouter.post('/', asyncHandler(controller.createOrderHandler));
+ordersRouter.post(
+  '/',
+  authorize(UserRole.CUSTOMER, UserRole.ADMIN),
+  asyncHandler(controller.createOrderHandler)
+);
 ordersRouter.get('/', asyncHandler(controller.listOrdersHandler));
 ordersRouter.get('/:orderId', asyncHandler(controller.getOrderHandler));
+
+/**
+ * Re-order is a customer convenience: clone a past basket at current prices.
+ * The ownership check runs in the service (`assertCanView`), so admins can
+ * reach it too.
+ */
+ordersRouter.post(
+  '/:orderId/reorder',
+  authorize(UserRole.CUSTOMER, UserRole.ADMIN),
+  asyncHandler(controller.reorderOrderHandler)
+);
 
 /**
  * The fine-grained rules live in the service (state machine × role × ownership).

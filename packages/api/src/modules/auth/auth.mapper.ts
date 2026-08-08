@@ -12,6 +12,8 @@ export function toPublicUser(user: User): PublicUser {
     phone: user.phone,
     role: user.role,
     isActive: user.isActive,
+    isVerified: user.isVerified,
+    isAvailable: user.isAvailable,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };

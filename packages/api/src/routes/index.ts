@@ -11,6 +11,9 @@ import { authRouter } from '../modules/auth/auth.routes';
 import { storesRouter } from '../modules/stores/stores.routes';
 import { ordersRouter } from '../modules/orders/orders.routes';
 import { usersRouter } from '../modules/users/users.routes';
+import { captainsRouter } from '../modules/captains/captains.routes';
+import { adminRouter } from '../modules/admin/admin.routes';
+import { favoritesRouter } from '../modules/favorites/favorites.routes';
 
 export const apiRouter: Router = Router();
 
@@ -34,3 +37,6 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/stores', storesRouter);
 apiRouter.use('/orders', ordersRouter);
 apiRouter.use('/users', usersRouter);
+apiRouter.use('/captains', captainsRouter);
+apiRouter.use('/admin', adminRouter);
+apiRouter.use('/favorites', favoritesRouter);

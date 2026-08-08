@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
+import { UserRole } from '@samou-go/shared-types';
 import { created, ok } from '../../lib/respond';
 import { parseWith } from '../../lib/validate';
+import { forbidden } from '../../lib/http-error';
 import { requireAuth } from '../../middleware/authenticate';
 import {
   createProductSchema,
@@ -29,6 +31,18 @@ export async function getStoreHandler(req: Request, res: Response): Promise<void
   ok(res, await storesService.getStoreWithCatalogue(storeId));
 }
 
+/**
+ * GET /api/v1/stores/:storeId/full
+ * Returns all products including unavailable ones.
+ * Requires STORE_MANAGER (own store) or ADMIN.
+ */
+export async function getStoreFullHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const { storeId } = parseWith(storeIdParamsSchema, req.params);
+  await storesService.assertStoreAccess(storeId, auth.sub, auth.role);
+  ok(res, await storesService.getStoreWithFullCatalogue(storeId));
+}
+
 /** GET /api/v1/stores/:storeId/products */
 export async function listStoreProductsHandler(req: Request, res: Response): Promise<void> {
   const { storeId } = parseWith(storeIdParamsSchema, req.params);
@@ -47,6 +61,14 @@ export async function updateStoreHandler(req: Request, res: Response): Promise<v
   await storesService.assertStoreAccess(storeId, auth.sub, auth.role);
   const body = parseWith(updateStoreSchema, req.body);
   ok(res, await storesService.updateStore(storeId, body));
+}
+
+/** PATCH /api/v1/stores/:storeId/approve — ADMIN only, publishes the store. */
+export async function approveStoreHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  if (auth.role !== UserRole.ADMIN) throw forbidden();
+  const { storeId } = parseWith(storeIdParamsSchema, req.params);
+  ok(res, await storesService.approveStore(storeId));
 }
 
 /** POST /api/v1/stores/:storeId/products */

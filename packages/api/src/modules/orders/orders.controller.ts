@@ -44,6 +44,13 @@ export async function getOrderHandler(req: Request, res: Response): Promise<void
   ok(res, await ordersService.getOrder(auth, orderId));
 }
 
+/** POST /api/v1/orders/:orderId/reorder — clone a past basket at current prices. */
+export async function reorderOrderHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const { orderId } = parseWith(orderIdParamsSchema, req.params);
+  ok(res, await ordersService.reorderOrder(auth, orderId));
+}
+
 /** PATCH /api/v1/orders/:orderId/status */
 export async function updateOrderStatusHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);

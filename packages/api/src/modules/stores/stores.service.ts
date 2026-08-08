@@ -28,7 +28,10 @@ function paginate<T>(items: T[], total: number, page: number, pageSize: number):
 
 export async function listStores(query: StoreListQuery): Promise<Paginated<Store>> {
   const where: Prisma.StoreWhereInput = {
-    ...(query.activeOnly ? { isActive: true } : {}),
+    // `activeOnly` is the public catalogue: live AND approved. An admin asking
+    // for everything (`activeOnly: false`) sees unapproved stores too, so the
+    // approval workflow can list them.
+    ...(query.activeOnly ? { isActive: true, isApproved: true } : {}),
     ...(query.search
       ? {
           OR: [
@@ -62,6 +65,38 @@ export async function getStoreWithCatalogue(storeId: string): Promise<StoreWithC
         include: {
           products: {
             where: { isAvailable: true },
+            orderBy: { nameAr: 'asc' },
+          },
+        },
+      },
+    },
+  });
+
+  if (!store) throw notFound('المتجر غير موجود / Store not found');
+  // A shop that is closed or not yet approved has no public page. Managers
+  // preview their own shop through the authenticated `/full` route instead.
+  if (!store.isActive || !store.isApproved) {
+    throw notFound('المتجر غير موجود / Store not found');
+  }
+
+  return toStoreWithCatalogue(store);
+}
+
+/**
+ * One store with its COMPLETE catalogue — all products regardless of
+ * availability. Used by the store manager dashboard so the manager can
+ * re-enable a product they previously marked unavailable.
+ * Never called from public-facing routes.
+ */
+export async function getStoreWithFullCatalogue(storeId: string): Promise<StoreWithCatalogue> {
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    include: {
+      categories: {
+        orderBy: [{ sortOrder: 'asc' }, { nameAr: 'asc' }],
+        include: {
+          products: {
+            // No isAvailable filter — the manager needs to see everything.
             orderBy: { nameAr: 'asc' },
           },
         },
@@ -142,7 +177,20 @@ export async function updateStore(storeId: string, body: UpdateStoreBody): Promi
       ...(body.phone !== undefined ? { phone: body.phone } : {}),
       ...(body.logoUrl !== undefined ? { logoUrl: body.logoUrl } : {}),
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
+      ...(body.isApproved !== undefined ? { isApproved: body.isApproved } : {}),
     },
+  });
+  return toStore(updated);
+}
+
+/** PATCH /stores/:storeId/approve — admin clears a new store into the catalogue. */
+export async function approveStore(storeId: string): Promise<Store> {
+  const existing = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true } });
+  if (!existing) throw notFound('المتجر غير موجود / Store not found');
+
+  const updated = await prisma.store.update({
+    where: { id: storeId },
+    data: { isApproved: true },
   });
   return toStore(updated);
 }

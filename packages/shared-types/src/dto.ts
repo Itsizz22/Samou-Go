@@ -5,8 +5,8 @@
  * can be typed against the API without importing server code.
  */
 
-import type { OrderStatus, UserRole } from './enums';
-import type { OrderDetail, OrderSummary, PublicUser } from './models';
+import type { OrderStatus, UserRole, VoucherDiscountType } from './enums';
+import type { OrderDetail, OrderSummary, Product, PublicUser, Store } from './models';
 
 /* ---------------------------------------------------------------------------
  * Envelope
@@ -73,6 +73,41 @@ export interface AuthResponse {
   accessToken: string;
   /** Seconds until `accessToken` expires. */
   expiresIn: number;
+  /**
+   * Opaque long-lived token, hashed at rest, used to mint new access tokens
+   * without re-entering credentials. Rotated on every refresh. Absent on
+   * legacy login responses from older servers — treat as optional.
+   */
+  refreshToken?: string;
+}
+
+/* ---------------------------------------------------------------------------
+ * OTP (passwordless phone sign-in)
+ * ------------------------------------------------------------------------- */
+
+/** POST /auth/otp/request — ask for a one-time code on a mobile number. */
+export interface OtpRequestInput {
+  /** `05XXXXXXXX` — Palestinian mobile. */
+  phone: string;
+}
+
+/** POST /auth/otp/verify — exchange a code for a session. */
+export interface OtpVerifyInput {
+  /** `05XXXXXXXX` — the phone the code was sent to. */
+  phone: string;
+  /** 6-digit code. */
+  code: string;
+  /**
+   * For a brand-new phone number the server auto-provisions a CUSTOMER
+   * account; pass a display name to avoid the placeholder. Ignored when the
+   * phone already has an account.
+   */
+  name?: string;
+}
+
+/** POST /auth/refresh — exchange a refresh token for a fresh pair. */
+export interface RefreshTokenInput {
+  refreshToken: string;
 }
 
 /** Decoded JWT body. Kept small — never put a role-changing flag in here. */
@@ -113,13 +148,15 @@ export interface CreateOrderItemInput {
 /**
  * Note what is NOT here: `subtotal`, `deliveryFee`, `totalAmount`.
  * The client never sends money. The server prices the basket from the database
- * and derives the fee via `calculateDeliveryFee`.
+ * and derives the fee via `calculateDeliveryFee`. `voucherCode` is a CODE, not
+ * an amount — the server resolves it and computes the discount itself.
  */
 export interface CreateOrderInput {
   storeId: string;
   items: CreateOrderItemInput[];
   customerAddressText: string;
   addressNote?: string;
+  voucherCode?: string;
 }
 
 export interface UpdateOrderStatusInput {
@@ -141,16 +178,45 @@ export interface OrderListQuery extends PaginationQuery {
 export interface QuoteOrderInput {
   storeId: string;
   items: CreateOrderItemInput[];
+  voucherCode?: string;
 }
 
 export interface OrderQuote {
   itemCount: number;
   subtotal: number;
   deliveryFee: number;
+  /** Voucher savings in ILS — 0 when none was applied. */
+  discount: number;
+  /** Human-readable savings label, e.g. "خصم كوبون / Voucher". */
+  discountLabel?: string;
   totalAmount: number;
   currency: string;
   /** `"رسوم التوصيل / Delivery Fee"` — rendered, never hardcoded client-side. */
   deliveryFeeLabel: string;
+  /** The resolved voucher, when one was applied. */
+  voucher?: { code: string; labelAr: string; labelEn: string; discount: number } | null;
+}
+
+/**
+ * Re-order — clones a past order's basket using CURRENT product prices.
+ * The client then loads these into the cart; it never sends money.
+ */
+export interface ReorderItem {
+  product: Product;
+  quantity: number;
+}
+
+export interface ReorderResult {
+  storeId: string;
+  storeNameAr: string;
+  items: ReorderItem[];
+  /** Products that were dropped because they are no longer available. */
+  skipped: number;
+}
+
+/** The signed-in customer's favorited stores. */
+export interface FavoriteListResult {
+  items: Store[];
 }
 
 /* ---------------------------------------------------------------------------
@@ -189,6 +255,8 @@ export interface UpdateStoreInput {
   phone?: string;
   logoUrl?: string;
   isActive?: boolean;
+  /** Admin-only: flips a store's visibility to the public catalogue. */
+  isApproved?: boolean;
 }
 
 /* ---------------------------------------------------------------------------
@@ -214,4 +282,54 @@ export interface UpdateUserInput {
   isActive?: boolean;
   /** Only ADMIN may change roles. */
   role?: UserRole;
+  /** Admin flag — captain verification. */
+  isVerified?: boolean;
+}
+
+/** PATCH /auth/me/availability — a captain flips their own online/offline state. */
+export interface SetAvailabilityInput {
+  isAvailable: boolean;
+}
+
+/* ---------------------------------------------------------------------------
+ * Admin dashboard — GET /admin/stats
+ * ------------------------------------------------------------------------- */
+
+/**
+ * The single aggregate the admin dashboard renders. One round-trip instead of
+ * five screens worth of parallel list queries, because the dashboard only
+ * needs counts plus a handful of recent rows.
+ */
+export interface AdminStats {
+  revenue: {
+    /** Lifetime takings, excluding CANCELLED orders. */
+    total: number;
+    /** Takings since server-local midnight, excluding CANCELLED orders. */
+    today: number;
+  };
+  orders: {
+    total: number;
+    /** Not yet DELIVERED or CANCELLED. */
+    active: number;
+    byStatus: Record<OrderStatus, number>;
+  };
+  captains: {
+    total: number;
+    /** Active captains available to take jobs. */
+    online: number;
+    verified: number;
+  };
+  stores: {
+    total: number;
+    /** Live in the public catalogue. */
+    active: number;
+    /** Waiting for admin approval. */
+    pendingApproval: number;
+  };
+  users: {
+    total: number;
+    byRole: Record<UserRole, number>;
+  };
+  /** The five most recent orders, for the dashboard table. */
+  recentOrders: OrderSummary[];
 }

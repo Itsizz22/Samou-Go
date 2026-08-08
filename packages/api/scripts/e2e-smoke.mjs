@@ -96,16 +96,16 @@ console.log('\n[6] state machine');
 const setStatus = (token, status) => call('PATCH', '/orders/' + order.id + '/status', { token, body: { status } });
 
 const skip = await setStatus(manager, 'ON_THE_WAY');
-check('PENDING -> ON_THE_WAY blocked', skip.status === 422 && skip.json.error.code === 'ILLEGAL_TRANSITION', skip.status);
+check('PENDING -> ON_THE_WAY blocked', skip.status === 400 && skip.json.error.code === 'ILLEGAL_TRANSITION', skip.status);
 
 const wrongRole = await setStatus(captain, 'ACCEPTED');
-check('captain cannot ACCEPT', wrongRole.status === 403 || wrongRole.status === 422, wrongRole.status);
+check('captain cannot ACCEPT', wrongRole.status === 403 || wrongRole.status === 400, wrongRole.status);
 
 check('manager: ACCEPTED', (await setStatus(manager, 'ACCEPTED')).status === 200);
 check('manager: PREPARING', (await setStatus(manager, 'PREPARING')).status === 200);
 
 const lateCancel = await setStatus(customer, 'CANCELLED');
-check('customer cannot cancel while PREPARING', lateCancel.status === 422 && lateCancel.json.error.code === 'CANCEL_WINDOW_CLOSED', JSON.stringify(lateCancel.json.error));
+check('customer cannot cancel while PREPARING', lateCancel.status === 400 && lateCancel.json.error.code === 'CANCEL_WINDOW_CLOSED', JSON.stringify(lateCancel.json.error));
 
 check('manager: READY_FOR_PICKUP', (await setStatus(manager, 'READY_FOR_PICKUP')).status === 200);
 
@@ -117,7 +117,7 @@ check('captain: DELIVERED', done.status === 200);
 check('history recorded every step', done.json.data.statusHistory.length === 6, done.json.data.statusHistory.map(h => h.status).join(' > '));
 
 const afterClose = await setStatus(manager, 'CANCELLED');
-check('closed order is immutable', afterClose.status === 422 && afterClose.json.error.code === 'ORDER_CLOSED', afterClose.status);
+check('closed order is immutable', afterClose.status === 400 && afterClose.json.error.code === 'ORDER_CLOSED', afterClose.status);
 
 console.log('\n[7] role-scoped visibility');const otherCustomer = await login('0567300102');
 const peek = await call('GET', '/orders/' + order.id, { token: otherCustomer });

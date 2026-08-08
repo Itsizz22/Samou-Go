@@ -26,6 +26,10 @@ export interface PublicUser {
   phone: string;
   role: UserRole;
   isActive: boolean;
+  /** CAPTAIN accounts need admin verification before taking jobs. */
+  isVerified: boolean;
+  /** CAPTAIN self-managed availability — must be on to claim orders. */
+  isAvailable: boolean;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime;
 }
@@ -41,6 +45,8 @@ export interface Store {
   logoUrl: string | null;
   phone: string;
   isActive: boolean;
+  /** Hidden from the public catalogue until an admin approves the store. */
+  isApproved: boolean;
   managerId: string;
   createdAt: IsoDateTime;
 }
@@ -116,6 +122,10 @@ export interface Order {
   subtotal: number;
   /** Always derived from item count via `calculateDeliveryFee`. */
   deliveryFee: number;
+  /** Voucher savings in ILS — 0 when no voucher was applied. */
+  discount: number;
+  /** The voucher that produced `discount`, or null. */
+  voucherId: string | null;
   totalAmount: number;
   paymentMethod: PaymentMethod;
   createdAt: IsoDateTime;
@@ -134,6 +144,8 @@ export interface OrderDetail extends Order {
   store: Pick<Store, 'id' | 'nameAr' | 'nameEn' | 'phone'>;
   captain: Pick<PublicUser, 'id' | 'name' | 'phone'> | null;
   statusHistory: OrderStatusHistoryEntry[];
+  /** Resolved voucher identity for the discount — `null` when not applied. */
+  voucher: { code: string; labelAr: string; labelEn: string } | null;
 }
 
 /** The condensed row used in list views. */
@@ -144,6 +156,7 @@ export interface OrderSummary {
   itemCount: number;
   totalAmount: number;
   deliveryFee: number;
+  discount: number;
   storeNameAr: string;
   createdAt: IsoDateTime;
 }

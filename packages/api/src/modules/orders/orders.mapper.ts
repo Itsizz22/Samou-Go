@@ -5,6 +5,7 @@ import type {
   Product as PrismaProduct,
   Store as PrismaStore,
   User as PrismaUser,
+  Voucher as PrismaVoucher,
 } from '@prisma/client';
 import type {
   Order,
@@ -21,6 +22,7 @@ export type OrderWithRelations = PrismaOrder & {
   customer: PrismaUser;
   store: PrismaStore;
   captain: PrismaUser | null;
+  voucher: PrismaVoucher | null;
   statusHistory: PrismaStatusHistory[];
 };
 
@@ -41,6 +43,8 @@ export function toOrder(order: PrismaOrder): Order {
     addressNote: order.addressNote,
     subtotal: decimalToNumber(order.subtotal),
     deliveryFee: decimalToNumber(order.deliveryFee),
+    discount: decimalToNumber(order.discount),
+    voucherId: order.voucherId,
     totalAmount: decimalToNumber(order.totalAmount),
     paymentMethod: order.paymentMethod,
     createdAt: order.createdAt.toISOString(),
@@ -91,6 +95,13 @@ export function toOrderDetail(order: OrderWithRelations): OrderDetail {
       phone: order.store.phone,
     },
     captain: order.captain ? toContact(order.captain) : null,
+    voucher: order.voucher
+      ? {
+          code: order.voucher.code,
+          labelAr: order.voucher.labelAr,
+          labelEn: order.voucher.labelEn,
+        }
+      : null,
     statusHistory: order.statusHistory.map(toStatusHistoryEntry),
   };
 }
@@ -103,6 +114,7 @@ export function toOrderSummary(order: OrderForSummary): OrderSummary {
     itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
     totalAmount: decimalToNumber(order.totalAmount),
     deliveryFee: decimalToNumber(order.deliveryFee),
+    discount: decimalToNumber(order.discount),
     storeNameAr: order.store.nameAr,
     createdAt: order.createdAt.toISOString(),
   };

@@ -1,5 +1,6 @@
 import React from 'react';
-import { ChevronLeft, ShoppingCart, Bell } from 'lucide-react';
+import { ChevronLeft, ShoppingCart } from 'lucide-react';
+import { NotificationBell, type BellNotification } from '@samou-go/ui';
 interface HeaderNavProps {
   title: string;
   arabicTitle?: string;
@@ -8,6 +9,11 @@ interface HeaderNavProps {
   showCart?: boolean;
   cartCount?: number;
   onCartClick?: () => void;
+  /** Live notifications — turns the header bell into a real notification center. */
+  notifications?: BellNotification[];
+  /** Namespace for the bell's read-marker, e.g. `"tracking"`. */
+  storageKey?: string;
+  onNotificationNavigate?: (href: string) => void;
 }
 export const HeaderNav: React.FC<HeaderNavProps> = ({
   title,
@@ -16,7 +22,10 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   onBack,
   showCart = true,
   cartCount = 0,
-  onCartClick
+  onCartClick,
+  notifications,
+  storageKey = 'customer',
+  onNotificationNavigate
 }) => {
   return <header className="sticky top-0 z-50 flex items-center justify-between w-full h-16 px-4 bg-surface border-b border-line shadow-card">
       <div className="flex items-center gap-3">
@@ -40,9 +49,12 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                 {cartCount}
               </span>}
           </button>}
-        <button className="p-2 transition-colors rounded-full hover:bg-canvas active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label="Notifications">
-          <Bell className="w-6 h-6 text-ink-soft" />
-        </button>
+        <NotificationBell
+          notifications={notifications ?? []}
+          storageKey={storageKey}
+          max={8}
+          onNavigate={(href) => onNotificationNavigate ? onNotificationNavigate(href) : (window.location.href = href)}
+        />
       </div>
     </header>;
 };

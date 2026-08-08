@@ -6,6 +6,13 @@ interface ImportMetaEnv {
    * Falls back to `http://localhost:4000/api/v1` when unset — see `.env.example`.
    */
   readonly VITE_API_URL?: string;
+
+  /**
+   * Mobile (Capacitor) base host, e.g. `http://192.168.1.20:4000` or a
+   * production origin. Takes precedence over `VITE_API_URL`; `/api/v1` is
+   * appended automatically when not already present.
+   */
+  readonly VITE_API_BASE_URL?: string;
 }
 
 interface ImportMeta {

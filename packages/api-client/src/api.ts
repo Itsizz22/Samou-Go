@@ -24,25 +24,37 @@
  */
 
 import type {
+  AdminStats,
   ApiFieldError,
   ApiResponse,
   AuthResponse,
   CreateOrderInput,
+  CreateProductInput,
+  FavoriteListResult,
   LoginInput,
   OrderDetail,
   OrderListQuery,
   OrderQuote,
   OrderSummary,
+  OtpRequestInput,
+  OtpVerifyInput,
   Paginated,
   Product,
   ProductListQuery,
   PublicUser,
   QuoteOrderInput,
   RegisterInput,
+  ReorderResult,
+  SetAvailabilityInput,
   Store,
   StoreListQuery,
   StoreWithCatalogue,
   UpdateOrderStatusInput,
+  UpdateProductInput,
+  UpdateProfileInput,
+  UpdateStoreInput,
+  UserListQuery,
+  UpdateUserInput,
 } from '@samou-go/shared-types';
 import type { DeliveryFeeConfig, Locale, OrderStatus, UserRole } from '@samou-go/shared-types';
 
@@ -50,20 +62,68 @@ import type { DeliveryFeeConfig, Locale, OrderStatus, UserRole } from '@samou-go
  * Configuration
  * ------------------------------------------------------------------------- */
 
-/** Used when `VITE_API_URL` is unset, which is the normal case in development. */
-export const DEFAULT_API_URL = 'http://localhost:4000/api/v1';
+/**
+ * LAN fallback base host — the dev machine's IP on the office network. A phone
+ * on the same Wi-Fi reaches the API through this without any extra config; it
+ * is also what the browser dev servers use when no env var is set.
+ */
+export const LAN_DEV_API_BASE = 'http://192.168.0.111:4000';
 
-/** Resolved once at module load; Vite inlines the env var at build time. */
-export const API_URL: string = (import.meta.env.VITE_API_URL ?? DEFAULT_API_URL).replace(/\/+$/, '');
+/** Full API URL for the LAN fallback (`/api/v1` appended). Kept for callers that import it. */
+export const DEFAULT_API_URL = `${LAN_DEV_API_BASE}/api/v1`;
+
+/** Appends `/api/v1` to a base host unless it already carries a version prefix. */
+function withVersionPrefix(base: string): string {
+  const trimmed = base.replace(/\/+$/, '');
+  return /\/api\/v\d+$/.test(trimmed) ? trimmed : `${trimmed}/api/v1`;
+}
+
+/**
+ * Resolved once at module load; Vite inlines the env var at build time.
+ *
+ * Precedence, logged on boot so the active choice is never silent:
+ *
+ *   1. `VITE_API_BASE_URL` — a base host (e.g. `http://192.168.1.20:4000`, an
+ *      ngrok tunnel, or a deployed origin). May already include `/api/v1`.
+ *   2. `VITE_API_URL` — full API URL verbatim (legacy, unchanged).
+ *   3. LAN fallback {@link LAN_DEV_API_BASE} — the dev machine's own IP, so a
+ *      phone on the same network works with no configuration at all.
+ *
+ * If none resolves to a non-empty string the module throws at import time
+ * rather than letting every request silently go to `undefined/api/v1`.
+ */
+export const API_URL: string = (() => {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL;
+  if (baseUrl) {
+    const url = withVersionPrefix(baseUrl);
+    console.info(`[api-client] API base URL — VITE_API_BASE_URL: ${url}`);
+    return url;
+  }
+
+  const legacyUrl = import.meta.env.VITE_API_URL;
+  if (legacyUrl) {
+    const url = legacyUrl.replace(/\/+$/, '');
+    console.info(`[api-client] API base URL — VITE_API_URL: ${url}`);
+    return url;
+  }
+
+  const lanUrl = withVersionPrefix(LAN_DEV_API_BASE);
+  console.info(`[api-client] API base URL — LAN fallback (${LAN_DEV_API_BASE}): ${lanUrl}`);
+
+  if (!lanUrl) {
+    throw new Error(
+      'Samou Go API base URL is empty. Set VITE_API_BASE_URL or VITE_API_URL in the web app .env file.'
+    );
+  }
+
+  return lanUrl;
+})();
 
 /**
  * Samou' runs on patchy mobile data. Twelve seconds is long enough for a slow
  * 3G round-trip and short enough that a dead server does not freeze a spinner.
  */
 const DEFAULT_TIMEOUT_MS = 12_000;
-
-/** `localStorage` key holding the bearer token. */
-const TOKEN_STORAGE_KEY = 'samou-go.accessToken';
 
 /* ---------------------------------------------------------------------------
  * Errors
@@ -128,13 +188,82 @@ export class ApiError extends Error {
 /**
  * Kept in `localStorage` so a refresh does not sign the customer out.
  * Wrapped in try/catch because Safari private mode throws on access.
+ *
+ * On a native Capacitor device the storage is swapped for the encrypted
+ * Android Keystore / iOS Keychain via {@link registerTokenStorage}, so an
+ * extracted WebView database or a rooted-device backup yields nothing. The
+ * in-memory copy keeps callers synchronous; {@link hydrateAuthSession} is
+ * called once at app boot to pull persisted tokens into it.
  */
+
+const TOKEN_STORAGE_KEY = 'samou-go.accessToken';
+const REFRESH_TOKEN_STORAGE_KEY = 'samou-go.refreshToken';
+
+/** The persistence contract a native app satisfies with Secure Storage. */
+export interface TokenStorageAdapter {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
+}
+
+let secureStorage: TokenStorageAdapter | null = null;
+
+/**
+ * Registers the native Secure Storage adapter (from `capacitor-secure-storage-plugin`).
+ * Call before the app renders and BEFORE {@link hydrateAuthSession}. Pass `null`
+ * to run purely on the in-memory + localStorage fallback (browser / dev).
+ */
+export function registerTokenStorage(adapter: TokenStorageAdapter | null): void {
+  secureStorage = adapter;
+}
+
 let inMemoryToken: string | null = null;
+let inMemoryRefreshToken: string | null = null;
+
+/**
+ * Reads persisted tokens from the secure adapter (native) or localStorage
+ * (browser) into memory. Await this at startup, before rendering, so the first
+ * request issued by a screen sees the restored session.
+ */
+export async function hydrateAuthSession(): Promise<void> {
+  try {
+    if (secureStorage) {
+      const [access, refresh] = await Promise.all([
+        secureStorage.getItem(TOKEN_STORAGE_KEY),
+        secureStorage.getItem(REFRESH_TOKEN_STORAGE_KEY),
+      ]);
+      inMemoryToken = access ?? localStorage.getItem(TOKEN_STORAGE_KEY) ?? null;
+      inMemoryRefreshToken = refresh ?? localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) ?? null;
+      return;
+    }
+    inMemoryToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+    inMemoryRefreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+  } catch {
+    inMemoryToken = null;
+    inMemoryRefreshToken = null;
+  }
+}
+
+/** Best-effort persistence; failures never surface — the in-memory copy rules. */
+function persist(key: string, value: string | null): void {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {
+    /* Private mode — the in-memory copy still carries this session. */
+  }
+  if (secureStorage) {
+    const promise = value === null ? secureStorage.removeItem(key) : secureStorage.setItem(key, value);
+    promise.catch(() => {
+      /* Native write failed (e.g. locked Keychain) — localStorage fallback stands. */
+    });
+  }
+}
 
 export function getToken(): string | null {
   if (inMemoryToken !== null) return inMemoryToken;
   try {
-    inMemoryToken = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+    inMemoryToken = localStorage.getItem(TOKEN_STORAGE_KEY);
   } catch {
     inMemoryToken = null;
   }
@@ -143,16 +272,62 @@ export function getToken(): string | null {
 
 export function setToken(token: string | null): void {
   inMemoryToken = token;
-  try {
-    if (token === null) window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-    else window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
-  } catch {
-    /* Private mode — the in-memory copy still carries this session. */
-  }
+  persist(TOKEN_STORAGE_KEY, token);
+  notifyTokenChange();
 }
 
 export function clearToken(): void {
   setToken(null);
+}
+
+/**
+ * Token lifecycle is app-global (any screen can sign in or out), so a store
+ * that caches session-scoped data — favorites, for instance — needs a way to
+ * hear about it. Subscribe here and re-read `getToken()` when notified.
+ * Returns an unsubscribe function.
+ */
+export function subscribeTokenChange(listener: () => void): () => void {
+  tokenChangeListeners.add(listener);
+  return () => {
+    tokenChangeListeners.delete(listener);
+  };
+}
+
+const tokenChangeListeners = new Set<() => void>();
+
+function notifyTokenChange(): void {
+  tokenChangeListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {
+      /* A listener must never take the auth layer down with it. */
+    }
+  });
+}
+
+export function getRefreshToken(): string | null {
+  if (inMemoryRefreshToken !== null) return inMemoryRefreshToken;
+  try {
+    inMemoryRefreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+  } catch {
+    inMemoryRefreshToken = null;
+  }
+  return inMemoryRefreshToken;
+}
+
+export function setRefreshToken(token: string | null): void {
+  inMemoryRefreshToken = token;
+  persist(REFRESH_TOKEN_STORAGE_KEY, token);
+}
+
+export function clearTokens(): void {
+  clearToken();
+  setRefreshToken(null);
+}
+
+/** True when either credential is present — used for session-restore probes. */
+export function hasStoredSession(): boolean {
+  return getToken() !== null || getRefreshToken() !== null;
 }
 
 /* ---------------------------------------------------------------------------
@@ -171,6 +346,8 @@ interface RequestOptions {
   /** Caller-owned cancellation, e.g. a React effect cleanup. */
   signal?: AbortSignal;
   timeoutMs?: number;
+  /** Internal: never retry with a refreshed token (used by the refresh call itself). */
+  bypassRefreshRetry?: boolean;
 }
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
@@ -230,14 +407,68 @@ async function readEnvelope<T>(response: Response): Promise<ApiResponse<T> | nul
   }
 }
 
-async function request<T>(
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
-  path: string,
-  options: RequestOptions = {}
-): Promise<T> {
-  const { body, query, auth = false, signal: externalSignal, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
+/**
+ * Single-flight session refresh. When several parallel requests all hit an
+ * expired access token at once, exactly one `/auth/refresh` round-trip happens
+ * and the rest await the same promise, then retry with the fresh token.
+ */
+let refreshInFlight: Promise<boolean> | null = null;
 
-  const headers: Record<string, string> = { Accept: 'application/json' };
+async function refreshSessionIfPossible(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const refresh = getRefreshToken();
+    if (!refresh) {
+      clearTokens();
+      return false;
+    }
+    try {
+      const result = await request<AuthResponse>(
+        'POST',
+        '/auth/refresh',
+        { body: { refreshToken: refresh } },
+        true
+      );
+      setToken(result.accessToken);
+      setRefreshToken(result.refreshToken ?? null);
+      return true;
+    } catch {
+      // Offline or rejected — the session is gone; drop the dead credentials so
+      // the UI can show a sign-in gate instead of infinite retries.
+      clearTokens();
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
+}
+
+async function request<T>(
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  path: string,
+  options: RequestOptions = {},
+  alreadyRefreshed = false
+): Promise<T> {
+  const {
+    body,
+    query,
+    auth = false,
+    signal: externalSignal,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    bypassRefreshRetry = false,
+  } = options;
+
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    // Free-tier ngrok serves an interstitial "browser warning" page to requests
+    // it does not recognise as a real browser. The Capacitor WebView counts as a
+    // browser, so without this header a phone on cellular data would receive the
+    // HTML warning instead of the API envelope. Harmless when not tunnelling.
+    'ngrok-skip-browser-warning': 'true',
+  };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
 
   if (auth) {
@@ -281,7 +512,13 @@ async function request<T>(
   const envelope = await readEnvelope<T>(response);
 
   if (envelope && envelope.success === false) {
-    // A rejected token is dead weight; drop it so the UI stops re-sending it.
+    // An expired access token triggers ONE silent refresh, then a retry. A
+    // second 401 (or a failed refresh) means the session is genuinely dead.
+    if (response.status === 401 && auth && !alreadyRefreshed && !bypassRefreshRetry) {
+      if (await refreshSessionIfPossible()) {
+        return request<T>(method, path, options, true);
+      }
+    }
     if (response.status === 401) clearToken();
     throw new ApiError(
       envelope.error.code,
@@ -292,6 +529,11 @@ async function request<T>(
   }
 
   if (!response.ok) {
+    if (response.status === 401 && auth && !alreadyRefreshed && !bypassRefreshRetry) {
+      if (await refreshSessionIfPossible()) {
+        return request<T>(method, path, options, true);
+      }
+    }
     if (response.status === 401) clearToken();
     throw new ApiError(
       `HTTP_${response.status}`,
@@ -344,6 +586,17 @@ export function getStores(query: StoreListQuery = {}, signal?: AbortSignal): Pro
 /** One store with its categories and available products inlined. */
 export function getStore(storeId: string, signal?: AbortSignal): Promise<StoreWithCatalogue> {
   return request<StoreWithCatalogue>('GET', `/stores/${encodeURIComponent(storeId)}`, { signal });
+}
+
+/**
+ * Full catalogue for the store manager — includes unavailable products so the
+ * manager can re-enable them. Requires STORE_MANAGER (own store) or ADMIN.
+ */
+export function getStoreManager(storeId: string, signal?: AbortSignal): Promise<StoreWithCatalogue> {
+  return request<StoreWithCatalogue>('GET', `/stores/${encodeURIComponent(storeId)}/full`, {
+    auth: true,
+    signal,
+  });
 }
 
 /** Paginated products within a store, filterable by category or search term. */
@@ -415,14 +668,55 @@ export function updateOrderStatus(
   });
 }
 
+/**
+ * Re-order — clones a past order's basket using CURRENT product prices, so the
+ * customer can load it straight into the cart. Requires the same visibility the
+ * order itself does (owner, or admin).
+ */
+export function reorderOrder(orderId: string, signal?: AbortSignal): Promise<ReorderResult> {
+  return request<ReorderResult>('POST', `/orders/${encodeURIComponent(orderId)}/reorder`, {
+    auth: true,
+    signal,
+  });
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/favorites — the signed-in customer's favourite stores
+ * ------------------------------------------------------------------------- */
+
+/** The customer's favorited stores, newest first. */
+export function getFavorites(signal?: AbortSignal): Promise<FavoriteListResult> {
+  return request<FavoriteListResult>('GET', '/favorites', { auth: true, signal });
+}
+
+/** Idempotently adds a store to the customer's favorites. */
+export function addFavorite(storeId: string, signal?: AbortSignal): Promise<{ favorited: true }> {
+  return request<{ favorited: true }>('PUT', `/favorites/${encodeURIComponent(storeId)}`, {
+    auth: true,
+    signal,
+  });
+}
+
+/** Idempotently removes a store from the customer's favorites. */
+export function removeFavorite(
+  storeId: string,
+  signal?: AbortSignal
+): Promise<{ favorited: false }> {
+  return request<{ favorited: false }>('DELETE', `/favorites/${encodeURIComponent(storeId)}`, {
+    auth: true,
+    signal,
+  });
+}
+
 /* ---------------------------------------------------------------------------
  * /api/v1/auth
  * ------------------------------------------------------------------------- */
 
-/** Signs in and stores the bearer token for every later call. */
+/** Signs in and stores the bearer + refresh tokens for every later call. */
 export async function login(input: LoginInput, signal?: AbortSignal): Promise<AuthResponse> {
   const auth = await request<AuthResponse>('POST', '/auth/login', { body: input, signal });
   setToken(auth.accessToken);
+  setRefreshToken(auth.refreshToken ?? null);
   return auth;
 }
 
@@ -430,7 +724,41 @@ export async function login(input: LoginInput, signal?: AbortSignal): Promise<Au
 export async function register(input: RegisterInput, signal?: AbortSignal): Promise<AuthResponse> {
   const auth = await request<AuthResponse>('POST', '/auth/register', { body: input, signal });
   setToken(auth.accessToken);
+  setRefreshToken(auth.refreshToken ?? null);
   return auth;
+}
+
+/**
+ * Requests a one-time code. The server rate-limits a phone to 3 per 5 minutes
+ * and answers overflow with a 429 whose `Retry-After` the UI can read.
+ */
+export function requestOtp(input: OtpRequestInput, signal?: AbortSignal): Promise<{
+  retryAfterSeconds: number;
+  dispatched: boolean;
+}> {
+  return request('POST', '/auth/otp/request', { body: input, signal });
+}
+
+/**
+ * Exchanges a code for a session and stores both tokens. A brand-new phone
+ * auto-provisions a CUSTOMER account server-side.
+ */
+export async function verifyOtp(input: OtpVerifyInput, signal?: AbortSignal): Promise<AuthResponse> {
+  const auth = await request<AuthResponse>('POST', '/auth/otp/verify', { body: input, signal });
+  setToken(auth.accessToken);
+  setRefreshToken(auth.refreshToken ?? null);
+  return auth;
+}
+
+/**
+ * Explicit refresh — used by session restore at boot. The request layer also
+ * refreshes silently on 401, so callers rarely need this directly.
+ */
+export async function refreshAccessToken(
+  refreshToken: string,
+  signal?: AbortSignal
+): Promise<AuthResponse> {
+  return request<AuthResponse>('POST', '/auth/refresh', { body: { refreshToken }, signal });
 }
 
 /** The current profile. `passwordHash` is never part of this. */
@@ -438,13 +766,162 @@ export function me(signal?: AbortSignal): Promise<PublicUser> {
   return request<PublicUser>('GET', '/auth/me', { auth: true, signal });
 }
 
-/** Stateless server side — the token is dropped locally either way. */
+/** Stateless access tokens are dropped locally; the refresh token is revoked server-side. */
 export async function logout(signal?: AbortSignal): Promise<void> {
   try {
-    await request<unknown>('POST', '/auth/logout', { signal });
+    const refresh = getRefreshToken();
+    if (refresh) {
+      await request<unknown>('POST', '/auth/logout', { body: { refreshToken: refresh }, signal });
+    } else {
+      await request<unknown>('POST', '/auth/logout', { signal });
+    }
   } finally {
-    clearToken();
+    clearTokens();
   }
+}
+
+/** Updates the signed-in user's own profile (name, phone, password). */
+export function updateProfile(input: UpdateProfileInput, signal?: AbortSignal): Promise<PublicUser> {
+  return request<PublicUser>('PATCH', '/auth/me', { body: input, auth: true, signal });
+}
+
+/** Captains flip their own online/offline state. Rejected for non-captains. */
+export function setAvailability(
+  input: SetAvailabilityInput,
+  signal?: AbortSignal
+): Promise<PublicUser> {
+  return request<PublicUser>('PATCH', '/auth/me/availability', {
+    body: input,
+    auth: true,
+    signal,
+  });
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/stores — write operations (STORE_MANAGER / ADMIN)
+ * ------------------------------------------------------------------------- */
+
+/** Updates a store's name, phone, logo, or active status. */
+export function updateStore(
+  storeId: string,
+  input: UpdateStoreInput,
+  signal?: AbortSignal
+): Promise<Store> {
+  return request<Store>('PATCH', `/stores/${encodeURIComponent(storeId)}`, {
+    body: input,
+    auth: true,
+    signal,
+  });
+}
+
+/** Creates a new product inside a store. */
+export function createProduct(
+  storeId: string,
+  input: CreateProductInput,
+  signal?: AbortSignal
+): Promise<Product> {
+  return request<Product>('POST', `/stores/${encodeURIComponent(storeId)}/products`, {
+    body: input,
+    auth: true,
+    signal,
+  });
+}
+
+/** Updates an existing product (price, availability, name, …). */
+export function updateProduct(
+  storeId: string,
+  productId: string,
+  input: UpdateProductInput,
+  signal?: AbortSignal
+): Promise<Product> {
+  return request<Product>(
+    'PATCH',
+    `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}`,
+    { body: input, auth: true, signal }
+  );
+}
+
+/**
+ * Soft-deactivates a product (sets isAvailable = false).
+ * Hard delete is intentionally unsupported — products with order history cannot
+ * be removed without breaking the audit trail.
+ */
+export function deleteProduct(
+  storeId: string,
+  productId: string,
+  signal?: AbortSignal
+): Promise<Product> {
+  return request<Product>(
+    'DELETE',
+    `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}`,
+    { auth: true, signal }
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/users — admin user management
+ * ------------------------------------------------------------------------- */
+
+/** Returns a paginated list of all users. Requires ADMIN. */
+export function listUsers(
+  query: UserListQuery = {},
+  signal?: AbortSignal
+): Promise<Paginated<PublicUser>> {
+  return request<Paginated<PublicUser>>('GET', '/users', {
+    query: { ...query },
+    auth: true,
+    signal,
+  });
+}
+
+/** Activates/deactivates a user or changes their role. Requires ADMIN. */
+export function updateUser(
+  userId: string,
+  input: UpdateUserInput,
+  signal?: AbortSignal
+): Promise<PublicUser> {
+  return request<PublicUser>('PATCH', `/users/${encodeURIComponent(userId)}`, {
+    body: input,
+    auth: true,
+    signal,
+  });
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/admin — admin dashboard aggregates
+ * ------------------------------------------------------------------------- */
+
+/**
+ * One round-trip with every number the admin dashboard renders: revenue,
+ * order counts by status, captain/store/user summaries, and the five most
+ * recent orders. Requires ADMIN.
+ */
+export function getAdminStats(signal?: AbortSignal): Promise<AdminStats> {
+  return request<AdminStats>('GET', '/admin/stats', { auth: true, signal });
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/stores — approval
+ * ------------------------------------------------------------------------- */
+
+/** Publishes a store to the public catalogue. Requires ADMIN. */
+export function approveStore(storeId: string, signal?: AbortSignal): Promise<Store> {
+  return request<Store>('PATCH', `/stores/${encodeURIComponent(storeId)}/approve`, {
+    auth: true,
+    signal,
+  });
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/captains — verification
+ * ------------------------------------------------------------------------- */
+
+/** Confirms a CAPTAIN account so it may take jobs. Requires ADMIN. */
+export function verifyCaptain(captainId: string, signal?: AbortSignal): Promise<PublicUser> {
+  return request<PublicUser>('PATCH', `/captains/${encodeURIComponent(captainId)}/verify`, {
+    auth: true,
+    signal,
+  });
 }
 
 /** Namespaced handle for callers that prefer `api.getStores()` over named imports. */
@@ -453,16 +930,41 @@ export const api = {
   getStores,
   getStore,
   getStoreProducts,
+  updateStore,
+  createProduct,
+  updateProduct,
+  deleteProduct,
   quoteOrder,
   createOrder,
   getOrder,
   listOrders,
   updateOrderStatus,
+  reorderOrder,
+  getFavorites,
+  addFavorite,
+  removeFavorite,
   login,
   register,
+  requestOtp,
+  verifyOtp,
+  refreshAccessToken,
   me,
   logout,
+  updateProfile,
+  setAvailability,
+  listUsers,
+  updateUser,
+  getAdminStats,
+  approveStore,
+  verifyCaptain,
   getToken,
   setToken,
   clearToken,
+  subscribeTokenChange,
+  getRefreshToken,
+  setRefreshToken,
+  clearTokens,
+  registerTokenStorage,
+  hydrateAuthSession,
+  hasStoredSession,
 } as const;

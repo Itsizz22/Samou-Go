@@ -4,6 +4,7 @@ import type { Application, Request, Response } from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { env } from './config/env';
+import { forbidden } from './lib/http-error';
 import { ok } from './lib/respond';
 import { errorHandler } from './middleware/error-handler';
 import { notFoundHandler } from './middleware/not-found';
@@ -28,7 +29,10 @@ export function createApp(): Application {
         if (env.corsOrigins.includes('*') || env.corsOrigins.includes(origin)) {
           return callback(null, true);
         }
-        callback(new Error(`الأصل غير مسموح / Origin not allowed: ${origin}`));
+        // A disallowed origin is a client mistake (4xx), never a server bug.
+        // Throwing a raw Error here would surface as a misleading 500; an
+        // HttpError flows through the standard envelope as a clean 403.
+        callback(forbidden('المصدر غير مسموح / Origin not allowed'));
       },
       credentials: true,
     })

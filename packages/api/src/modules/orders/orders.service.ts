@@ -1,22 +1,25 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import {
   OrderStatus,
   PaymentMethod,
   UserRole,
   calculateOrderTotals,
+  calculateVoucherDiscount,
   canRoleSetOrderStatus,
   canTransitionOrderStatus,
   deliveryFeeLabel,
   isTerminalOrderStatus,
   lineTotal,
+  roundMoney,
   ORDER_STATUS_LABELS,
 } from '@samou-go/shared-types';
-import type { OrderDetail, OrderQuote, OrderSummary, Paginated } from '@samou-go/shared-types';
+import type { OrderDetail, OrderQuote, OrderSummary, Paginated, ReorderResult } from '@samou-go/shared-types';
 import { env } from '../../config/env';
 import { prisma } from '../../lib/prisma';
-import { conflict, forbidden, notFound, unprocessable } from '../../lib/http-error';
-import { formatOrderNumber, startOfDay, startOfNextDay } from '../../lib/order-number';
+import { badState, conflict, forbidden, notFound, unprocessable } from '../../lib/http-error';
+import { formatOrderNumber, startOfDay } from '../../lib/order-number';
 import { toOrderDetail, toOrderSummary } from './orders.mapper';
+import { toProduct } from '../stores/stores.mapper';
 import type {
   AssignCaptainBody,
   CreateOrderBody,
@@ -31,6 +34,7 @@ const DETAIL_INCLUDE = {
   customer: true,
   store: true,
   captain: true,
+  voucher: true,
   statusHistory: { orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.OrderInclude;
 
@@ -39,8 +43,15 @@ const SUMMARY_INCLUDE = {
   store: { select: { nameAr: true } },
 } satisfies Prisma.OrderInclude;
 
-/** Same-day sequence collisions under concurrency; retry a few times. */
-const ORDER_NUMBER_ATTEMPTS = 5;
+/** Same-day sequence bumps happen atomically via `dailyOrderSequence` upsert. */
+
+/**
+ * A database handle that can either be the process-wide Prisma client or an
+ * interactive-transaction client. `priceBasket` and `resolveVoucher` accept
+ * this so order creation can run the whole validation + pricing + write
+ * pipeline against a single transaction.
+ */
+type OrderDb = Prisma.TransactionClient | PrismaClient;
 
 interface PricedLine {
   productId: string;
@@ -48,18 +59,82 @@ interface PricedLine {
   unitPrice: number;
 }
 
+/** A voucher validated for use on a specific basket, with its discount computed. */
+interface ResolvedVoucher {
+  id: string;
+  code: string;
+  labelAr: string;
+  labelEn: string;
+  discount: number;
+  /** For the atomic usage-limit guard inside the order transaction. */
+  usageLimit: number | null;
+}
+
+/**
+ * Resolves a voucher CODE against the DB and computes its savings for this
+ * basket. The client only ever sends a code — all money math happens here.
+ * Throws a 422 with a machine-readable code when the voucher cannot be used.
+ */
+async function resolveVoucher(db: OrderDb, code: string, subtotal: number): Promise<ResolvedVoucher> {
+  const voucher = await db.voucher.findUnique({ where: { code: code.toUpperCase() } });
+  if (!voucher) {
+    throw unprocessable('VOUCHER_NOT_FOUND', 'كوبون غير صالح / Invalid voucher code');
+  }
+  if (!voucher.isActive) {
+    throw unprocessable('VOUCHER_INACTIVE', 'كوبون معطّل / This voucher is inactive');
+  }
+  const now = new Date();
+  if (voucher.startsAt && now < voucher.startsAt) {
+    throw unprocessable('VOUCHER_NOT_STARTED', 'كوبون لم يبدأ بعد / This voucher is not active yet');
+  }
+  if (voucher.expiresAt && now > voucher.expiresAt) {
+    throw unprocessable('VOUCHER_EXPIRED', 'كوبون منتهي الصلاحية / This voucher has expired');
+  }
+  if (voucher.usageLimit !== null && voucher.usedCount >= voucher.usageLimit) {
+    throw unprocessable(
+      'VOUCHER_USAGE_LIMIT',
+      'استُخدم هذا الكوبون بالكامل / This voucher has been fully redeemed'
+    );
+  }
+
+  const discount = calculateVoucherDiscount(subtotal, {
+    type: voucher.discountType,
+    value: Number(voucher.discountValue),
+    minSubtotal: voucher.minSubtotal === null ? undefined : Number(voucher.minSubtotal),
+    maxDiscount: voucher.maxDiscount === null ? undefined : Number(voucher.maxDiscount),
+  });
+
+  if (discount <= 0) {
+    throw unprocessable(
+      'VOUCHER_MIN_SUBTOTAL',
+      'المبلغ لا يؤهل لهذا الكوبون / Basket does not qualify for this voucher'
+    );
+  }
+
+  return {
+    id: voucher.id,
+    code: voucher.code,
+    labelAr: voucher.labelAr,
+    labelEn: voucher.labelEn,
+    discount,
+    usageLimit: voucher.usageLimit,
+  };
+}
+
 /**
  * Turns a client basket into server-priced lines.
  *
  * This is the security boundary for money: prices come from the `products`
  * table, never from the request. Duplicate `productId`s are merged because
- * `OrderItem` is unique on `(orderId, productId)`.
+ * `OrderItem` is unique on `(orderId, productId)`. The `storeId` scoping means
+ * a foreign product id can never be priced from another store.
  */
 async function priceBasket(
+  db: OrderDb,
   storeId: string,
   items: readonly { productId: string; quantity: number }[]
 ): Promise<PricedLine[]> {
-  const store = await prisma.store.findUnique({
+  const store = await db.store.findUnique({
     where: { id: storeId },
     select: { id: true, isActive: true },
   });
@@ -73,7 +148,7 @@ async function priceBasket(
     merged.set(item.productId, (merged.get(item.productId) ?? 0) + item.quantity);
   }
 
-  const products = await prisma.product.findMany({
+  const products = await db.product.findMany({
     where: { id: { in: [...merged.keys()] }, storeId },
     select: { id: true, nameAr: true, price: true, isAvailable: true },
   });
@@ -106,13 +181,34 @@ async function priceBasket(
  * before the customer commits. Same arithmetic as `createOrder`, no writes.
  */
 export async function quoteOrder(body: QuoteOrderBody): Promise<OrderQuote> {
-  const lines = await priceBasket(body.storeId, body.items);
+  const lines = await priceBasket(prisma, body.storeId, body.items);
   const totals = calculateOrderTotals(lines, env.deliveryFeeConfig);
+
+  if (totals.subtotal <= 0) {
+    throw unprocessable('EMPTY_BASKET', 'السلة فارغة / The basket is empty');
+  }
+
+  let voucher: ResolvedVoucher | null = null;
+  if (body.voucherCode) {
+    voucher = await resolveVoucher(prisma, body.voucherCode, totals.subtotal);
+  }
+
+  const discount = voucher?.discount ?? 0;
 
   return {
     ...totals,
+    discount,
+    totalAmount: roundMoney(totals.totalAmount - discount),
     currency: env.deliveryFeeConfig.currency,
     deliveryFeeLabel: deliveryFeeLabel('both'),
+    voucher: voucher
+      ? {
+          code: voucher.code,
+          labelAr: voucher.labelAr,
+          labelEn: voucher.labelEn,
+          discount: voucher.discount,
+        }
+      : null,
   };
 }
 
@@ -120,69 +216,94 @@ export async function createOrder(
   customerId: string,
   body: CreateOrderBody
 ): Promise<OrderDetail> {
-  const lines = await priceBasket(body.storeId, body.items);
-  const totals = calculateOrderTotals(lines, env.deliveryFeeConfig);
+  return prisma.$transaction(async tx => {
+    // Everything below is inside ONE transaction:
+    //   price the basket from the DB (authoritative), validate availability,
+    //   resolve the voucher, then write order + items + status history.
+    // If any step throws, the whole unit rolls back — no order, no items,
+    // no voucher redemption, no partial financials.
+    const lines = await priceBasket(tx, body.storeId, body.items);
+    const totals = calculateOrderTotals(lines, env.deliveryFeeConfig);
 
-  for (let attempt = 0; attempt < ORDER_NUMBER_ATTEMPTS; attempt += 1) {
-    try {
-      return await prisma.$transaction(async tx => {
-        const now = new Date();
-        const todaySoFar = await tx.order.count({
-          where: { createdAt: { gte: startOfDay(now), lt: startOfNextDay(now) } },
-        });
-
-        const order = await tx.order.create({
-          data: {
-            orderNumber: formatOrderNumber(now, todaySoFar + 1 + attempt),
-            customerId,
-            storeId: body.storeId,
-            status: OrderStatus.PENDING,
-            customerAddressText: body.customerAddressText,
-            addressNote: body.addressNote ?? null,
-            subtotal: totals.subtotal,
-            deliveryFee: totals.deliveryFee,
-            totalAmount: totals.totalAmount,
-            paymentMethod: PaymentMethod.COD,
-            items: {
-              create: lines.map(line => ({
-                productId: line.productId,
-                quantity: line.quantity,
-                unitPrice: line.unitPrice,
-                totalPrice: lineTotal(line.unitPrice, line.quantity),
-              })),
-            },
-            statusHistory: {
-              create: {
-                status: OrderStatus.PENDING,
-                changedByUserId: customerId,
-                note: 'تم إنشاء الطلب / Order created',
-              },
-            },
-          },
-          include: DETAIL_INCLUDE,
-        });
-
-        return toOrderDetail(order);
-      });
-    } catch (error) {
-      const isLastAttempt = attempt === ORDER_NUMBER_ATTEMPTS - 1;
-      if (isOrderNumberCollision(error) && !isLastAttempt) continue;
-      throw error;
+    if (totals.subtotal <= 0) {
+      throw unprocessable('EMPTY_BASKET', 'السلة فارغة / The basket is empty');
     }
-  }
 
-  throw conflict('تعذّر توليد رقم طلب فريد / Could not allocate a unique order number');
-}
+    const voucher = body.voucherCode
+      ? await resolveVoucher(tx, body.voucherCode, totals.subtotal)
+      : null;
+    const discount = voucher?.discount ?? 0;
 
-function isOrderNumberCollision(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const candidate = error as { code?: unknown; meta?: { target?: unknown } };
-  if (candidate.code !== 'P2002') return false;
-  const target = candidate.meta?.target;
-  // Only retry when the collision is specifically on orderNumber.
-  // Returning true for an unknown target would swallow unrelated P2002s
-  // (e.g. a productId unique violation inside the same transaction).
-  return Array.isArray(target) && target.includes('orderNumber');
+    const now = new Date();
+
+    // Mint the next per-day order number ATOMICALLY. `upsert` + `increment`
+    // locks the `daily_order_sequences` row for this day inside this
+    // transaction, so two concurrent orders can never observe the same
+    // counter — unlike the old `COUNT(*)` + retry loop. A rollback undoes
+    // the bump too, leaving (harmless) gaps in the number sequence.
+    const sequence = await tx.dailyOrderSequence.upsert({
+      where: { date: startOfDay(now) },
+      update: { sequence: { increment: 1 } },
+      create: { date: startOfDay(now), sequence: 1 },
+    });
+
+    // Atomically redeem the voucher. A used-up voucher bumps a row that
+    // was previously reserved by another order → count stays 0, throw.
+    if (voucher) {
+      if (voucher.usageLimit === null) {
+        await tx.voucher.update({
+          where: { id: voucher.id },
+          data: { usedCount: { increment: 1 } },
+        });
+      } else {
+        const redeemed = await tx.voucher.updateMany({
+          where: { id: voucher.id, usedCount: { lt: voucher.usageLimit } },
+          data: { usedCount: { increment: 1 } },
+        });
+        if (redeemed.count === 0) {
+          throw unprocessable(
+            'VOUCHER_USAGE_LIMIT',
+            'استُخدم هذا الكوبون بالكامل / This voucher has been fully redeemed'
+          );
+        }
+      }
+    }
+
+    const order = await tx.order.create({
+      data: {
+        orderNumber: formatOrderNumber(now, sequence.sequence),
+        customerId,
+        storeId: body.storeId,
+        status: OrderStatus.PENDING,
+        customerAddressText: body.customerAddressText,
+        addressNote: body.addressNote ?? null,
+        subtotal: totals.subtotal,
+        deliveryFee: totals.deliveryFee,
+        discount,
+        totalAmount: roundMoney(totals.totalAmount - discount),
+        voucherId: voucher?.id ?? null,
+        paymentMethod: PaymentMethod.COD,
+        items: {
+          create: lines.map(line => ({
+            productId: line.productId,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            totalPrice: lineTotal(line.unitPrice, line.quantity),
+          })),
+        },
+        statusHistory: {
+          create: {
+            status: OrderStatus.PENDING,
+            changedByUserId: customerId,
+            note: 'تم إنشاء الطلب / Order created',
+          },
+        },
+      },
+      include: DETAIL_INCLUDE,
+    });
+
+    return toOrderDetail(order);
+  });
 }
 
 /* ---------------------------------------------------------------------------
@@ -293,6 +414,42 @@ export async function getOrder(
   return toOrderDetail(order);
 }
 
+/**
+ * Re-order — hands the client a ready-made basket from a past order, priced
+ * with the products' CURRENT prices. Products that are no longer available
+ * are skipped, and the count is reported so the UI can warn the customer.
+ */
+export async function reorderOrder(
+  actor: { sub: string; role: UserRole },
+  orderId: string
+): Promise<ReorderResult> {
+  const order = await loadOrderOrThrow(orderId);
+  await assertCanView(order, actor);
+
+  const currentProducts = await prisma.product.findMany({
+    where: { id: { in: order.items.map(item => item.productId) } },
+  });
+  const byId = new Map(currentProducts.map(product => [product.id, product]));
+
+  let skipped = 0;
+  const items: ReorderResult['items'] = [];
+  for (const item of order.items) {
+    const product = byId.get(item.productId);
+    if (!product || !product.isAvailable) {
+      skipped += 1;
+      continue;
+    }
+    items.push({ product: toProduct(product), quantity: item.quantity });
+  }
+
+  return {
+    storeId: order.storeId,
+    storeNameAr: order.store.nameAr,
+    items,
+    skipped,
+  };
+}
+
 /* ---------------------------------------------------------------------------
  * Status transitions
  * ------------------------------------------------------------------------- */
@@ -315,21 +472,21 @@ export async function updateOrderStatus(
   const next = body.status;
 
   if (current === next) {
-    throw unprocessable(
+    throw badState(
       'STATUS_UNCHANGED',
       `الطلب بالفعل في حالة "${ORDER_STATUS_LABELS[next].ar}" / Order is already ${ORDER_STATUS_LABELS[next].en}`
     );
   }
 
   if (isTerminalOrderStatus(current)) {
-    throw unprocessable(
+    throw badState(
       'ORDER_CLOSED',
       `الطلب مُغلق (${ORDER_STATUS_LABELS[current].ar}) ولا يمكن تعديله / Order is closed and cannot change`
     );
   }
 
   if (!canTransitionOrderStatus(current, next)) {
-    throw unprocessable(
+    throw badState(
       'ILLEGAL_TRANSITION',
       `لا يمكن الانتقال من "${ORDER_STATUS_LABELS[current].ar}" إلى "${ORDER_STATUS_LABELS[next].ar}" / Illegal transition ${current} → ${next}`
     );
@@ -348,23 +505,54 @@ export async function updateOrderStatus(
     }
     // A customer may pull out only before the shop starts cooking.
     if (current !== OrderStatus.PENDING && current !== OrderStatus.ACCEPTED) {
-      throw unprocessable(
+      throw badState(
         'CANCEL_WINDOW_CLOSED',
         'لا يمكن الإلغاء بعد بدء التحضير / Cannot cancel once preparation has started'
       );
     }
   }
 
+  // Claiming an unassigned job by moving it to ON_THE_WAY assigns it to them.
+  const isClaimAttempt =
+    actor.role === UserRole.CAPTAIN &&
+    order.captainId === null &&
+    next === OrderStatus.ON_THE_WAY;
+
   if (actor.role === UserRole.CAPTAIN) {
-    // Claiming an unassigned job by moving it to ON_THE_WAY assigns it to them.
-    const isClaiming = order.captainId === null && next === OrderStatus.ON_THE_WAY;
-    if (order.captainId !== actor.sub && !isClaiming) {
+    if (order.captainId !== actor.sub && !isClaimAttempt) {
       throw forbidden('الطلب غير مُسند إليك / This order is not assigned to you');
     }
   }
 
-  const assignCaptainOnClaim =
-    actor.role === UserRole.CAPTAIN && order.captainId === null && next === OrderStatus.ON_THE_WAY;
+  // Claiming requires a live, verified, available captain — the whole point of
+  // the admin verification gate. Checked only on the claim edge, so a captain
+  // already delivering can still finish their own job while offline.
+  if (isClaimAttempt) {
+    const captain = await prisma.user.findUnique({
+      where: { id: actor.sub },
+      select: { id: true, isActive: true, isVerified: true, isAvailable: true },
+    });
+    if (!captain || !captain.isActive) {
+      throw unprocessable(
+        'CAPTAIN_INACTIVE',
+        'حساب الكابتن موقوف / Captain account is inactive'
+      );
+    }
+    if (!captain.isVerified) {
+      throw unprocessable(
+        'CAPTAIN_UNVERIFIED',
+        'لم يتم توثيق حسابك بعد — تواصل مع المشرف / Your account is not verified yet — contact an admin'
+      );
+    }
+    if (!captain.isAvailable) {
+      throw unprocessable(
+        'CAPTAIN_OFFLINE',
+        'ضع حالتك على "متاح" لاستقبال الطلبات / Set your status to Available before accepting orders'
+      );
+    }
+  }
+
+  const assignCaptainOnClaim = isClaimAttempt;
 
   let updated;
   try {
@@ -372,6 +560,14 @@ export async function updateOrderStatus(
       const result = await tx.order.update({
         where: {
           id: orderId,
+          // Optimistic lock on the CURRENT status, not just the id. Every
+          // state-machine gate above ran against the `order` we read, but two
+          // concurrent transitions could both read the same old status and both
+          // pass those gates. Filtering the write on `status: current` means the
+          // loser matches zero rows → Prisma throws P2025 → we surface a 409,
+          // so a stale writer can never silently overwrite a transition that
+          // already committed (e.g. customer cancels while the store accepts).
+          status: current,
           // Optimistic lock for captain claim: if another captain already
           // claimed this order between our read and this write, Prisma will
           // throw P2025 (record not found for the filter) and we surface a
@@ -394,15 +590,20 @@ export async function updateOrderStatus(
       return result;
     });
   } catch (err) {
-    // P2025 on a claim attempt means another captain got there first.
+    // P2025 means our optimistic filter no longer matched — the order moved
+    // underneath us between validation and write.
     if (
-      assignCaptainOnClaim &&
       err instanceof Error &&
       'code' in err &&
       (err as { code?: string }).code === 'P2025'
     ) {
+      if (assignCaptainOnClaim) {
+        throw conflict(
+          'الطلب مُسند لكابتن آخر / This order was just claimed by another captain'
+        );
+      }
       throw conflict(
-        'الطلب مُسند لكابتن آخر / This order was just claimed by another captain'
+        'تغيّرت حالة الطلب في هذه الأثناء — حدّث الصفحة وحاول مجدداً / Order status changed concurrently — refresh and retry'
       );
     }
     throw err;
@@ -428,12 +629,12 @@ export async function assignCaptain(
   }
 
   if (isTerminalOrderStatus(order.status)) {
-    throw unprocessable('ORDER_CLOSED', 'الطلب مُغلق / Order is closed');
+    throw badState('ORDER_CLOSED', 'الطلب مُغلق / Order is closed');
   }
 
   const captain = await prisma.user.findUnique({
     where: { id: body.captainId },
-    select: { id: true, role: true, isActive: true },
+    select: { id: true, role: true, isActive: true, isVerified: true },
   });
 
   if (!captain || captain.role !== UserRole.CAPTAIN) {
@@ -441,6 +642,12 @@ export async function assignCaptain(
   }
   if (!captain.isActive) {
     throw unprocessable('CAPTAIN_INACTIVE', 'حساب الكابتن موقوف / Captain account is inactive');
+  }
+  if (!captain.isVerified) {
+    throw unprocessable(
+      'CAPTAIN_UNVERIFIED',
+      'الكابتن غير موثّق بعد — وثّق الحساب أولاً / Captain is not verified yet — verify the account first'
+    );
   }
 
   const updated = await prisma.order.update({

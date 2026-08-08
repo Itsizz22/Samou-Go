@@ -165,6 +165,8 @@ interface SeedUser {
   phone: string;
   role: UserRole;
   isActive?: boolean;
+  isVerified?: boolean;
+  isAvailable?: boolean;
 }
 
 const USERS: SeedUser[] = [
@@ -172,8 +174,8 @@ const USERS: SeedUser[] = [
   { id: 'user-manager-baraka', name: 'محمود أبو عرام', phone: '0599100201', role: UserRole.STORE_MANAGER },
   { id: 'user-manager-shawarma', name: 'صالح المحاريق', phone: '0567100302', role: UserRole.STORE_MANAGER },
   { id: 'user-manager-pharmacy', name: 'رنا الهمص', phone: '0599100403', role: UserRole.STORE_MANAGER },
-  { id: 'user-captain-1', name: 'أنس الدغامين', phone: '0599200101', role: UserRole.CAPTAIN },
-  { id: 'user-captain-2', name: 'يوسف أبو قبيطة', phone: '0567200102', role: UserRole.CAPTAIN },
+  { id: 'user-captain-1', name: 'أنس الدغامين', phone: '0599200101', role: UserRole.CAPTAIN, isVerified: true, isAvailable: true },
+  { id: 'user-captain-2', name: 'يوسف أبو قبيطة', phone: '0567200102', role: UserRole.CAPTAIN, isVerified: true, isAvailable: true },
   { id: 'user-captain-3', name: 'كريم الشرحة', phone: '0599200103', role: UserRole.CAPTAIN, isActive: false },
   { id: 'user-customer-1', name: 'أحمد الشرحة', phone: '0599300101', role: UserRole.CUSTOMER },
   { id: 'user-customer-2', name: 'سُهى العواودة', phone: '0567300102', role: UserRole.CUSTOMER },
@@ -201,6 +203,8 @@ async function seedUsers(): Promise<void> {
         phone: user.phone,
         role: user.role,
         isActive: user.isActive ?? true,
+        isVerified: user.isVerified ?? false,
+        isAvailable: user.isAvailable ?? false,
       },
       create: {
         id: user.id,
@@ -209,11 +213,91 @@ async function seedUsers(): Promise<void> {
         passwordHash,
         role: user.role,
         isActive: user.isActive ?? true,
+        isVerified: user.isVerified ?? false,
+        isAvailable: user.isAvailable ?? false,
       },
     });
   }
 
   console.log(`✓ ${USERS.length} users`);
+}
+
+interface SeedVoucher {
+  id: string;
+  code: string;
+  labelAr: string;
+  labelEn: string;
+  discountType: 'PERCENT' | 'FIXED';
+  discountValue: number;
+  minSubtotal?: number;
+  maxDiscount?: number;
+  usageLimit?: number;
+  expiresAt?: Date;
+}
+
+/** Demo vouchers a tester can paste into the checkout box. */
+const VOUCHERS: SeedVoucher[] = [
+  {
+    id: 'voucher-welcome10',
+    code: 'WELCOME10',
+    labelAr: 'خصم ترحيبي ١٠٪',
+    labelEn: 'Welcome 10% off',
+    discountType: 'PERCENT',
+    discountValue: 10,
+    maxDiscount: 15,
+  },
+  {
+    id: 'voucher-fixed5',
+    code: 'FIXED5',
+    labelAr: 'خصم ٥ شواقل',
+    labelEn: '5 ILS off',
+    discountType: 'FIXED',
+    discountValue: 5,
+    minSubtotal: 30,
+  },
+  {
+    id: 'voucher-expired-demo',
+    code: 'EXPIREDDEMO',
+    labelAr: 'كوبون منتهي (تجريبي)',
+    labelEn: 'Expired (demo)',
+    discountType: 'FIXED',
+    discountValue: 3,
+    expiresAt: new Date('2026-01-01T00:00:00Z'),
+  },
+];
+
+async function seedVouchers(): Promise<void> {
+  for (const voucher of VOUCHERS) {
+    await prisma.voucher.upsert({
+      where: { id: voucher.id },
+      update: {
+        code: voucher.code,
+        labelAr: voucher.labelAr,
+        labelEn: voucher.labelEn,
+        discountType: voucher.discountType,
+        discountValue: voucher.discountValue,
+        minSubtotal: voucher.minSubtotal ?? null,
+        maxDiscount: voucher.maxDiscount ?? null,
+        usageLimit: voucher.usageLimit ?? null,
+        isActive: true,
+        expiresAt: voucher.expiresAt ?? null,
+      },
+      create: {
+        id: voucher.id,
+        code: voucher.code,
+        labelAr: voucher.labelAr,
+        labelEn: voucher.labelEn,
+        discountType: voucher.discountType,
+        discountValue: voucher.discountValue,
+        minSubtotal: voucher.minSubtotal ?? null,
+        maxDiscount: voucher.maxDiscount ?? null,
+        usageLimit: voucher.usageLimit ?? null,
+        isActive: true,
+        expiresAt: voucher.expiresAt ?? null,
+      },
+    });
+  }
+  console.log(`✓ ${VOUCHERS.length} vouchers`);
 }
 
 async function seedCatalogue(): Promise<void> {
@@ -230,6 +314,7 @@ async function seedCatalogue(): Promise<void> {
         logoUrl: store.logoUrl,
         managerId: store.managerId,
         isActive: true,
+        isApproved: true,
       },
       create: {
         id: store.id,
@@ -238,6 +323,8 @@ async function seedCatalogue(): Promise<void> {
         phone: store.phone,
         logoUrl: store.logoUrl,
         managerId: store.managerId,
+        isActive: true,
+        isApproved: true,
       },
     });
 
@@ -419,6 +506,7 @@ async function main(): Promise<void> {
   console.log(`🌱 Seeding Samou' Go — ${env.databaseUrl.replace(/:[^:@/]*@/, ':***@')}`);
   await seedUsers();
   await seedCatalogue();
+  await seedVouchers();
   await seedOrders();
   console.log(`\nDone. Demo password for every account: ${DEMO_PASSWORD}`);
 }

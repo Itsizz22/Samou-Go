@@ -13,21 +13,29 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ApiError,
+  getFavorites,
   getOrder,
   getStore,
+  getStoreManager,
   getStores,
   listOrders,
+  listUsers,
   type ApiMeta,
   getMeta,
+  getAdminStats,
 } from './api';
 import type {
+  AdminStats,
+  FavoriteListResult,
   OrderDetail,
   OrderListQuery,
   OrderSummary,
   Paginated,
+  PublicUser,
   Store,
   StoreListQuery,
   StoreWithCatalogue,
+  UserListQuery,
 } from '@samou-go/shared-types';
 
 /* ---------------------------------------------------------------------------
@@ -50,11 +58,17 @@ export interface Resource<T> {
   refresh: () => void;
 }
 
-export interface ResourceOptions {
+export interface ResourceOptions<T = unknown> {
   /** Skip the request entirely — for dependent queries with no id yet. */
   enabled?: boolean;
   /** Re-fetch every N ms while mounted. Used by the order-tracking screen. */
   pollMs?: number;
+  /**
+   * Halts polling once `data` satisfies this predicate (e.g. an order reached
+   * `DELIVERED` / `CANCELLED`). The interval is dropped the moment the fetched
+   * data matches, so a terminal order stops hitting the API.
+   */
+  stopWhen?: (data: T | null) => boolean;
 }
 
 /**
@@ -67,9 +81,9 @@ export interface ResourceOptions {
 export function useResource<T>(
   key: string,
   load: (signal: AbortSignal) => Promise<T>,
-  options: ResourceOptions = {}
+  options: ResourceOptions<T> = {}
 ): Resource<T> {
-  const { enabled = true, pollMs } = options;
+  const { enabled = true, pollMs, stopWhen } = options;
 
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
@@ -83,6 +97,10 @@ export function useResource<T>(
 
   // Distinguishes "first load" (show a skeleton) from "refresh" (keep the data).
   const hasDataRef = useRef(false);
+
+  // Latest `stopWhen` without re-firing the polling effect on every render.
+  const stopWhenRef = useRef(stopWhen);
+  stopWhenRef.current = stopWhen;
 
   const reload = useCallback(() => setNonce((value) => value + 1), []);
 
@@ -132,11 +150,14 @@ export function useResource<T>(
   }, [key, enabled, nonce]);
 
   // Polling is a separate effect so a tick reuses the loader above via `reload`.
+  // `data` is a dependency so the moment a fetch returns a terminal payload the
+  // interval is torn down instead of firing once more.
   useEffect(() => {
     if (!enabled || !pollMs) return;
+    if (stopWhenRef.current?.(data)) return;
     const timer = setInterval(reload, pollMs);
     return () => clearInterval(timer);
-  }, [enabled, pollMs, reload]);
+  }, [enabled, pollMs, reload, data]);
 
   return { data, loading, refreshing, error, reload, refresh: reload };
 }
@@ -213,7 +234,7 @@ export function useMutation<TInput, TResult>(
 /** `GET /stores` — the home screen's store list. */
 export function useStores(
   query: StoreListQuery = {},
-  options?: ResourceOptions
+  options?: ResourceOptions<Paginated<Store>>
 ): Resource<Paginated<Store>> {
   const key = `stores:${JSON.stringify(query)}`;
   return useResource(key, (signal) => getStores(query, signal), options);
@@ -222,7 +243,7 @@ export function useStores(
 /** `GET /stores/:id` — store detail with categories and products. */
 export function useStore(
   storeId: string | null | undefined,
-  options?: ResourceOptions
+  options?: ResourceOptions<StoreWithCatalogue>
 ): Resource<StoreWithCatalogue> {
   return useResource(`store:${storeId ?? ''}`, (signal) => getStore(storeId as string, signal), {
     ...options,
@@ -231,12 +252,28 @@ export function useStore(
 }
 
 /**
+ * `GET /stores/:id/full` — full catalogue for the store manager, including
+ * unavailable products. Requires STORE_MANAGER (own store) or ADMIN auth.
+ */
+export function useStoreManager(
+  storeId: string | null | undefined,
+  options?: ResourceOptions<StoreWithCatalogue>
+): Resource<StoreWithCatalogue> {
+  return useResource(
+    `store-manager:${storeId ?? ''}`,
+    (signal) => getStoreManager(storeId as string, signal),
+    { ...options, enabled: Boolean(storeId) && (options?.enabled ?? true) }
+  );
+}
+
+/**
  * `GET /orders/:id` — order tracking.
- * Pass `pollMs` to follow the status live; there is no websocket yet.
+ * Pass `pollMs` to follow the status live; there is no websocket yet. Pass
+ * `stopWhen` to halt polling once `data` reaches a terminal status.
  */
 export function useOrder(
   orderId: string | null | undefined,
-  options?: ResourceOptions
+  options?: ResourceOptions<OrderDetail>
 ): Resource<OrderDetail> {
   return useResource(`order:${orderId ?? ''}`, (signal) => getOrder(orderId as string, signal), {
     ...options,
@@ -247,13 +284,39 @@ export function useOrder(
 /** `GET /orders` — the signed-in customer's own orders. */
 export function useOrders(
   query: OrderListQuery = {},
-  options?: ResourceOptions
+  options?: ResourceOptions<Paginated<OrderSummary>>
 ): Resource<Paginated<OrderSummary>> {
   const key = `orders:${JSON.stringify(query)}`;
   return useResource(key, (signal) => listOrders(query, signal), options);
 }
 
+/**
+ * `GET /favorites` — the signed-in customer's favorite stores.
+ * Requires auth; leave `enabled` off (or the sign-in gate up) until the user
+ * has a session, otherwise the request 401s pointlessly.
+ */
+export function useFavorites(options?: ResourceOptions<FavoriteListResult>): Resource<FavoriteListResult> {
+  return useResource('favorites', (signal) => getFavorites(signal), options);
+}
+
 /** `GET /meta` — the live delivery tariff, so no screen hardcodes 3 ₪ / 5 ₪. */
-export function useApiMeta(options?: ResourceOptions): Resource<ApiMeta> {
+export function useApiMeta(options?: ResourceOptions<ApiMeta>): Resource<ApiMeta> {
   return useResource('meta', (signal) => getMeta(signal), options);
+}
+
+/** `GET /users` — admin paginated user list. */
+export function useUsers(
+  query: UserListQuery = {},
+  options?: ResourceOptions<Paginated<PublicUser>>
+): Resource<Paginated<PublicUser>> {
+  const key = `users:${JSON.stringify(query)}`;
+  return useResource(key, (signal) => listUsers(query, signal), options);
+}
+
+/**
+ * `GET /admin/stats` — the whole admin dashboard in one round-trip.
+ * Requires ADMIN. Poll it to keep the KPIs live without any websocket.
+ */
+export function useAdminStats(options?: ResourceOptions<AdminStats>): Resource<AdminStats> {
+  return useResource('admin-stats', (signal) => getAdminStats(signal), options);
 }

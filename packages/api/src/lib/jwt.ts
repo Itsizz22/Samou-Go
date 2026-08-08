@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
-import type { JwtPayload, UserRole } from '@samou-go/shared-types';
+import { UserRole } from '@samou-go/shared-types';
+import type { JwtPayload } from '@samou-go/shared-types';
 import { env } from '../config/env';
 import { unauthorized } from './http-error';
 
@@ -34,6 +35,9 @@ export function signAccessToken(input: {
   return { accessToken, expiresIn };
 }
 
+/** The roles that may ever appear in a token — anything else is a forgery. */
+const VALID_ROLES = new Set<string>(Object.values(UserRole));
+
 /** Throws 401 rather than leaking the underlying jsonwebtoken error text. */
 export function verifyAccessToken(token: string): JwtPayload {
   let decoded: unknown;
@@ -43,11 +47,24 @@ export function verifyAccessToken(token: string): JwtPayload {
     throw unauthorized('الجلسة غير صالحة أو منتهية / Invalid or expired session');
   }
 
+  // Validate the CLAIMS, never trust their presence blindly. `sub` is the user
+  // id and `role` the authorization scope; both must exist and be sane. RBAC
+  // downstream is built entirely on this object — the client payload can never
+  // override it because only the signature holder can mint it.
+  if (!decoded || typeof decoded !== 'object') {
+    throw unauthorized('الجلسة غير صالحة / Malformed token');
+  }
+
+  const sub = (decoded as { sub?: unknown }).sub;
+  const role = (decoded as { role?: unknown }).role;
+  const phone = (decoded as { phone?: unknown }).phone;
+
   if (
-    !decoded ||
-    typeof decoded !== 'object' ||
-    typeof (decoded as { sub?: unknown }).sub !== 'string' ||
-    typeof (decoded as { role?: unknown }).role !== 'string'
+    typeof sub !== 'string' ||
+    sub.length === 0 ||
+    typeof role !== 'string' ||
+    !VALID_ROLES.has(role) ||
+    typeof phone !== 'string'
   ) {
     throw unauthorized('الجلسة غير صالحة / Malformed token');
   }

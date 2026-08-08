@@ -49,6 +49,12 @@ enum PaymentMethod {
   COD
 }
 
+/// How a voucher's `discountValue` is interpreted.
+enum VoucherDiscountType {
+  PERCENT
+  FIXED
+}
+
 // =============================================================================
 // Models
 // =============================================================================
@@ -64,35 +70,87 @@ model User {
   passwordHash String
   role         UserRole @default(CUSTOMER)
   isActive     Boolean  @default(true)
+  /// CAPTAIN accounts must be confirmed by an admin before they can take jobs.
+  isVerified   Boolean  @default(false)
+  /// CAPTAIN self-managed availability — must be on to claim orders.
+  isAvailable  Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  managedStores   Store[]              @relation("StoreManager")
-  customerOrders  Order[]              @relation("OrderCustomer")
-  captainOrders   Order[]              @relation("OrderCaptain")
-  statusChanges   OrderStatusHistory[] @relation("StatusChangedBy")
+  managedStores  Store[]              @relation("StoreManager")
+  customerOrders Order[]              @relation("OrderCustomer")
+  captainOrders  Order[]              @relation("OrderCaptain")
+  statusChanges  OrderStatusHistory[] @relation("StatusChangedBy")
+  refreshTokens  RefreshToken[]
+  favorites      Favorite[]           @relation("UserFavorites")
 
   @@index([role, isActive])
   @@map("users")
 }
 
+/// One active OTP per phone number (keyed by `phone`).
+/// The code is bcrypt-hashed at rest and auto-expires in 3 minutes.
+/// `requests`/`windowStartsAt` back the 3-per-5-minute request limiter so it
+/// survives server restarts and does not depend on a single-node memory store.
+model OtpRequest {
+  phone          String   @id @db.VarChar(20)
+  /// bcrypt hash of the 6-digit code. Never store the plaintext.
+  codeHash       String
+  expiresAt      DateTime
+  /// Successful `code` attempts — wrong codes can only be tried a few times
+  /// before the code is invalidated.
+  attempts       Int      @default(0)
+  /// OTP dispatch count inside the current rate-limit window.
+  requests       Int      @default(1)
+  /// Start of the 5-minute rate-limit window.
+  windowStartsAt DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("otp_requests")
+}
+
+/// Long-lived session credential. Only the SHA-256 of the token is stored.
+/// Refresh tokens rotate on use; an old token is revoked the moment its
+/// replacement is minted, so replay of a stolen token fails.
+model RefreshToken {
+  id             String    @id @default(cuid())
+  /// SHA-256 hex of the raw token. Never store the raw token.
+  tokenHash      String    @unique
+  userId         String
+  expiresAt      DateTime
+  /// Set when the token has been rotated or revoked.
+  revokedAt      DateTime?
+  /// The token that replaced this one (rotation lineage).
+  replacedByHash String?   @unique
+  createdAt      DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
 /// A shop in Samou'. `managerId` is the STORE_MANAGER who runs it; one manager
 /// may run several shops.
 model Store {
-  id        String   @id @default(cuid())
-  nameAr    String   @db.VarChar(160)
-  nameEn    String   @db.VarChar(160)
-  logoUrl   String?
-  phone     String   @db.VarChar(20)
-  isActive  Boolean  @default(true)
-  managerId String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  nameAr     String   @db.VarChar(160)
+  nameEn     String   @db.VarChar(160)
+  logoUrl    String?
+  phone      String   @db.VarChar(20)
+  isActive   Boolean  @default(true)
+  /// New stores stay hidden from the public catalogue until an admin approves.
+  isApproved Boolean  @default(false)
+  managerId  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   manager    User       @relation("StoreManager", fields: [managerId], references: [id], onDelete: Restrict)
   categories Category[]
   products   Product[]
   orders     Order[]
+  favorites  Favorite[] @relation("StoreFavorites")
 
   @@index([managerId])
   @@index([isActive])
@@ -162,10 +220,13 @@ model Order {
   /// Optional extra directions, e.g. "بجانب مسجد عمر، الطابق الثاني".
   addressNote         String? @db.VarChar(500)
 
-  subtotal    Decimal       @db.Decimal(10, 2)
-  deliveryFee Decimal       @db.Decimal(10, 2)
-  totalAmount Decimal       @db.Decimal(10, 2)
+  subtotal      Decimal       @db.Decimal(10, 2)
+  deliveryFee   Decimal       @db.Decimal(10, 2)
+  /// Voucher savings, in ILS — 0 when no voucher was applied.
+  discount      Decimal       @default(0) @db.Decimal(10, 2)
+  totalAmount   Decimal       @db.Decimal(10, 2)
   paymentMethod PaymentMethod @default(COD)
+  voucherId     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -173,6 +234,7 @@ model Order {
   customer      User                 @relation("OrderCustomer", fields: [customerId], references: [id], onDelete: Restrict)
   store         Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
   captain       User?                @relation("OrderCaptain", fields: [captainId], references: [id], onDelete: SetNull)
+  voucher       Voucher?             @relation(fields: [voucherId], references: [id], onDelete: Restrict)
   items         OrderItem[]
   statusHistory OrderStatusHistory[]
 
@@ -218,4 +280,65 @@ model OrderStatusHistory {
   @@index([orderId, createdAt])
   @@index([changedByUserId])
   @@map("order_status_history")
+}
+
+/// A discount the customer types in at checkout as a CODE. The client only ever
+/// sends the code — the server resolves it and applies `calculateVoucherDiscount`
+/// from @samou-go/shared-types, preserving the "client never sends money" rule.
+model Voucher {
+  id            String              @id @default(cuid())
+  /// Case-insensitive match code, stored uppercase, e.g. `RAMADAN10`.
+  code          String              @unique @db.VarChar(40)
+  labelAr       String              @db.VarChar(160)
+  labelEn       String              @db.VarChar(160)
+  discountType  VoucherDiscountType @default(PERCENT)
+  /// PERCENT → 0–100; FIXED → ILS amount off.
+  discountValue Decimal             @db.Decimal(10, 2)
+  /// Ignored until the basket's subtotal reaches this, in ILS.
+  minSubtotal   Decimal?            @db.Decimal(10, 2)
+  /// Hard cap on the savings (matters for PERCENT vouchers).
+  maxDiscount   Decimal?            @db.Decimal(10, 2)
+  isActive      Boolean             @default(true)
+  /// Optional dispatch window.
+  startsAt      DateTime?
+  expiresAt     DateTime?
+  /// Global redemption cap; null = unlimited.
+  usageLimit    Int?
+  usedCount     Int                 @default(0)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  orders Order[]
+
+  @@index([code, isActive])
+  @@map("vouchers")
+}
+
+/// A customer's saved store — the heart toggle on the home screen.
+/// Free-text addresses already live on each order; favorites are store-level.
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  storeId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation("UserFavorites", fields: [userId], references: [id], onDelete: Cascade)
+  store Store @relation("StoreFavorites", fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storeId])
+  @@index([userId, createdAt])
+  @@map("favorites")
+}
+
+/// Per-day counter for human-facing order numbers (`SG-260808-0001`).
+/// One row per calendar day; `sequence` is bumped ATOMICALLY inside the order
+/// transaction (`upsert` + `increment`), so concurrent order creation can never
+/// mint the same number — unlike a `COUNT(*)` race that the old code retried.
+/// A rolled-back order rolls back its bump too, leaving (harmless) gaps.
+model DailyOrderSequence {
+  /// Local calendar day, stored as DATE (time-of-day is irrelevant).
+  date     DateTime @id @db.Date
+  sequence Int      @default(0)
+
+  @@map("daily_order_sequences")
 }

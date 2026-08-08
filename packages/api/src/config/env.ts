@@ -15,7 +15,34 @@ const envSchema = z.object({
   JWT_SECRET: z
     .string()
     .min(32, 'JWT_SECRET must be at least 32 characters. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'base64url\'))"'),
+  /** Access-token lifetime. Legacy name kept for compatibility with existing `.env`s. */
   JWT_EXPIRES_IN: z.string().default('7d'),
+  /** Overrides `JWT_EXPIRES_IN` for the access token — prefer a short value (e.g. 15m) in production. */
+  JWT_ACCESS_EXPIRES_IN: z.string().optional(),
+  /** Refresh-token lifetime. Rotated on use; stored hashed. */
+  JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
+
+  /* ---- SMS / OTP --------------------------------------------------------- */
+  /** Which gateway dispatches OTP codes. `console` logs codes (dev only), `none` swallows them. */
+  SMS_PROVIDER: z.enum(['twilio', 'firebase', 'generic', 'console', 'none']).default('console'),
+  SMS_GENERIC_ENDPOINT: z.string().url().optional(),
+  SMS_GENERIC_API_KEY: z.string().optional(),
+  SMS_GENERIC_SENDER: z.string().optional(),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_FROM_NUMBER: z.string().optional(),
+  FIREBASE_SMS_FUNCTION_URL: z.string().url().optional(),
+  FIREBASE_SMS_API_KEY: z.string().optional(),
+  /** Digits in the OTP code. 6 is the default everywhere else in the stack. */
+  OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
+  /** OTP validity, in seconds. Requirement: 3 minutes. */
+  OTP_TTL_SECONDS: z.coerce.number().int().positive().default(180),
+  /** Max OTP dispatches per phone inside the window below. */
+  OTP_RATE_MAX: z.coerce.number().int().positive().default(3),
+  /** Rate-limit window, in minutes. Requirement: 5 minutes. */
+  OTP_RATE_WINDOW_MINUTES: z.coerce.number().int().positive().default(5),
+  /** Wrong attempts before the code is invalidated. */
+  OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
 
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
 
@@ -52,6 +79,24 @@ export const deliveryFeeConfig: DeliveryFeeConfig = {
   currency: DEFAULT_DELIVERY_FEE_CONFIG.currency,
 };
 
+/** Parses duration strings (`7d`, `30m`, `2h`, `90` = seconds) into milliseconds. */
+export function parseDurationMs(value: string): number {
+  const match = /^(\d+)(s|m|h|d|w)?$/.exec(value.trim());
+  if (!match) {
+    throw new Error(`Invalid duration string: "${value}"`);
+  }
+  const amount = Number(match[1]);
+  const unit = match[2] ?? 's';
+  const perUnit: Record<string, number> = {
+    s: 1_000,
+    m: 60_000,
+    h: 3_600_000,
+    d: 86_400_000,
+    w: 604_800_000,
+  };
+  return amount * (perUnit[unit] ?? 1_000);
+}
+
 export const env = {
   nodeEnv: raw.NODE_ENV,
   isProduction: raw.NODE_ENV === 'production',
@@ -60,7 +105,32 @@ export const env = {
   databaseUrl: raw.DATABASE_URL,
   jwt: {
     secret: raw.JWT_SECRET,
-    expiresIn: raw.JWT_EXPIRES_IN,
+    expiresIn: raw.JWT_ACCESS_EXPIRES_IN ?? raw.JWT_EXPIRES_IN,
+    refreshExpiresIn: raw.JWT_REFRESH_EXPIRES_IN,
+  },
+  sms: {
+    provider: raw.SMS_PROVIDER,
+    generic: {
+      endpoint: raw.SMS_GENERIC_ENDPOINT,
+      apiKey: raw.SMS_GENERIC_API_KEY,
+      sender: raw.SMS_GENERIC_SENDER,
+    },
+    twilio: {
+      accountSid: raw.TWILIO_ACCOUNT_SID,
+      authToken: raw.TWILIO_AUTH_TOKEN,
+      from: raw.TWILIO_FROM_NUMBER,
+    },
+    firebase: {
+      functionUrl: raw.FIREBASE_SMS_FUNCTION_URL,
+      apiKey: raw.FIREBASE_SMS_API_KEY,
+    },
+  },
+  otp: {
+    length: raw.OTP_LENGTH,
+    ttlMs: raw.OTP_TTL_SECONDS * 1_000,
+    rateMax: raw.OTP_RATE_MAX,
+    rateWindowMs: raw.OTP_RATE_WINDOW_MINUTES * 60_000,
+    maxAttempts: raw.OTP_MAX_ATTEMPTS,
   },
   corsOrigins: raw.CORS_ORIGINS.split(',')
     .map(origin => origin.trim())

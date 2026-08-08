@@ -16,7 +16,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   BarChart3,
-  Bell,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -40,11 +39,17 @@ import {
 import {
   SignInGate,
   updateOrderStatus,
+  updateStore,
   useAuth,
   useMutation,
   useOrders,
+  useStores,
   useToast,
 } from '@samou-go/api-client';
+import {
+  NotificationBell,
+  type BellNotification,
+} from '@samou-go/ui';
 import { playNewOrderChime } from '@/lib/chime';
 import {
   ORDER_STATUS_LABELS,
@@ -55,6 +60,8 @@ import {
   type OrderSummary,
   type UpdateOrderStatusInput,
 } from '@samou-go/shared-types';
+import { ProductCataloguePanel } from './ProductCataloguePanel';
+import { StoreProfilePanel } from './StoreProfilePanel';
 
 /* ---------------------------------------------------------------------------
  * Presentation helpers
@@ -95,7 +102,7 @@ function statusBadge(status: OrderStatus): { label: { ar: string; en: string }; 
 const QUICK_ACTIONS = [
   { icon: ClipboardList, ar: 'إدارة القائمة', en: 'Manage Menu' },
   { icon: BarChart3, ar: 'تقرير المبيعات', en: 'Sales Report' },
-  { icon: Bell, ar: 'الإشعارات', en: 'Notifications' },
+  { icon: Package, ar: 'الطلبات النشطة', en: 'Active Orders' },
   { icon: Settings, ar: 'إعدادات المتجر', en: 'Store Settings' },
 ] as const;
 
@@ -106,13 +113,6 @@ const BOTTOM_TABS = [
   { id: 'reports', icon: BarChart3, ar: 'التقارير', en: 'Reports' },
 ] as const;
 
-const ACTIVE_TAB_LABEL: Record<string, string> = {
-  home: 'Home',
-  orders: 'Orders',
-  products: 'Products',
-  reports: 'Reports',
-};
-
 /* ---------------------------------------------------------------------------
  * Main
  * ------------------------------------------------------------------------- */
@@ -121,12 +121,49 @@ export function SamouGoStoreManager() {
   const auth = useAuth();
   const toast = useToast();
   const [isOpen, setIsOpen] = useState(true);
+  const [storeTogglePending, setStoreTogglePending] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('home');
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
   /* ---- Role gate --------------------------------------------------------- */
 
   const isManager = auth.user?.role === UserRole.STORE_MANAGER;
+
+  /* ---- Resolve the manager's store id ----------------------------------- */
+
+  // A manager may run multiple stores; we show whichever store the API returns
+  // first. All write operations include storeId so this is safe.
+  const managedStores = useStores(
+    { activeOnly: false, pageSize: 1 },
+    { enabled: Boolean(auth.user) && isManager }
+  );
+  const managedStoreId: string | null =
+    managedStores.data?.items.find(s => s.managerId === auth.user?.id)?.id ?? null;
+
+  // The header's open/closed switch is the store's `isActive`, persisted via
+  // PATCH /stores/:id. It starts true (optimistic) and re-syncs once the store
+  // loads so a closed store never shows as open.
+  useEffect(() => {
+    if (!managedStores.data) return;
+    const store = managedStores.data.items.find(s => s.managerId === auth.user?.id);
+    if (store) setIsOpen(store.isActive);
+  }, [managedStores.data, auth.user?.id]);
+
+  const handleToggleStore = async () => {
+    if (!managedStoreId || storeTogglePending) return;
+    const next = !isOpen;
+    setIsOpen(next);
+    setStoreTogglePending(true);
+    try {
+      await updateStore(managedStoreId, { isActive: next });
+      toast.success(next ? 'تم فتح المتجر ✅' : 'تم إغلاق المتجر', next ? 'Store is now open' : 'Store is now closed');
+    } catch (err) {
+      setIsOpen(!next);
+      toast.error('تعذّر تحديث حالة المتجر', err instanceof Error ? err.message : String(err));
+    } finally {
+      setStoreTogglePending(false);
+    }
+  };
 
   /* ---- Data -------------------------------------------------------------- */
 
@@ -158,6 +195,23 @@ export function SamouGoStoreManager() {
   const acceptedItems = useMemo(() => accepted.data?.items ?? [], [accepted.data]);
   const preparingItems = useMemo(() => preparing.data?.items ?? [], [preparing.data]);
   const readyItems = useMemo(() => readyForPickup.data?.items ?? [], [readyForPickup.data]);
+
+  /* ---- Bell notifications (derived from the live incoming-orders inbox) -- */
+
+  const bellNotifications: BellNotification[] = useMemo(
+    () =>
+      incomingItems.map((order) => {
+        const when = relativeTime(order.createdAt);
+        return {
+          id: `incoming:${order.id}`,
+          ar: `طلب جديد ${order.orderNumber} — ${order.storeNameAr}`,
+          en: 'New incoming order',
+          caption: `${when.ar} · ₪${order.totalAmount.toFixed(2)}`,
+          tone: 'brand',
+        };
+      }),
+    [incomingItems]
+  );
 
   /* ---- New-order chime + toast ------------------------------------------- */
 
@@ -353,25 +407,17 @@ export function SamouGoStoreManager() {
               Store Manager
             </p>
           </div>
-          <button
-            type="button"
-            aria-label="الإشعارات"
-            className="flex items-center gap-1 rounded-xl p-2 transition hover:bg-surface/15 focus:outline-none focus:ring-2 focus:ring-white/70"
-          >
-            <Bell size={21} />
-            {activeCount > 0 && (
-              <span
-                aria-label="إشعار جديد"
-                className="flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold"
-              >
-                {activeCount}
-              </span>
-            )}
-          </button>
+          <NotificationBell
+            notifications={bellNotifications}
+            storageKey="store-manager"
+            chimeOnNew
+            onDark
+            max={10}
+          />
         </nav>
         <div className="mx-auto mt-3 flex max-w-md items-center justify-between rounded-xl bg-brand-dark px-3 py-2">
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-brand-tint" />
+            <span className={`h-2 w-2 rounded-full ${isOpen ? 'bg-brand-tint' : 'bg-white/40'}`} />
             <span className="text-xs font-bold">
               {isOpen ? 'متجر مفتوح' : 'متجر مغلق'}
               <span dir="ltr" className="ms-2 text-[10px] text-white/80">
@@ -384,7 +430,8 @@ export function SamouGoStoreManager() {
             role="switch"
             aria-checked={isOpen}
             aria-label="تبديل حالة المتجر"
-            onClick={() => setIsOpen((value) => !value)}
+            disabled={storeTogglePending || !managedStoreId}
+            onClick={() => void handleToggleStore()}
             className={`flex h-6 w-11 items-center rounded-full p-1 transition ${
               isOpen ? 'bg-surface/90 justify-end' : 'bg-black/25 justify-start'
             }`}
@@ -393,6 +440,9 @@ export function SamouGoStoreManager() {
           </button>
         </div>
       </header>
+
+      {/* ---- HOME TAB ---------------------------------------------------- */}
+      {activeTab === 'home' && <>
 
       {/* KPIs */}
       <section className="mx-auto max-w-md px-4 pt-5" aria-label="ملخص الأداء">
@@ -543,8 +593,6 @@ export function SamouGoStoreManager() {
           ))}
         </div>
       </section>
-
-      {/* Recent activity — derived from the live orders, not from a hardcoded list */}
       <section className="mx-auto max-w-md px-4 pb-5 pt-7" aria-labelledby="activity-title">
         <div className="mb-4">
           <h2 id="activity-title" className="text-lg font-extrabold">
@@ -580,6 +628,133 @@ export function SamouGoStoreManager() {
         )}
       </section>
 
+      </> /* end HOME TAB */}
+
+      {/* Orders tab — focused inbox across all kitchen stages */}
+      {activeTab === 'orders' && (
+        <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="orders-tab-title">
+          <div className="mb-4 flex items-end justify-between">
+            <div>
+              <h2 id="orders-tab-title" className="text-lg font-extrabold">الطلبات</h2>
+              <p dir="ltr" className="text-[11px] text-ink-muted">All active orders</p>
+            </div>
+            <span className="rounded-full bg-brand-tint px-2.5 py-1 text-xs font-extrabold text-brand-dark">
+              {activeCount}
+            </span>
+          </div>
+
+          {transition.error && (
+            <p
+              className="mb-3 flex items-start gap-2 rounded-xl bg-danger-tint p-3 text-xs font-semibold text-danger-ink"
+              aria-live="assertive"
+            >
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <span>{transition.error.message}</span>
+            </p>
+          )}
+
+          {loading && inbox.length === 0 ? (
+            [0, 1, 2].map((index) => (
+              <div key={index} className="h-28 animate-pulse rounded-2xl bg-surface shadow-card" aria-hidden="true" />
+            ))
+          ) : inbox.length === 0 ? (
+            <EmptyInbox />
+          ) : (
+            <div className="space-y-3">
+              {inbox.map((order) => (
+                <OrderRow
+                  key={order.id}
+                  order={order}
+                  pending={pendingOrderId === order.id && transition.pending}
+                  onAccept={() => handleAccept(order.id)}
+                  onStartPreparing={() => handleStartPreparing(order.id)}
+                  onReadyForPickup={() => handleReadyForPickup(order.id)}
+                  onReject={() => handleReject(order.id)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Products tab */}
+      {activeTab === 'products' && (
+        <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="products-tab-title">
+          <div className="mb-5">
+            <h2 id="products-tab-title" className="text-lg font-extrabold">المنتجات</h2>
+            <p dir="ltr" className="text-[11px] text-ink-muted">Product Catalogue Management</p>
+          </div>
+          {managedStores.loading && !managedStores.data ? (
+            <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card" aria-busy="true">
+              <Loader2 size={22} className="mx-auto animate-spin text-brand" />
+              <p className="mt-3 text-sm text-ink-muted">جاري تحميل بيانات المتجر… / Loading store…</p>
+            </div>
+          ) : managedStores.error && !managedStores.data ? (
+            <div className="rounded-2xl border border-danger-tint bg-surface p-6 text-center shadow-card" role="alert">
+              <AlertTriangle size={22} className="mx-auto text-danger-ink" />
+              <h3 className="mt-3 text-sm font-extrabold">تعذّر تحميل المتجر</h3>
+              <p className="mt-1 text-xs text-ink-muted">{managedStores.error.message}</p>
+              <button
+                type="button"
+                onClick={() => managedStores.refresh()}
+                disabled={managedStores.refreshing}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition active:scale-95 disabled:opacity-60"
+              >
+                <RefreshCw size={14} className={managedStores.refreshing ? 'animate-spin' : ''} />
+                إعادة المحاولة / Retry
+              </button>
+            </div>
+          ) : managedStoreId ? (
+            <ProductCataloguePanel storeId={managedStoreId} />
+          ) : (
+            <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card">
+              <p className="text-sm text-ink-muted">
+                لا يوجد متجر مرتبط بحسابك — تواصل مع المشرف / No store linked to your account
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Store profile tab */}
+      {activeTab === 'reports' && (
+        <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="profile-tab-title">
+          <div className="mb-5">
+            <h2 id="profile-tab-title" className="text-lg font-extrabold">إعدادات المتجر</h2>
+            <p dir="ltr" className="text-[11px] text-ink-muted">Store Profile &amp; Settings</p>
+          </div>
+          {managedStores.loading && !managedStores.data ? (
+            <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card" aria-busy="true">
+              <Loader2 size={22} className="mx-auto animate-spin text-brand" />
+              <p className="mt-3 text-sm text-ink-muted">جاري تحميل بيانات المتجر… / Loading store…</p>
+            </div>
+          ) : managedStores.error && !managedStores.data ? (
+            <div className="rounded-2xl border border-danger-tint bg-surface p-6 text-center shadow-card" role="alert">
+              <AlertTriangle size={22} className="mx-auto text-danger-ink" />
+              <h3 className="mt-3 text-sm font-extrabold">تعذّر تحميل المتجر</h3>
+              <p className="mt-1 text-xs text-ink-muted">{managedStores.error.message}</p>
+              <button
+                type="button"
+                onClick={() => managedStores.refresh()}
+                disabled={managedStores.refreshing}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition active:scale-95 disabled:opacity-60"
+              >
+                <RefreshCw size={14} className={managedStores.refreshing ? 'animate-spin' : ''} />
+                إعادة المحاولة / Retry
+              </button>
+            </div>
+          ) : managedStoreId ? (
+            <StoreProfilePanel storeId={managedStoreId} />
+          ) : (
+            <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card">
+              <p className="text-sm text-ink-muted">
+                لا يوجد متجر مرتبط بحسابك — تواصل مع المشرف / No store linked to your account
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
       <nav
         className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface px-3 safe-bottom pt-2 shadow-raised"
         aria-label="التنقل السفلي"
@@ -596,9 +771,7 @@ export function SamouGoStoreManager() {
             >
               <tab.icon size={19} fill={activeTab === tab.id && tab.id === 'home' ? 'currentColor' : 'none'} />
               <span className="text-[10px] font-bold">{tab.ar}</span>
-              <span dir="ltr" className="text-[9px] font-medium">
-                {ACTIVE_TAB_LABEL[tab.id]}
-              </span>
+              <span dir="ltr" className="text-[9px] font-medium">{tab.en}</span>
             </button>
           ))}
         </div>

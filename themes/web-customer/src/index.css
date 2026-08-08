@@ -341,6 +341,52 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
+
+  /* Sticky header + search that stays pinned while the feed scrolls beneath. */
+  .sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+
+  /* Skeleton base — reserves layout space (no CLS) with a moving sheen. */
+  .skeleton {
+    background: var(--color-line-soft);
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  /* GPU-friendly shimmer: animates background-position, not layout. */
+  .shimmer {
+    background-image: linear-gradient(
+      90deg,
+      var(--color-line-soft) 0%,
+      var(--color-brand-surface) 45%,
+      var(--color-brand-tint) 55%,
+      var(--color-line-soft) 100%
+    );
+    background-size: 220% 100%;
+    animation: shimmerSlide 1.6s linear infinite;
+  }
+
+  @keyframes shimmerSlide {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -20% 0;
+    }
+  }
+
+  /* Respect users who prefer reduced motion — kill shimmer & shake. */
+  @media (prefers-reduced-motion: reduce) {
+    .shimmer {
+      animation: none;
+    }
+    .animate-shake {
+      animation: none !important;
+    }
+  }
 }
 
 /* ----------------------------------------------------------------------------

@@ -27,3 +27,25 @@ export const authLimiter = rateLimit({
   // Store defaults to in-memory. For a multi-instance deployment, swap to
   // a Redis store (ioredis-based `rate-limit-redis`). Single-node for now.
 });
+
+/**
+ * Applied to the OTP endpoints. Stops a single IP from driving unlimited SMS
+ * dispatching across many phone numbers (a spam/billing attack). The stricter
+ * per-phone limit (3 per 5 minutes) lives in the OTP service itself, keyed by
+ * phone number and enforced against the database so it survives restarts.
+ */
+export const otpIpLimiter = rateLimit({
+  windowMs: 5 * 60 * 1_000, // 5 minutes
+  max: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skip: () => env.isTest,
+  message: {
+    success: false,
+    error: {
+      code: 'TOO_MANY_REQUESTS',
+      message:
+        'طلبات كثيرة جداً، يرجى المحاولة بعد 5 دقائق / Too many requests — try again in 5 minutes',
+    },
+  } satisfies ApiFailure,
+});

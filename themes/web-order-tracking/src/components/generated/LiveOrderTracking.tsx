@@ -11,25 +11,30 @@
  * by design and there is no map to draw.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Check,
   Loader2,
+  LogOut,
   MapPin,
   Package,
   Phone,
   RefreshCw,
   Store,
+  UserRound,
+  X,
   XCircle,
 } from 'lucide-react';
 import {
   SignInGate,
   updateOrderStatus,
+  updateProfile,
   useAuth,
   useMutation,
   useOrder,
   useOrders,
+  useToast,
 } from '@samou-go/api-client';
 import {
   ORDER_STATUS_LABELS,
@@ -40,14 +45,22 @@ import {
   canTransitionOrderStatus,
   isTerminalOrderStatus,
   type OrderDetail,
+  type PublicUser,
   type UpdateOrderStatusInput,
+  type UpdateProfileInput,
 } from '@samou-go/shared-types';
 import { HeaderNav } from './HeaderNav';
 import { BottomTabs } from './BottomTabs';
 import { OrderCard } from './OrderCard';
+import { type BellNotification } from '@samou-go/ui';
 
 /** Fast enough to feel live on the customer's side, gentle on mobile data. */
-const POLL_MS = 15_000;
+const POLL_MS = 5_000;
+
+/** Where the customer home app is served — target of the "home" bottom tab. */
+const HOME_URL: string = (
+  import.meta.env.VITE_HOME_URL ?? 'http://localhost:5173'
+).replace(/\/+$/, '');
 
 type TimelineState = 'completed' | 'active' | 'pending';
 
@@ -96,6 +109,11 @@ function buildTimeline(order: OrderDetail): TimelineStep[] {
 
 export const LiveOrderTracking = () => {
   const auth = useAuth();
+  const toast = useToast();
+
+  // Bottom-tab state — "orders" is the default, "profile" swaps the whole
+  // screen for the account panel; "home"/"explore" navigate to the home app.
+  const [activeTab, setActiveTab] = useState<'home' | 'explore' | 'orders' | 'profile'>('orders');
 
   /* ---- Which order? ----------------------------------------------------- */
 
@@ -125,6 +143,24 @@ export const LiveOrderTracking = () => {
     setLive(!isTerminalOrderStatus(order.data.status));
   }, [order.data]);
 
+  // Toast whenever the status advances — gives the customer an in-app
+  // notification without requiring push notifications or a websocket.
+  const prevStatusRef = useRef<OrderStatus | null>(null);
+  useEffect(() => {
+    if (!order.data) return;
+    const current = order.data.status;
+    const prev = prevStatusRef.current;
+    if (prev !== null && prev !== current) {
+      const label = ORDER_STATUS_LABELS[current];
+      toast.info(
+        `🔔 ${label.ar}`,
+        `Order status: ${label.en}`
+      );
+    }
+    prevStatusRef.current = current;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.data?.status]);
+
   /* ---- Cancel ----------------------------------------------------------- */
 
   const cancel = useMutation<UpdateOrderStatusInput, OrderDetail>((input, signal) =>
@@ -145,6 +181,23 @@ export const LiveOrderTracking = () => {
     const result = await cancel.run({ status: OrderStatus.CANCELLED });
     setConfirmingCancel(false);
     if (result) order.reload();
+  };
+
+  /* ---- Profile (PATCH /auth/me) ------------------------------------------ */
+
+  const profileMutation = useMutation<UpdateProfileInput, PublicUser>(
+    (input, signal) => updateProfile(input, signal)
+  );
+
+  const handleSaveProfile = async (input: UpdateProfileInput) => {
+    const result = await profileMutation.run(input);
+    if (result) {
+      auth.setUser(result);
+      toast.success('تم تحديث الملف الشخصي', 'Profile updated');
+    } else if (profileMutation.error) {
+      toast.error('تعذّر تحديث الملف', profileMutation.error.message, { duration: 5_000 });
+    }
+    return result;
   };
 
   const handleCall = (phoneNumber: string) => {
@@ -175,6 +228,48 @@ export const LiveOrderTracking = () => {
 
   const timeline = detail && detail.status !== OrderStatus.CANCELLED ? buildTimeline(detail) : [];
 
+  // The tracking screen's own bell: one live row for the order being watched,
+  // re-keyed by status so each advance surfaces as a fresh unread notification.
+  const bellNotifications: BellNotification[] = useMemo(() => {
+    if (!detail) return [];
+    return [{
+      id: `order:${detail.id}:${detail.status}`,
+      ar: `طلب ${detail.orderNumber} — ${ORDER_STATUS_LABELS[detail.status].ar}`,
+      en: ORDER_STATUS_LABELS[detail.status].en,
+      caption: detail.store.nameEn,
+      href: `${window.location.pathname}?orderId=${encodeURIComponent(detail.id)}`,
+      tone: detail.status === OrderStatus.CANCELLED ? 'danger' : 'info',
+    }];
+  }, [detail]);
+
+  /* ---- Profile tab — swaps the whole screen ----------------------------- */
+
+  if (activeTab === 'profile' && auth.user) {
+    return (
+      <main dir="rtl" className="min-h-screen bg-canvas pb-24 text-ink">
+        <HeaderNav
+          title="Profile"
+          arabicTitle="حسابي"
+          showBack
+          showCart={false}
+          notifications={bellNotifications}
+          storageKey="tracking"
+          onBack={() => setActiveTab('orders')}
+        />
+        <div className="mx-auto w-full max-w-md px-4 pb-8 pt-5">
+          <CustomerProfileTab
+            user={auth.user}
+            pending={profileMutation.pending}
+            savingError={profileMutation.error?.message}
+            onSave={handleSaveProfile}
+            onSignOut={auth.signOut}
+          />
+        </div>
+        <BottomTabs activeTab="profile" onTabChange={setActiveTab} />
+      </main>
+    );
+  }
+
   return (
     <main dir="rtl" className="min-h-screen bg-canvas pb-24 text-ink">
       <HeaderNav
@@ -182,6 +277,8 @@ export const LiveOrderTracking = () => {
         arabicTitle="تتبع الطلب"
         showBack
         showCart={false}
+        notifications={bellNotifications}
+        storageKey="tracking"
         onBack={() => window.history.back()}
       />
 
@@ -480,7 +577,151 @@ export const LiveOrderTracking = () => {
         )}
       </div>
 
-      <BottomTabs activeTab="orders" />
+      <BottomTabs
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          if (tab === 'home' || tab === 'explore') {
+            window.location.href = `${HOME_URL}/`;
+            return;
+          }
+          setActiveTab(tab);
+        }}
+      />
     </main>
   );
 };
+
+/* ---------------------------------------------------------------------------
+ * Profile tab — the customer edits their own name/phone/password via
+ * `PATCH /auth/me`, the same endpoint the captain dashboard uses.
+ * ------------------------------------------------------------------------- */
+
+interface CustomerProfileTabProps {
+  user: PublicUser;
+  pending: boolean;
+  savingError?: string;
+  onSave: (input: UpdateProfileInput) => Promise<PublicUser | null>;
+  onSignOut: () => void;
+}
+
+function CustomerProfileTab({ user, pending, savingError, onSave, onSignOut }: CustomerProfileTabProps) {
+  const [name, setName] = useState(user.name);
+  const [phone, setPhone] = useState(user.phone);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLocalError(null);
+
+    const changed = name.trim() !== user.name || phone.trim() !== user.phone;
+    if (!changed && !newPassword) {
+      setLocalError('لم تتغيّر أي بيانات / Nothing to update');
+      return;
+    }
+    if (newPassword && newPassword !== confirmPassword) {
+      setLocalError('كلمتا المرور غير متطابقتين / Passwords do not match');
+      return;
+    }
+
+    const input: UpdateProfileInput = {
+      ...(name.trim() !== user.name ? { name: name.trim() } : {}),
+      ...(phone.trim() !== user.phone ? { phone: phone.trim() } : {}),
+      ...(newPassword ? { newPassword, currentPassword } : {}),
+    };
+
+    const result = await onSave(input);
+    if (result) {
+      setSaved(true);
+      setNewPassword('');
+      setConfirmPassword('');
+      setCurrentPassword('');
+      setTimeout(() => setSaved(false), 3000);
+    }
+  };
+
+  const fieldClass =
+    'w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20';
+
+  return (
+    <section aria-labelledby="profile-tab-title" className="pt-2">
+      <div className="mb-4">
+        <h2 id="profile-tab-title" className="text-lg font-extrabold">حسابي</h2>
+        <p dir="ltr" className="text-sm text-ink-muted">Profile &amp; Account</p>
+      </div>
+
+      <form onSubmit={(event) => void submit(event)} className="space-y-4">
+        <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
+          <div className="flex items-center gap-3 border-b border-line-soft pb-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-tint text-base font-extrabold text-brand-deep">
+              {user.name.slice(0, 2)}
+            </span>
+            <div>
+              <p className="text-sm font-extrabold">{user.name}</p>
+              <p className="text-sm text-ink-muted" dir="ltr">{user.phone}</p>
+            </div>
+            <span className="ms-auto flex h-9 w-9 items-center justify-center rounded-full bg-brand-surface text-brand">
+              <UserRound size={18} />
+            </span>
+          </div>
+
+          <label className="mt-4 block">
+            <span className="mb-1.5 block text-sm font-bold text-ink">الاسم الكامل / Full name</span>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={fieldClass} />
+          </label>
+
+          <label className="mt-3 block">
+            <span className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-ink">
+              <Phone size={12} className="text-brand" /> رقم الجوال / Mobile
+            </span>
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} dir="ltr" className={fieldClass} />
+          </label>
+        </div>
+
+        <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
+          <p className="text-sm font-extrabold text-ink">تغيير كلمة المرور <span dir="ltr" className="font-medium text-ink-muted">/ Change password</span></p>
+          <label className="mt-3 block">
+            <span className="mb-1.5 block text-sm font-bold text-ink">كلمة المرور الحالية / Current password</span>
+            <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className={fieldClass} />
+          </label>
+          <label className="mt-3 block">
+            <span className="mb-1.5 block text-sm font-bold text-ink">كلمة مرور جديدة / New password</span>
+            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={fieldClass} />
+          </label>
+          <label className="mt-3 block">
+            <span className="mb-1.5 block text-sm font-bold text-ink">تأكيد كلمة المرور / Confirm password</span>
+            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={fieldClass} />
+          </label>
+        </div>
+
+        {(localError || savingError) && (
+          <p className="flex items-start gap-1.5 rounded-xl bg-danger-tint px-3 py-2 text-sm font-semibold text-danger-ink" role="alert">
+            <X size={13} className="mt-0.5 shrink-0" />
+            {localError ?? savingError}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={pending}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-3 text-sm font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
+        >
+          {pending && <Loader2 size={15} className="animate-spin" />}
+          {saved ? 'تم الحفظ ✓ / Saved' : 'حفظ التغييرات / Save changes'}
+        </button>
+      </form>
+
+      <button
+        type="button"
+        onClick={onSignOut}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-danger-tint py-3 text-sm font-bold text-danger transition hover:bg-danger-tint"
+      >
+        <LogOut size={14} />
+        تسجيل الخروج <span dir="ltr" className="font-medium text-danger/70">/ Sign out</span>
+      </button>
+    </section>
+  );
+}

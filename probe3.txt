@@ -1,0 +1,17 @@
+41: Paginated,
+337: type QueryValue = string | number | boolean | undefined | null;
+399: /** Reads the body defensively — a proxy error page is HTML, not our envelope. */
+466: // Free-tier ngrok serves an interstitial "browser warning" page to requests
+581: /** Paginated store list. Inactive stores are hidden unless `activeOnly: false`. */
+582: export function getStores(query: StoreListQuery = {}, signal?: AbortSignal): Promise<Paginated<Store>> {
+583: return request<Paginated<Store>>('GET', '/stores', { query: { ...query }, signal });
+602: /** Paginated products within a store, filterable by category or search term. */
+607: ): Promise<Paginated<Product>> {
+608: return request<Paginated<Product>>('GET', `/stores/${encodeURIComponent(storeId)}/products`, {
+627: * Places the order. Note what `CreateOrderInput` does not contain: `subtotal`,
+628: * `deliveryFee`, `totalAmount`. The server prices the basket from the products
+647: ): Promise<Paginated<OrderSummary>> {
+648: return request<Paginated<OrderSummary>>('GET', '/orders', {
+865: /** Returns a paginated list of all users. Requires ADMIN. */
+869: ): Promise<Paginated<PublicUser>> {
+870: return request<Paginated<PublicUser>>('GET', '/users', {

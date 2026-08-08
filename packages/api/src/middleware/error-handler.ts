@@ -36,6 +36,22 @@ function normalise(error: unknown): Normalised {
     };
   }
 
+  // body-parser rejects malformed JSON and non-object bodies in strict mode
+  // (`entity.parse.failed`, a 400-class SyntaxError). A client mistake, not a
+  // server bug — surface it as a 400 instead of falling through to the 500.
+  if (
+    error instanceof SyntaxError &&
+    'statusCode' in error &&
+    (error as { statusCode?: number }).statusCode === 400
+  ) {
+    return {
+      statusCode: 400,
+      code: 'INVALID_JSON',
+      message: 'البيانات المرسلة غير صالحة / Malformed or unsupported JSON body',
+      unexpected: false,
+    };
+  }
+
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     switch (error.code) {
       case 'P2002': {
@@ -114,6 +130,15 @@ export function errorHandler(
   }
 
   const { statusCode, code, message, details, unexpected } = normalise(error);
+
+  // 429s from the OTP limiter carry a "when can I retry?" hint for the client.
+  if (
+    statusCode === 429 &&
+    error instanceof HttpError &&
+    (error as HttpError & { retryAfterSeconds?: number }).retryAfterSeconds !== undefined
+  ) {
+    res.setHeader('Retry-After', String((error as HttpError & { retryAfterSeconds?: number }).retryAfterSeconds));
+  }
 
   if (unexpected) {
     // eslint-disable-next-line no-console

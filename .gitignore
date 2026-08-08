@@ -10,6 +10,9 @@ build/
 packages/*/dist/
 themes/*/dist/
 
+# capacitor native project (regenerable via `npx cap add|sync android`)
+themes/*/android/
+
 # environment — never commit real secrets
 .env
 .env.*

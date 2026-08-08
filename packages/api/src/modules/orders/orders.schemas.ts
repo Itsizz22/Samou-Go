@@ -14,8 +14,11 @@ export const orderItemInputSchema = z.object({
 /**
  * Note what the client may NOT send: subtotal, deliveryFee, totalAmount.
  * The server prices the basket from the database. Accepting money from the
- * client would let anyone order a fridge for 1 ₪.
+ * client would let anyone order a fridge for 1 ₪. A `voucherCode` is a CODE,
+ * not an amount — the server resolves it and computes the discount.
  */
+export const voucherCodeField = z.string().trim().min(1).max(40).optional();
+
 export const createOrderSchema = z.object({
   storeId: z.string().min(1, 'معرّف المتجر مطلوب / storeId is required'),
   items: z
@@ -28,10 +31,15 @@ export const createOrderSchema = z.object({
     .min(5, 'العنوان قصير جداً / Address is too short')
     .max(500),
   addressNote: z.string().trim().max(500).optional(),
+  voucherCode: voucherCodeField,
 });
 
 /** Same body as create, minus the address — used to preview the delivery fee. */
-export const quoteOrderSchema = createOrderSchema.pick({ storeId: true, items: true });
+export const quoteOrderSchema = createOrderSchema.pick({
+  storeId: true,
+  items: true,
+  voucherCode: true,
+});
 
 export const updateOrderStatusSchema = z.object({
   status: z.nativeEnum(OrderStatus),

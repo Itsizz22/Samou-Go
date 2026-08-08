@@ -15,6 +15,8 @@
 
 export type Locale = 'ar' | 'en';
 
+import type { VoucherDiscountType } from './enums';
+
 export const CURRENCY = {
   code: 'ILS',
   symbol: '₪',
@@ -154,4 +156,46 @@ export function calculateOrderTotals(
     deliveryFee,
     totalAmount: roundMoney(subtotal + deliveryFee),
   };
+}
+
+/* ---------------------------------------------------------------------------
+ * Vouchers / discounts
+ *
+ * The discount is computed HERE, in the single source of truth, so the API and
+ * the checkout screen agree to the fils. The client only ever sends a voucher
+ * CODE — the server resolves it and applies `calculateVoucherDiscount`. The
+ * "client never sends money" invariant is untouched.
+ * ------------------------------------------------------------------------- */
+
+/** The pricing-relevant fields of a voucher, shared with the front-end mirror. */
+export interface VoucherPricing {
+  type: VoucherDiscountType;
+  /** PERCENT → 0–100; FIXED → ILS amount off. */
+  value: number;
+  /** The voucher only applies once the basket's subtotal is at least this. */
+  minSubtotal?: number;
+  /** Hard cap on the savings (matters for PERCENT vouchers). */
+  maxDiscount?: number;
+}
+
+/**
+ * The savings a voucher produces on a given subtotal, rounded to the fils.
+ * Never returns a negative or an amount larger than the basket itself.
+ */
+export function calculateVoucherDiscount(
+  subtotal: number,
+  voucher: VoucherPricing
+): number {
+  if (!Number.isFinite(subtotal) || subtotal <= 0) return 0;
+  if (voucher.minSubtotal !== undefined && subtotal < voucher.minSubtotal) return 0;
+
+  const raw =
+    voucher.type === 'PERCENT'
+      ? subtotal * (Math.min(100, Math.max(0, voucher.value)) / 100)
+      : voucher.value;
+
+  const capped =
+    voucher.maxDiscount !== undefined ? Math.min(raw, voucher.maxDiscount) : raw;
+
+  return roundMoney(Math.min(Math.max(0, capped), subtotal));
 }

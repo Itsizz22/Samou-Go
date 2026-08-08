@@ -38,6 +38,21 @@ export const PaymentMethod = {
 } as const;
 export type PaymentMethod = (typeof PaymentMethod)[keyof typeof PaymentMethod];
 
+/** How a voucher's `value` is interpreted. */
+export const VoucherDiscountType = {
+  /** `value` is a percentage off (0–100). */
+  PERCENT: 'PERCENT',
+  /** `value` is a fixed amount off, in ILS. */
+  FIXED: 'FIXED',
+} as const;
+export type VoucherDiscountType =
+  (typeof VoucherDiscountType)[keyof typeof VoucherDiscountType];
+
+export const VOUCHER_DISCOUNT_TYPE_LABELS: Record<VoucherDiscountType, { ar: string; en: string }> = {
+  [VoucherDiscountType.PERCENT]: { ar: 'نسبة مئوية', en: 'Percent off' },
+  [VoucherDiscountType.FIXED]: { ar: 'مبلغ ثابت', en: 'Fixed amount off' },
+};
+
 /** Forward-only progression, used to render progress bars and validate jumps. */
 export const ORDER_STATUS_SEQUENCE: readonly OrderStatus[] = [
   OrderStatus.PENDING,

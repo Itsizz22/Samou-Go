@@ -21,7 +21,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LoginInput, PublicUser } from '@samou-go/shared-types';
-import { ApiError, clearToken, getToken, login, logout, me } from './api';
+import {
+  ApiError,
+  clearTokens,
+  getRefreshToken,
+  getToken,
+  login,
+  logout,
+  me,
+  refreshAccessToken,
+} from './api';
 
 export interface Auth {
   /** The signed-in profile, or `null` when nobody is signed in. */
@@ -39,10 +48,23 @@ export interface Auth {
   error: ApiError | null;
   /** A sign-in request is in flight. */
   pending: boolean;
+  /**
+   * Re-fetches `GET /auth/me` and updates the cached profile in place.
+   * Screens call this after `updateProfile()` or `setAvailability()` — both
+   * endpoints return the same `PublicUser`, which can also be passed straight
+   * to {@link Auth.setUser} to skip the round-trip.
+   */
+  refresh: () => Promise<PublicUser | null>;
+  /**
+   * Overwrites the cached profile with a payload returned by a mutation
+   * (`updateProfile`, `setAvailability`). Cheaper than a round-trip and avoids
+   * a flash.
+   */
+  setUser: (next: PublicUser | null) => void;
 }
 
 export function useAuth(): Auth {
-  const [user, setUser] = useState<PublicUser | null>(null);
+  const [user, setUserState] = useState<PublicUser | null>(null);
   const [ready, setReady] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
@@ -52,8 +74,8 @@ export function useAuth(): Auth {
   useEffect(() => {
     mounted.current = true;
 
-    // No token means no session to restore — nothing to wait for.
-    if (!getToken()) {
+    // No stored credentials means no session to restore — nothing to wait for.
+    if (!getToken() && !getRefreshToken()) {
       setReady(true);
       return () => {
         mounted.current = false;
@@ -62,17 +84,33 @@ export function useAuth(): Auth {
 
     const controller = new AbortController();
 
-    me(controller.signal)
-      .then((profile) => {
-        if (!mounted.current) return;
-        setUser(profile);
-      })
+    // No access token but a refresh token present → the previous session's
+    // access token was dropped (or expired); restore it silently so app kills
+    // and restarts do not force a re-login.
+    const ensureAccessToken = async (): Promise<void> => {
+      if (!getToken() && getRefreshToken()) {
+        const refresh = getRefreshToken();
+        if (refresh) {
+          try {
+            const restored = await refreshAccessToken(refresh, controller.signal);
+            if (mounted.current) setUserState(restored.user);
+            return;
+          } catch {
+            // Offline or rejected — `me()` below surfaces the failure.
+          }
+        }
+      }
+      const profile = await me(controller.signal);
+      if (mounted.current) setUserState(profile);
+    };
+
+    ensureAccessToken()
       .catch((cause: unknown) => {
         if (!mounted.current) return;
         // An expired or revoked token is already cleared by `request()` on a
         // 401; do it here too so an offline probe does not leave a half state.
-        if (cause instanceof ApiError && cause.isAuthError) clearToken();
-        setUser(null);
+        if (cause instanceof ApiError && cause.isAuthError) clearTokens();
+        setUserState(null);
       })
       .finally(() => {
         if (mounted.current) setReady(true);
@@ -89,7 +127,7 @@ export function useAuth(): Auth {
     setError(null);
     try {
       const auth = await login(input);
-      if (mounted.current) setUser(auth.user);
+      if (mounted.current) setUserState(auth.user);
       return auth.user;
     } catch (cause) {
       const apiError =
@@ -104,15 +142,29 @@ export function useAuth(): Auth {
   }, []);
 
   const signOut = useCallback(() => {
-    // Drop the local token first: the screen must react immediately even if the
+    // Drop the local tokens first: the screen must react immediately even if the
     // network call to a stateless endpoint never lands.
-    clearToken();
-    setUser(null);
+    clearTokens();
+    setUserState(null);
     setError(null);
     void logout().catch(() => {
       /* Already signed out locally — a failed round-trip changes nothing. */
     });
   }, []);
 
-  return { user, ready, signIn, signOut, error, pending };
+  const refresh = useCallback(async (): Promise<PublicUser | null> => {
+    try {
+      const profile = await me();
+      if (mounted.current) setUserState(profile);
+      return profile;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const setUser = useCallback((next: PublicUser | null) => {
+    if (mounted.current) setUserState(next);
+  }, []);
+
+  return { user, ready, signIn, signOut, error, pending, refresh, setUser };
 }

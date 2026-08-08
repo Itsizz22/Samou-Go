@@ -1,3 +1,4 @@
+import type { User } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 import type { AuthResponse, Paginated, PublicUser } from '@samou-go/shared-types';
 import { UserRole } from '@samou-go/shared-types';
@@ -6,16 +7,30 @@ import { conflict, forbidden, notFound, unauthorized, unprocessable } from '../.
 import { signAccessToken } from '../../lib/jwt';
 import { hashPassword, verifyPassword } from '../../lib/password';
 import { toPublicUser } from './auth.mapper';
+import { issueRefreshToken, revokeAllUserRefreshTokens, rotateRefreshToken } from './refresh-token';
 import type {
   AdminUpdateUserBody,
   LoginBody,
+  RefreshTokenBody,
   RegisterBody,
+  SetAvailabilityBody,
   UpdateProfileBody,
   UserListQuery,
 } from './auth.schemas';
 
 /** Roles a caller may create without being an admin. */
 const SELF_SERVICE_ROLES: readonly UserRole[] = [UserRole.CUSTOMER];
+
+/** Composes the login response: access token + a fresh refresh token. */
+async function buildAuthResponse(user: User): Promise<AuthResponse> {
+  const { accessToken, expiresIn } = signAccessToken({
+    userId: user.id,
+    role: user.role,
+    phone: user.phone,
+  });
+  const refreshToken = await issueRefreshToken(user.id);
+  return { user: toPublicUser(user), accessToken, expiresIn, refreshToken };
+}
 
 export async function register(
   body: RegisterBody,
@@ -44,13 +59,7 @@ export async function register(
     },
   });
 
-  const { accessToken, expiresIn } = signAccessToken({
-    userId: user.id,
-    role: user.role,
-    phone: user.phone,
-  });
-
-  return { user: toPublicUser(user), accessToken, expiresIn };
+  return buildAuthResponse(user);
 }
 
 export async function login(body: LoginBody): Promise<AuthResponse> {
@@ -67,13 +76,26 @@ export async function login(body: LoginBody): Promise<AuthResponse> {
     throw forbidden('الحساب موقوف / This account has been deactivated');
   }
 
+  return buildAuthResponse(user);
+}
+
+/** POST /auth/refresh — swap a refresh token for a fresh session pair. */
+export async function refreshSession(body: RefreshTokenBody): Promise<AuthResponse> {
+  const { raw: nextRefreshToken, userId } = await rotateRefreshToken(body.refreshToken);
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw unauthorized('الحساب غير موجود / Account no longer exists');
+  if (!user.isActive) {
+    throw forbidden('الحساب موقوف / This account has been deactivated');
+  }
+
   const { accessToken, expiresIn } = signAccessToken({
     userId: user.id,
     role: user.role,
     phone: user.phone,
   });
 
-  return { user: toPublicUser(user), accessToken, expiresIn };
+  return { user: toPublicUser(user), accessToken, expiresIn, refreshToken: nextRefreshToken };
 }
 
 export async function getProfile(userId: string): Promise<PublicUser> {
@@ -127,6 +149,39 @@ export async function updateProfile(
     },
   });
 
+  // A password change invalidates every outstanding session — including the
+  // one the caller is on, so the client re-authenticates with fresh tokens.
+  if (body.newPassword) {
+    await revokeAllUserRefreshTokens(userId);
+  }
+
+  return toPublicUser(updated);
+}
+
+/* ---------------------------------------------------------------------------
+ * Captain self-managed availability — PATCH /auth/me/availability
+ * ------------------------------------------------------------------------- */
+
+export async function setAvailability(
+  userId: string,
+  body: SetAvailabilityBody
+): Promise<PublicUser> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw unauthorized('الحساب غير موجود / Account no longer exists');
+  if (user.role !== UserRole.CAPTAIN) {
+    throw unprocessable('NOT_A_CAPTAIN', 'هذا الخيار لكابتن التوصيل فقط / Only captains may set availability');
+  }
+  if (body.isAvailable && !user.isActive) {
+    throw unprocessable(
+      'ACCOUNT_INACTIVE',
+      'حسابك موقوف، تواصل مع المشرف / Your account is deactivated — contact an admin'
+    );
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { isAvailable: body.isAvailable },
+  });
   return toPublicUser(updated);
 }
 
@@ -180,8 +235,24 @@ export async function adminUpdateUser(
       ...(body.name !== undefined ? { name: body.name } : {}),
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
       ...(body.role !== undefined ? { role: body.role } : {}),
+      ...(body.isVerified !== undefined ? { isVerified: body.isVerified } : {}),
     },
   });
 
+  return toPublicUser(updated);
+}
+
+/** PATCH /captains/:id/verify — admin confirms a CAPTAIN account. */
+export async function verifyCaptain(captainId: string): Promise<PublicUser> {
+  const captain = await prisma.user.findUnique({ where: { id: captainId } });
+  if (!captain) throw notFound('الكابتن غير موجود / Captain not found');
+  if (captain.role !== UserRole.CAPTAIN) {
+    throw unprocessable('NOT_A_CAPTAIN', 'المستخدم ليس كابتن توصيل / User is not a captain');
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: captainId },
+    data: { isVerified: true },
+  });
   return toPublicUser(updated);
 }

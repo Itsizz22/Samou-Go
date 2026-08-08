@@ -48,6 +48,32 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'كلمة المرور مطلوبة / Password is required'),
 });
 
+/** POST /auth/otp/request — the phoneSchema normalises before the service runs. */
+export const otpRequestSchema = z.object({
+  phone: phoneSchema,
+});
+
+/** POST /auth/otp/verify — 6-digit code, digits only, case/space tolerant. */
+export const otpVerifySchema = z.object({
+  phone: phoneSchema,
+  code: z
+    .string()
+    .trim()
+    .transform(value => value.replace(/\D/g, ''))
+    .pipe(
+      z
+        .string()
+        .min(4, 'رمز قصير جداً / Code is too short')
+        .max(8, 'رمز طويل جداً / Code is too long')
+    ),
+  name: z.string().trim().min(2).max(120).optional(),
+});
+
+/** POST /auth/refresh — exchange a refresh token for a fresh pair. */
+export const refreshTokenSchema = z.object({
+  refreshToken: z.string().min(20, 'رمز غير صالح / Invalid token'),
+});
+
 /** PATCH /auth/me — caller updates their own profile. */
 export const updateProfileSchema = z
   .object({
@@ -69,16 +95,41 @@ export const updateProfileSchema = z
     message: 'يجب توفير حقل واحد على الأقل للتحديث / At least one field required',
   });
 
+/** PATCH /auth/me/availability — a captain toggles their own online state. */
+export const setAvailabilitySchema = z.object({
+  isAvailable: z.boolean(),
+});
+
 /** PATCH /users/:id — admin updates any user's account. */
 export const adminUpdateUserSchema = z
   .object({
     name: z.string().trim().min(2).max(120).optional(),
     isActive: z.boolean().optional(),
     role: z.nativeEnum(UserRole).optional(),
+    /** CAPTAIN verification — set by the admin dashboard. */
+    isVerified: z.boolean().optional(),
   })
   .refine(data => Object.keys(data).length > 0, {
     message: 'يجب توفير حقل واحد على الأقل للتحديث / At least one field required',
   });
+
+/** PATCH /users/:userId — admin route param. */
+export const userIdParamsSchema = z.object({
+  userId: z.string().min(1, 'معرّف المستخدم مطلوب / userId is required'),
+});
+
+/** PATCH /captains/:captainId/verify — admin route param. */
+export const captainIdParamsSchema = z.object({
+  captainId: z.string().min(1, 'معرّف الكابتن مطلوب / captainId is required'),
+});
+
+/**
+ * POST /auth/logout — the refresh token is OPTIONAL (stateless access tokens
+ * are just dropped client-side). When present it is revoked server-side.
+ */
+export const logoutSchema = z.object({
+  refreshToken: z.string().min(1).optional(),
+});
 
 /** GET /users — admin list query. */
 export const userListQuerySchema = z.object({
@@ -94,6 +145,11 @@ export const userListQuerySchema = z.object({
 
 export type RegisterBody = z.infer<typeof registerSchema>;
 export type LoginBody = z.infer<typeof loginSchema>;
+export type OtpRequestBody = z.infer<typeof otpRequestSchema>;
+export type OtpVerifyBody = z.infer<typeof otpVerifySchema>;
+export type RefreshTokenBody = z.infer<typeof refreshTokenSchema>;
 export type UpdateProfileBody = z.infer<typeof updateProfileSchema>;
+export type SetAvailabilityBody = z.infer<typeof setAvailabilitySchema>;
 export type AdminUpdateUserBody = z.infer<typeof adminUpdateUserSchema>;
 export type UserListQuery = z.infer<typeof userListQuerySchema>;
+export type LogoutBody = z.infer<typeof logoutSchema>;

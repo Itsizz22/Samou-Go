@@ -44,3 +44,24 @@ export const conflict = (message: string): HttpError => new HttpError(409, 'CONF
 
 export const unprocessable = (code: string, message: string): HttpError =>
   new HttpError(422, code, message);
+
+/**
+ * A caller stepped outside a state machine — invalid transition, unchanged
+ * status, closed order, closed cancel window. These are bad *requests* (400),
+ * not payload-shape problems (422): the body parsed fine, the state didn't.
+ */
+export const badState = (code: string, message: string): HttpError =>
+  new HttpError(400, code, message);
+
+export const tooMany = (
+  code: string,
+  message: string,
+  /** Seconds the caller should wait before retrying. Surfaced in Retry-After. */
+  retryAfterSeconds?: number
+): HttpError => {
+  const error = new HttpError(429, code, message);
+  if (retryAfterSeconds !== undefined) {
+    (error as HttpError & { retryAfterSeconds?: number }).retryAfterSeconds = retryAfterSeconds;
+  }
+  return error;
+};

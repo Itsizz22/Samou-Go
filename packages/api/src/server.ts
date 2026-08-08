@@ -5,10 +5,13 @@ import { disconnectPrisma } from './lib/prisma';
 
 const app = createApp();
 
-const server: Server = app.listen(env.port, () => {
+// Bind to 0.0.0.0 so physical devices / the Android emulator on the same LAN
+// can reach the API at the host's IP (e.g. http://192.168.0.111:4000), not just
+// localhost on this machine.
+const server: Server = app.listen(env.port, '0.0.0.0', () => {
   // eslint-disable-next-line no-console
   console.log(
-    `🚚  Samou' Go API — http://localhost:${env.port}/api/v1  [${env.nodeEnv}]\n` +
+    `🚚  Samou' Go API — http://0.0.0.0:${env.port}/api/v1  [${env.nodeEnv}]\n` +
       `    رسوم التوصيل: ${env.deliveryFeeConfig.baseFee} ₪ لأقل من ${env.deliveryFeeConfig.bulkThreshold} أصناف، ` +
       `${env.deliveryFeeConfig.bulkFee} ₪ لـ ${env.deliveryFeeConfig.bulkThreshold} أصناف أو أكثر`
   );

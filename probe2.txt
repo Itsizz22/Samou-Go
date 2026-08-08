@@ -1,0 +1,35 @@
+526: 
+527: /* ---------------------------------------------------------------------------
+528:  * Orders panel — live table with an ADMIN status override per row
+529:  * ------------------------------------------------------------------------- */
+530: 
+531: function OrdersPanel() {
+532:   const toast = useToast();
+533:   const orders = useOrders({ pageSize: 20 }, { pollMs: 10_000 });
+534:   const rows = orders.data?.items ?? [];
+535: 
+536:   const pendingIdRef = useRef<string | null>(null);
+537:   const [pendingId, setPendingId] = useState<string | null>(null);
+538:   const transition = useMutation<UpdateOrderStatusInput, OrderDetail>(
+539:     (input, signal) => updateOrderStatus(pendingIdRef.current as string, input, signal)
+540:   );
+541: 
+542:   const overrideStatus = async (orderId: string, status: OrderStatus) => {
+543:     pendingIdRef.current = orderId;
+544:     setPendingId(orderId);
+545:     const result = await transition.run({ status });
+546:     pendingIdRef.current = null;
+547:     setPendingId(null);
+548:     if (result) {
+549:       toast.success(`تم تغيير حالة ${result.orderNumber}`, `Order ${result.orderNumber} moved to ${ORDER_STATUS_LABELS[status].en}`);
+550:       void orders.reload();
+551:     } else if (transition.error) {
+552:       toast.error('تعذّر تغيير الحالة', transition.error.message, { duration: 5_000 });
+553:     }
+554:   };
+555: 
+556:   return (
+557:     <PanelShell
+558:       title="الطلبات المباشرة"
+559:       en="Live Orders"
+560:       loading={orders.loading}

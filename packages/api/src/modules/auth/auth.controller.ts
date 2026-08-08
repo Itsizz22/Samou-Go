@@ -4,14 +4,23 @@ import { created, ok } from '../../lib/respond';
 import { parseWith } from '../../lib/validate';
 import { forbidden } from '../../lib/http-error';
 import { requireAuth } from '../../middleware/authenticate';
+import { revokeRefreshToken } from './refresh-token';
 import {
   adminUpdateUserSchema,
+  captainIdParamsSchema,
   loginSchema,
+  logoutSchema,
+  otpRequestSchema,
+  otpVerifySchema,
+  refreshTokenSchema,
   registerSchema,
+  setAvailabilitySchema,
   updateProfileSchema,
+  userIdParamsSchema,
   userListQuerySchema,
 } from './auth.schemas';
 import * as authService from './auth.service';
+import * as otpService from './otp.service';
 
 /* ---------------------------------------------------------------------------
  * Auth
@@ -31,6 +40,24 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
   ok(res, await authService.login(body));
 }
 
+/** POST /api/v1/auth/otp/request — dispatch a one-time code (rate-limited). */
+export async function requestOtpHandler(req: Request, res: Response): Promise<void> {
+  const body = parseWith(otpRequestSchema, req.body);
+  ok(res, await otpService.requestOtp(body));
+}
+
+/** POST /api/v1/auth/otp/verify — exchange the code for a session. */
+export async function verifyOtpHandler(req: Request, res: Response): Promise<void> {
+  const body = parseWith(otpVerifySchema, req.body);
+  ok(res, await otpService.verifyOtp(body));
+}
+
+/** POST /api/v1/auth/refresh — rotate the refresh token and mint a new pair. */
+export async function refreshHandler(req: Request, res: Response): Promise<void> {
+  const body = parseWith(refreshTokenSchema, req.body);
+  ok(res, await authService.refreshSession(body));
+}
+
 /** GET /api/v1/auth/me */
 export async function meHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);
@@ -44,13 +71,24 @@ export async function updateProfileHandler(req: Request, res: Response): Promise
   ok(res, await authService.updateProfile(auth.sub, body));
 }
 
+/** PATCH /api/v1/auth/me/availability — captain toggles their online state. */
+export async function setAvailabilityHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const body = parseWith(setAvailabilitySchema, req.body);
+  ok(res, await authService.setAvailability(auth.sub, body));
+}
+
 /**
  * POST /api/v1/auth/logout
- * Stateless JWT: there is nothing to revoke server-side yet. The client drops
- * the token. Kept as an endpoint so adding a deny-list later is not a breaking
- * change for the seven front-ends.
+ * Stateless JWT access tokens are dropped client-side. The refresh token, if
+ * the client sends one, is revoked server-side so a leaked token cannot be
+ * replayed after sign-out.
  */
-export function logoutHandler(_req: Request, res: Response): void {
+export async function logoutHandler(req: Request, res: Response): Promise<void> {
+  const { refreshToken } = parseWith(logoutSchema, req.body);
+  if (refreshToken) {
+    await revokeRefreshToken(refreshToken);
+  }
   ok(res, { message: 'تم تسجيل الخروج / Signed out' });
 }
 
@@ -70,7 +108,15 @@ export async function updateUserHandler(req: Request, res: Response): Promise<vo
   // Double-check: route-level `authorize(ADMIN)` should already block others,
   // but an explicit guard here prevents any future mis-wiring.
   if (auth.role !== UserRole.ADMIN) throw forbidden();
-  const { userId } = req.params as { userId: string };
+  const { userId } = parseWith(userIdParamsSchema, req.params);
   const body = parseWith(adminUpdateUserSchema, req.body);
   ok(res, await authService.adminUpdateUser(userId, body));
+}
+
+/** PATCH /api/v1/captains/:captainId/verify */
+export async function verifyCaptainHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  if (auth.role !== UserRole.ADMIN) throw forbidden();
+  const { captainId } = parseWith(captainIdParamsSchema, req.params);
+  ok(res, await authService.verifyCaptain(captainId));
 }

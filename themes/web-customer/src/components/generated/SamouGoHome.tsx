@@ -1,29 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
-  Bell,
   ChevronLeft,
   Coffee,
   Heart,
-  Home,
   LayoutGrid,
   Loader2,
   MapPin,
   Menu,
-  Package,
   Pill,
   RefreshCw,
   Search,
   ShoppingBag,
   ShoppingCart,
   Store as StoreIcon,
-  User,
   Utensils,
   type LucideIcon,
 } from 'lucide-react';
+import { NotificationBell, type BellNotification } from '@samou-go/ui';
+import { BottomNav } from '@/components/BottomNav';
 import { DeliveryFee } from '@/components/ui/DeliveryFee';
-import { useApiMeta, useStores } from '@/hooks/useApi';
+import { API_URL } from '@/services/api';
+import { useApiMeta, useOrders, useStores, useAuth } from '@/hooks/useApi';
+import { useFavorites } from '@/components/FavoritesProvider';
+import { Link, useNavigate } from 'react-router-dom';
 import { DEFAULT_DELIVERY_FEE_CONFIG } from '@/lib/delivery';
+import { ORDER_STATUS_LABELS, OrderStatus } from '@samou-go/shared-types';
 import {
   STORE_CATEGORIES,
   classifyStore,
@@ -48,15 +50,21 @@ const FEATURED_COUNT = 5;
 /** Long enough to finish typing an Arabic word, short enough to feel live. */
 const SEARCH_DEBOUNCE_MS = 350;
 
-/** Where the store-details app is served. Override with VITE_STORE_URL in .env */
-const STORE_URL: string = (
-  import.meta.env.VITE_STORE_URL ?? 'http://localhost:5174'
-).replace(/\/+$/, '');
+/** Bell accent per order status, so a delivery feels different from a cancel. */
+const STATUS_BELL_TONE: Record<OrderStatus, NonNullable<BellNotification['tone']>> = {
+  [OrderStatus.PENDING]: 'warning',
+  [OrderStatus.ACCEPTED]: 'info',
+  [OrderStatus.PREPARING]: 'warning',
+  [OrderStatus.READY_FOR_PICKUP]: 'info',
+  [OrderStatus.ON_THE_WAY]: 'info',
+  [OrderStatus.DELIVERED]: 'brand',
+  [OrderStatus.CANCELLED]: 'danger',
+};
 
 export function SamouGoHome() {
+  const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState<StoreCategoryKey>('all');
   const [banner, setBanner] = useState(0);
-  const [liked, setLiked] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -79,6 +87,22 @@ export function SamouGoHome() {
   const meta = useApiMeta();
   const baseFee = meta.data?.deliveryFee.baseFee ?? DEFAULT_DELIVERY_FEE_CONFIG.baseFee;
 
+  // Signed-in customers see their live orders in the header bell; anonymous
+  // visitors keep a quiet bell with no badge. The home itself stays public.
+  const auth = useAuth();
+  const orders = useOrders(
+    { pageSize: 8 },
+    { enabled: Boolean(auth.user), pollMs: 15_000 }
+  );
+
+  // Server-backed favorites, shared across every screen. A guest who taps a
+  // heart is routed to the Favorites screen (the sign-in gate).
+  const favorites = useFavorites();
+  const toggleLike = async (storeId: string) => {
+    const toggled = await favorites.toggle(storeId);
+    if (!toggled) navigate('/favorites');
+  };
+
   const cards: StoreCardModel[] = useMemo(() => {
     const items = stores.data?.items ?? [];
     const filtered =
@@ -91,22 +115,50 @@ export function SamouGoHome() {
   const featured = cards.slice(0, FEATURED_COUNT);
   const showEmpty = !stores.loading && !stores.error && cards.length === 0;
 
-  const toggleLike = (storeId: string) =>
-    setLiked((current) =>
-      current.includes(storeId) ? current.filter((id) => id !== storeId) : [...current, storeId]
-    );
+  // The customer's notification center: one row per recent order, keyed by
+  // status so a status change surfaces as a fresh unread notification. Tapping
+  // a row jumps straight to the live tracking screen for that order.
+  const bellNotifications: BellNotification[] = useMemo(() => {
+    if (!auth.user) return [];
+    return (orders.data?.items ?? []).map((order) => ({
+      id: `order:${order.id}:${order.status}`,
+      ar: `طلب ${order.orderNumber} — ${ORDER_STATUS_LABELS[order.status].ar}`,
+      en: ORDER_STATUS_LABELS[order.status].en,
+      caption: order.storeNameAr,
+      href: `/orders/${encodeURIComponent(order.id)}`,
+      tone: STATUS_BELL_TONE[order.status],
+    }));
+  }, [auth.user, orders.data]);
 
   return <main dir="rtl" className="min-h-screen bg-canvas pb-24 text-ink">
       <header className="bg-brand px-5 pb-5 pt-4 text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Main navigation">
-          <button type="button" aria-label="Open menu" className="rounded-full p-2 transition hover:bg-surface/15"><Menu size={22} /></button>
+          <button
+            type="button"
+            aria-label="القائمة / Menu"
+            onClick={() => document.getElementById('categories-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+            className="rounded-full p-2 transition hover:bg-surface/15"
+          >
+            <Menu size={22} />
+          </button>
           <div className="flex items-center gap-2" dir="ltr">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-brand"><ShoppingCart size={19} strokeWidth={2.5} /></span>
             <span className="text-[17px] font-bold tracking-tight">Samou' Go</span>
           </div>
           <div className="flex items-center gap-1" dir="ltr">
-            <button type="button" aria-label="Notifications" className="relative rounded-full p-2 transition hover:bg-surface/15"><Bell size={20} /><span className="absolute end-1 top-1 h-2 w-2 rounded-full border border-brand bg-danger" /></button>
-            <button type="button" aria-label="Cart" className="rounded-full p-2 transition hover:bg-surface/15"><ShoppingCart size={20} /></button>
+            <NotificationBell
+              notifications={bellNotifications}
+              storageKey="customer"
+              onDark
+              onNavigate={(href) => { navigate(href); }}
+            />
+            <Link
+              to="/cart"
+              aria-label="Cart"
+              className="relative rounded-full p-2 transition hover:bg-surface/15"
+            >
+              <ShoppingCart size={20} />
+            </Link>
           </div>
         </nav>
         <section className="mx-auto mt-5 flex max-w-md items-end justify-between" aria-label="Location and greeting">
@@ -149,6 +201,7 @@ export function SamouGoHome() {
             <h2 className="mt-3 text-sm font-extrabold">تعذّر تحميل المتاجر</h2>
             <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">Could not load stores</p>
             <p className="mt-2 text-xs text-ink-soft">{stores.error.message}</p>
+            <p className="mt-2 text-[10px] break-all text-ink-subtle" dir="ltr">Failed URL: {API_URL}/stores</p>
             <button type="button" onClick={stores.refresh} disabled={stores.refreshing} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-60">
               {stores.refreshing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
               إعادة المحاولة <span dir="ltr">Retry</span>
@@ -165,17 +218,17 @@ export function SamouGoHome() {
         </section>}
 
       {!stores.error && (stores.loading || featured.length > 0) && <section className="mx-auto max-w-md px-5 pt-8" aria-labelledby="featured-title" aria-busy={stores.loading}>
-        <div className="mb-4 flex items-end justify-between"><div><h2 id="featured-title" className="text-lg font-extrabold">المتاجر المميزة</h2><p className="text-xs text-ink-muted" dir="ltr">Featured Stores</p></div><button type="button" className="text-xs font-bold text-brand">عرض الكل <span dir="ltr">See all</span></button></div>
+        <div className="mb-4 flex items-end justify-between"><div><h2 id="featured-title" className="text-lg font-extrabold">المتاجر المميزة</h2><p className="text-xs text-ink-muted" dir="ltr">Featured Stores</p></div><button type="button" onClick={() => document.getElementById('nearby-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="text-xs font-bold text-brand">عرض الكل <span dir="ltr">See all</span></button></div>
         <div className="flex gap-3 overflow-x-auto pb-2" dir="rtl">
           {stores.loading
             ? [0, 1, 2].map(index => <div key={index} className="min-w-[196px] animate-pulse overflow-hidden rounded-2xl bg-surface shadow-card" aria-hidden="true"><div className="h-24 bg-line-soft" /><div className="space-y-2 p-3"><div className="ms-auto h-3 w-2/3 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-1/2 rounded bg-line-soft" /><div className="h-5 w-20 rounded-full bg-line-soft" /></div></div>)
             : featured.map(({ store, category, initials, gradient }) => (
-                <a key={store.id} href={`${STORE_URL}/?storeId=${encodeURIComponent(store.id)}`} className="min-w-[196px] overflow-hidden rounded-2xl bg-surface shadow-card transition hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={`فتح متجر ${store.nameAr}`}>
+                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="min-w-[196px] overflow-hidden rounded-2xl bg-surface shadow-card transition hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={`فتح متجر ${store.nameAr}`}>
                   <article>
                     <div className={`relative flex h-24 items-center justify-center bg-gradient-to-br ${gradient}`}>
                       {store.logoUrl ? <img src={store.logoUrl} alt="" className="h-full w-full object-cover" loading="lazy" /> : <span className="text-3xl font-black text-white/40">{initials}</span>}
                       <span className={`absolute bottom-2 start-2 rounded-full px-2 py-1 text-[10px] font-bold ${store.isActive ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{store.isActive ? <>مفتوح <span dir="ltr">Open</span></> : <>مغلق <span dir="ltr">Closed</span></>}</span>
-                      <button type="button" aria-label={`Favorite ${store.nameEn}`} aria-pressed={liked.includes(store.id)} onClick={(e) => { e.preventDefault(); toggleLike(store.id); }} className="absolute end-2 top-2 rounded-full bg-surface/85 p-1.5 text-brand"><Heart size={15} fill={liked.includes(store.id) ? 'currentColor' : 'none'} /></button>
+                      <button type="button" aria-label={`Favorite ${store.nameEn}`} aria-pressed={favorites.isFavorite(store.id)} onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggleLike(store.id); }} disabled={favorites.pending.includes(store.id)} className="absolute end-2 top-2 rounded-full bg-surface/85 p-1.5 text-brand"><Heart size={15} fill={favorites.isFavorite(store.id) ? 'currentColor' : 'none'} /></button>
                     </div>
                     <div className="p-3 text-end">
                       <h3 className="truncate text-sm font-extrabold">{store.nameAr}</h3>
@@ -184,7 +237,7 @@ export function SamouGoHome() {
                       <div className="mt-2 flex items-center justify-between gap-2"><span className="flex items-center gap-1"><span className="text-[10px] text-ink-subtle">من</span><DeliveryFee amount={baseFee} variant="badge" showIcon /></span><span className="truncate text-[10px] text-ink-muted" dir="ltr">{category.en}</span></div>
                     </div>
                   </article>
-                </a>
+                </Link>
               ))}
         </div>
       </section>}
@@ -195,15 +248,15 @@ export function SamouGoHome() {
           {stores.loading
             ? [0, 1, 2].map(index => <div key={index} className="flex animate-pulse items-center gap-3 rounded-2xl bg-surface p-3 shadow-card" aria-hidden="true"><div className="h-12 w-12 shrink-0 rounded-xl bg-line-soft" /><div className="flex-1 space-y-2"><div className="ms-auto h-3 w-1/2 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-2/3 rounded bg-line-soft" /></div><div className="h-6 w-12 shrink-0 rounded-full bg-line-soft" /></div>)
             : cards.map(({ store, category, initials, tint }) => (
-                <a key={store.id} href={`${STORE_URL}/?storeId=${encodeURIComponent(store.id)}`} className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card transition hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={`فتح متجر ${store.nameAr}`}>
+                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card transition hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={`فتح متجر ${store.nameAr}`}>
                   <div className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-black ${tint}`}>{store.logoUrl ? <img src={store.logoUrl} alt="" className="h-full w-full object-cover" loading="lazy" /> : initials}</div>
                   <div className="min-w-0 flex-1 text-end"><h3 className="truncate text-sm font-extrabold">{store.nameAr}</h3><p className="truncate text-[11px] text-ink-muted" dir="ltr">{store.nameEn} · {category.en}</p><p className="mt-1 flex items-center gap-2 text-[10px] font-semibold text-ink-muted"><span>يبدأ من</span><DeliveryFee amount={baseFee} variant="inline" /></p></div>
                   <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${store.isActive ? 'bg-brand-tint text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{store.isActive ? 'مفتوح' : 'مغلق'}</span>
-                </a>
+                </Link>
               ))}
         </div>
       </section>}
 
-      <nav className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface/95 px-4 safe-bottom pt-3 shadow-raised" aria-label="Bottom navigation"><div className="mx-auto flex max-w-md items-center justify-around" dir="ltr"><button type="button" className="flex flex-col items-center gap-1 text-brand"><Home size={20} fill="currentColor" /><span className="text-[10px] font-bold">Home</span></button><button type="button" className="flex flex-col items-center gap-1 text-ink-muted"><Search size={20} /><span className="text-[10px]">Search</span></button><button type="button" className="flex flex-col items-center gap-1 text-ink-muted"><Package size={20} /><span className="text-[10px]">Orders</span></button><button type="button" className="flex flex-col items-center gap-1 text-ink-muted"><Heart size={20} /><span className="text-[10px]">Favorites</span></button><button type="button" className="flex flex-col items-center gap-1 text-ink-muted"><User size={20} /><span className="text-[10px]">Profile</span></button></div></nav>
+      <BottomNav />
     </main>;
 }

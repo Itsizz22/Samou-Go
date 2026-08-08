@@ -15,9 +15,23 @@ export const storesRouter: Router = Router();
 
 storesRouter.get('/', optionalAuthenticate, asyncHandler(controller.listStoresHandler));
 storesRouter.get('/:storeId', optionalAuthenticate, asyncHandler(controller.getStoreHandler));
+storesRouter.get(
+  '/:storeId/full',
+  authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
+  asyncHandler(controller.getStoreFullHandler)
+);
 storesRouter.get('/:storeId/products', optionalAuthenticate, asyncHandler(controller.listStoreProductsHandler));
 
 /* ---- Write routes (STORE_MANAGER own store, or ADMIN) ------------------- */
+
+/** Approval is ADMIN-only. Kept next to the generic update for readability. */
+storesRouter.patch(
+  '/:storeId/approve',
+  authenticate,
+  authorize(UserRole.ADMIN),
+  asyncHandler(controller.approveStoreHandler)
+);
 
 storesRouter.patch(
   '/:storeId',

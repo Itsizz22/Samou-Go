@@ -61,9 +61,14 @@ export const updateStoreSchema = z
   .object({
     nameAr: z.string().trim().min(1).max(160).optional(),
     nameEn: z.string().trim().min(1).max(160).optional(),
-    phone: z.string().trim().min(9).max(20).optional(),
+    // Accept any non-empty phone string — the auth.schemas phoneSchema is
+    // intentionally strict for login credentials; store contact numbers are
+    // less tightly validated (could be a landline or formatted differently).
+    phone: z.string().trim().min(1).max(30).optional(),
     logoUrl: z.string().url().optional().nullable(),
     isActive: z.boolean().optional(),
+    /** Admin-only: approving publishes the store to the public catalogue. */
+    isApproved: z.boolean().optional(),
   })
   .refine(data => Object.keys(data).length > 0, {
     message: 'يجب توفير حقل واحد على الأقل للتحديث / At least one field required',
