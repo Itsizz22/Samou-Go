@@ -67,6 +67,25 @@ if (!parsed.success) {
 
 const raw = parsed.data;
 
+// Production-only guards: reject configurations that are safe in dev but
+// actively dangerous once the API is reachable by real users.
+if (raw.NODE_ENV === 'production') {
+  if (raw.JWT_SECRET.includes('change-me') || raw.JWT_SECRET.length < 32) {
+    throw new Error(
+      'Invalid environment configuration:\n' +
+        '  • JWT_SECRET: refusing to boot production with the placeholder secret. ' +
+        'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'base64url\'))"'
+    );
+  }
+  if (raw.SMS_PROVIDER === 'console') {
+    throw new Error(
+      'Invalid environment configuration:\n' +
+        '  • SMS_PROVIDER: "console" prints OTP codes to the server log — never acceptable in production. ' +
+        'Set SMS_PROVIDER=twilio|firebase|generic with real credentials.'
+    );
+  }
+}
+
 /**
  * The delivery tariff this deployment runs on. Values come from the environment
  * so the fee can be changed without a code release, but the *rule* (tiered by

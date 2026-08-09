@@ -63,13 +63,15 @@ import type { DeliveryFeeConfig, Locale, OrderStatus, UserRole } from '@samou-go
  * ------------------------------------------------------------------------- */
 
 /**
- * LAN fallback base host — the dev machine's IP on the office network. A phone
- * on the same Wi-Fi reaches the API through this without any extra config; it
- * is also what the browser dev servers use when no env var is set.
+ * Dev fallback base host — loopback only. A production build MUST provide
+ * `VITE_API_BASE_URL` (or `VITE_API_URL`); in production the fallback resolves
+ * to a same-origin relative path (`/api/v1`) so the reverse proxy serving the
+ * SPA also routes `/api/*` to the backend. No private LAN address is ever baked
+ * into a bundle.
  */
-export const LAN_DEV_API_BASE = 'http://192.168.0.111:4000';
+export const LAN_DEV_API_BASE = 'http://localhost:4000';
 
-/** Full API URL for the LAN fallback (`/api/v1` appended). Kept for callers that import it. */
+/** Full API URL for the dev fallback (`/api/v1` appended). Kept for callers that import it. */
 export const DEFAULT_API_URL = `${LAN_DEV_API_BASE}/api/v1`;
 
 /** Appends `/api/v1` to a base host unless it already carries a version prefix. */
@@ -83,11 +85,11 @@ function withVersionPrefix(base: string): string {
  *
  * Precedence, logged on boot so the active choice is never silent:
  *
- *   1. `VITE_API_BASE_URL` — a base host (e.g. `http://192.168.1.20:4000`, an
+ *   1. `VITE_API_BASE_URL` — a base host (e.g. `https://api.samougo.app`, an
  *      ngrok tunnel, or a deployed origin). May already include `/api/v1`.
  *   2. `VITE_API_URL` — full API URL verbatim (legacy, unchanged).
- *   3. LAN fallback {@link LAN_DEV_API_BASE} — the dev machine's own IP, so a
- *      phone on the same network works with no configuration at all.
+ *   3. Dev fallback — `http://localhost:4000` outside a production build, or a
+ *      same-origin relative `/api/v1` inside one (reverse-proxy assumption).
  *
  * If none resolves to a non-empty string the module throws at import time
  * rather than letting every request silently go to `undefined/api/v1`.
@@ -107,16 +109,27 @@ export const API_URL: string = (() => {
     return url;
   }
 
-  const lanUrl = withVersionPrefix(LAN_DEV_API_BASE);
-  console.info(`[api-client] API base URL — LAN fallback (${LAN_DEV_API_BASE}): ${lanUrl}`);
+  if (import.meta.env.PROD) {
+    // Same-origin reverse proxy: the deployment serves the SPA and proxies
+    // `/api/*` to the backend. Operators that run the API on another origin
+    // must set VITE_API_BASE_URL at build time.
+    const url = '/api/v1';
+    console.info(
+      '[api-client] API base URL — production build, assuming same-origin reverse proxy: ' + url
+    );
+    return url;
+  }
 
-  if (!lanUrl) {
+  const devUrl = withVersionPrefix(LAN_DEV_API_BASE);
+  console.info(`[api-client] API base URL — dev fallback (${LAN_DEV_API_BASE}): ${devUrl}`);
+
+  if (!devUrl) {
     throw new Error(
       'Samou Go API base URL is empty. Set VITE_API_BASE_URL or VITE_API_URL in the web app .env file.'
     );
   }
 
-  return lanUrl;
+  return devUrl;
 })();
 
 /**

@@ -59,7 +59,7 @@ const POLL_MS = 5_000;
 
 /** Where the customer home app is served — target of the "home" bottom tab. */
 const HOME_URL: string = (
-  import.meta.env.VITE_HOME_URL ?? 'http://localhost:5173'
+  import.meta.env.VITE_HOME_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:5173')
 ).replace(/\/+$/, '');
 
 type TimelineState = 'completed' | 'active' | 'pending';

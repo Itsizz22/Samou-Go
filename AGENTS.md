@@ -22,10 +22,11 @@ Samou' Go — hyper-local delivery monorepo for Samou', Hebron (Arabic-first RTL
 - **Client never sends money.** `POST /orders` takes only `storeId`, `items`, address; totals/fees computed server-side from DB prices.
 - **Money = `Decimal(10,2)` in Postgres.** Convert at the API edge via `decimalToNumber()` (`packages/api/src/lib/decimal.ts`); DTOs are plain `number`.
 - **Enums must match byte-for-byte** between `packages/shared-types/src/enums.ts` and `packages/api/prisma/schema.prisma`.
-- **Local DB is currently SQLite.** The working copy of `packages/api/prisma/schema.prisma` has the datasource switched to `sqlite` / `file:./dev.db` (uncommitted; `git diff` shows the change). The Postgres native types (`@db.*`) were stripped so the schema validates under SQLite. Use `npm run db:push` + `db:seed` for local dev (migrations in `prisma/migrations/` are Postgres-flavoured and only apply to a Postgres DB). Root `.env` and `.env.example` still reference Postgres.
+- **Dual Prisma schemas.** `packages/api/prisma/schema.prisma` is the **production PostgreSQL schema** (native `@db.*` types, `url = env("DATABASE_URL")`) and the only one that CI validates and that `prisma migrate deploy` applies. `packages/api/prisma/schema.sqlite.prisma` is the **local-dev variant** (SQLite `file:./dev.db`, native types stripped). Keep the two files in sync when a model changes. After `npm install`, @prisma/client generates from the *production* schema — always run `npm run db:generate` before starting the dev server so the client matches `dev.db`.
 - **Case-insensitive search is provider-gated.** Postgres-only `mode: 'insensitive'` is emitted via `caseInsensitiveContains()` in `packages/api/src/lib/prisma.ts` — never write `{ contains, mode }` inline, or the SQLite client fails to typecheck.
 - **Seed advances the order-number sequence.** `seed.ts` creates demo orders numbered `...-0001..0003` and then bumps `DailyOrderSequence` so real orders start after them. If you change the demo orders, keep the sequence upsert in sync.
-- **CI.** `.github/workflows/ci.yml` is a real workflow now (folder was renamed from the dead `workflowS/`). CI runs install → prisma validate → typecheck → build → tests. `deploy.yml` is still empty.
+- **Production guards.** `seed.ts` refuses to run when `NODE_ENV=production`, and `config/env.ts` refuses to boot production with the placeholder `JWT_SECRET` or with `SMS_PROVIDER=console` (which logs OTP codes).
+- **CI.** `.github/workflows/ci.yml` validates + generates the production PostgreSQL schema, then runs typecheck → build → tests. No `continue-on-error` / `|| true` masking.
 
 ## UI / style rules (binding, from `DESIGN_SYSTEM.md`)
 

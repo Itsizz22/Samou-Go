@@ -513,6 +513,12 @@ function historyFor(order: SeedOrder): { status: OrderStatus; changedByUserId: s
 }
 
 async function main(): Promise<void> {
+  if (env.isProduction) {
+    throw new Error(
+      'Refusing to seed in production: demo passwords are public knowledge and this script ' +
+        'creates/grows real rows. Seed only in development or staging.'
+    );
+  }
   console.log(`🌱 Seeding Samou' Go — ${env.databaseUrl.replace(/:[^:@/]*@/, ':***@')}`);
   await seedUsers();
   await seedCatalogue();

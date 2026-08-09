@@ -29,9 +29,9 @@ import { HeaderNav } from './HeaderNav';
 import { BottomTabs } from './BottomTabs';
 import type { CategoryWithProducts } from '@samou-go/shared-types';
 
-/** Where the checkout app is served. Override with VITE_CHECKOUT_URL in .env */
+/** Where the checkout app is served. Override with VITE_CHECKOUT_URL in .env (same-origin relative in production). */
 const CHECKOUT_URL: string = (
-  import.meta.env.VITE_CHECKOUT_URL ?? 'http://localhost:5175'
+  import.meta.env.VITE_CHECKOUT_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:5175')
 ).replace(/\/+$/, '');
 
 export const StoreDetailsMenu = () => {

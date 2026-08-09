@@ -16,14 +16,18 @@ jobs:
           node-version: 20
           cache: npm
 
-      # `npm ci` runs the `prepare` scripts that build @samou-go/shared-types.
+      # `npm ci` runs the `prepare` scripts that build @samou-go/shared-types,
+      # and @prisma/client's postinstall generates the client from the committed
+      # production schema (`schema.prisma`, PostgreSQL). No database is needed.
       - run: npm ci
 
-      # The committed schema is Postgres-flavoured; validate/generate don't need
-      # a live database.
-      - name: Prisma validate
+      - name: Prisma validate (production PostgreSQL schema)
         working-directory: packages/api
-        run: npx prisma validate
+        run: npx prisma validate --schema=prisma/schema.prisma
+
+      - name: Prisma generate (production PostgreSQL client)
+        working-directory: packages/api
+        run: npx prisma generate --schema=prisma/schema.prisma
 
       - run: npm run typecheck
       - run: npm run build

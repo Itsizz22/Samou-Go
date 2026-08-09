@@ -1,6 +1,11 @@
 // =============================================================================
-// Samou' Go ΓÇö PostgreSQL schema
+// Samou' Go — LOCAL DEV schema (SQLite). DO NOT use for production.
 // -----------------------------------------------------------------------------
+// This is the local-development variant. Production deploys against
+// `schema.prisma` (PostgreSQL) and runs `prisma migrate deploy`. This file
+// mirrors every model but keeps the SQLite-compatible datasource and strips the
+// Postgres native types (@db.*). Keep both files in sync when a model changes.
+//
 // Hyper-local delivery for Samou', Hebron, Palestine.
 //
 // Two deliberate constraints shape this model:
@@ -18,8 +23,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 // =============================================================================
@@ -59,20 +64,20 @@ enum VoucherDiscountType {
 // Models
 // =============================================================================
 
-/// One account, one role. Phone is the login identifier ΓÇö Samou' users do not
+/// One account, one role. Phone is the login identifier — Samou' users do not
 /// reliably have email.
 model User {
   id           String   @id @default(cuid())
-  name         String   @db.VarChar(120)
+  name         String  
   /// Canonical Palestinian mobile: 10 digits, `05XXXXXXXX`.
-  phone        String   @unique @db.VarChar(20)
+  phone        String   @unique
   /// bcrypt hash. Never selected into an API response.
   passwordHash String
   role         UserRole @default(CUSTOMER)
   isActive     Boolean  @default(true)
   /// CAPTAIN accounts must be confirmed by an admin before they can take jobs.
   isVerified   Boolean  @default(false)
-  /// CAPTAIN self-managed availability ΓÇö must be on to claim orders.
+  /// CAPTAIN self-managed availability — must be on to claim orders.
   isAvailable  Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -93,11 +98,11 @@ model User {
 /// `requests`/`windowStartsAt` back the 3-per-5-minute request limiter so it
 /// survives server restarts and does not depend on a single-node memory store.
 model OtpRequest {
-  phone          String   @id @db.VarChar(20)
+  phone          String   @id
   /// bcrypt hash of the 6-digit code. Never store the plaintext.
   codeHash       String
   expiresAt      DateTime
-  /// Successful `code` attempts ΓÇö wrong codes can only be tried a few times
+  /// Successful `code` attempts — wrong codes can only be tried a few times
   /// before the code is invalidated.
   attempts       Int      @default(0)
   /// OTP dispatch count inside the current rate-limit window.
@@ -135,10 +140,10 @@ model RefreshToken {
 /// may run several shops.
 model Store {
   id         String   @id @default(cuid())
-  nameAr     String   @db.VarChar(160)
-  nameEn     String   @db.VarChar(160)
+  nameAr     String  
+  nameEn     String  
   logoUrl    String?
-  phone      String   @db.VarChar(20)
+  phone      String  
   isActive   Boolean  @default(true)
   /// New stores stay hidden from the public catalogue until an admin approves.
   isApproved Boolean  @default(false)
@@ -158,11 +163,11 @@ model Store {
   @@map("stores")
 }
 
-/// A menu section, scoped to one store. Two stores may both have "┘à╪┤╪▒┘ê╪¿╪º╪¬".
+/// A menu section, scoped to one store. Two stores may both have "مشروبات".
 model Category {
   id        String   @id @default(cuid())
-  nameAr    String   @db.VarChar(120)
-  nameEn    String   @db.VarChar(120)
+  nameAr    String  
+  nameEn    String  
   storeId   String
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -180,9 +185,9 @@ model Category {
 /// `unitPrice` so repricing never rewrites history.
 model Product {
   id          String   @id @default(cuid())
-  nameAr      String   @db.VarChar(160)
-  description String?  @db.Text
-  price       Decimal  @db.Decimal(10, 2)
+  nameAr      String  
+  description String? 
+  price       Decimal 
   imageUrl    String?
   isAvailable Boolean  @default(true)
   categoryId  String?
@@ -200,13 +205,13 @@ model Product {
   @@map("products")
 }
 
-/// A basket that has been committed. Financials are written by the server only ΓÇö
+/// A basket that has been committed. Financials are written by the server only —
 /// `deliveryFee` always comes from `calculateDeliveryFee(itemCount)` in
 /// @samou-go/shared-types, never from the client.
 model Order {
   id          String @id @default(cuid())
   /// Human-facing reference shown to the customer: `SG-260728-0042`.
-  orderNumber String @unique @db.VarChar(24)
+  orderNumber String @unique
 
   customerId String
   storeId    String
@@ -216,15 +221,15 @@ model Order {
   status OrderStatus @default(PENDING)
 
   /// Free-text destination: neighbourhood, street, landmark. No GPS by design.
-  customerAddressText String  @db.VarChar(500)
-  /// Optional extra directions, e.g. "╪¿╪¼╪º┘å╪¿ ┘à╪│╪¼╪» ╪╣┘à╪▒╪î ╪º┘ä╪╖╪º╪¿┘é ╪º┘ä╪½╪º┘å┘è".
-  addressNote         String? @db.VarChar(500)
+  customerAddressText String 
+  /// Optional extra directions, e.g. "بجانب مسجد عمر، الطابق الثاني".
+  addressNote         String?
 
-  subtotal      Decimal       @db.Decimal(10, 2)
-  deliveryFee   Decimal       @db.Decimal(10, 2)
-  /// Voucher savings, in ILS ΓÇö 0 when no voucher was applied.
-  discount      Decimal       @default(0) @db.Decimal(10, 2)
-  totalAmount   Decimal       @db.Decimal(10, 2)
+  subtotal      Decimal      
+  deliveryFee   Decimal      
+  /// Voucher savings, in ILS — 0 when no voucher was applied.
+  discount      Decimal       @default(0)
+  totalAmount   Decimal      
   paymentMethod PaymentMethod @default(COD)
   voucherId     String?
 
@@ -251,13 +256,13 @@ model OrderItem {
   orderId    String
   productId  String
   quantity   Int
-  unitPrice  Decimal @db.Decimal(10, 2)
-  totalPrice Decimal @db.Decimal(10, 2)
+  unitPrice  Decimal
+  totalPrice Decimal
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
-  /// One row per product per order ΓÇö quantity carries the count.
+  /// One row per product per order — quantity carries the count.
   @@unique([orderId, productId])
   @@index([productId])
   @@map("order_items")
@@ -271,7 +276,7 @@ model OrderStatusHistory {
   status          OrderStatus
   /// Null for system-driven transitions (e.g. auto-expiry jobs).
   changedByUserId String?
-  note            String?     @db.VarChar(500)
+  note            String?    
   createdAt       DateTime    @default(now())
 
   order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -283,21 +288,21 @@ model OrderStatusHistory {
 }
 
 /// A discount the customer types in at checkout as a CODE. The client only ever
-/// sends the code ΓÇö the server resolves it and applies `calculateVoucherDiscount`
+/// sends the code — the server resolves it and applies `calculateVoucherDiscount`
 /// from @samou-go/shared-types, preserving the "client never sends money" rule.
 model Voucher {
   id            String              @id @default(cuid())
   /// Case-insensitive match code, stored uppercase, e.g. `RAMADAN10`.
-  code          String              @unique @db.VarChar(40)
-  labelAr       String              @db.VarChar(160)
-  labelEn       String              @db.VarChar(160)
+  code          String              @unique
+  labelAr       String             
+  labelEn       String             
   discountType  VoucherDiscountType @default(PERCENT)
-  /// PERCENT ΓåÆ 0ΓÇô100; FIXED ΓåÆ ILS amount off.
-  discountValue Decimal             @db.Decimal(10, 2)
+  /// PERCENT → 0–100; FIXED → ILS amount off.
+  discountValue Decimal            
   /// Ignored until the basket's subtotal reaches this, in ILS.
-  minSubtotal   Decimal?            @db.Decimal(10, 2)
+  minSubtotal   Decimal?           
   /// Hard cap on the savings (matters for PERCENT vouchers).
-  maxDiscount   Decimal?            @db.Decimal(10, 2)
+  maxDiscount   Decimal?           
   isActive      Boolean             @default(true)
   /// Optional dispatch window.
   startsAt      DateTime?
@@ -314,7 +319,7 @@ model Voucher {
   @@map("vouchers")
 }
 
-/// A customer's saved store ΓÇö the heart toggle on the home screen.
+/// A customer's saved store — the heart toggle on the home screen.
 /// Free-text addresses already live on each order; favorites are store-level.
 model Favorite {
   id        String   @id @default(cuid())
@@ -333,11 +338,11 @@ model Favorite {
 /// Per-day counter for human-facing order numbers (`SG-260808-0001`).
 /// One row per calendar day; `sequence` is bumped ATOMICALLY inside the order
 /// transaction (`upsert` + `increment`), so concurrent order creation can never
-/// mint the same number ΓÇö unlike a `COUNT(*)` race that the old code retried.
+/// mint the same number — unlike a `COUNT(*)` race that the old code retried.
 /// A rolled-back order rolls back its bump too, leaving (harmless) gaps.
 model DailyOrderSequence {
   /// Local calendar day, stored as DATE (time-of-day is irrelevant).
-  date     DateTime @id @db.Date
+  date     DateTime @id
   sequence Int      @default(0)
 
   @@map("daily_order_sequences")

@@ -56,12 +56,12 @@ const QUOTE_DEBOUNCE_MS = 300;
 
 /** Where the tracking app is served. Overridable so this is not localhost-only. */
 const TRACKING_URL: string = (
-  import.meta.env.VITE_TRACKING_URL ?? 'http://localhost:5176'
+  import.meta.env.VITE_TRACKING_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:5176')
 ).replace(/\/+$/, '');
 
 /** Where the store-details app is served. Used for the back button. Override with VITE_STORE_URL in .env */
 const STORE_URL: string = (
-  import.meta.env.VITE_STORE_URL ?? 'http://localhost:5174'
+  import.meta.env.VITE_STORE_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:5174')
 ).replace(/\/+$/, '');
 
 /** The server rejects a whitespace-only address; catch it before the round-trip. */

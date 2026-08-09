@@ -1,8 +1,0 @@
-36: OrderListQuery,
-50: StoreListQuery,
-56: UserListQuery,
-337: type QueryValue = string | number | boolean | undefined | null;
-582: export function getStores(query: StoreListQuery = {}, signal?: AbortSignal): Promise<Paginated<Store>> {
-605: query: ProductListQuery = {},
-645: query: OrderListQuery = {},
-867: query: UserListQuery = {},
