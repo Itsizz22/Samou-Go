@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Theme } from './settings/types';
 import { SamouGoHome } from './components/generated/SamouGoHome';
@@ -11,6 +11,8 @@ import { CartScreen } from './screens/CartScreen';
 import { CheckoutScreen } from './screens/CheckoutScreen';
 import { OrderTrackingScreen } from './screens/OrderTrackingScreen';
 import { ForgotPasswordScreen, LoginScreen, RegisterScreen } from './screens/AuthScreens';
+import { BootScreen } from './components/BootScreen';
+import { useAuth, type Auth } from './hooks/useApi';
 // %IMPORT_STATEMENT
 
 const theme: Theme = 'light';
@@ -67,6 +69,13 @@ function useAndroidBackButton() {
 
 function App() {
   useAndroidBackButton();
+  const auth = useAuth();
+  const [splashElapsed, setSplashElapsed] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSplashElapsed(true), 1_650);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   function setTheme(theme: Theme) {
     if (theme === 'dark') {
@@ -78,22 +87,40 @@ function App() {
 
   setTheme(theme);
 
+  if (!auth.ready || !splashElapsed) return <BootScreen />;
+
+  return (
+    <StartupRoutes auth={auth} />
+  );
+}
+
+function ProtectedRoute({ auth, children }: { auth: Auth; children: React.ReactNode }) {
+  if (!auth.ready) return <BootScreen />;
+  return auth.user ? <>{children}</> : <Navigate to="/login" replace />;
+}
+
+function AuthRoute({ auth, children }: { auth: Auth; children: React.ReactNode }) {
+  if (!auth.ready) return <BootScreen />;
+  return auth.user ? <Navigate to="/home" replace /> : <>{children}</>;
+}
+
+function StartupRoutes({ auth }: { auth: Auth }) {
   return (
     <Routes>
-      <Route path="/" element={<SamouGoHome />} />
-      <Route path="/stores/:storeId" element={<StoreDetailScreen />} />
-      <Route path="/cart" element={<CartScreen />} />
-      <Route path="/checkout" element={<CheckoutScreen />} />
-      <Route path="/orders" element={<OrdersScreen />} />
-      <Route path="/orders/:orderId" element={<OrderTrackingScreen />} />
-      <Route path="/profile" element={<ProfileScreen />} />
-      <Route path="/favorites" element={<FavoritesScreen />} />
-      <Route path="/search" element={<SearchScreen />} />
-      <Route path="/login" element={<LoginScreen />} />
-      <Route path="/register" element={<RegisterScreen />} />
-      <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
-      {/* Any other deep link falls back to the feed instead of a blank screen. */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/" element={<Navigate to="/home" replace />} />
+      <Route path="/home" element={<ProtectedRoute auth={auth}><SamouGoHome /></ProtectedRoute>} />
+      <Route path="/stores/:storeId" element={<ProtectedRoute auth={auth}><StoreDetailScreen /></ProtectedRoute>} />
+      <Route path="/cart" element={<ProtectedRoute auth={auth}><CartScreen /></ProtectedRoute>} />
+      <Route path="/checkout" element={<ProtectedRoute auth={auth}><CheckoutScreen /></ProtectedRoute>} />
+      <Route path="/orders" element={<ProtectedRoute auth={auth}><OrdersScreen /></ProtectedRoute>} />
+      <Route path="/orders/:orderId" element={<ProtectedRoute auth={auth}><OrderTrackingScreen /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute auth={auth}><ProfileScreen /></ProtectedRoute>} />
+      <Route path="/favorites" element={<ProtectedRoute auth={auth}><FavoritesScreen /></ProtectedRoute>} />
+      <Route path="/search" element={<ProtectedRoute auth={auth}><SearchScreen /></ProtectedRoute>} />
+      <Route path="/login" element={<AuthRoute auth={auth}><LoginScreen /></AuthRoute>} />
+      <Route path="/register" element={<AuthRoute auth={auth}><RegisterScreen /></AuthRoute>} />
+      <Route path="/forgot-password" element={<AuthRoute auth={auth}><ForgotPasswordScreen /></AuthRoute>} />
+      <Route path="*" element={<Navigate to={auth.user ? '/home' : '/login'} replace />} />
     </Routes>
   );
 }

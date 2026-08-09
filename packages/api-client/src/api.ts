@@ -75,11 +75,6 @@ import type {
  * SPA also routes `/api/*` to the backend. No private LAN address is ever baked
  * into a bundle.
  */
-export const LAN_DEV_API_BASE = "http://localhost:4000";
-
-/** Full API URL for the dev fallback (`/api/v1` appended). Kept for callers that import it. */
-export const DEFAULT_API_URL = `${LAN_DEV_API_BASE}/api/v1`;
-
 /** Appends `/api/v1` to a base host unless it already carries a version prefix. */
 function withVersionPrefix(base: string): string {
   const trimmed = base.replace(/\/+$/, "");
@@ -94,8 +89,7 @@ function withVersionPrefix(base: string): string {
  *   1. `VITE_API_BASE_URL` — a base host (e.g. `https://api.samougo.app`, an
  *      ngrok tunnel, or a deployed origin). May already include `/api/v1`.
  *   2. `VITE_API_URL` — full API URL verbatim (legacy, unchanged).
- *   3. Dev fallback — `http://localhost:4000` outside a production build, or a
- *      same-origin relative `/api/v1` inside one (reverse-proxy assumption).
+ *   3. Production fallback — same-origin relative `/api/v1` (reverse-proxy assumption).
  *
  * If none resolves to a non-empty string the module throws at import time
  * rather than letting every request silently go to `undefined/api/v1`.
@@ -127,18 +121,9 @@ export const API_URL: string = (() => {
     return url;
   }
 
-  const devUrl = withVersionPrefix(LAN_DEV_API_BASE);
-  console.info(
-    `[api-client] API base URL — dev fallback (${LAN_DEV_API_BASE}): ${devUrl}`,
+  throw new Error(
+    "Samou Go API base URL is not configured. Set VITE_API_BASE_URL in the web app environment.",
   );
-
-  if (!devUrl) {
-    throw new Error(
-      "Samou Go API base URL is empty. Set VITE_API_BASE_URL or VITE_API_URL in the web app .env file.",
-    );
-  }
-
-  return devUrl;
 })();
 
 /**
@@ -937,10 +922,13 @@ export async function refreshAccessToken(
   refreshToken: string,
   signal?: AbortSignal,
 ): Promise<AuthResponse> {
-  return request<AuthResponse>("POST", "/auth/refresh", {
+  const auth = await request<AuthResponse>("POST", "/auth/refresh", {
     body: { refreshToken },
     signal,
   });
+  setToken(auth.accessToken);
+  setRefreshToken(auth.refreshToken ?? null);
+  return auth;
 }
 
 /** The current profile. `passwordHash` is never part of this. */

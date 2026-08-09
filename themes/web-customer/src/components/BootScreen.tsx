@@ -5,11 +5,12 @@
  * then cross-fades away. On cold start the customer sees a brand moment rather
  * than a flash of empty shells; on warm restarts the boot is near-instant.
  */
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { ShoppingCart } from 'lucide-react';
 import { bootVariants } from '@/lib/motion';
 
 export function BootScreen() {
+  const reducedMotion = useReducedMotion();
   return (
     <main
       dir="rtl"
@@ -24,9 +25,13 @@ export function BootScreen() {
         exit="exit"
         className="flex flex-col items-center gap-4"
       >
-        <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-brand text-white shadow-brand">
+        <motion.span
+          className="flex h-20 w-20 items-center justify-center rounded-3xl bg-brand text-white shadow-brand"
+          animate={reducedMotion ? undefined : { x: [-3, 3, 0], rotate: [-2, 2, 0] }}
+          transition={reducedMotion ? undefined : { duration: 1.1, repeat: Infinity, repeatDelay: 0.35, ease: 'easeInOut' }}
+        >
           <ShoppingCart size={38} strokeWidth={2.5} />
-        </span>
+        </motion.span>
         <p className="text-xl font-extrabold tracking-tight text-ink" dir="ltr">
           Samou' Go
         </p>

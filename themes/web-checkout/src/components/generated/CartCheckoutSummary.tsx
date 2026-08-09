@@ -611,6 +611,15 @@ export const CartCheckoutSummary = () => {
             <AlertTriangle size={16} className="mt-0.5 shrink-0" />
             <span>
               {submit.error.message}
+              {submit.error.details.length > 0 && (
+                <ul className="mt-2 space-y-1 text-xs font-medium" aria-label="Validation details">
+                  {submit.error.details.map((detail) => (
+                    <li key={`${detail.path}:${detail.message}`}>
+                      {detail.path ? `${detail.path}: ` : ''}{detail.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
               {submit.error.isAuthError && (
                 <span className="mt-1 block text-xs font-medium">
                   انتهت الجلسة، سجّل الدخول من جديد <span dir="ltr">/ Session expired, sign in again</span>

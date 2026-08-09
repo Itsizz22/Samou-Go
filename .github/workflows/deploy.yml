@@ -1,0 +1,114 @@
+name: Deploy Production
+
+# Deploys the Samou' Go platform on every push to the default branch:
+#   - API  -> Render Web Service (triggered through the Render API)
+#   - 7 SPAs -> Vercel (one project per theme, prebuilt `dist/` uploads)
+#   - Prisma migrations -> run automatically against the production PostgreSQL DB.
+#
+# Required GitHub Actions secrets (Settings -> Secrets and variables -> Actions):
+#   DATABASE_URL       Production PostgreSQL connection string (Prisma format).
+#                      Read ONLY from the secret below — never hardcoded.
+#   RENDER_API_KEY     Render API key (https://dashboard.render.com/u/settings#api-keys).
+#   RENDER_SERVICE_ID  ID of the API Web Service (Render service URL suffix).
+#   VERCEL_TOKEN       Vercel access token (https://vercel.com/account/tokens).
+#
+# Required committed Vercel project links (non-secret, safe to commit): each
+# theme dir needs `themes/web-<name>/.vercel/project.json` holding
+# `{ "projectId": ..., "orgId": ... }` — generate once with `npx vercel link`
+# from that directory, then commit the file so deploys are non-interactive.
+
+on:
+  push:
+    branches: [master]
+
+env:
+  NODE_VERSION: 20
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build shared-types & ui
+        run: |
+          npm run build --workspace @samou-go/shared-types
+          npm run build --workspace @samou-go/ui
+
+      - name: Generate Prisma Client (production schema)
+        working-directory: packages/api
+        run: npx prisma generate --schema=prisma/schema.prisma
+
+      - name: Build API
+        run: npm run build --workspace @samou-go/api
+
+      - name: Build Frontend Themes
+        run: |
+          set -euo pipefail
+          for theme in customer store-details checkout order-tracking store-manager captain admin; do
+            echo "::group::build:web-$theme"
+            npm run build --workspace "@samou-go/web-$theme"
+            echo "::endgroup::"
+          done
+
+      - name: Verify required secrets are configured
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for var in DATABASE_URL RENDER_API_KEY RENDER_SERVICE_ID VERCEL_TOKEN; do
+            if [ -z "${!var}" ]; then
+              echo "::error::Missing required secret: $var"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Configure the missing secrets, then re-run this workflow."
+            exit 1
+          fi
+
+      - name: Run Database Migrations (production PostgreSQL)
+        run: npm run db:deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Deploy API to Render
+        run: |
+          curl --fail --silent --show-error \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys"
+
+      - name: Deploy SPAs to Vercel
+        run: |
+          set -euo pipefail
+          for theme in customer store-details checkout order-tracking store-manager captain admin; do
+            echo "::group::vercel:web-$theme"
+            (
+              cd "themes/web-$theme"
+              npx --yes vercel@latest deploy --prod --prebuilt --yes \
+                --token "${{ secrets.VERCEL_TOKEN }}"
+            )
+            echo "::endgroup::"
+          done
