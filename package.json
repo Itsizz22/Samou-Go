@@ -18,10 +18,11 @@
     "node": ">=20.11"
   },
   "scripts": {
-    "build": "tsc -b packages/shared-types packages/api",
+    "prepare": "npm run build --workspace @samou-go/shared-types && npm run build --workspace @samou-go/ui",
+    "build": "tsc -b packages/shared-types packages/ui packages/api",
     "build:all": "npm run build && npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "typecheck:all": "npm run typecheck && tsc -b packages/shared-types packages/api",
+    "typecheck:all": "npm run typecheck && tsc -b packages/shared-types packages/ui packages/api",
     "typecheck:server": "tsc -b packages/shared-types packages/api --force",
     "typecheck:web-customer": "npm run typecheck --workspace @samou-go/web-customer",
     "typecheck:web-store-details": "npm run typecheck --workspace @samou-go/web-store-details",
@@ -30,7 +31,7 @@
     "typecheck:web-store-manager": "npm run typecheck --workspace @samou-go/web-store-manager",
     "typecheck:web-captain": "npm run typecheck --workspace @samou-go/web-captain",
     "typecheck:web-admin": "npm run typecheck --workspace @samou-go/web-admin",
-    "clean": "tsc -b packages/shared-types packages/api --clean",
+    "clean": "tsc -b packages/shared-types packages/ui packages/api --clean",
     "dev:api": "npm run dev --workspace @samou-go/api",
     "dev:web-customer": "npm run dev --workspace @samou-go/web-customer",
     "dev:web-store-details": "npm run dev --workspace @samou-go/web-store-details",
