@@ -1,5 +1,5 @@
 // =============================================================================
-// Samou' Go — PostgreSQL schema
+// Samou' Go — schema (PostgreSQL in production; SQLite for local dev)
 // -----------------------------------------------------------------------------
 // Hyper-local delivery for Samou', Hebron, Palestine.
 //
@@ -18,8 +18,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 // =============================================================================
@@ -63,9 +63,9 @@ enum VoucherDiscountType {
 /// reliably have email.
 model User {
   id           String   @id @default(cuid())
-  name         String   @db.VarChar(120)
+  name         String  
   /// Canonical Palestinian mobile: 10 digits, `05XXXXXXXX`.
-  phone        String   @unique @db.VarChar(20)
+  phone        String   @unique
   /// bcrypt hash. Never selected into an API response.
   passwordHash String
   role         UserRole @default(CUSTOMER)
@@ -93,7 +93,7 @@ model User {
 /// `requests`/`windowStartsAt` back the 3-per-5-minute request limiter so it
 /// survives server restarts and does not depend on a single-node memory store.
 model OtpRequest {
-  phone          String   @id @db.VarChar(20)
+  phone          String   @id
   /// bcrypt hash of the 6-digit code. Never store the plaintext.
   codeHash       String
   expiresAt      DateTime
@@ -135,10 +135,10 @@ model RefreshToken {
 /// may run several shops.
 model Store {
   id         String   @id @default(cuid())
-  nameAr     String   @db.VarChar(160)
-  nameEn     String   @db.VarChar(160)
+  nameAr     String  
+  nameEn     String  
   logoUrl    String?
-  phone      String   @db.VarChar(20)
+  phone      String  
   isActive   Boolean  @default(true)
   /// New stores stay hidden from the public catalogue until an admin approves.
   isApproved Boolean  @default(false)
@@ -161,8 +161,8 @@ model Store {
 /// A menu section, scoped to one store. Two stores may both have "مشروبات".
 model Category {
   id        String   @id @default(cuid())
-  nameAr    String   @db.VarChar(120)
-  nameEn    String   @db.VarChar(120)
+  nameAr    String  
+  nameEn    String  
   storeId   String
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -180,9 +180,9 @@ model Category {
 /// `unitPrice` so repricing never rewrites history.
 model Product {
   id          String   @id @default(cuid())
-  nameAr      String   @db.VarChar(160)
-  description String?  @db.Text
-  price       Decimal  @db.Decimal(10, 2)
+  nameAr      String  
+  description String? 
+  price       Decimal 
   imageUrl    String?
   isAvailable Boolean  @default(true)
   categoryId  String?
@@ -206,7 +206,7 @@ model Product {
 model Order {
   id          String @id @default(cuid())
   /// Human-facing reference shown to the customer: `SG-260728-0042`.
-  orderNumber String @unique @db.VarChar(24)
+  orderNumber String @unique
 
   customerId String
   storeId    String
@@ -216,15 +216,15 @@ model Order {
   status OrderStatus @default(PENDING)
 
   /// Free-text destination: neighbourhood, street, landmark. No GPS by design.
-  customerAddressText String  @db.VarChar(500)
+  customerAddressText String 
   /// Optional extra directions, e.g. "بجانب مسجد عمر، الطابق الثاني".
-  addressNote         String? @db.VarChar(500)
+  addressNote         String?
 
-  subtotal      Decimal       @db.Decimal(10, 2)
-  deliveryFee   Decimal       @db.Decimal(10, 2)
+  subtotal      Decimal      
+  deliveryFee   Decimal      
   /// Voucher savings, in ILS — 0 when no voucher was applied.
-  discount      Decimal       @default(0) @db.Decimal(10, 2)
-  totalAmount   Decimal       @db.Decimal(10, 2)
+  discount      Decimal       @default(0)
+  totalAmount   Decimal      
   paymentMethod PaymentMethod @default(COD)
   voucherId     String?
 
@@ -251,8 +251,8 @@ model OrderItem {
   orderId    String
   productId  String
   quantity   Int
-  unitPrice  Decimal @db.Decimal(10, 2)
-  totalPrice Decimal @db.Decimal(10, 2)
+  unitPrice  Decimal
+  totalPrice Decimal
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -271,7 +271,7 @@ model OrderStatusHistory {
   status          OrderStatus
   /// Null for system-driven transitions (e.g. auto-expiry jobs).
   changedByUserId String?
-  note            String?     @db.VarChar(500)
+  note            String?    
   createdAt       DateTime    @default(now())
 
   order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -288,16 +288,16 @@ model OrderStatusHistory {
 model Voucher {
   id            String              @id @default(cuid())
   /// Case-insensitive match code, stored uppercase, e.g. `RAMADAN10`.
-  code          String              @unique @db.VarChar(40)
-  labelAr       String              @db.VarChar(160)
-  labelEn       String              @db.VarChar(160)
+  code          String              @unique
+  labelAr       String             
+  labelEn       String             
   discountType  VoucherDiscountType @default(PERCENT)
   /// PERCENT → 0–100; FIXED → ILS amount off.
-  discountValue Decimal             @db.Decimal(10, 2)
+  discountValue Decimal            
   /// Ignored until the basket's subtotal reaches this, in ILS.
-  minSubtotal   Decimal?            @db.Decimal(10, 2)
+  minSubtotal   Decimal?           
   /// Hard cap on the savings (matters for PERCENT vouchers).
-  maxDiscount   Decimal?            @db.Decimal(10, 2)
+  maxDiscount   Decimal?           
   isActive      Boolean             @default(true)
   /// Optional dispatch window.
   startsAt      DateTime?
@@ -337,7 +337,7 @@ model Favorite {
 /// A rolled-back order rolls back its bump too, leaving (harmless) gaps.
 model DailyOrderSequence {
   /// Local calendar day, stored as DATE (time-of-day is irrelevant).
-  date     DateTime @id @db.Date
+  date     DateTime @id
   sequence Int      @default(0)
 
   @@map("daily_order_sequences")

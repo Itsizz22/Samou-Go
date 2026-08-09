@@ -49,8 +49,5 @@
   },
   "devDependencies": {
     "typescript": "~5.7.2"
-  },
-  "dependencies": {
-    "@heyputer/puter.js": "^2.6.0"
   }
 }

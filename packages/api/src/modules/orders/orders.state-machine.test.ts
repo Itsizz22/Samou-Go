@@ -14,18 +14,6 @@ import { HttpError } from '../../lib/http-error';
  */
 
 const h = vi.hoisted(() => {
-  const state = {
-    order: null as any,
-    /** store ids returned for `storeIdsManagedBy` (manager ownership). */
-    storeIds: ['store-1'],
-    captainProfile: {
-      id: 'captain-1',
-      isActive: true,
-      isVerified: true,
-      isAvailable: true,
-    },
-  };
-
   const buildOrder = (overrides: Record<string, unknown> = {}) => {
     const base = {
       id: 'order-1',
@@ -33,7 +21,7 @@ const h = vi.hoisted(() => {
       customerId: 'customer-1',
       storeId: 'store-1',
       captainId: null,
-      status: OrderStatus.PENDING,
+      status: 'PENDING',
       customerAddressText: 'حارة الرأس، بجانب المسجد',
       addressNote: null,
       subtotal: 30,
@@ -52,6 +40,18 @@ const h = vi.hoisted(() => {
       statusHistory: [],
     };
     return { ...base, ...overrides };
+  };
+
+  const state = {
+    order: buildOrder(),
+    /** store ids returned for `storeIdsManagedBy` (manager ownership). */
+    storeIds: ['store-1'],
+    captainProfile: {
+      id: 'captain-1',
+      isActive: true,
+      isVerified: true,
+      isAvailable: true,
+    },
   };
 
   const tx = {

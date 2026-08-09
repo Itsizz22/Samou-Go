@@ -2,7 +2,7 @@ import type { User } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 import type { AuthResponse, Paginated, PublicUser } from '@samou-go/shared-types';
 import { UserRole } from '@samou-go/shared-types';
-import { prisma } from '../../lib/prisma';
+import { prisma, caseInsensitiveContains } from '../../lib/prisma';
 import { conflict, forbidden, notFound, unauthorized, unprocessable } from '../../lib/http-error';
 import { signAccessToken } from '../../lib/jwt';
 import { hashPassword, verifyPassword } from '../../lib/password';
@@ -196,7 +196,7 @@ export async function listUsers(query: UserListQuery): Promise<Paginated<PublicU
     ...(query.search
       ? {
           OR: [
-            { name: { contains: query.search, mode: 'insensitive' } },
+            { name: caseInsensitiveContains(query.search) },
             { phone: { contains: query.search } },
           ],
         }

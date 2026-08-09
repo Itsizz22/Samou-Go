@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type { Paginated, Product, Store, StoreWithCatalogue, UserRole } from '@samou-go/shared-types';
 import { UserRole as UserRoleEnum } from '@samou-go/shared-types';
-import { prisma } from '../../lib/prisma';
+import { prisma, caseInsensitiveContains } from '../../lib/prisma';
 import { forbidden, notFound } from '../../lib/http-error';
 import { toProduct, toStore, toStoreWithCatalogue } from './stores.mapper';
 import type {
@@ -35,8 +35,8 @@ export async function listStores(query: StoreListQuery): Promise<Paginated<Store
     ...(query.search
       ? {
           OR: [
-            { nameAr: { contains: query.search, mode: 'insensitive' } },
-            { nameEn: { contains: query.search, mode: 'insensitive' } },
+            { nameAr: caseInsensitiveContains(query.search) },
+            { nameEn: caseInsensitiveContains(query.search) },
           ],
         }
       : {}),
@@ -120,7 +120,7 @@ export async function listStoreProducts(
     storeId,
     ...(query.availableOnly ? { isAvailable: true } : {}),
     ...(query.categoryId ? { categoryId: query.categoryId } : {}),
-    ...(query.search ? { nameAr: { contains: query.search, mode: 'insensitive' } } : {}),
+    ...(query.search ? { nameAr: caseInsensitiveContains(query.search) } : {}),
   };
 
   const [rows, total] = await Promise.all([

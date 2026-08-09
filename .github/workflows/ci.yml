@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` runs the `prepare` scripts that build @samou-go/shared-types.
+      - run: npm ci
+
+      # The committed schema is Postgres-flavoured; validate/generate don't need
+      # a live database.
+      - name: Prisma validate
+        working-directory: packages/api
+        run: npx prisma validate
+
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+      - name: API unit tests
+        run: npm run test --workspace @samou-go/api

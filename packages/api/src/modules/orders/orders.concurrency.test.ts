@@ -19,6 +19,34 @@ import { HttpError } from '../../lib/http-error';
  */
 
 const h = vi.hoisted(() => {
+  const buildOrder = (overrides: Record<string, unknown> = {}) => {
+    const base = {
+      id: 'order-1',
+      orderNumber: 'SG-260808-0001',
+      customerId: 'customer-1',
+      storeId: 'store-1',
+      captainId: null,
+      status: 'PENDING',
+      customerAddressText: 'حارة الرأس، بجانب المسجد',
+      addressNote: null,
+      subtotal: 30,
+      deliveryFee: 3,
+      discount: 0,
+      totalAmount: 33,
+      voucherId: null,
+      paymentMethod: 'COD',
+      createdAt: new Date('2026-08-08T10:00:00.000Z'),
+      updatedAt: new Date('2026-08-08T10:00:00.000Z'),
+      items: [],
+      customer: { id: 'customer-1', name: 'عميل', phone: '0599000000' },
+      store: { id: 'store-1', nameAr: 'متجر', nameEn: 'Store', phone: '0599000001' },
+      captain: null,
+      voucher: null,
+      statusHistory: [],
+    };
+    return { ...base, ...overrides };
+  };
+
   const state = {
     /* createOrder path */
     store: { id: 'store-1', isActive: true },
@@ -28,7 +56,7 @@ const h = vi.hoisted(() => {
     orderCreateCalls: 0,
 
     /* updateOrderStatus path */
-    order: null as any,
+    order: buildOrder(),
     captainProfile: { id: 'captain-1', isActive: true, isVerified: true, isAvailable: true },
     claimedBy: null as string | null,
   };
@@ -76,34 +104,6 @@ const h = vi.hoisted(() => {
         })
       ),
     };
-  };
-
-  const buildOrder = (overrides: Record<string, unknown> = {}) => {
-    const base = {
-      id: 'order-1',
-      orderNumber: 'SG-260808-0001',
-      customerId: 'customer-1',
-      storeId: 'store-1',
-      captainId: null,
-      status: OrderStatus.PENDING,
-      customerAddressText: 'حارة الرأس، بجانب المسجد',
-      addressNote: null,
-      subtotal: 30,
-      deliveryFee: 3,
-      discount: 0,
-      totalAmount: 33,
-      voucherId: null,
-      paymentMethod: 'COD',
-      createdAt: new Date('2026-08-08T10:00:00.000Z'),
-      updatedAt: new Date('2026-08-08T10:00:00.000Z'),
-      items: [],
-      customer: { id: 'customer-1', name: 'عميل', phone: '0599000000' },
-      store: { id: 'store-1', nameAr: 'متجر', nameEn: 'Store', phone: '0599000001' },
-      captain: null,
-      voucher: null,
-      statusHistory: [],
-    };
-    return { ...base, ...overrides };
   };
 
   const tx = {

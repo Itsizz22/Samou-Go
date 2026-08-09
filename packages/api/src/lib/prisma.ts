@@ -14,6 +14,28 @@ export const prisma =
     log: env.isProduction ? ['warn', 'error'] : ['warn', 'error'],
   });
 
+/**
+ * Active database provider of the generated client (`sqlite` locally, Postgres
+ * in production). Read off the engine config because Prisma exposes no public
+ * typed accessor for it.
+ */
+const activeProvider = (prisma as unknown as { _engineConfig: { activeProvider?: string } })
+  ._engineConfig.activeProvider;
+
+export const isPostgresProvider = activeProvider === 'postgresql';
+
+/**
+ * Case-insensitive `contains` filter. `mode: 'insensitive'` is a Postgres-only
+ * feature — the SQLite client rejects it at the type level and at runtime, and
+ * SQLite's LIKE is already case-insensitive for ASCII. Keeps search semantics
+ * equivalent on both providers.
+ */
+export function caseInsensitiveContains(value: string): { contains: string; mode?: 'insensitive' } {
+  return isPostgresProvider
+    ? { contains: value, mode: 'insensitive' }
+    : { contains: value };
+}
+
 if (!env.isProduction) {
   globalForPrisma.prisma = prisma;
 }

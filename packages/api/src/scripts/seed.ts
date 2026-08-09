@@ -12,7 +12,7 @@ import { calculateOrderTotals, lineTotal } from '@samou-go/shared-types';
 import { env } from '../config/env';
 import { prisma } from '../lib/prisma';
 import { hashPassword } from '../lib/password';
-import { formatOrderNumber } from '../lib/order-number';
+import { formatOrderNumber, startOfDay } from '../lib/order-number';
 
 const DEMO_PASSWORD = 'samou1234';
 
@@ -479,6 +479,16 @@ async function seedOrders(): Promise<void> {
       `✓ ${order.id}: ${totals.itemCount} أصناف، توصيل ${totals.deliveryFee} ₪، المجموع ${totals.totalAmount} ₪`
     );
   }
+
+  // Advance the per-day sequence to the highest seeded number so the next
+  // real order never reuses `SG-YYMMDD-0001` and trips the UNIQUE constraint.
+  // (`createOrder` increments this row atomically to mint order numbers.)
+  const maxSequence = Math.max(...ORDERS.map(order => order.sequence));
+  await prisma.dailyOrderSequence.upsert({
+    where: { date: startOfDay(today) },
+    update: { sequence: { set: maxSequence } },
+    create: { date: startOfDay(today), sequence: maxSequence },
+  });
 }
 
 /** Replays the status ladder up to the order's current state. */
