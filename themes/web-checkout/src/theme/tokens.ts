@@ -43,7 +43,7 @@ export const tokens = {
 
 export type ColorToken = keyof typeof tokens;
 
-export const fontFamily = "'Tajawal', 'Cairo', system-ui, sans-serif" as const;
+export const fontFamily = "'Cairo', 'Plus Jakarta Sans', sans-serif" as const;
 
 export const radius = {
   card: '0.75rem',

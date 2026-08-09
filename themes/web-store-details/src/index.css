@@ -9,7 +9,7 @@
    Change it once, then propagate. See /DESIGN_SYSTEM.md
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Cairo:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import 'tailwindcss';
 
 @plugin "tailwindcss-animate";
@@ -369,3 +369,9 @@ img.broken-image-fallback {
     opacity: 1;
   }
 }
+
+/* Direction-aware typography and alternate crimson theme. */
+:root { --font-arabic: 'Cairo', sans-serif; --font-english: 'Plus Jakarta Sans', sans-serif; }
+.theme-crimson { --color-brand:#ef4444; --color-brand-dark:#dc2626; --color-brand-deep:#991b1b; --color-brand-tint:#fee2e2; --color-brand-surface:#fff5f5; --color-brand-soft:#fca5a5; --background:#fff5f5; --primary:#ef4444; --secondary:#dc2626; --accent:#fee2e2; --accent-foreground:#991b1b; --ring:#ef4444; }
+@layer base { html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; } html[dir='ltr'] { direction:ltr; } body { font-family:var(--font-arabic); line-height:1.6; } html[dir='ltr'] body, [dir='ltr'] { font-family:var(--font-english); line-height:1.5; } h1 { font-size:2rem; line-height:1.25; font-weight:700; } h2 { font-size:1.5rem; line-height:1.35; font-weight:600; } p { font-size:1rem; } small,.subtitle { font-size:.875rem; font-weight:500; } }
+@layer components { .btn-primary,.btn-secondary,.btn-danger { @apply min-h-11 transition-all duration-200; } .btn-icon { @apply size-11 rounded-xl transition-all duration-200; } .card-surface { @apply rounded-2xl border-line/80 bg-surface/95 backdrop-blur-sm; } .panel-surface { @apply border-line/80 bg-surface/95 shadow-raised backdrop-blur-sm; } .input-field { @apply border-line/80 transition-all duration-200; } .theme-crimson .btn-primary { background:#ef4444; box-shadow:0 8px 20px -4px rgb(239 68 68 / .35); } .theme-crimson .btn-primary:hover { background:#dc2626; } }

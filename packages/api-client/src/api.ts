@@ -44,6 +44,7 @@ import type {
   PublicUser,
   QuoteOrderInput,
   RegisterInput,
+  ResetPasswordInput,
   ReorderResult,
   SetAvailabilityInput,
   Store,
@@ -55,8 +56,13 @@ import type {
   UpdateStoreInput,
   UserListQuery,
   UpdateUserInput,
-} from '@samou-go/shared-types';
-import type { DeliveryFeeConfig, Locale, OrderStatus, UserRole } from '@samou-go/shared-types';
+} from "@samou-go/shared-types";
+import type {
+  DeliveryFeeConfig,
+  Locale,
+  OrderStatus,
+  UserRole,
+} from "@samou-go/shared-types";
 
 /* ---------------------------------------------------------------------------
  * Configuration
@@ -69,14 +75,14 @@ import type { DeliveryFeeConfig, Locale, OrderStatus, UserRole } from '@samou-go
  * SPA also routes `/api/*` to the backend. No private LAN address is ever baked
  * into a bundle.
  */
-export const LAN_DEV_API_BASE = 'http://localhost:4000';
+export const LAN_DEV_API_BASE = "http://localhost:4000";
 
 /** Full API URL for the dev fallback (`/api/v1` appended). Kept for callers that import it. */
 export const DEFAULT_API_URL = `${LAN_DEV_API_BASE}/api/v1`;
 
 /** Appends `/api/v1` to a base host unless it already carries a version prefix. */
 function withVersionPrefix(base: string): string {
-  const trimmed = base.replace(/\/+$/, '');
+  const trimmed = base.replace(/\/+$/, "");
   return /\/api\/v\d+$/.test(trimmed) ? trimmed : `${trimmed}/api/v1`;
 }
 
@@ -104,7 +110,7 @@ export const API_URL: string = (() => {
 
   const legacyUrl = import.meta.env.VITE_API_URL;
   if (legacyUrl) {
-    const url = legacyUrl.replace(/\/+$/, '');
+    const url = legacyUrl.replace(/\/+$/, "");
     console.info(`[api-client] API base URL — VITE_API_URL: ${url}`);
     return url;
   }
@@ -113,19 +119,22 @@ export const API_URL: string = (() => {
     // Same-origin reverse proxy: the deployment serves the SPA and proxies
     // `/api/*` to the backend. Operators that run the API on another origin
     // must set VITE_API_BASE_URL at build time.
-    const url = '/api/v1';
+    const url = "/api/v1";
     console.info(
-      '[api-client] API base URL — production build, assuming same-origin reverse proxy: ' + url
+      "[api-client] API base URL — production build, assuming same-origin reverse proxy: " +
+        url,
     );
     return url;
   }
 
   const devUrl = withVersionPrefix(LAN_DEV_API_BASE);
-  console.info(`[api-client] API base URL — dev fallback (${LAN_DEV_API_BASE}): ${devUrl}`);
+  console.info(
+    `[api-client] API base URL — dev fallback (${LAN_DEV_API_BASE}): ${devUrl}`,
+  );
 
   if (!devUrl) {
     throw new Error(
-      'Samou Go API base URL is empty. Set VITE_API_BASE_URL or VITE_API_URL in the web app .env file.'
+      "Samou Go API base URL is empty. Set VITE_API_BASE_URL or VITE_API_URL in the web app .env file.",
     );
   }
 
@@ -145,13 +154,13 @@ const DEFAULT_TIMEOUT_MS = 12_000;
 /** Codes this client raises itself; everything else comes from the server. */
 export const CLIENT_ERROR_CODES = {
   /** The request never reached the server — offline, DNS, CORS, refused. */
-  NETWORK_ERROR: 'NETWORK_ERROR',
+  NETWORK_ERROR: "NETWORK_ERROR",
   /** The server did not answer within `DEFAULT_TIMEOUT_MS`. */
-  TIMEOUT: 'TIMEOUT',
+  TIMEOUT: "TIMEOUT",
   /** The caller aborted deliberately (component unmounted, query changed). */
-  ABORTED: 'ABORTED',
+  ABORTED: "ABORTED",
   /** A 2xx that was not the `{ success, data }` envelope — a proxy or a bug. */
-  MALFORMED_RESPONSE: 'MALFORMED_RESPONSE',
+  MALFORMED_RESPONSE: "MALFORMED_RESPONSE",
 } as const;
 
 /**
@@ -165,9 +174,14 @@ export class ApiError extends Error {
   readonly status: number;
   readonly details: ApiFieldError[];
 
-  constructor(code: string, message: string, status = 0, details: ApiFieldError[] = []) {
+  constructor(
+    code: string,
+    message: string,
+    status = 0,
+    details: ApiFieldError[] = [],
+  ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.code = code;
     this.status = status;
     this.details = details;
@@ -175,7 +189,10 @@ export class ApiError extends Error {
 
   /** No response at all — worth offering a "retry" rather than an explanation. */
   get isOffline(): boolean {
-    return this.code === CLIENT_ERROR_CODES.NETWORK_ERROR || this.code === CLIENT_ERROR_CODES.TIMEOUT;
+    return (
+      this.code === CLIENT_ERROR_CODES.NETWORK_ERROR ||
+      this.code === CLIENT_ERROR_CODES.TIMEOUT
+    );
   }
 
   /** The caller cancelled; UIs should swallow this rather than render it. */
@@ -209,8 +226,10 @@ export class ApiError extends Error {
  * called once at app boot to pull persisted tokens into it.
  */
 
-const TOKEN_STORAGE_KEY = 'samou-go.accessToken';
-const REFRESH_TOKEN_STORAGE_KEY = 'samou-go.refreshToken';
+const TOKEN_STORAGE_KEY = "samou-go.accessToken";
+const REFRESH_TOKEN_STORAGE_KEY = "samou-go.refreshToken";
+type SessionPersistence = "local" | "session";
+let sessionPersistence: SessionPersistence = "local";
 
 /** The persistence contract a native app satisfies with Secure Storage. */
 export interface TokenStorageAdapter {
@@ -226,7 +245,9 @@ let secureStorage: TokenStorageAdapter | null = null;
  * Call before the app renders and BEFORE {@link hydrateAuthSession}. Pass `null`
  * to run purely on the in-memory + localStorage fallback (browser / dev).
  */
-export function registerTokenStorage(adapter: TokenStorageAdapter | null): void {
+export function registerTokenStorage(
+  adapter: TokenStorageAdapter | null,
+): void {
   secureStorage = adapter;
 }
 
@@ -246,11 +267,16 @@ export async function hydrateAuthSession(): Promise<void> {
         secureStorage.getItem(REFRESH_TOKEN_STORAGE_KEY),
       ]);
       inMemoryToken = access ?? localStorage.getItem(TOKEN_STORAGE_KEY) ?? null;
-      inMemoryRefreshToken = refresh ?? localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) ?? null;
+      inMemoryRefreshToken =
+        refresh ?? localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) ?? null;
       return;
     }
-    inMemoryToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-    inMemoryRefreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+    const localAccess = localStorage.getItem(TOKEN_STORAGE_KEY);
+    const localRefresh = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+    sessionPersistence = localAccess || localRefresh ? "local" : "session";
+    inMemoryToken = localAccess ?? sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    inMemoryRefreshToken =
+      localRefresh ?? sessionStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
   } catch {
     inMemoryToken = null;
     inMemoryRefreshToken = null;
@@ -260,13 +286,24 @@ export async function hydrateAuthSession(): Promise<void> {
 /** Best-effort persistence; failures never surface — the in-memory copy rules. */
 function persist(key: string, value: string | null): void {
   try {
-    if (value === null) localStorage.removeItem(key);
-    else localStorage.setItem(key, value);
+    const target =
+      sessionPersistence === "local" ? localStorage : sessionStorage;
+    if (value === null) {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    } else {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+      target.setItem(key, value);
+    }
   } catch {
     /* Private mode — the in-memory copy still carries this session. */
   }
   if (secureStorage) {
-    const promise = value === null ? secureStorage.removeItem(key) : secureStorage.setItem(key, value);
+    const promise =
+      value === null
+        ? secureStorage.removeItem(key)
+        : secureStorage.setItem(key, value);
     promise.catch(() => {
       /* Native write failed (e.g. locked Keychain) — localStorage fallback stands. */
     });
@@ -276,7 +313,9 @@ function persist(key: string, value: string | null): void {
 export function getToken(): string | null {
   if (inMemoryToken !== null) return inMemoryToken;
   try {
-    inMemoryToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+    inMemoryToken =
+      localStorage.getItem(TOKEN_STORAGE_KEY) ??
+      sessionStorage.getItem(TOKEN_STORAGE_KEY);
   } catch {
     inMemoryToken = null;
   }
@@ -321,7 +360,9 @@ function notifyTokenChange(): void {
 export function getRefreshToken(): string | null {
   if (inMemoryRefreshToken !== null) return inMemoryRefreshToken;
   try {
-    inMemoryRefreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+    inMemoryRefreshToken =
+      localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) ??
+      sessionStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
   } catch {
     inMemoryRefreshToken = null;
   }
@@ -336,6 +377,11 @@ export function setRefreshToken(token: string | null): void {
 export function clearTokens(): void {
   clearToken();
   setRefreshToken(null);
+}
+
+/** Select storage before login/register: local survives browser restarts; session ends on tab close. */
+export function setSessionPersistence(remember: boolean): void {
+  sessionPersistence = remember ? "local" : "session";
 }
 
 /** True when either credential is present — used for session-restore probes. */
@@ -364,12 +410,12 @@ interface RequestOptions {
 }
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
-  const url = `${API_URL}${path.startsWith('/') ? path : `/${path}`}`;
+  const url = `${API_URL}${path.startsWith("/") ? path : `/${path}`}`;
   if (!query) return url;
 
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
-    if (value === undefined || value === null || value === '') continue;
+    if (value === undefined || value === null || value === "") continue;
     params.set(key, String(value));
   }
   const search = params.toString();
@@ -383,7 +429,7 @@ function buildUrl(path: string, query?: Record<string, QueryValue>): string {
  */
 function withTimeout(
   timeoutMs: number,
-  external?: AbortSignal
+  external?: AbortSignal,
 ): { signal: AbortSignal; done: () => void; timedOut: () => boolean } {
   const controller = new AbortController();
   let expired = false;
@@ -396,21 +442,23 @@ function withTimeout(
   const forward = () => controller.abort();
   if (external) {
     if (external.aborted) controller.abort();
-    else external.addEventListener('abort', forward, { once: true });
+    else external.addEventListener("abort", forward, { once: true });
   }
 
   return {
     signal: controller.signal,
     done: () => {
       clearTimeout(timer);
-      external?.removeEventListener('abort', forward);
+      external?.removeEventListener("abort", forward);
     },
     timedOut: () => expired,
   };
 }
 
 /** Reads the body defensively — a proxy error page is HTML, not our envelope. */
-async function readEnvelope<T>(response: Response): Promise<ApiResponse<T> | null> {
+async function readEnvelope<T>(
+  response: Response,
+): Promise<ApiResponse<T> | null> {
   const text = await response.text();
   if (text.length === 0) return null;
   try {
@@ -438,10 +486,10 @@ async function refreshSessionIfPossible(): Promise<boolean> {
     }
     try {
       const result = await request<AuthResponse>(
-        'POST',
-        '/auth/refresh',
+        "POST",
+        "/auth/refresh",
         { body: { refreshToken: refresh } },
-        true
+        true,
       );
       setToken(result.accessToken);
       setRefreshToken(result.refreshToken ?? null);
@@ -460,10 +508,10 @@ async function refreshSessionIfPossible(): Promise<boolean> {
 }
 
 async function request<T>(
-  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
   path: string,
   options: RequestOptions = {},
-  alreadyRefreshed = false
+  alreadyRefreshed = false,
 ): Promise<T> {
   const {
     body,
@@ -475,19 +523,23 @@ async function request<T>(
   } = options;
 
   const headers: Record<string, string> = {
-    Accept: 'application/json',
+    Accept: "application/json",
     // Free-tier ngrok serves an interstitial "browser warning" page to requests
     // it does not recognise as a real browser. The Capacitor WebView counts as a
     // browser, so without this header a phone on cellular data would receive the
     // HTML warning instead of the API envelope. Harmless when not tunnelling.
-    'ngrok-skip-browser-warning': 'true',
+    "ngrok-skip-browser-warning": "true",
   };
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (body !== undefined) headers["Content-Type"] = "application/json";
 
   if (auth) {
     const token = getToken();
     if (!token) {
-      throw new ApiError('UNAUTHENTICATED', 'يجب تسجيل الدخول أولاً / Please sign in first', 401);
+      throw new ApiError(
+        "UNAUTHENTICATED",
+        "يجب تسجيل الدخول أولاً / Please sign in first",
+        401,
+      );
     }
     headers.Authorization = `Bearer ${token}`;
   }
@@ -506,17 +558,25 @@ async function request<T>(
     if (timeout.timedOut()) {
       throw new ApiError(
         CLIENT_ERROR_CODES.TIMEOUT,
-        'انتهت مهلة الاتصال بالخادم / The server took too long to respond'
+        "انتهت مهلة الاتصال بالخادم / The server took too long to respond",
       );
     }
     if (externalSignal?.aborted) {
-      throw new ApiError(CLIENT_ERROR_CODES.ABORTED, 'تم إلغاء الطلب / Request cancelled');
+      throw new ApiError(
+        CLIENT_ERROR_CODES.ABORTED,
+        "تم إلغاء الطلب / Request cancelled",
+      );
     }
     throw new ApiError(
       CLIENT_ERROR_CODES.NETWORK_ERROR,
-      'تعذّر الاتصال بالخادم، تحقق من الإنترنت / Cannot reach the server',
+      "تعذّر الاتصال بالخادم، تحقق من الإنترنت / Cannot reach the server",
       0,
-      [{ path: '', message: cause instanceof Error ? cause.message : String(cause) }]
+      [
+        {
+          path: "",
+          message: cause instanceof Error ? cause.message : String(cause),
+        },
+      ],
     );
   } finally {
     timeout.done();
@@ -527,7 +587,12 @@ async function request<T>(
   if (envelope && envelope.success === false) {
     // An expired access token triggers ONE silent refresh, then a retry. A
     // second 401 (or a failed refresh) means the session is genuinely dead.
-    if (response.status === 401 && auth && !alreadyRefreshed && !bypassRefreshRetry) {
+    if (
+      response.status === 401 &&
+      auth &&
+      !alreadyRefreshed &&
+      !bypassRefreshRetry
+    ) {
       if (await refreshSessionIfPossible()) {
         return request<T>(method, path, options, true);
       }
@@ -537,12 +602,17 @@ async function request<T>(
       envelope.error.code,
       envelope.error.message,
       response.status,
-      envelope.error.details ?? []
+      envelope.error.details ?? [],
     );
   }
 
   if (!response.ok) {
-    if (response.status === 401 && auth && !alreadyRefreshed && !bypassRefreshRetry) {
+    if (
+      response.status === 401 &&
+      auth &&
+      !alreadyRefreshed &&
+      !bypassRefreshRetry
+    ) {
       if (await refreshSessionIfPossible()) {
         return request<T>(method, path, options, true);
       }
@@ -551,15 +621,15 @@ async function request<T>(
     throw new ApiError(
       `HTTP_${response.status}`,
       `تعذّر تنفيذ الطلب (${response.status}) / Request failed`,
-      response.status
+      response.status,
     );
   }
 
   if (!envelope) {
     throw new ApiError(
       CLIENT_ERROR_CODES.MALFORMED_RESPONSE,
-      'ردّ غير متوقع من الخادم / Unexpected response from the server',
-      response.status
+      "ردّ غير متوقع من الخادم / Unexpected response from the server",
+      response.status,
     );
   }
 
@@ -584,7 +654,7 @@ export interface ApiMeta {
  * so a screen that quotes a price should ask rather than assume.
  */
 export function getMeta(signal?: AbortSignal): Promise<ApiMeta> {
-  return request<ApiMeta>('GET', '/meta', { signal });
+  return request<ApiMeta>("GET", "/meta", { signal });
 }
 
 /* ---------------------------------------------------------------------------
@@ -592,36 +662,60 @@ export function getMeta(signal?: AbortSignal): Promise<ApiMeta> {
  * ------------------------------------------------------------------------- */
 
 /** Paginated store list. Inactive stores are hidden unless `activeOnly: false`. */
-export function getStores(query: StoreListQuery = {}, signal?: AbortSignal): Promise<Paginated<Store>> {
-  return request<Paginated<Store>>('GET', '/stores', { query: { ...query }, signal });
+export function getStores(
+  query: StoreListQuery = {},
+  signal?: AbortSignal,
+): Promise<Paginated<Store>> {
+  return request<Paginated<Store>>("GET", "/stores", {
+    query: { ...query },
+    signal,
+  });
 }
 
 /** One store with its categories and available products inlined. */
-export function getStore(storeId: string, signal?: AbortSignal): Promise<StoreWithCatalogue> {
-  return request<StoreWithCatalogue>('GET', `/stores/${encodeURIComponent(storeId)}`, { signal });
+export function getStore(
+  storeId: string,
+  signal?: AbortSignal,
+): Promise<StoreWithCatalogue> {
+  return request<StoreWithCatalogue>(
+    "GET",
+    `/stores/${encodeURIComponent(storeId)}`,
+    { signal },
+  );
 }
 
 /**
  * Full catalogue for the store manager — includes unavailable products so the
  * manager can re-enable them. Requires STORE_MANAGER (own store) or ADMIN.
  */
-export function getStoreManager(storeId: string, signal?: AbortSignal): Promise<StoreWithCatalogue> {
-  return request<StoreWithCatalogue>('GET', `/stores/${encodeURIComponent(storeId)}/full`, {
-    auth: true,
-    signal,
-  });
+export function getStoreManager(
+  storeId: string,
+  signal?: AbortSignal,
+): Promise<StoreWithCatalogue> {
+  return request<StoreWithCatalogue>(
+    "GET",
+    `/stores/${encodeURIComponent(storeId)}/full`,
+    {
+      auth: true,
+      signal,
+    },
+  );
 }
 
 /** Paginated products within a store, filterable by category or search term. */
 export function getStoreProducts(
   storeId: string,
   query: ProductListQuery = {},
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<Paginated<Product>> {
-  return request<Paginated<Product>>('GET', `/stores/${encodeURIComponent(storeId)}/products`, {
-    query: { ...query },
-    signal,
-  });
+  return request<Paginated<Product>>(
+    "GET",
+    `/stores/${encodeURIComponent(storeId)}/products`,
+    {
+      query: { ...query },
+      signal,
+    },
+  );
 }
 
 /* ---------------------------------------------------------------------------
@@ -632,8 +726,11 @@ export function getStoreProducts(
  * Prices a basket without writing anything — this is how the cart shows a
  * delivery fee before the customer commits. Public: no token required.
  */
-export function quoteOrder(input: QuoteOrderInput, signal?: AbortSignal): Promise<OrderQuote> {
-  return request<OrderQuote>('POST', '/orders/quote', { body: input, signal });
+export function quoteOrder(
+  input: QuoteOrderInput,
+  signal?: AbortSignal,
+): Promise<OrderQuote> {
+  return request<OrderQuote>("POST", "/orders/quote", { body: input, signal });
 }
 
 /**
@@ -641,13 +738,23 @@ export function quoteOrder(input: QuoteOrderInput, signal?: AbortSignal): Promis
  * `deliveryFee`, `totalAmount`. The server prices the basket from the products
  * table and derives the fee from the item count. Do not add them here.
  */
-export function createOrder(input: CreateOrderInput, signal?: AbortSignal): Promise<OrderDetail> {
-  return request<OrderDetail>('POST', '/orders', { body: input, auth: true, signal });
+export function createOrder(
+  input: CreateOrderInput,
+  signal?: AbortSignal,
+): Promise<OrderDetail> {
+  return request<OrderDetail>("POST", "/orders", {
+    body: input,
+    auth: true,
+    signal,
+  });
 }
 
 /** `GET /orders/:id` — the tracking screen's poll target. Role-scoped server side. */
-export function getOrder(orderId: string, signal?: AbortSignal): Promise<OrderDetail> {
-  return request<OrderDetail>('GET', `/orders/${encodeURIComponent(orderId)}`, {
+export function getOrder(
+  orderId: string,
+  signal?: AbortSignal,
+): Promise<OrderDetail> {
+  return request<OrderDetail>("GET", `/orders/${encodeURIComponent(orderId)}`, {
     auth: true,
     signal,
   });
@@ -656,9 +763,9 @@ export function getOrder(orderId: string, signal?: AbortSignal): Promise<OrderDe
 /** The caller's own orders, scoped by role on the server. */
 export function listOrders(
   query: OrderListQuery = {},
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<Paginated<OrderSummary>> {
-  return request<Paginated<OrderSummary>>('GET', '/orders', {
+  return request<Paginated<OrderSummary>>("GET", "/orders", {
     query: { ...query },
     auth: true,
     signal,
@@ -672,13 +779,17 @@ export function listOrders(
 export function updateOrderStatus(
   orderId: string,
   input: UpdateOrderStatusInput,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<OrderDetail> {
-  return request<OrderDetail>('PATCH', `/orders/${encodeURIComponent(orderId)}/status`, {
-    body: input,
-    auth: true,
-    signal,
-  });
+  return request<OrderDetail>(
+    "PATCH",
+    `/orders/${encodeURIComponent(orderId)}/status`,
+    {
+      body: input,
+      auth: true,
+      signal,
+    },
+  );
 }
 
 /**
@@ -686,11 +797,18 @@ export function updateOrderStatus(
  * customer can load it straight into the cart. Requires the same visibility the
  * order itself does (owner, or admin).
  */
-export function reorderOrder(orderId: string, signal?: AbortSignal): Promise<ReorderResult> {
-  return request<ReorderResult>('POST', `/orders/${encodeURIComponent(orderId)}/reorder`, {
-    auth: true,
-    signal,
-  });
+export function reorderOrder(
+  orderId: string,
+  signal?: AbortSignal,
+): Promise<ReorderResult> {
+  return request<ReorderResult>(
+    "POST",
+    `/orders/${encodeURIComponent(orderId)}/reorder`,
+    {
+      auth: true,
+      signal,
+    },
+  );
 }
 
 /* ---------------------------------------------------------------------------
@@ -698,27 +816,43 @@ export function reorderOrder(orderId: string, signal?: AbortSignal): Promise<Reo
  * ------------------------------------------------------------------------- */
 
 /** The customer's favorited stores, newest first. */
-export function getFavorites(signal?: AbortSignal): Promise<FavoriteListResult> {
-  return request<FavoriteListResult>('GET', '/favorites', { auth: true, signal });
-}
-
-/** Idempotently adds a store to the customer's favorites. */
-export function addFavorite(storeId: string, signal?: AbortSignal): Promise<{ favorited: true }> {
-  return request<{ favorited: true }>('PUT', `/favorites/${encodeURIComponent(storeId)}`, {
+export function getFavorites(
+  signal?: AbortSignal,
+): Promise<FavoriteListResult> {
+  return request<FavoriteListResult>("GET", "/favorites", {
     auth: true,
     signal,
   });
+}
+
+/** Idempotently adds a store to the customer's favorites. */
+export function addFavorite(
+  storeId: string,
+  signal?: AbortSignal,
+): Promise<{ favorited: true }> {
+  return request<{ favorited: true }>(
+    "PUT",
+    `/favorites/${encodeURIComponent(storeId)}`,
+    {
+      auth: true,
+      signal,
+    },
+  );
 }
 
 /** Idempotently removes a store from the customer's favorites. */
 export function removeFavorite(
   storeId: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<{ favorited: false }> {
-  return request<{ favorited: false }>('DELETE', `/favorites/${encodeURIComponent(storeId)}`, {
-    auth: true,
-    signal,
-  });
+  return request<{ favorited: false }>(
+    "DELETE",
+    `/favorites/${encodeURIComponent(storeId)}`,
+    {
+      auth: true,
+      signal,
+    },
+  );
 }
 
 /* ---------------------------------------------------------------------------
@@ -726,38 +860,70 @@ export function removeFavorite(
  * ------------------------------------------------------------------------- */
 
 /** Signs in and stores the bearer + refresh tokens for every later call. */
-export async function login(input: LoginInput, signal?: AbortSignal): Promise<AuthResponse> {
-  const auth = await request<AuthResponse>('POST', '/auth/login', { body: input, signal });
+export async function login(
+  input: LoginInput,
+  signal?: AbortSignal,
+): Promise<AuthResponse> {
+  const auth = await request<AuthResponse>("POST", "/auth/login", {
+    body: input,
+    signal,
+  });
   setToken(auth.accessToken);
   setRefreshToken(auth.refreshToken ?? null);
   return auth;
 }
 
 /** Self-service registration. The server forces `CUSTOMER`; staff roles need an admin. */
-export async function register(input: RegisterInput, signal?: AbortSignal): Promise<AuthResponse> {
-  const auth = await request<AuthResponse>('POST', '/auth/register', { body: input, signal });
+export async function register(
+  input: RegisterInput,
+  signal?: AbortSignal,
+): Promise<AuthResponse> {
+  const auth = await request<AuthResponse>("POST", "/auth/register", {
+    body: input,
+    signal,
+  });
   setToken(auth.accessToken);
   setRefreshToken(auth.refreshToken ?? null);
   return auth;
+}
+
+/** Replaces a forgotten password after the customer proves phone ownership with an OTP. */
+export function resetPassword(
+  input: ResetPasswordInput,
+  signal?: AbortSignal,
+): Promise<void> {
+  return request<unknown>("POST", "/auth/password/reset", {
+    body: input,
+    signal,
+  }).then(() => undefined);
 }
 
 /**
  * Requests a one-time code. The server rate-limits a phone to 3 per 5 minutes
  * and answers overflow with a 429 whose `Retry-After` the UI can read.
  */
-export function requestOtp(input: OtpRequestInput, signal?: AbortSignal): Promise<{
+export function requestOtp(
+  input: OtpRequestInput,
+  signal?: AbortSignal,
+): Promise<{
   retryAfterSeconds: number;
   dispatched: boolean;
 }> {
-  return request('POST', '/auth/otp/request', { body: input, signal });
+  return request("POST", "/auth/otp/request", { body: input, signal });
 }
 
 /**
  * Exchanges a code for a session and stores both tokens. A brand-new phone
  * auto-provisions a CUSTOMER account server-side.
  */
-export async function verifyOtp(input: OtpVerifyInput, signal?: AbortSignal): Promise<AuthResponse> {
-  const auth = await request<AuthResponse>('POST', '/auth/otp/verify', { body: input, signal });
+export async function verifyOtp(
+  input: OtpVerifyInput,
+  signal?: AbortSignal,
+): Promise<AuthResponse> {
+  const auth = await request<AuthResponse>("POST", "/auth/otp/verify", {
+    body: input,
+    signal,
+  });
   setToken(auth.accessToken);
   setRefreshToken(auth.refreshToken ?? null);
   return auth;
@@ -769,14 +935,17 @@ export async function verifyOtp(input: OtpVerifyInput, signal?: AbortSignal): Pr
  */
 export async function refreshAccessToken(
   refreshToken: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<AuthResponse> {
-  return request<AuthResponse>('POST', '/auth/refresh', { body: { refreshToken }, signal });
+  return request<AuthResponse>("POST", "/auth/refresh", {
+    body: { refreshToken },
+    signal,
+  });
 }
 
 /** The current profile. `passwordHash` is never part of this. */
 export function me(signal?: AbortSignal): Promise<PublicUser> {
-  return request<PublicUser>('GET', '/auth/me', { auth: true, signal });
+  return request<PublicUser>("GET", "/auth/me", { auth: true, signal });
 }
 
 /** Stateless access tokens are dropped locally; the refresh token is revoked server-side. */
@@ -784,9 +953,12 @@ export async function logout(signal?: AbortSignal): Promise<void> {
   try {
     const refresh = getRefreshToken();
     if (refresh) {
-      await request<unknown>('POST', '/auth/logout', { body: { refreshToken: refresh }, signal });
+      await request<unknown>("POST", "/auth/logout", {
+        body: { refreshToken: refresh },
+        signal,
+      });
     } else {
-      await request<unknown>('POST', '/auth/logout', { signal });
+      await request<unknown>("POST", "/auth/logout", { signal });
     }
   } finally {
     clearTokens();
@@ -794,16 +966,23 @@ export async function logout(signal?: AbortSignal): Promise<void> {
 }
 
 /** Updates the signed-in user's own profile (name, phone, password). */
-export function updateProfile(input: UpdateProfileInput, signal?: AbortSignal): Promise<PublicUser> {
-  return request<PublicUser>('PATCH', '/auth/me', { body: input, auth: true, signal });
+export function updateProfile(
+  input: UpdateProfileInput,
+  signal?: AbortSignal,
+): Promise<PublicUser> {
+  return request<PublicUser>("PATCH", "/auth/me", {
+    body: input,
+    auth: true,
+    signal,
+  });
 }
 
 /** Captains flip their own online/offline state. Rejected for non-captains. */
 export function setAvailability(
   input: SetAvailabilityInput,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<PublicUser> {
-  return request<PublicUser>('PATCH', '/auth/me/availability', {
+  return request<PublicUser>("PATCH", "/auth/me/availability", {
     body: input,
     auth: true,
     signal,
@@ -818,9 +997,9 @@ export function setAvailability(
 export function updateStore(
   storeId: string,
   input: UpdateStoreInput,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<Store> {
-  return request<Store>('PATCH', `/stores/${encodeURIComponent(storeId)}`, {
+  return request<Store>("PATCH", `/stores/${encodeURIComponent(storeId)}`, {
     body: input,
     auth: true,
     signal,
@@ -831,13 +1010,17 @@ export function updateStore(
 export function createProduct(
   storeId: string,
   input: CreateProductInput,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<Product> {
-  return request<Product>('POST', `/stores/${encodeURIComponent(storeId)}/products`, {
-    body: input,
-    auth: true,
-    signal,
-  });
+  return request<Product>(
+    "POST",
+    `/stores/${encodeURIComponent(storeId)}/products`,
+    {
+      body: input,
+      auth: true,
+      signal,
+    },
+  );
 }
 
 /** Updates an existing product (price, availability, name, …). */
@@ -845,12 +1028,12 @@ export function updateProduct(
   storeId: string,
   productId: string,
   input: UpdateProductInput,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<Product> {
   return request<Product>(
-    'PATCH',
+    "PATCH",
     `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}`,
-    { body: input, auth: true, signal }
+    { body: input, auth: true, signal },
   );
 }
 
@@ -862,12 +1045,12 @@ export function updateProduct(
 export function deleteProduct(
   storeId: string,
   productId: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<Product> {
   return request<Product>(
-    'DELETE',
+    "DELETE",
     `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}`,
-    { auth: true, signal }
+    { auth: true, signal },
   );
 }
 
@@ -878,9 +1061,9 @@ export function deleteProduct(
 /** Returns a paginated list of all users. Requires ADMIN. */
 export function listUsers(
   query: UserListQuery = {},
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<Paginated<PublicUser>> {
-  return request<Paginated<PublicUser>>('GET', '/users', {
+  return request<Paginated<PublicUser>>("GET", "/users", {
     query: { ...query },
     auth: true,
     signal,
@@ -891,9 +1074,9 @@ export function listUsers(
 export function updateUser(
   userId: string,
   input: UpdateUserInput,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<PublicUser> {
-  return request<PublicUser>('PATCH', `/users/${encodeURIComponent(userId)}`, {
+  return request<PublicUser>("PATCH", `/users/${encodeURIComponent(userId)}`, {
     body: input,
     auth: true,
     signal,
@@ -910,7 +1093,7 @@ export function updateUser(
  * recent orders. Requires ADMIN.
  */
 export function getAdminStats(signal?: AbortSignal): Promise<AdminStats> {
-  return request<AdminStats>('GET', '/admin/stats', { auth: true, signal });
+  return request<AdminStats>("GET", "/admin/stats", { auth: true, signal });
 }
 
 /* ---------------------------------------------------------------------------
@@ -918,11 +1101,18 @@ export function getAdminStats(signal?: AbortSignal): Promise<AdminStats> {
  * ------------------------------------------------------------------------- */
 
 /** Publishes a store to the public catalogue. Requires ADMIN. */
-export function approveStore(storeId: string, signal?: AbortSignal): Promise<Store> {
-  return request<Store>('PATCH', `/stores/${encodeURIComponent(storeId)}/approve`, {
-    auth: true,
-    signal,
-  });
+export function approveStore(
+  storeId: string,
+  signal?: AbortSignal,
+): Promise<Store> {
+  return request<Store>(
+    "PATCH",
+    `/stores/${encodeURIComponent(storeId)}/approve`,
+    {
+      auth: true,
+      signal,
+    },
+  );
 }
 
 /* ---------------------------------------------------------------------------
@@ -930,11 +1120,18 @@ export function approveStore(storeId: string, signal?: AbortSignal): Promise<Sto
  * ------------------------------------------------------------------------- */
 
 /** Confirms a CAPTAIN account so it may take jobs. Requires ADMIN. */
-export function verifyCaptain(captainId: string, signal?: AbortSignal): Promise<PublicUser> {
-  return request<PublicUser>('PATCH', `/captains/${encodeURIComponent(captainId)}/verify`, {
-    auth: true,
-    signal,
-  });
+export function verifyCaptain(
+  captainId: string,
+  signal?: AbortSignal,
+): Promise<PublicUser> {
+  return request<PublicUser>(
+    "PATCH",
+    `/captains/${encodeURIComponent(captainId)}/verify`,
+    {
+      auth: true,
+      signal,
+    },
+  );
 }
 
 /** Namespaced handle for callers that prefer `api.getStores()` over named imports. */
@@ -958,6 +1155,7 @@ export const api = {
   removeFavorite,
   login,
   register,
+  resetPassword,
   requestOtp,
   verifyOtp,
   refreshAccessToken,
@@ -978,6 +1176,7 @@ export const api = {
   setRefreshToken,
   clearTokens,
   registerTokenStorage,
+  setSessionPersistence,
   hydrateAuthSession,
   hasStoredSession,
 } as const;

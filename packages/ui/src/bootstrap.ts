@@ -20,6 +20,33 @@ export interface BootstrapOptions {
   skipAnimations?: boolean;
 }
 
+export type BrandTheme = 'emerald' | 'crimson';
+export type AppLanguage = 'ar' | 'en';
+
+const BRAND_THEME_STORAGE_KEY = 'samou-go.brand-theme';
+const APP_LANGUAGE_STORAGE_KEY = 'samou-go.language';
+
+/** Applies the visual theme without coupling any app to a specific settings UI. */
+export function setBrandTheme(theme: BrandTheme): void {
+  document.documentElement.classList.toggle('theme-crimson', theme === 'crimson');
+  try {
+    localStorage.setItem(BRAND_THEME_STORAGE_KEY, theme);
+  } catch {
+    /* Private mode still receives the in-memory DOM update. */
+  }
+}
+
+/** Sets the document language/direction used by the direction-aware design system. */
+export function setAppLanguage(language: AppLanguage): void {
+  document.documentElement.lang = language;
+  document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+  try {
+    localStorage.setItem(APP_LANGUAGE_STORAGE_KEY, language);
+  } catch {
+    /* Private mode still receives the in-memory DOM update. */
+  }
+}
+
 /**
  * One-liner bootstrap for every Samou' Go Vite app.
  *
@@ -58,6 +85,32 @@ export function bootstrapApp(options: BootstrapOptions = {}): void {
   window
     .matchMedia('(prefers-color-scheme: dark)')
     .addEventListener('change', forceLightMode);
+
+  /* ---- 2b. Brand theme --------------------------------------------------- */
+  try {
+    setBrandTheme(localStorage.getItem(BRAND_THEME_STORAGE_KEY) === 'crimson' ? 'crimson' : 'emerald');
+  } catch {
+    setBrandTheme('emerald');
+  }
+  window.addEventListener('samou-go:brand-theme', event => {
+    const requested = event instanceof CustomEvent && event.detail === 'crimson' ? 'crimson' : 'emerald';
+    setBrandTheme(requested);
+  });
+
+  /* ---- 2c. Language and direction -------------------------------------- */
+  const queryLanguage = urlParams.get('lang');
+  let language: AppLanguage = queryLanguage === 'en' ? 'en' : 'ar';
+  try {
+    const stored = localStorage.getItem(APP_LANGUAGE_STORAGE_KEY);
+    if (!queryLanguage && stored === 'en') language = 'en';
+  } catch {
+    /* Default Arabic-first language remains active. */
+  }
+  setAppLanguage(language);
+  window.addEventListener('samou-go:language', event => {
+    const requested = event instanceof CustomEvent && event.detail === 'en' ? 'en' : 'ar';
+    setAppLanguage(requested);
+  });
 
   /* ---- 3. Broken-image fallback ----------------------------------------- */
   const FALLBACK_SVG =

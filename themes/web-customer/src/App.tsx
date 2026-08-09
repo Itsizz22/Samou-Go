@@ -10,6 +10,7 @@ import { StoreDetailScreen } from './screens/StoreDetailScreen';
 import { CartScreen } from './screens/CartScreen';
 import { CheckoutScreen } from './screens/CheckoutScreen';
 import { OrderTrackingScreen } from './screens/OrderTrackingScreen';
+import { ForgotPasswordScreen, LoginScreen, RegisterScreen } from './screens/AuthScreens';
 // %IMPORT_STATEMENT
 
 const theme: Theme = 'light';
@@ -88,6 +89,9 @@ function App() {
       <Route path="/profile" element={<ProfileScreen />} />
       <Route path="/favorites" element={<FavoritesScreen />} />
       <Route path="/search" element={<SearchScreen />} />
+      <Route path="/login" element={<LoginScreen />} />
+      <Route path="/register" element={<RegisterScreen />} />
+      <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
       {/* Any other deep link falls back to the feed instead of a blank screen. */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

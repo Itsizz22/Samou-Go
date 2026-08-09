@@ -52,5 +52,8 @@
   },
   "devDependencies": {
     "typescript": "~5.7.2"
+  },
+  "dependencies": {
+    "@emotion/is-prop-valid": "^1.4.0"
   }
 }

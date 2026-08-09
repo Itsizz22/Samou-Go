@@ -14,27 +14,36 @@
  *   - The code row is consumed on success, so a code cannot be replayed.
  */
 
-import { randomInt } from 'node:crypto';
-import bcrypt from 'bcryptjs';
-import type { AuthResponse, OtpRequestInput, OtpVerifyInput } from '@samou-go/shared-types';
-import { UserRole } from '@samou-go/shared-types';
-import { env } from '../../config/env';
-import { prisma } from '../../lib/prisma';
-import { tooMany, unauthorized } from '../../lib/http-error';
-import { hashPassword } from '../../lib/password';
-import { signAccessToken } from '../../lib/jwt';
-import { getSmsGateway } from '../../lib/sms/gateway';
-import { toPublicUser } from './auth.mapper';
-import { issueRefreshToken } from './refresh-token';
+import { randomInt } from "node:crypto";
+import bcrypt from "bcryptjs";
+import type {
+  AuthResponse,
+  OtpRequestInput,
+  OtpVerifyInput,
+  ResetPasswordInput,
+} from "@samou-go/shared-types";
+import { UserRole } from "@samou-go/shared-types";
+import { env } from "../../config/env";
+import { prisma } from "../../lib/prisma";
+import { tooMany, unauthorized } from "../../lib/http-error";
+import { hashPassword } from "../../lib/password";
+import { signAccessToken } from "../../lib/jwt";
+import { getSmsGateway } from "../../lib/sms/gateway";
+import { toPublicUser } from "./auth.mapper";
+import { issueRefreshToken } from "./refresh-token";
+import { revokeAllUserRefreshTokens } from "./refresh-token";
+import { notFound } from "../../lib/http-error";
 
 /** Cost 12 — bcrypt's work factor for the stored code hash. */
 const OTP_BCRYPT_ROUNDS = 12;
 
-const CODE_EXPIRED = unauthorized('انتهت صلاحية الرمز، اطلب رمزاً جديداً / Code expired — request a new one');
-const CODE_INVALID = unauthorized('رمز غير صحيح / Incorrect code');
+const CODE_EXPIRED = unauthorized(
+  "انتهت صلاحية الرمز، اطلب رمزاً جديداً / Code expired — request a new one",
+);
+const CODE_INVALID = unauthorized("رمز غير صحيح / Incorrect code");
 
 function generateOtpCode(length: number): string {
-  let code = '';
+  let code = "";
   for (let index = 0; index < length; index += 1) {
     code += randomInt(0, 10).toString();
   }
@@ -58,7 +67,9 @@ export interface OtpRequestResult {
 }
 
 /** POST /auth/otp/request — rate-limited dispatch of a one-time code. */
-export async function requestOtp(body: OtpRequestInput): Promise<OtpRequestResult> {
+export async function requestOtp(
+  body: OtpRequestInput,
+): Promise<OtpRequestResult> {
   const { phone } = body;
   const now = new Date();
 
@@ -68,12 +79,14 @@ export async function requestOtp(body: OtpRequestInput): Promise<OtpRequestResul
     const windowElapsed = now.getTime() - existing.windowStartsAt.getTime();
     if (windowElapsed < env.otp.rateWindowMs) {
       if (existing.requests >= env.otp.rateMax) {
-        const retryAfterSeconds = Math.ceil((env.otp.rateWindowMs - windowElapsed) / 1_000);
+        const retryAfterSeconds = Math.ceil(
+          (env.otp.rateWindowMs - windowElapsed) / 1_000,
+        );
         throw tooMany(
-          'OTP_RATE_LIMITED',
+          "OTP_RATE_LIMITED",
           `طلبات كثيرة جداً، حاول مجدداً بعد ${Math.ceil(retryAfterSeconds / 60)} دقيقة / ` +
             `Too many requests — try again in ${Math.ceil(retryAfterSeconds / 60)} minute(s)`,
-          retryAfterSeconds
+          retryAfterSeconds,
         );
       }
     }
@@ -93,7 +106,8 @@ export async function requestOtp(body: OtpRequestInput): Promise<OtpRequestResul
       windowStartsAt: now,
     },
     update:
-      existing && now.getTime() - existing.windowStartsAt.getTime() < env.otp.rateWindowMs
+      existing &&
+      now.getTime() - existing.windowStartsAt.getTime() < env.otp.rateWindowMs
         ? {
             codeHash,
             expiresAt,
@@ -114,8 +128,11 @@ export async function requestOtp(body: OtpRequestInput): Promise<OtpRequestResul
 
   const windowElapsed = now.getTime() - upserted.windowStartsAt.getTime();
   return {
-    retryAfterSeconds: Math.max(0, Math.ceil((env.otp.rateWindowMs - windowElapsed) / 1_000)),
-    dispatched: gateway.provider !== 'none' && gateway.provider !== 'console',
+    retryAfterSeconds: Math.max(
+      0,
+      Math.ceil((env.otp.rateWindowMs - windowElapsed) / 1_000),
+    ),
+    dispatched: gateway.provider !== "none" && gateway.provider !== "console",
   };
 }
 
@@ -163,22 +180,44 @@ export async function verifyOtp(body: OtpVerifyInput): Promise<AuthResponse> {
   return { user: toPublicUser(user), accessToken, expiresIn, refreshToken };
 }
 
+/** Consume a valid OTP and replace a known account's password. */
+export async function resetPassword(body: ResetPasswordInput): Promise<void> {
+  const existing = await prisma.user.findUnique({
+    where: { phone: body.phone },
+  });
+  if (!existing) {
+    // Do not turn a password reset into account provisioning.
+    throw notFound("الحساب غير موجود / Account not found");
+  }
+
+  // Reuse the hardened OTP verifier. It consumes the code; its short-lived
+  // session is immediately revoked below, so reset never leaves a login behind.
+  await verifyOtp({ phone: body.phone, code: body.code });
+  await prisma.user.update({
+    where: { id: existing.id },
+    data: { passwordHash: await hashPassword(body.password) },
+  });
+  await revokeAllUserRefreshTokens(existing.id);
+}
+
 async function findOrCreateCustomer(phone: string, name?: string) {
   const existing = await prisma.user.findUnique({ where: { phone } });
   if (existing) {
     if (!existing.isActive) {
-      throw unauthorized('الحساب موقوف / This account has been deactivated');
+      throw unauthorized("الحساب موقوف / This account has been deactivated");
     }
     return existing;
   }
 
   return prisma.user.create({
     data: {
-      name: name?.trim() || 'عميل / Customer',
+      name: name?.trim() || "عميل / Customer",
       phone,
       // OTP accounts carry a login-proof bcrypt hash of a random value; the
       // user still has a password hash so role invariants hold everywhere.
-      passwordHash: await hashPassword(`otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`),
+      passwordHash: await hashPassword(
+        `otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`,
+      ),
       role: UserRole.CUSTOMER,
     },
   });

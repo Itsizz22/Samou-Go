@@ -5,8 +5,14 @@
  * can be typed against the API without importing server code.
  */
 
-import type { OrderStatus, UserRole, VoucherDiscountType } from './enums';
-import type { OrderDetail, OrderSummary, Product, PublicUser, Store } from './models';
+import type { OrderStatus, UserRole, VoucherDiscountType } from "./enums";
+import type {
+  OrderDetail,
+  OrderSummary,
+  Product,
+  PublicUser,
+  Store,
+} from "./models";
 
 /* ---------------------------------------------------------------------------
  * Envelope
@@ -110,6 +116,13 @@ export interface RefreshTokenInput {
   refreshToken: string;
 }
 
+/** Proves control of a phone with an OTP, then replaces its password. */
+export interface ResetPasswordInput {
+  phone: string;
+  code: string;
+  password: string;
+}
+
 /** Decoded JWT body. Kept small — never put a role-changing flag in here. */
 export interface JwtPayload {
   sub: string;
@@ -194,7 +207,12 @@ export interface OrderQuote {
   /** `"رسوم التوصيل / Delivery Fee"` — rendered, never hardcoded client-side. */
   deliveryFeeLabel: string;
   /** The resolved voucher, when one was applied. */
-  voucher?: { code: string; labelAr: string; labelEn: string; discount: number } | null;
+  voucher?: {
+    code: string;
+    labelAr: string;
+    labelEn: string;
+    discount: number;
+  } | null;
 }
 
 /**

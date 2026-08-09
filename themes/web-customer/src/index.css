@@ -9,7 +9,7 @@
    Change it once, then propagate. See /DESIGN_SYSTEM.md
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Cairo:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import 'tailwindcss';
 
 @plugin "tailwindcss-animate";
@@ -54,9 +54,9 @@
   --color-info-ink: #1d4ed8;
 
   /* Typography — Arabic-first */
-  --font-sans: 'Tajawal', 'Cairo', system-ui, sans-serif;
-  --font-body: 'Tajawal', 'Cairo', system-ui, sans-serif;
-  --font-heading: 'Tajawal', 'Cairo', system-ui, sans-serif;
+  --font-sans: 'Cairo', sans-serif;
+  --font-body: 'Cairo', sans-serif;
+  --font-heading: 'Cairo', sans-serif;
 
   /* Radius */
   --radius-card: 0.75rem;
@@ -111,6 +111,14 @@
 }
 
 :root {
+  --font-arabic: 'Cairo', sans-serif;
+  --font-english: 'Plus Jakarta Sans', sans-serif;
+  --brand: #10b981;
+  --brand-dark: #059669;
+  --brand-deep: #047857;
+  --brand-tint: #d1fae5;
+  --brand-surface: #ecfdf5;
+  --brand-soft: #6ee7b7;
   --radius: 0.75rem;
 
   --background: #f3f4f6;
@@ -151,6 +159,27 @@
   --chart-3: #d1fae5;
   --chart-4: #f59e0b;
   --chart-5: #3b82f6;
+}
+
+.theme-crimson {
+  --color-brand: #ef4444;
+  --color-brand-dark: #dc2626;
+  --color-brand-deep: #991b1b;
+  --color-brand-tint: #fee2e2;
+  --color-brand-surface: #fff5f5;
+  --color-brand-soft: #fca5a5;
+  --brand: #ef4444;
+  --brand-dark: #dc2626;
+  --brand-deep: #991b1b;
+  --brand-tint: #fee2e2;
+  --brand-surface: #fff5f5;
+  --brand-soft: #fca5a5;
+  --background: #fff5f5;
+  --primary: #ef4444;
+  --secondary: #dc2626;
+  --accent: #fee2e2;
+  --accent-foreground: #991b1b;
+  --ring: #ef4444;
 }
 
 .dark {
@@ -199,7 +228,11 @@
   html {
     /* dir="rtl" is set on <html> in index.html; this is the CSS fallback. */
     direction: rtl;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
+
+  html[dir='ltr'] { direction: ltr; }
 
   html,
   body,
@@ -213,7 +246,8 @@
 
   body {
     @apply bg-canvas text-ink antialiased;
-    font-family: var(--font-sans);
+    font-family: var(--font-arabic);
+    line-height: 1.6;
     font-feature-settings:
       'rlig' 1,
       'calt' 1;
@@ -223,7 +257,11 @@
   /* Latin islands: prices, codes, English labels, distances. */
   [dir='ltr'] {
     direction: ltr;
+    font-family: var(--font-english);
+    line-height: 1.5;
   }
+
+  html[dir='ltr'] body { font-family: var(--font-english); line-height: 1.5; }
 
   h1,
   h2,
@@ -234,6 +272,11 @@
     font-family: var(--font-heading);
     @apply font-bold text-ink;
   }
+
+  h1 { font-size: 2rem; line-height: 1.25; font-weight: 700; }
+  h2 { font-size: 1.5rem; line-height: 1.35; font-weight: 600; }
+  p { font-size: 1rem; }
+  small, .subtitle { font-size: 0.875rem; font-weight: 500; }
 
   /* Arabic numerals render latin-style everywhere for price consistency. */
   input,
@@ -254,7 +297,7 @@
 @layer components {
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3
-           text-sm font-bold text-white shadow-brand transition
+           min-h-11 text-sm font-bold text-white shadow-brand transition-all duration-200
            hover:bg-brand-dark active:scale-[0.98]
            focus:outline-none focus:ring-2 focus:ring-brand/40
            disabled:pointer-events-none disabled:opacity-50;
@@ -262,33 +305,33 @@
 
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 rounded-xl border border-line
-           bg-surface px-4 py-3 text-sm font-bold text-ink-soft transition
+           min-h-11 bg-surface px-4 py-3 text-sm font-bold text-ink-soft transition-all duration-200
            hover:border-brand hover:bg-brand-surface active:scale-[0.98]
            focus:outline-none focus:ring-2 focus:ring-brand/40;
   }
 
   .btn-danger {
     @apply inline-flex items-center justify-center gap-2 rounded-xl border border-danger/40
-           bg-surface px-4 py-3 text-sm font-bold text-danger transition
+           min-h-11 bg-surface px-4 py-3 text-sm font-bold text-danger transition-all duration-200
            hover:bg-danger-tint active:scale-[0.98]
            focus:outline-none focus:ring-2 focus:ring-danger/30;
   }
 
   .btn-icon {
-    @apply inline-flex items-center justify-center rounded-full p-2 transition
+    @apply inline-flex size-11 items-center justify-center rounded-xl p-2 transition-all duration-200
            hover:bg-canvas active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand/40;
   }
 
   .card-surface {
-    @apply rounded-xl border border-line bg-surface shadow-card;
+    @apply rounded-2xl border border-line/80 bg-surface/95 shadow-card backdrop-blur-sm;
   }
 
   .panel-surface {
-    @apply rounded-2xl border border-line bg-surface shadow-card;
+    @apply rounded-2xl border border-line/80 bg-surface/95 shadow-raised backdrop-blur-sm;
   }
 
   .input-field {
-    @apply h-12 w-full rounded-xl border border-line bg-surface px-4 text-sm text-ink
+    @apply h-12 w-full rounded-xl border border-line/80 bg-surface px-4 text-sm text-ink transition-all duration-200
            placeholder:text-ink-subtle focus:border-brand focus:outline-none
            focus:ring-2 focus:ring-brand/30;
   }

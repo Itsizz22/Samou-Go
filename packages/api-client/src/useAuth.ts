@@ -19,8 +19,8 @@
  * `useAuth()` once at the top and renders `<SignInGate />` when `user` is null.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { LoginInput, PublicUser } from '@samou-go/shared-types';
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { LoginInput, PublicUser } from "@samou-go/shared-types";
 import {
   ApiError,
   clearTokens,
@@ -30,7 +30,8 @@ import {
   logout,
   me,
   refreshAccessToken,
-} from './api';
+  subscribeTokenChange,
+} from "./api";
 
 export interface Auth {
   /** The signed-in profile, or `null` when nobody is signed in. */
@@ -92,7 +93,10 @@ export function useAuth(): Auth {
         const refresh = getRefreshToken();
         if (refresh) {
           try {
-            const restored = await refreshAccessToken(refresh, controller.signal);
+            const restored = await refreshAccessToken(
+              refresh,
+              controller.signal,
+            );
             if (mounted.current) setUserState(restored.user);
             return;
           } catch {
@@ -122,24 +126,42 @@ export function useAuth(): Auth {
     };
   }, []);
 
-  const signIn = useCallback(async (input: LoginInput): Promise<PublicUser | null> => {
-    setPending(true);
-    setError(null);
-    try {
-      const auth = await login(input);
-      if (mounted.current) setUserState(auth.user);
-      return auth.user;
-    } catch (cause) {
-      const apiError =
-        cause instanceof ApiError
-          ? cause
-          : new ApiError('UNKNOWN', cause instanceof Error ? cause.message : String(cause));
-      if (mounted.current) setError(apiError);
-      return null;
-    } finally {
-      if (mounted.current) setPending(false);
-    }
+  useEffect(() => {
+    return subscribeTokenChange(() => {
+      if (!getToken()) {
+        setUserState(null);
+        return;
+      }
+      void me()
+        .then(setUserState)
+        .catch(() => setUserState(null));
+    });
   }, []);
+
+  const signIn = useCallback(
+    async (input: LoginInput): Promise<PublicUser | null> => {
+      setPending(true);
+      setError(null);
+      try {
+        const auth = await login(input);
+        if (mounted.current) setUserState(auth.user);
+        return auth.user;
+      } catch (cause) {
+        const apiError =
+          cause instanceof ApiError
+            ? cause
+            : new ApiError(
+                "UNKNOWN",
+                cause instanceof Error ? cause.message : String(cause),
+              );
+        if (mounted.current) setError(apiError);
+        return null;
+      } finally {
+        if (mounted.current) setPending(false);
+      }
+    },
+    [],
+  );
 
   const signOut = useCallback(() => {
     // Drop the local tokens first: the screen must react immediately even if the

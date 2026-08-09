@@ -6,7 +6,7 @@ import { disconnectPrisma } from './lib/prisma';
 const app = createApp();
 
 // Bind to 0.0.0.0 so physical devices / the Android emulator on the same LAN
-// can reach the API at the host's IP (e.g. http://192.168.0.111:4000), not just
+// can reach the API at the host's IP (e.g. http://192.168.0.100:4000), not just
 // localhost on this machine.
 const server: Server = app.listen(env.port, '0.0.0.0', () => {
   // eslint-disable-next-line no-console
