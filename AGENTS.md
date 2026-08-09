@@ -23,9 +23,10 @@ Samou' Go — hyper-local delivery monorepo for Samou', Hebron (Arabic-first RTL
 - **Money = `Decimal(10,2)` in Postgres.** Convert at the API edge via `decimalToNumber()` (`packages/api/src/lib/decimal.ts`); DTOs are plain `number`.
 - **Enums must match byte-for-byte** between `packages/shared-types/src/enums.ts` and `packages/api/prisma/schema.prisma`.
 - **Dual Prisma schemas.** `packages/api/prisma/schema.prisma` is the **production PostgreSQL schema** (native `@db.*` types, `url = env("DATABASE_URL")`) and the only one that CI validates and that `prisma migrate deploy` applies. `packages/api/prisma/schema.sqlite.prisma` is the **local-dev variant** (SQLite `file:./dev.db`, native types stripped). Keep the two files in sync when a model changes. After `npm install`, @prisma/client generates from the *production* schema — always run `npm run db:generate` before starting the dev server so the client matches `dev.db`.
+- **Env separation (binding).** Local dev/test runs on SQLite and never touches Postgres/Neon. `DATABASE_URL` is only required in production, where it is **injected as a deployment secret** — never store real credentials in any repo `.env`. `packages/api/.env` carries non-secret dev config only; there is no root `.env`. Production DB work is `db:deploy`/`db:generate:prod`/`db:validate:prod` (all pinned to `schema.prisma`); every other `db:*` script is pinned to the SQLite schema. `config/env.ts` refuses to boot production without `DATABASE_URL`.
 - **Case-insensitive search is provider-gated.** Postgres-only `mode: 'insensitive'` is emitted via `caseInsensitiveContains()` in `packages/api/src/lib/prisma.ts` — never write `{ contains, mode }` inline, or the SQLite client fails to typecheck.
 - **Seed advances the order-number sequence.** `seed.ts` creates demo orders numbered `...-0001..0003` and then bumps `DailyOrderSequence` so real orders start after them. If you change the demo orders, keep the sequence upsert in sync.
-- **Production guards.** `seed.ts` refuses to run when `NODE_ENV=production`, and `config/env.ts` refuses to boot production with the placeholder `JWT_SECRET` or with `SMS_PROVIDER=console` (which logs OTP codes).
+- **Production guards.** `seed.ts` refuses to run when `NODE_ENV=production`, and `config/env.ts` refuses to boot production without a `DATABASE_URL`, with the placeholder `JWT_SECRET`, or with `SMS_PROVIDER=console` (which logs OTP codes).
 - **CI.** `.github/workflows/ci.yml` validates + generates the production PostgreSQL schema, then runs typecheck → build → tests. No `continue-on-error` / `|| true` masking.
 
 ## UI / style rules (binding, from `DESIGN_SYSTEM.md`)
@@ -44,13 +45,16 @@ npm run typecheck         # all workspaces (rebuild shared-types/ui first if cha
 npm run build             # shared-types + api only
 npm run build:all         # everything
 npm test                  # shared-types domain tests (Vitest)
-npm run db:generate|migrate|push|studio|seed   # prisma in @samou-go/api
+npm run db:generate|push|studio|seed   # local dev/tests → SQLite (schema.sqlite.prisma)
+npm run db:validate       # local dev/tests → SQLite (schema.sqlite.prisma)
+npm run db:deploy|generate:prod|validate:prod  # PRODUCTION → PostgreSQL (schema.prisma)
 npm run test:e2e          # needs running API + seeded DB; hits localhost:4000 hardcoded
 npm run dev:api           # API, port 4000
 npm run dev:web-<app>     # customer|store-details|checkout|order-tracking|store-manager|captain|admin
 ```
 
 - `lint` / `format` / `format:check` exist per-theme (eslint + prettier) — no root lint script.
+- **Schema evolution:** local SQLite = `npm run db:push` (no migration history; `db:migrate` was removed because the committed `prisma/migrations` belong to Postgres). Production PostgreSQL = `npm run db:deploy` (`prisma migrate deploy`) — the only production DB command.
 - Seed is idempotent with deterministic IDs; seeded password is `samou1234` (roles CUSTOMER, STORE_MANAGER, CAPTAIN, ADMIN).
-- API env: `packages/api/.env` (copy `.env.example`; `JWT_SECRET` ≥ 32 chars). Themes read `VITE_API_URL` with a working localhost default, so no per-theme `.env` needed for local dev.
+- API env: `packages/api/.env` (copy `.env.example`; `JWT_SECRET` ≥ 32 chars). Local SQLite dev needs **no** `DATABASE_URL`; the `.env` placeholder exists only so the Prisma postinstall and prod-schema `validate`/`generate` succeed — it is never used for a connection. Themes read `VITE_API_URL` with a working localhost default, so no per-theme `.env` needed for local dev.
 - Strict TS (base): `noUncheckedIndexedAccess`, `noImplicitOverride`, `composite`. Zero tolerance for `as any` / `@ts-ignore`.

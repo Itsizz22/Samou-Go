@@ -81,8 +81,10 @@ Commands: `npm run typecheck`, `npm run build`, `npm run build:all` — all exit
 | high | `vite`/`esbuild` inside `vite-node` (dev-only test tooling) | Resolves via the vitest upgrade above. |
 | moderate | `uuid`/`xcode`/`@capacitor/cli` (dev-only, Android packaging) | Fix requires `@capacitor/cli@8.4.2` (breaking). Deferred. |
 | low | `deploy.yml` empty | No deploy pipeline defined. |
-| info | `packages/api/.env` holds a real Neon `DATABASE_URL` | Local runtime uses sqlite (`file:./dev.db` baked into the generated client), so the URL is informational only — but it is printed by the seed banner. `.env` is gitignored. |
+| info | `packages/api/.env` holds only a non-secret local placeholder `DATABASE_URL` | Local dev/test runs on SQLite (`schema.sqlite.prisma` → `prisma/dev.db`); the placeholder exists so `npm install`'s Prisma postinstall and prod-schema `validate`/`generate` succeed — it is never used for a connection. The real Neon URL was removed. `.env` is gitignored. |
 | info | `package.json#prisma` config deprecated (Prisma 7) | Prisma 6 warns to migrate to `prisma.config.ts`. Not blocking. |
+| info | GitHub Actions CI not verified on GitHub | `.github/workflows/ci.yml` is structurally correct (public dummy `DATABASE_URL` only; zero `continue-on-error`/masking) but no actual runner result exists yet — CI status is **NOT VERIFIED** until a real GitHub Actions run passes. |
+| info | Migration↔schema equivalence STATICALLY verified only | `prisma/migrations` (PostgreSQL) cross-checked against `schema.prisma` by inspection; no live/shadow PostgreSQL database was available, so `prisma migrate diff`/`migrate status` equivalence is not machine-verified. |
 
 ## 7. Env / secrets audit
 
@@ -90,3 +92,8 @@ Commands: `npm run typecheck`, `npm run build`, `npm run build:all` — all exit
 - No `.env` is tracked; only `*.env.example`. ✅
 - No hardcoded secrets in source — only fake test secrets (`unit-test-secret-…`, `integration-test-secret-…`). ✅
 - Seeded password `samou1234` is documented and is demo-only (seed refuses production use by contract). ✅
+- **Dual-schema environment model (current):** local development/test → SQLite (`schema.sqlite.prisma`); production → PostgreSQL/Neon (`schema.prisma`). ✅
+- `packages/api/.env` contains no real credentials — only a non-secret local placeholder `DATABASE_URL` plus non-secret dev config (`JWT_SECRET`, `CORS_ORIGINS`, delivery-fee overrides). The real Neon `DATABASE_URL` was removed. ✅
+- The seed no longer prints `DATABASE_URL`; its banner now reads `local SQLite (prisma/dev.db)`. ✅
+- Production `DATABASE_URL` is supplied externally as a deployment secret; `config/env.ts` refuses to boot production without it. ✅
+- CI uses only a public dummy `DATABASE_URL` (`postgresql://…localhost:5432/dummy_db`); no real credential is reachable in CI. ⚠️ CI itself is **NOT VERIFIED** on GitHub (no runner result yet).

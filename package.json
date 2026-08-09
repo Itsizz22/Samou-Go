@@ -42,7 +42,7 @@
     "db:generate": "npm run prisma:generate --workspace @samou-go/api",
     "db:generate:prod": "npm run prisma:generate:prod --workspace @samou-go/api",
     "db:validate": "npm run prisma:validate --workspace @samou-go/api",
-    "db:migrate": "npm run prisma:migrate --workspace @samou-go/api",
+    "db:validate:prod": "npm run prisma:validate:prod --workspace @samou-go/api",
     "db:deploy": "npm run prisma:deploy --workspace @samou-go/api",
     "db:push": "npm run prisma:push --workspace @samou-go/api",
     "db:studio": "npm run prisma:studio --workspace @samou-go/api",

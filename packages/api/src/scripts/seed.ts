@@ -3,7 +3,7 @@
  *
  * Idempotent: every row carries an explicit deterministic id, so re-running
  * updates in place instead of piling up duplicates. Safe to run after every
- * `prisma migrate dev`.
+ * `npm run db:push` (local SQLite schema sync).
  *
  * Never run against production: the passwords below are public knowledge.
  */
@@ -519,7 +519,8 @@ async function main(): Promise<void> {
         'creates/grows real rows. Seed only in development or staging.'
     );
   }
-  console.log(`🌱 Seeding Samou' Go — ${env.databaseUrl.replace(/:[^:@/]*@/, ':***@')}`);
+  // Intentionally never prints the database URL — not even a redacted one.
+  console.log("🌱 Seeding Samou' Go — local SQLite (prisma/dev.db)");
   await seedUsers();
   await seedCatalogue();
   await seedVouchers();

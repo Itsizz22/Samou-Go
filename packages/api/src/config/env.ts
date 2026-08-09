@@ -10,7 +10,10 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(4000),
 
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required — see .env.example'),
+  // Local dev/test runs on SQLite (schema.sqlite.prisma, file:./dev.db) and do
+  // not need a database URL. It is only mandatory in production (PostgreSQL),
+  // where it is injected as a deployment secret — see the production guard below.
+  DATABASE_URL: z.string().min(1).optional(),
 
   JWT_SECRET: z
     .string()
@@ -70,6 +73,13 @@ const raw = parsed.data;
 // Production-only guards: reject configurations that are safe in dev but
 // actively dangerous once the API is reachable by real users.
 if (raw.NODE_ENV === 'production') {
+  if (!raw.DATABASE_URL) {
+    throw new Error(
+      'Invalid environment configuration:\n' +
+        '  • DATABASE_URL: required in production (PostgreSQL). ' +
+        'Inject it as a deployment secret — never ship it in a repository .env file.'
+    );
+  }
   if (raw.JWT_SECRET.includes('change-me') || raw.JWT_SECRET.length < 32) {
     throw new Error(
       'Invalid environment configuration:\n' +

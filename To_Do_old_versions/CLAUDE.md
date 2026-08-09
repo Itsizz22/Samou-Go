@@ -50,11 +50,12 @@ npm run typecheck
 npm run build
 
 # Database (from root, runs in api workspace)
-npm run db:generate    # prisma generate
-npm run db:migrate     # prisma migrate dev
-npm run db:push        # prisma db push
-npm run db:studio      # prisma studio
+npm run db:generate    # prisma generate (local SQLite client, dev.db)
+npm run db:push        # prisma db push (local SQLite dev.db — local schema evolution)
+npm run db:studio      # prisma studio (local SQLite dev.db)
 npm run db:seed        # seeds 9 users, 3 stores, 8 categories, 20 products, 3 demo orders
+# Production PostgreSQL only (schema.prisma):
+npm run db:validate:prod / db:generate:prod / db:deploy   # require DATABASE_URL deployment secret
 
 # Start API (port 4000, API at /api/v1)
 npm run dev:api
@@ -127,7 +128,10 @@ After `npm run db:seed`, all seeded accounts use password `samou1234`. Roles: CU
 ## Environment
 
 Copy `packages/api/.env.example` → `packages/api/.env` and fill in:
-- `DATABASE_URL` — PostgreSQL connection string
+- `DATABASE_URL` — **production only** (PostgreSQL/Neon). Local dev/tests run on
+  SQLite (`schema.sqlite.prisma` → `dev.db`) and never use this; keep a
+  non-secret placeholder in `.env` so the Prisma postinstall succeeds. In
+  production the real value is injected as a deployment secret.
 - `JWT_SECRET` — 48+ random bytes (base64url)
 - `CORS_ORIGINS` — Comma-separated Vite dev server origins
 - `DELIVERY_BASE_FEE`, `DELIVERY_BULK_FEE`, `DELIVERY_BULK_THRESHOLD` — Optional overrides

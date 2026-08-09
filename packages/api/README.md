@@ -15,8 +15,14 @@ cp packages/api/.env.example packages/api/.env
 Then create the database and push the schema (from the repo root):
 
 ```bash
-npm run db:generate && npm run db:migrate && npm run db:seed
+npm run db:generate && npm run db:push && npm run db:seed
 ```
+
+`db:generate`/`db:push` target the **SQLite** dev database
+(`prisma/schema.sqlite.prisma` → `prisma/dev.db`), so local development needs no
+PostgreSQL and no `DATABASE_URL` — see `src/config/env.ts`. The optional
+`DATABASE_URL` in `packages/api/.env` is a non-secret placeholder for the Prisma
+postinstall only; it is never used for a local connection.
 
 ```bash
 npm run dev:api
@@ -100,8 +106,21 @@ retries a few times on `P2002`.
 | `npm run dev` | `tsx watch src/server.ts` |
 | `npm run build` | `tsc -p tsconfig.json` → `dist/` |
 | `npm start` | `node dist/server.js` |
-| `npm run prisma:migrate` | `prisma migrate dev` |
-| `npm run prisma:studio` | Browse the data |
+| `npm run prisma:generate` | Generate the **SQLite** client (local `dev.db`) |
+| `npm run prisma:push` | Push the SQLite schema to `dev.db` (local schema evolution) |
+| `npm run prisma:studio` | Browse the SQLite dev data |
+| `npm run prisma:validate` | Validate the **SQLite** schema (local) |
+| `npm run prisma:generate:prod` | Generate the **PostgreSQL** client (production) |
+| `npm run prisma:validate:prod` | Validate the **PostgreSQL** schema |
+| `npm run prisma:deploy` | `prisma migrate deploy` against **PostgreSQL** (production only) |
+
+**Environment split.** Local dev/tests run on SQLite and never touch
+Postgres/Neon; local schema evolution is `npm run db:push` (there is no local
+migration history). The production PostgreSQL schema (`prisma/schema.prisma`) is
+migrated only via `npm run db:deploy` (`prisma migrate deploy`), where
+`DATABASE_URL` is injected as a deployment secret — real credentials never live
+in a repository `.env`. CI runs validate/generate against the production schema
+with a non-secret placeholder URL.
 
 From the repo root, `npm run typecheck` builds `shared-types` then `api` in
 dependency order.
