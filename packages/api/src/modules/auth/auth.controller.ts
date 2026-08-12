@@ -19,6 +19,11 @@ import {
   updateProfileSchema,
   userIdParamsSchema,
   userListQuerySchema,
+  adminCreateStoreSchema,
+  adminCreateCaptainSchema,
+  adminStoreOtpRequestSchema,
+  adminCaptainOtpRequestSchema,
+  adminOtpVerifySchema,
 } from "./auth.schemas";
 import * as authService from "./auth.service";
 import * as otpService from "./otp.service";
@@ -160,4 +165,44 @@ export async function verifyCaptainHandler(
   if (auth.role !== UserRole.ADMIN) throw forbidden();
   const { captainId } = parseWith(captainIdParamsSchema, req.params);
   ok(res, await authService.verifyCaptain(captainId));
+}
+
+/* ---------------------------------------------------------------------------
+ * Admin store/captain creation via OTP
+ * ------------------------------------------------------------------------- */
+
+/** POST /api/v1/auth/admin/stores/otp/request */
+export async function adminCreateStoreOtpRequestHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const body = parseWith(adminStoreOtpRequestSchema, req.body);
+  ok(res, await otpService.requestOtp(body));
+}
+
+/** POST /api/v1/auth/admin/stores/otp/verify */
+export async function adminVerifyStoreOtpHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const body = parseWith(adminOtpVerifySchema, req.body);
+  ok(res, await otpService.adminVerifyStoreOtp(body));
+}
+
+/** POST /api/v1/auth/admin/captains/otp/request */
+export async function adminCreateCaptainOtpRequestHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const body = parseWith(adminCaptainOtpRequestSchema, req.body);
+  ok(res, await otpService.requestOtp(body));
+}
+
+/** POST /api/v1/auth/admin/captains/otp/verify */
+export async function adminVerifyCaptainOtpHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const body = parseWith(adminOtpVerifySchema, req.body);
+  ok(res, await otpService.adminVerifyCaptainOtp(body));
 }

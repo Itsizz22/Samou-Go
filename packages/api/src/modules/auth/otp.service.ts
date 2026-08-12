@@ -33,6 +33,13 @@ import { toPublicUser } from "./auth.mapper";
 import { issueRefreshToken } from "./refresh-token";
 import { revokeAllUserRefreshTokens } from "./refresh-token";
 import { notFound } from "../../lib/http-error";
+import type {
+  AdminCreateStoreBody,
+  AdminCreateCaptainBody,
+  AdminStoreOtpRequestBody,
+  AdminCaptainOtpRequestBody,
+  AdminOtpVerifyBody,
+} from "./auth.schemas";
 
 /** Cost 12 — bcrypt's work factor for the stored code hash. */
 const OTP_BCRYPT_ROUNDS = 12;
@@ -198,6 +205,134 @@ export async function resetPassword(body: ResetPasswordInput): Promise<void> {
     data: { passwordHash: await hashPassword(body.password) },
   });
   await revokeAllUserRefreshTokens(existing.id);
+}
+
+/** Provision a store account after OTP verification. */
+export async function adminVerifyStoreOtp(body: AdminOtpVerifyBody): Promise<AuthResponse> {
+  const { phone, code, accountType, storeData } = body;
+
+  if (accountType !== 'store') {
+    throw unauthorized("نوع حساب غير صحيح / Invalid account type");
+  }
+
+  const record = await prisma.otpRequest.findUnique({ where: { phone } });
+  if (!record) throw unauthorized("لا يوجد طلب رمز للرقم هذا / No OTP request for this phone");
+
+  if (record.expiresAt.getTime() < Date.now()) {
+    await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
+    throw unauthorized("انتهت صلاحية الرمز، اطلب رمزاً جديداً / Code expired — request a new one");
+  }
+
+  if (record.attempts >= env.otp.maxAttempts) {
+    await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
+    throw unauthorized("تم تجاوزlimit المحاولات / Maximum attempts exceeded");
+  }
+
+  const matches = await bcrypt.compare(code, record.codeHash);
+  if (!matches) {
+    await prisma.otpRequest.update({
+      where: { phone },
+      data: { attempts: { increment: 1 } },
+    });
+    throw unauthorized("رمز خاطئ / Incorrect code");
+  }
+
+  // Create the user (store manager) first
+  const user = await prisma.user.create({
+    data: {
+      name: storeData?.nameAr ?? "مدير المتجر / Store Manager",
+      phone,
+      passwordHash: await hashPassword(`otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`),
+      role: UserRole.STORE_MANAGER,
+      isActive: true,
+      isVerified: true,
+    },
+  });
+
+  // Create the store with the managerId pointing to the created user
+  const store = await prisma.store.create({
+    data: {
+      nameAr: storeData?.nameAr ?? "متجر جديد / New Store",
+      nameEn: storeData?.nameEn ?? "New Store",
+      phone,
+      isActive: true,
+      isApproved: true, // Admin-created stores are immediately approved
+      managerId: user.id,
+    },
+  });
+
+  // Consume the code
+  await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
+
+  const { accessToken, expiresIn } = signAccessToken({
+    userId: user.id,
+    role: user.role,
+    phone: user.phone,
+  });
+  const refreshToken = await issueRefreshToken(user.id);
+
+  return { user: toPublicUser(user), accessToken, expiresIn, refreshToken };
+}
+
+/** Provision a captain account after OTP verification. */
+export async function adminVerifyCaptainOtp(body: AdminOtpVerifyBody): Promise<AuthResponse> {
+  const { phone, code, accountType, captainData } = body;
+
+  if (accountType !== 'captain') {
+    throw unauthorized("نوع حساب غير صحيح / Invalid account type");
+  }
+
+  const record = await prisma.otpRequest.findUnique({ where: { phone } });
+  if (!record) throw unauthorized("لا يوجد طلب رمز للرقم هذا / No OTP request for this phone");
+
+  if (record.expiresAt.getTime() < Date.now()) {
+    await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
+    throw unauthorized("انتهت صلاحية الرمز، اطلب رمزاً جديداً / Code expired — request a new one");
+  }
+
+  if (record.attempts >= env.otp.maxAttempts) {
+    await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
+    throw unauthorized("تم تجاوزlimit المحاولات / Maximum attempts exceeded");
+  }
+
+  const matches = await bcrypt.compare(code, record.codeHash);
+  if (!matches) {
+    await prisma.otpRequest.update({
+      where: { phone },
+      data: { attempts: { increment: 1 } },
+    });
+    throw unauthorized("رمز خاطئ / Incorrect code");
+  }
+
+  // Check the assigned store exists
+  const store = await prisma.store.findUnique({ where: { id: captainData?.assignedStoreId } });
+  if (!store) throw unauthorized("المتجر غير موجود / Store not found");
+
+  // Create the captain account
+  const user = await prisma.user.create({
+    data: {
+      name: captainData?.nameAr ?? "كابتن جديد / New Captain",
+      phone,
+      passwordHash: await hashPassword(`otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`),
+      role: UserRole.CAPTAIN,
+      isActive: true,
+      isVerified: true,
+      assignedStoreId: captainData?.assignedStoreId,
+    },
+  });
+
+  // Consume the code
+  await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
+
+  // Sign in the captain
+  const { accessToken, expiresIn } = signAccessToken({
+    userId: user.id,
+    role: user.role,
+    phone: user.phone,
+  });
+  const refreshToken = await issueRefreshToken(user.id);
+
+  return { user: toPublicUser(user), accessToken, expiresIn, refreshToken };
 }
 
 async function findOrCreateCustomer(phone: string, name?: string) {

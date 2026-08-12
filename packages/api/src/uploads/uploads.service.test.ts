@@ -80,6 +80,10 @@ const h = vi.hoisted(() => {
 
 vi.mock('../lib/prisma', () => ({ prisma: h.prisma }));
 
+vi.mock('../../config/env', () => ({
+  env: { deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' } },
+}));
+
 let sniffImageType: (buffer: Buffer) => import('./image').ImageMime | null;
 let storage: import('./storage').StorageAdapter;
 let finalizeUpload: (caller: import('./uploads.service').UploadCaller, key: string, kind: import('@samou-go/shared-types').UploadKind) => Promise<{ url: string; width: number; height: number }>;

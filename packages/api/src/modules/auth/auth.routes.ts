@@ -48,3 +48,28 @@ authRouter.patch(
   authenticate,
   asyncHandler(controller.setAvailabilityHandler),
 );
+
+/* ---------------------------------------------------------------------------
+ * Admin store/captain creation via OTP
+ * ------------------------------------------------------------------------- */
+
+authRouter.post(
+  "/admin/stores/otp/request",
+  otpIpLimiter,
+  asyncHandler(controller.adminCreateStoreOtpRequestHandler),
+);
+authRouter.post(
+  "/admin/stores/otp/verify",
+  otpIpLimiter,
+  asyncHandler(controller.adminVerifyStoreOtpHandler),
+);
+authRouter.post(
+  "/admin/captains/otp/request",
+  otpIpLimiter,
+  asyncHandler(controller.adminCreateCaptainOtpRequestHandler),
+);
+authRouter.post(
+  "/admin/captains/otp/verify",
+  otpIpLimiter,
+  asyncHandler(controller.adminVerifyCaptainOtpHandler),
+);
