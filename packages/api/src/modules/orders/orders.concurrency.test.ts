@@ -58,6 +58,9 @@ const h = vi.hoisted(() => {
     /* updateOrderStatus path */
     order: buildOrder(),
     captainProfile: { id: 'captain-1', isActive: true, isVerified: true, isAvailable: true },
+    /** Simulates PostgreSQL row version for optimistic locking. */
+    orderVersion: 0,
+    /** Tracks which captain claimed this order (optimistic lock). */
     claimedBy: null as string | null,
   };
 
@@ -121,22 +124,26 @@ const h = vi.hoisted(() => {
         return buildFakeOrder(data);
       }),
       update: vi.fn(async ({ where, data }: any) => {
-        // Emulate the optimistic locks the service puts on the write filter:
-        //   - every transition targets `where.status` = the status that was read
-        //   - a claim additionally targets `where.captainId = null`
-        // If the order moved underneath us, the filter matches zero rows, which
-        // Postgres/Prisma reports as P2025.
+        // Yield to allow the other concurrent promise to interleave.
+        await Promise.resolve();
+        // Emulate PostgreSQL optimistic lock: each read captures the current
+        // order status; the write filters on `where.status = capturedStatus`.
+        // If the order was updated concurrently, the filter matches zero rows
+        // → Prisma throws P2025, which we surface as a 409 CONFLICT.
+        // We track claim attempts via a set to ensure exactly one captain succeeds.
         if (state.order && where.status !== state.order.status) {
           const err: any = new Error('No Order record matches the filter');
           err.code = 'P2025';
           throw err;
         }
         if (where.captainId === null) {
-          if (state.claimedBy) {
+          // Only the first concurrent claim succeeds; subsequent claims get P2025.
+          if (h.state._claimTracking.has(where.captainId ?? 'unknown')) {
             const err: any = new Error('No Order record matches the filter');
             err.code = 'P2025';
             throw err;
           }
+          h.state._claimTracking.add(where.captainId ?? 'unknown');
           state.claimedBy = data.captainId;
         }
         const updated = buildOrder({
@@ -169,14 +176,16 @@ vi.mock('../../lib/prisma', () => ({
 }));
 
 vi.mock('../../config/env', () => ({
-  env: { deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' } },
-}));
+    env: { deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' } },
+  }));
 
 beforeEach(() => {
   h.state.sequence = 0;
   h.state.orderCreateCalls = 0;
   h.state.order = null;
+  h.state.orderVersion = 0;
   h.state.claimedBy = null;
+  h.state._claimTracking = new Set();
   h.state.captainProfile = { id: 'captain-1', isActive: true, isVerified: true, isAvailable: true };
   vi.clearAllMocks();
 });

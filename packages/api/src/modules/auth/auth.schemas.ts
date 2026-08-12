@@ -179,3 +179,66 @@ export type SetAvailabilityBody = z.infer<typeof setAvailabilitySchema>;
 export type AdminUpdateUserBody = z.infer<typeof adminUpdateUserSchema>;
 export type UserListQuery = z.infer<typeof userListQuerySchema>;
 export type LogoutBody = z.infer<typeof logoutSchema>;
+
+/** POST /api/v1/admin/stores — admin creates a new store. */
+export const adminCreateStoreSchema = z.object({
+  nameAr: z.string().trim().min(2, "الاسم العربي قصير جداً / Arabic name too short").max(160, "الاسم العربي طويل جداً / Arabic name too long"),
+  nameEn: z.string().trim().min(2, "English name too short / English name too short").max(160, "English name too long / English name too long"),
+  phone: phoneSchema,
+  /** Admin sets the initial availability. */
+  isActive: z.boolean().default(true),
+});
+export type AdminCreateStoreBody = z.infer<typeof adminCreateStoreSchema>;
+
+/** POST /api/v1/admin/captains — admin creates a new captain. */
+export const adminCreateCaptainSchema = z.object({
+  nameAr: z.string().trim().min(2, "الاسم العربي قصير جداً / Arabic name too short").max(120, "الاسم العربي طويل جداً / Arabic name too long"),
+  nameEn: z.string().trim().min(2, "English name too short / English name too short").max(120, "English name too long / English name too long"),
+  phone: phoneSchema,
+  /** Captain must have a dedicated store assigned. */
+  assignedStoreId: z.string().min(1, "معرف المتجر مطلوب / Store ID is required"),
+  /** Captain must be verified to claim jobs. */
+  isVerified: z.boolean().default(false),
+});
+export type AdminCreateCaptainBody = z.infer<typeof adminCreateCaptainSchema>;
+
+/** POST /api/v1/admin/stores/otp — admin OTP request for store creation. */
+export const adminStoreOtpRequestSchema = z.object({
+  phone: phoneSchema,
+});
+export type AdminStoreOtpRequestBody = z.infer<typeof adminStoreOtpRequestSchema>;
+
+/** POST /api/v1/admin/captains/otp — admin OTP request for captain creation. */
+export const adminCaptainOtpRequestSchema = z.object({
+  phone: phoneSchema,
+});
+export type AdminCaptainOtpRequestBody = z.infer<typeof adminCaptainOtpRequestSchema>;
+
+/** POST /api/v1/admin/otp/verify — admin OTP verification with account type. */
+export const adminOtpVerifySchema = z.object({
+  phone: phoneSchema,
+  code: z
+    .string()
+    .trim()
+    .transform((value) => value.replace(/\D/g, ""))
+    .pipe(
+      z
+        .string()
+        .min(4, "رمز短信短 / Code is too short")
+        .max(8, "رمز_long_sms / Code is too long"),
+    ),
+  accountType: z.enum(['store', 'captain']).refine(
+    (val) => val === 'store' || val === 'captain',
+    "نوع الحساب مطلوب / Account type is required"
+  ),
+  storeData: z.object({
+    nameAr: z.string().trim().min(2).max(160).optional(),
+    nameEn: z.string().trim().min(2).max(160).optional(),
+  }).optional(),
+  captainData: z.object({
+    nameAr: z.string().trim().min(2).max(120).optional(),
+    nameEn: z.string().trim().min(2).max(120).optional(),
+    assignedStoreId: z.string().min(1, "معرف المتجر مطلوب / Store ID is required").optional(),
+  }).optional(),
+});
+export type AdminOtpVerifyBody = z.infer<typeof adminOtpVerifySchema>;

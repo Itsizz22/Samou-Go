@@ -51,6 +51,7 @@ const h = vi.hoisted(() => {
       isActive: true,
       isVerified: true,
       isAvailable: true,
+      assignedStoreId: 'store-1',
     },
   };
 
@@ -107,6 +108,7 @@ beforeEach(() => {
     isActive: true,
     isVerified: true,
     isAvailable: true,
+    assignedStoreId: 'store-1',
   };
   vi.clearAllMocks();
 });
