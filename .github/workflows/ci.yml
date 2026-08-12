@@ -22,11 +22,13 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      # 1. بناء الحزم المشتركة والـ UI أولاً وقبل كل شيء
       - name: Build Shared Packages & UI
         run: |
           npm run build --workspace @samou-go/shared-types --if-present
           npm run build --workspace @samou-go/ui --if-present
 
+      # 2. الآن يمكننا تشغيل أوامر Prisma بأمان لأن الاعتماديات جاهزة
       - name: Prisma validate (production PostgreSQL schema)
         working-directory: packages/api
         run: npx prisma validate --schema=prisma/schema.prisma
