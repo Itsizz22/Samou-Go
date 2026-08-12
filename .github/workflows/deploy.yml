@@ -2,12 +2,12 @@ name: Deploy Production
 
 # Deploys the Samou' Go platform on every push to the default branch:
 #   - API  -> Render Web Service (triggered through the Render API)
-#   - 7 SPAs -> Vercel (one project per theme, prebuilt `dist/` uploads)
+#   - 7 SPAs -> Vercel (one project per theme)
 #   - Prisma migrations -> run automatically against the production PostgreSQL DB.
 #
 # Required GitHub Actions secrets (Settings -> Secrets and variables -> Actions):
-#   DATABASE_URL       Production PostgreSQL connection string (Prisma format).
-#                      Read ONLY from the secret below — never hardcoded.
+#   DATABASE_URL        Production PostgreSQL connection string (Prisma format).
+#                       Read ONLY from the secret below — never hardcoded.
 #   RENDER_API_KEY     Render API key (https://dashboard.render.com/u/settings#api-keys).
 #   RENDER_SERVICE_ID  ID of the API Web Service (Render service URL suffix).
 #   VERCEL_TOKEN       Vercel access token (https://vercel.com/account/tokens).
@@ -107,7 +107,7 @@ jobs:
             echo "::group::vercel:web-$theme"
             (
               cd "themes/web-$theme"
-              npx --yes vercel@latest deploy --prod --prebuilt --yes \
+              npx --yes vercel@latest deploy --prod --yes \
                 --token "${{ secrets.VERCEL_TOKEN }}"
             )
             echo "::endgroup::"
