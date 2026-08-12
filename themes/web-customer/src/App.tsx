@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { Theme } from './settings/types';
+import { ExternalLink, LogOut } from 'lucide-react';
 import { SamouGoHome } from './components/generated/SamouGoHome';
 import { OrdersScreen } from './screens/OrdersScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
 import { FavoritesScreen } from './screens/FavoritesScreen';
 import { SearchScreen } from './screens/SearchScreen';
 import { StoreDetailScreen } from './screens/StoreDetailScreen';
@@ -12,10 +13,12 @@ import { CheckoutScreen } from './screens/CheckoutScreen';
 import { OrderTrackingScreen } from './screens/OrderTrackingScreen';
 import { ForgotPasswordScreen, LoginScreen, RegisterScreen } from './screens/AuthScreens';
 import { BootScreen } from './components/BootScreen';
-import { useAuth, type Auth } from './hooks/useApi';
+import { NavigationDrawer, NavigationDrawerProvider } from './components/NavigationDrawer';
+import { ThemeProvider } from './theme/ThemeProvider';
+import { useAuth, useRoleGate, type Auth } from './hooks/useApi';
+import type { PublicUser } from '@samou-go/shared-types';
+import { USER_ROLE_LABELS } from '@samou-go/shared-types';
 // %IMPORT_STATEMENT
-
-const theme: Theme = 'light';
 
 /**
  * Android hardware back button → SPA history.
@@ -70,6 +73,7 @@ function useAndroidBackButton() {
 function App() {
   useAndroidBackButton();
   const auth = useAuth();
+  const gate = useRoleGate('customer');
   const [splashElapsed, setSplashElapsed] = useState(false);
 
   useEffect(() => {
@@ -77,20 +81,70 @@ function App() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  function setTheme(theme: Theme) {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }
-
-  setTheme(theme);
-
   if (!auth.ready || !splashElapsed) return <BootScreen />;
 
   return (
-    <StartupRoutes auth={auth} />
+    <ThemeProvider>
+      <NavigationDrawerProvider>
+        {gate.denied && auth.user ? (
+          <RoleRedirectScreen user={auth.user} targetUrl={gate.targetUrl} onSignOut={auth.signOut} />
+        ) : (
+          <StartupRoutes auth={auth} />
+        )}
+        {!gate.denied && <NavigationDrawer />}
+      </NavigationDrawerProvider>
+    </ThemeProvider>
+  );
+}
+
+/**
+ * Wrong-app gate: a STORE_MANAGER / CAPTAIN / ADMIN who signs into the customer
+ * storefront sees this instead of the catalogue. The API still enforces every
+ * permission server-side; this only spares staff from browsing a strangers' UI.
+ */
+function RoleRedirectScreen({
+  user,
+  targetUrl,
+  onSignOut,
+}: {
+  user: PublicUser;
+  targetUrl: string | null;
+  onSignOut: () => void;
+}) {
+  const label = USER_ROLE_LABELS[user.role];
+  return (
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-canvas p-6 text-center">
+      <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-tint text-brand-deep">
+        <LogOut size={26} />
+      </span>
+      <div>
+        <h1 className="text-lg font-extrabold text-ink">هذا التطبيق للعملاء فقط</h1>
+        <p dir="ltr" className="mt-1 text-[11px] font-medium text-ink-muted">
+          This app is for customers
+        </p>
+      </div>
+      <p className="max-w-[18rem] text-xs leading-relaxed text-ink-soft">
+        أنت مسجّل كـ <span className="font-bold text-ink">«{label.ar}»</span> — تطبيقك المخصص
+        متاح من الرابط بالأسفل.
+      </p>
+      {targetUrl && (
+        <a
+          href={targetUrl}
+          className="flex items-center gap-2 rounded-xl bg-brand px-5 py-3 text-xs font-extrabold text-white transition hover:bg-brand-dark active:scale-[0.98]"
+        >
+          <ExternalLink size={14} />
+          فتح تطبيق {label.ar} <span dir="ltr" className="font-medium text-white/80">Open {label.en}</span>
+        </a>
+      )}
+      <button
+        type="button"
+        onClick={onSignOut}
+        className="flex items-center gap-2 rounded-xl border border-line px-5 py-3 text-xs font-bold text-ink-muted transition hover:bg-brand-surface active:scale-[0.98]"
+      >
+        <LogOut size={14} />
+        تسجيل الخروج <span dir="ltr">Sign out</span>
+      </button>
+    </div>
   );
 }
 
@@ -115,6 +169,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
       <Route path="/orders" element={<ProtectedRoute auth={auth}><OrdersScreen /></ProtectedRoute>} />
       <Route path="/orders/:orderId" element={<ProtectedRoute auth={auth}><OrderTrackingScreen /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute auth={auth}><ProfileScreen /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute auth={auth}><SettingsScreen /></ProtectedRoute>} />
       <Route path="/favorites" element={<ProtectedRoute auth={auth}><FavoritesScreen /></ProtectedRoute>} />
       <Route path="/search" element={<ProtectedRoute auth={auth}><SearchScreen /></ProtectedRoute>} />
       <Route path="/login" element={<AuthRoute auth={auth}><LoginScreen /></AuthRoute>} />

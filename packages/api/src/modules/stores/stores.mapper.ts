@@ -22,6 +22,8 @@ export function toStore(store: PrismaStore): Store {
     isActive: store.isActive,
     isApproved: store.isApproved,
     managerId: store.managerId,
+    latitude: store.latitude,
+    longitude: store.longitude,
     createdAt: store.createdAt.toISOString(),
   };
 }
@@ -49,12 +51,19 @@ export function toProduct(product: PrismaProduct): Product {
 }
 
 export function toStoreWithCatalogue(
-  store: PrismaStore & { categories: (PrismaCategory & { products: PrismaProduct[] })[] }
+  store: PrismaStore & {
+    categories: (PrismaCategory & { products: PrismaProduct[] })[];
+    dedicatedCaptains?: Array<Pick<import('@prisma/client').User, 'id' | 'name' | 'phone' | 'isAvailable' | 'isVerified'>>;
+  }
 ): StoreWithCatalogue {
   const categories: CategoryWithProducts[] = store.categories.map(category => ({
     ...toCategory(category),
     products: category.products.map(toProduct),
   }));
 
-  return { ...toStore(store), categories };
+  return {
+    ...toStore(store),
+    categories,
+    ...(store.dedicatedCaptains ? { dedicatedCaptains: store.dedicatedCaptains } : {}),
+  };
 }

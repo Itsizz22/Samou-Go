@@ -14,6 +14,8 @@ export function toPublicUser(user: User): PublicUser {
     isActive: user.isActive,
     isVerified: user.isVerified,
     isAvailable: user.isAvailable,
+    assignedStoreId: user.assignedStoreId,
+    profileImageUrl: user.profileImageUrl,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };

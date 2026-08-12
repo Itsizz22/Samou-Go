@@ -13,13 +13,16 @@
  * Auth gate: ADMIN role required. Any other role sees an access-denied screen.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   BadgeCheck,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   ClipboardList,
+  ImagePlus,
   Loader2,
   LogOut,
   Menu,
@@ -37,6 +40,8 @@ import {
 import {
   SignInGate,
   approveStore,
+  getStoreProducts,
+  removeCurrentImage,
   updateOrderStatus,
   updateStore,
   updateUser,
@@ -44,10 +49,13 @@ import {
   useAuth,
   useMutation,
   useOrders,
+  useResource,
   useStores,
   useToast,
+  useUploadImage,
   useUsers,
   verifyCaptain,
+  type Resource,
 } from '@/hooks/useApi';
 import {
   ORDER_STATUS_LABELS,
@@ -58,6 +66,8 @@ import {
   UserRole,
   type OrderDetail,
   type OrderSummary,
+  type Paginated,
+  type Product,
   type PublicUser,
   type Store as StoreModel,
   type UpdateOrderStatusInput,
@@ -673,6 +683,7 @@ function UsersPanel() {
     ...(debounced ? { search: debounced } : {}),
   });
   const rows = users.data?.items ?? [];
+  const stores = useStores({ activeOnly: false, page: 1, pageSize: 100 });
 
   const pendingIdRef = useRef<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -758,6 +769,7 @@ function UsersPanel() {
               <th className="px-3 py-3">Phone</th>
               <th className="px-3 py-3">Role</th>
               <th className="px-3 py-3">Status</th>
+              <th className="px-3 py-3">Captain store</th>
               <th className="px-5 py-3 text-end">Actions</th>
             </tr>
           </thead>
@@ -795,6 +807,27 @@ function UsersPanel() {
                             <option key={role} value={role}>{USER_ROLE_LABELS[role].ar}</option>
                           ))}
                         </select>
+                      </td>
+                      <td className="px-3 py-3">
+                        {user.role === UserRole.CAPTAIN ? (
+                          <select
+                            value={user.assignedStoreId ?? ''}
+                            disabled={busy || stores.loading}
+                            onChange={(e) => void runUpdate(
+                              user.id,
+                              { assignedStoreId: e.target.value || null },
+                              e.target.value ? 'تم تخصيص الكابتن للمتجر' : 'تم إلغاء تخصيص الكابتن',
+                              e.target.value ? 'Captain assigned to store' : 'Captain returned to shared pool'
+                            )}
+                            className="max-w-44 rounded-lg border border-line bg-canvas px-2 py-1.5 text-[11px] font-semibold text-ink outline-none focus:border-brand disabled:opacity-60"
+                            aria-label={`Dedicated store for ${user.name}`}
+                          >
+                            <option value="">المجموعة المشتركة / Shared pool</option>
+                            {(stores.data?.items ?? []).map((store) => (
+                              <option key={store.id} value={store.id}>{store.nameAr}</option>
+                            ))}
+                          </select>
+                        ) : <span className="text-ink-subtle">—</span>}
                       </td>
                       <td className="px-3 py-3">
                         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${
@@ -855,6 +888,70 @@ function StoresPanel() {
     (input, signal) => updateStore(pendingIdRef.current as string, input, signal)
   );
 
+  /* ---- Image management: store logos + per-store product images -------------- */
+
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const productImages = useResource(
+    `admin-store-products:${expandedId ?? ''}`,
+    (signal) => getStoreProducts(expandedId as string, { page: 1, pageSize: 200 }, signal),
+    { enabled: expandedId !== null }
+  );
+
+  const upload = useUploadImage();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingTargetRef = useRef<{ kind: 'store' | 'product'; id: string } | null>(null);
+  const [imageBusyKey, setImageBusyKey] = useState<string | null>(null);
+
+  const openPicker = (kind: 'store' | 'product', id: string) => {
+    pendingTargetRef.current = { kind, id };
+    fileInputRef.current?.click();
+  };
+
+  const handleImagePicked = async (file: File | undefined) => {
+    const target = pendingTargetRef.current;
+    pendingTargetRef.current = null;
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (!file || !target) return;
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('الملف أكبر من 8MB', 'File exceeds 8MB');
+      return;
+    }
+    setImageBusyKey(`${target.kind}:${target.id}`);
+    try {
+      const result = await upload.run({ kind: target.kind, resourceId: target.id, file });
+      if (!result) {
+        toast.error(upload.error?.message ?? 'تعذّر رفع الصورة', 'Upload failed');
+        return;
+      }
+      toast.success(
+        target.kind === 'store' ? 'تم تحديث شعار المتجر' : 'تم تحديث صورة المنتج',
+        target.kind === 'store' ? 'Store logo updated' : 'Product image updated'
+      );
+      void stores.reload();
+      if (target.kind === 'product') void productImages.reload();
+    } finally {
+      setImageBusyKey(null);
+    }
+  };
+
+  const handleRemoveImage = async (kind: 'store' | 'product', id: string) => {
+    setImageBusyKey(`${kind}:${id}`);
+    try {
+      await removeCurrentImage(kind, id);
+      toast.info(
+        kind === 'store' ? 'تمت إزالة الشعار' : 'تمت إزالة الصورة',
+        kind === 'store' ? 'Store logo removed' : 'Product image removed'
+      );
+      void stores.reload();
+      if (kind === 'product') void productImages.reload();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast.error('تعذّر إزالة الصورة', message);
+    } finally {
+      setImageBusyKey(null);
+    }
+  };
+
   const runAction = async (id: string, action: () => Promise<StoreModel | null>, successAr: string, successEn: string) => {
     pendingIdRef.current = id;
     setPendingId(id);
@@ -878,9 +975,19 @@ function StoresPanel() {
       error={stores.error}
       refreshing={stores.refreshing}
       onRefresh={() => void stores.reload()}
+      headerActions={
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="sr-only"
+          aria-label="Choose an image"
+          onChange={(e) => void handleImagePicked(e.target.files?.[0])}
+        />
+      }
     >
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-start">
+        <table className="w-full min-w-[900px] text-start">
           <thead className="bg-canvas text-[10px] font-bold uppercase tracking-[0.06em] text-ink-muted">
             <tr>
               <th className="px-5 py-3">Store</th>
@@ -900,65 +1007,124 @@ function StoresPanel() {
                 ))
               : rows.map((store) => {
                   const busy = pendingId === store.id;
+                  const logoBusy = imageBusyKey === `store:${store.id}`;
+                  const expanded = expandedId === store.id;
                   return (
-                    <tr key={store.id} className="text-xs hover:bg-canvas">
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-tint text-[10px] font-extrabold text-brand-deep">
-                            {store.logoUrl ? <img src={store.logoUrl} alt="" className="h-full w-full object-cover" /> : store.nameAr.slice(0, 2)}
+                    <Fragment key={store.id}>
+                      <tr className="text-xs hover:bg-canvas">
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-tint text-[10px] font-extrabold text-brand-deep">
+                              {store.logoUrl ? <img src={store.logoUrl} alt="" className="h-full w-full object-cover" /> : store.nameAr.slice(0, 2)}
+                            </span>
+                            <span>
+                              <strong className="block font-bold text-ink">{store.nameAr}</strong>
+                              <span className="block text-[10px] text-ink-subtle" dir="ltr">{store.nameEn}</span>
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3">
+                          {store.isApproved ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-brand-tint px-2.5 py-1 text-[10px] font-bold text-brand-deep">
+                              <BadgeCheck size={12} /> موافق عليه
+                            </span>
+                          ) : (
+                            <span className="inline-flex rounded-full bg-warning-tint px-2.5 py-1 text-[10px] font-bold text-warning-ink">
+                              بانتظار الموافقة
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                            store.isActive ? 'bg-brand-tint text-brand-deep' : 'bg-canvas text-ink-muted'
+                          }`}>
+                            {store.isActive ? 'مفتوح' : 'مغلق'}
                           </span>
-                          <span>
-                            <strong className="block font-bold text-ink">{store.nameAr}</strong>
-                            <span className="block text-[10px] text-ink-subtle" dir="ltr">{store.nameEn}</span>
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3">
-                        {store.isApproved ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-brand-tint px-2.5 py-1 text-[10px] font-bold text-brand-deep">
-                            <BadgeCheck size={12} /> موافق عليه
-                          </span>
-                        ) : (
-                          <span className="inline-flex rounded-full bg-warning-tint px-2.5 py-1 text-[10px] font-bold text-warning-ink">
-                            بانتظار الموافقة
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                          store.isActive ? 'bg-brand-tint text-brand-deep' : 'bg-canvas text-ink-muted'
-                        }`}>
-                          {store.isActive ? 'مفتوح' : 'مغلق'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center justify-end gap-2">
-                          {!store.isApproved && (
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            {!store.isApproved && (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => void runAction(store.id, () => approveMutation.run(null), 'تمت الموافقة على المتجر', 'Store approved')}
+                                className="rounded-lg bg-brand px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
+                              >
+                                {busy && approveMutation.pending ? <Loader2 size={12} className="animate-spin" /> : 'موافقة'}
+                              </button>
+                            )}
                             <button
                               type="button"
                               disabled={busy}
-                              onClick={() => void runAction(store.id, () => approveMutation.run(null), 'تمت الموافقة على المتجر', 'Store approved')}
-                              className="rounded-lg bg-brand px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
+                              onClick={() => void runAction(
+                                store.id,
+                                () => toggleMutation.run({ isActive: !store.isActive }),
+                                store.isActive ? 'تم إغلاق المتجر' : 'تم فتح المتجر',
+                                store.isActive ? 'Store closed' : 'Store opened'
+                              )}
+                              className="rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:border-brand hover:bg-brand-surface hover:text-brand-deep disabled:opacity-50"
                             >
-                              {busy && approveMutation.pending ? <Loader2 size={12} className="animate-spin" /> : 'موافقة'}
+                              {busy && toggleMutation.pending ? <Loader2 size={12} className="animate-spin" /> : store.isActive ? 'إغلاق' : 'فتح'}
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void runAction(
-                              store.id,
-                              () => toggleMutation.run({ isActive: !store.isActive }),
-                              store.isActive ? 'تم إغلاق المتجر' : 'تم فتح المتجر',
-                              store.isActive ? 'Store closed' : 'Store opened'
+                            {store.logoUrl ? (
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={logoBusy || busy}
+                                  onClick={() => openPicker('store', store.id)}
+                                  className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-brand-deep transition hover:bg-brand-surface disabled:opacity-50"
+                                >
+                                  {logoBusy ? <Loader2 size={12} className="animate-spin" /> : <ImagePlus size={12} />}
+                                  <span>الشعار</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={logoBusy || busy}
+                                  onClick={() => void handleRemoveImage('store', store.id)}
+                                  className="flex items-center gap-1 rounded-lg border border-line px-2 py-1.5 text-[11px] font-bold text-ink-soft transition hover:border-danger-tint hover:bg-danger-tint hover:text-danger-ink disabled:opacity-50"
+                                  aria-label={`Remove ${store.nameAr} logo`}
+                                >
+                                  <X size={12} />
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={logoBusy || busy}
+                                onClick={() => openPicker('store', store.id)}
+                                className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:border-brand hover:bg-brand-surface hover:text-brand-deep disabled:opacity-50"
+                              >
+                                {logoBusy ? <Loader2 size={12} className="animate-spin" /> : <ImagePlus size={12} />}
+                                <span>شعار</span>
+                              </button>
                             )}
-                            className="rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:border-brand hover:bg-brand-surface hover:text-brand-deep disabled:opacity-50"
-                          >
-                            {busy && toggleMutation.pending ? <Loader2 size={12} className="animate-spin" /> : store.isActive ? 'إغلاق' : 'فتح'}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                            <button
+                              type="button"
+                              onClick={() => setExpandedId(expanded ? null : store.id)}
+                              className="flex items-center gap-1 rounded-lg border border-line px-2 py-1.5 text-[11px] font-bold text-ink-soft transition hover:bg-canvas"
+                              aria-expanded={expanded}
+                              aria-label={`${expanded ? 'Hide' : 'Show'} products for ${store.nameAr}`}
+                            >
+                              {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                              <span className="hidden sm:inline">منتجات</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expanded && (
+                        <tr>
+                          <td colSpan={4} className="border-t border-line-soft bg-canvas/50 px-5 py-4">
+                            <StoreProductImagesManager
+                              storeId={store.id}
+                              busyKey={imageBusyKey}
+                              resource={productImages}
+                              onPick={openPicker}
+                              onRemove={handleRemoveImage}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
           </tbody>
@@ -978,6 +1144,90 @@ function StoresPanel() {
         />
       )}
     </PanelShell>
+  );
+}
+
+/** The product-image strip inside an expanded store row (admin only). */
+function StoreProductImagesManager({
+  storeId,
+  busyKey,
+  resource,
+  onPick,
+  onRemove,
+}: {
+  storeId: string;
+  busyKey: string | null;
+  resource: Resource<Paginated<Product>>;
+  onPick: (kind: 'product', id: string) => void;
+  onRemove: (kind: 'product', id: string) => void;
+}) {
+  const products = resource.data?.items ?? [];
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-extrabold text-ink">صور المنتجات</p>
+          <p dir="ltr" className="mt-0.5 text-[10px] text-ink-muted">
+            Product images for store <span className="font-bold">{storeId}</span> — {products.length}
+          </p>
+        </div>
+        {resource.loading && products.length === 0 && (
+          <Loader2 size={14} className="animate-spin text-brand" aria-label="Loading products" />
+        )}
+        {resource.error && (
+          <span className="text-[10px] font-semibold text-danger-ink">{resource.error.message}</span>
+        )}
+      </div>
+      {products.length === 0 && !resource.loading && !resource.error ? (
+        <p className="py-4 text-center text-[11px] text-ink-subtle">لا توجد منتجات في هذا المتجر</p>
+      ) : (
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {products.map((product) => {
+            const busy = busyKey === `product:${product.id}`;
+            return (
+              <div key={product.id} className="flex items-center gap-3 rounded-xl border border-line bg-surface p-3">
+                {product.imageUrl ? (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.nameAr}
+                    className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                  />
+                ) : (
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-tint text-brand">
+                    <Package size={18} />
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <strong className="block truncate text-[11px] text-ink">{product.nameAr}</strong>
+                  <span className="block text-[9px] text-ink-subtle" dir="ltr">{product.id}</span>
+                </div>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onPick('product', product.id)}
+                  className="flex h-7 items-center gap-1 rounded-lg bg-brand px-2 text-[10px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
+                  aria-label={`Change image for ${product.nameAr}`}
+                >
+                  {busy ? <Loader2 size={11} className="animate-spin" /> : <ImagePlus size={11} />}
+                  <span>{product.imageUrl ? 'تغيير' : 'إضافة'}</span>
+                </button>
+                {product.imageUrl && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void onRemove('product', product.id)}
+                    className="flex h-7 items-center rounded-lg border border-line px-2 text-[10px] font-bold text-ink-muted transition hover:border-danger-tint hover:bg-danger-tint hover:text-danger-ink disabled:opacity-50"
+                    aria-label={`Remove image for ${product.nameAr}`}
+                  >
+                    <X size={11} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 

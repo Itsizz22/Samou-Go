@@ -30,6 +30,14 @@ export interface PublicUser {
   isVerified: boolean;
   /** CAPTAIN self-managed availability — must be on to claim orders. */
   isAvailable: boolean;
+  /** Dedicated captains may serve this store only; null means shared pool. */
+  assignedStoreId: string | null;
+  /**
+   * Processed avatar URL served by the uploads pipeline (see `/uploads`). The
+   * backing object key is never exposed — only this public URL, which is
+   * CDN-frontable and cached immutably.
+   */
+  profileImageUrl: string | null;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime;
 }
@@ -48,6 +56,9 @@ export interface Store {
   /** Hidden from the public catalogue until an admin approves the store. */
   isApproved: boolean;
   managerId: string;
+  /** WGS84 shopfront coordinates — powers the captain "navigate to store". */
+  latitude: number | null;
+  longitude: number | null;
   createdAt: IsoDateTime;
 }
 
@@ -78,6 +89,8 @@ export interface CategoryWithProducts extends Category {
 /** A store with its full catalogue — `GET /api/v1/stores/:id`. */
 export interface StoreWithCatalogue extends Store {
   categories: CategoryWithProducts[];
+  /** Returned only by the authenticated manager/admin catalogue endpoint. */
+  dedicatedCaptains?: Array<Pick<PublicUser, 'id' | 'name' | 'phone' | 'isAvailable' | 'isVerified'>>;
 }
 
 /* ---------------------------------------------------------------------------
@@ -92,6 +105,8 @@ export interface OrderItem {
   /** Price captured at order time; the product may be repriced later. */
   unitPrice: number;
   totalPrice: number;
+  /** Customer instruction for this specific product, e.g. "no onions". */
+  note: string | null;
 }
 
 export interface OrderStatusHistoryEntry {
@@ -119,6 +134,10 @@ export interface Order {
   customerAddressText: string;
   /** Optional extra directions ("بجانب مسجد عمر، الطابق الثاني"). */
   addressNote: string | null;
+  /** Customer instruction for the whole order, separate from directions. */
+  orderNote: string | null;
+  /** Kitchen estimate selected when the store accepts the order. */
+  estimatedPrepMinutes: number | null;
   subtotal: number;
   /** Always derived from item count via `calculateDeliveryFee`. */
   deliveryFee: number;
@@ -141,7 +160,7 @@ export interface OrderItemWithProduct extends OrderItem {
 export interface OrderDetail extends Order {
   items: OrderItemWithProduct[];
   customer: Pick<PublicUser, 'id' | 'name' | 'phone'>;
-  store: Pick<Store, 'id' | 'nameAr' | 'nameEn' | 'phone'>;
+  store: Pick<Store, 'id' | 'nameAr' | 'nameEn' | 'phone' | 'latitude' | 'longitude'>;
   captain: Pick<PublicUser, 'id' | 'name' | 'phone'> | null;
   statusHistory: OrderStatusHistoryEntry[];
   /** Resolved voucher identity for the discount — `null` when not applied. */
@@ -159,4 +178,13 @@ export interface OrderSummary {
   discount: number;
   storeNameAr: string;
   createdAt: IsoDateTime;
+  /** Customer instruction for the whole order, e.g. "اتصل قبل الوصول". */
+  orderNote: string | null;
+  /** Kitchen estimate chosen when the store accepted the order. */
+  estimatedPrepMinutes: number | null;
+  /**
+   * Only the lines carrying a per-item instruction ("no onions"), so list
+   * views can surface the kitchen-critical notes without shipping a full detail.
+   */
+  itemNotes: { productNameAr: string; quantity: number; note: string }[];
 }

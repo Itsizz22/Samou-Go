@@ -30,9 +30,9 @@ const h = vi.hoisted(() => {
       customerAddressText: 'حارة الرأس، بجانب المسجد',
       addressNote: null,
       subtotal: 30,
-      deliveryFee: 3,
+      deliveryFee: 0,
       discount: 0,
-      totalAmount: 33,
+      totalAmount: 30,
       voucherId: null,
       paymentMethod: 'COD',
       createdAt: new Date('2026-08-08T10:00:00.000Z'),
@@ -169,7 +169,7 @@ vi.mock('../../lib/prisma', () => ({
 }));
 
 vi.mock('../../config/env', () => ({
-  env: { deliveryFeeConfig: { baseFee: 3, bulkFee: 5, bulkThreshold: 5, currency: 'ILS' } },
+  env: { deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' } },
 }));
 
 beforeEach(() => {

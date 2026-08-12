@@ -56,6 +56,14 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(DEFAULT_DELIVERY_FEE_CONFIG.bulkThreshold),
+
+  /* ---- Uploads ----------------------------------------------------------- */
+  /** Local-disk directory for uploaded images (raw + processed objects). */
+  UPLOAD_DIR: z.string().min(1).default('.uploads'),
+  /** Hard ceiling for a single uploaded file, in bytes. */
+  UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(8 * 1024 * 1024),
+  /** Public base URL the API is reachable at — prefix for absolute image URLs. */
+  PUBLIC_API_ORIGIN: z.string().url().default('http://localhost:4000'),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -94,18 +102,27 @@ if (raw.NODE_ENV === 'production') {
         'Set SMS_PROVIDER=twilio|firebase|generic with real credentials.'
     );
   }
+  if (raw.PUBLIC_API_ORIGIN.startsWith('http://')) {
+    throw new Error(
+      'Invalid environment configuration:\n' +
+        '  • PUBLIC_API_ORIGIN: refusing to serve insecure (http) image URLs in production. ' +
+        'Set it to the HTTPS origin this API is reachable at.'
+    );
+  }
 }
 
 /**
- * The delivery tariff this deployment runs on. Values come from the environment
- * so the fee can be changed without a code release, but the *rule* (tiered by
- * item count) lives in @samou-go/shared-types and is not configurable here.
+ * The delivery tariff this deployment reports via `/api/v1/meta`. Values come
+ * from the environment, but the fee charged per order is ALWAYS 0 — delivery
+ * is free platform-wide — because `calculateDeliveryFee` (shared-types) no
+ * longer reads these amounts. `currency` is the only field that still matters.
  */
 export const deliveryFeeConfig: DeliveryFeeConfig = {
   baseFee: raw.DELIVERY_BASE_FEE,
   bulkFee: raw.DELIVERY_BULK_FEE,
   bulkThreshold: raw.DELIVERY_BULK_THRESHOLD,
   currency: DEFAULT_DELIVERY_FEE_CONFIG.currency,
+  regionSurcharges: DEFAULT_DELIVERY_FEE_CONFIG.regionSurcharges,
 };
 
 /** Parses duration strings (`7d`, `30m`, `2h`, `90` = seconds) into milliseconds. */
@@ -164,6 +181,11 @@ export const env = {
   corsOrigins: raw.CORS_ORIGINS.split(',')
     .map(origin => origin.trim())
     .filter(Boolean),
+  publicApiOrigin: raw.PUBLIC_API_ORIGIN,
+  uploads: {
+    dir: raw.UPLOAD_DIR,
+    maxBytes: raw.UPLOAD_MAX_BYTES,
+  },
   deliveryFeeConfig,
 } as const;
 

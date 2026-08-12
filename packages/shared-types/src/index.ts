@@ -11,3 +11,4 @@ export * from './enums';
 export * from './delivery';
 export * from './models';
 export * from './dto';
+export * from './roles';

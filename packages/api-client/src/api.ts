@@ -39,6 +39,9 @@ import type {
   OtpRequestInput,
   OtpVerifyInput,
   Paginated,
+  PresignUploadInput,
+  PresignUploadResult,
+  FinalizeUploadResult,
   Product,
   ProductListQuery,
   PublicUser,
@@ -54,6 +57,7 @@ import type {
   UpdateProductInput,
   UpdateProfileInput,
   UpdateStoreInput,
+  UploadKind,
   UserListQuery,
   UpdateUserInput,
 } from "@samou-go/shared-types";
@@ -978,6 +982,152 @@ export function setAvailability(
 }
 
 /* ---------------------------------------------------------------------------
+ * /api/v1/uploads — image upload pipeline
+ * ------------------------------------------------------------------------- */
+
+/**
+ * POST /uploads/presign — asks the server for a PUT target for raw bytes.
+ * The returned `key` must be handed back to `finalizeUpload` unchanged.
+ */
+export function presignUpload(
+  input: PresignUploadInput,
+  signal?: AbortSignal,
+): Promise<PresignUploadResult> {
+  return request<PresignUploadResult>("POST", "/uploads/presign", {
+    body: input,
+    auth: true,
+    signal,
+  });
+}
+
+/**
+ * PUT /uploads/raw/:key — streams a File into the server's raw storage.
+ * Image bytes, not JSON; the raw content type is sent so a future S3 driver
+ * can pick it up. One silent 401-refresh retry, like the JSON transport.
+ */
+export async function uploadRawFile(
+  key: string,
+  file: Blob,
+  signal?: AbortSignal,
+): Promise<void> {
+  const putOnce = async (): Promise<Response> => {
+    const token = getToken();
+    if (!token) {
+      throw new ApiError(
+        "UNAUTHENTICATED",
+        "يجب تسجيل الدخول أولاً / Please sign in first",
+        401,
+      );
+    }
+    return fetch(`${API_URL}/uploads/raw/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": file.type || "application/octet-stream",
+      },
+      body: file,
+      signal,
+    });
+  };
+
+  let response = await putOnce();
+
+  if (
+    response.status === 401 &&
+    getRefreshToken() &&
+    (await refreshSessionIfPossible())
+  ) {
+    response = await putOnce();
+  }
+
+  if (!response.ok) {
+    const envelope = await readEnvelope<never>(response);
+    if (envelope && envelope.success === false) {
+      throw new ApiError(
+        envelope.error.code,
+        envelope.error.message,
+        response.status,
+        envelope.error.details ?? [],
+      );
+    }
+    throw new ApiError(
+      `HTTP_${response.status}`,
+      `تعذّر رفع الصورة (${response.status}) / Image upload failed`,
+      response.status,
+    );
+  }
+}
+
+/**
+ * POST /uploads/finalize — tells the server the raw bytes are in; it validates,
+ * processes and attaches the image. Returns the public, cacheable URL.
+ */
+export function finalizeUpload(
+  key: string,
+  kind: UploadKind,
+  signal?: AbortSignal,
+): Promise<FinalizeUploadResult> {
+  return request<FinalizeUploadResult>("POST", "/uploads/finalize", {
+    body: { key, kind },
+    auth: true,
+    signal,
+  });
+}
+
+/** DELETE /uploads/raw/:key — detaches and deletes an uploaded image. */
+export async function removeUpload(
+  key: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await request<unknown>("DELETE", `/uploads/raw/${encodeURIComponent(key)}`, {
+    auth: true,
+    signal,
+  });
+}
+
+/**
+ * DELETE /uploads/current — removes the image currently attached to the
+ * caller's avatar (`kind: 'user'`) or to a managed product (`kind: 'product'`
+ * with `resourceId`). No opaque key needed: the server resolves it from the
+ * profile/product record.
+ */
+export async function removeCurrentImage(
+  kind: UploadKind,
+  resourceId?: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await request<unknown>("DELETE", "/uploads/current", {
+    body: { kind, resourceId },
+    auth: true,
+    signal,
+  });
+}
+
+/**
+ * Presign → PUT bytes → finalize in one call. This is what a screen calls when
+ * the user picks a file; the three-step path is only needed for uploads that
+ * outlive the current request (offline queues, background workers). The
+ * `contentType` is taken from the file; the server still rejects anything that
+ * is not JPEG/PNG/WebP.
+ */
+export async function uploadImage(
+  input: { kind: UploadKind; resourceId?: string; contentType?: string },
+  file: Blob,
+  signal?: AbortSignal,
+): Promise<FinalizeUploadResult> {
+  const prepared = await presignUpload(
+    {
+      kind: input.kind,
+      resourceId: input.resourceId,
+      contentType: input.contentType ?? (file.type || "application/octet-stream"),
+    },
+    signal,
+  );
+  await uploadRawFile(prepared.key, file, signal);
+  return finalizeUpload(prepared.key, input.kind, signal);
+}
+
+/* ---------------------------------------------------------------------------
  * /api/v1/stores — write operations (STORE_MANAGER / ADMIN)
  * ------------------------------------------------------------------------- */
 
@@ -1156,6 +1306,12 @@ export const api = {
   getAdminStats,
   approveStore,
   verifyCaptain,
+  presignUpload,
+  uploadRawFile,
+  finalizeUpload,
+  removeUpload,
+  removeCurrentImage,
+  uploadImage,
   getToken,
   setToken,
   clearToken,

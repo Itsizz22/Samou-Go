@@ -12,8 +12,7 @@ import { HttpError } from '../../lib/http-error';
  *
  *   1. The server — not the client — computes subtotal, delivery fee and total
  *      from the products table (server-authoritative pricing).
- *   2. The delivery fee follows the tariff: 0 for 0 items, 3 ₪ for 1–4,
- *      5 ₪ for 5+.
+ *   2. The delivery fee is FREE: 0 ₪ for any basket, so total = subtotal.
  *   3. Any failure inside the pipeline (unavailable product, wrong store,
  *      closed store, exhausted voucher) aborts the unit of work — `order.create`
  *      is never reached, i.e. nothing is written (transaction rollback).
@@ -132,7 +131,7 @@ vi.mock('../../lib/prisma', () => ({
 
 vi.mock('../../config/env', () => ({
   env: {
-    deliveryFeeConfig: { baseFee: 3, bulkFee: 5, bulkThreshold: 5, currency: 'ILS' },
+    deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' },
   },
 }));
 
@@ -195,8 +194,8 @@ describe('server-authoritative pricing', () => {
     const order = await createOrder('customer-1', body);
 
     expect(order.subtotal).toBe(52); // 2×15 + 1×22
-    expect(order.deliveryFee).toBe(3); // 3 items → base fee
-    expect(order.totalAmount).toBe(55);
+    expect(order.deliveryFee).toBe(0); // delivery is free
+    expect(order.totalAmount).toBe(52); // total = subtotal (fee 0)
     expect(order.items.map(l => [l.productId, l.unitPrice, l.quantity])).toEqual([
       ['p-chicken', 15, 2],
       ['p-meat', 22, 1],
@@ -211,43 +210,43 @@ describe('server-authoritative pricing', () => {
     });
 
     expect(order.subtotal).toBe(75); // 5 × 15
-    expect(order.deliveryFee).toBe(5); // 5 items → bulk fee
+    expect(order.deliveryFee).toBe(0); // delivery is free
     expect(order.items).toHaveLength(1);
     expect(order.items[0]!.quantity).toBe(5);
   });
 });
 
 /* ---------------------------------------------------------------------------
- * Delivery fee tariff — 0 / 3 ₪ / 5 ₪
+ * Delivery fee — free (0 ₪) on every basket
  * ------------------------------------------------------------------------- */
 
 describe('delivery fee schedule', () => {
-  it('charges the base fee (3 ₪) for 1 item', async () => {
+  it('charges no fee (0 ₪) for 1 item', async () => {
     const order = await createOrder('customer-1', {
       ...BASE_BODY,
       items: [item('p-chicken', 1)],
     });
-    expect(order.deliveryFee).toBe(3);
+    expect(order.deliveryFee).toBe(0);
     expect(order.subtotal).toBe(15);
-    expect(order.totalAmount).toBe(18);
+    expect(order.totalAmount).toBe(15);
   });
 
-  it('charges the base fee (3 ₪) for 4 items — just under the threshold', async () => {
+  it('charges no fee (0 ₪) for 4 items', async () => {
     const order = await createOrder('customer-1', {
       ...BASE_BODY,
       items: [item('p-chicken', 4)],
     });
-    expect(order.deliveryFee).toBe(3);
-    expect(order.totalAmount).toBe(63);
+    expect(order.deliveryFee).toBe(0);
+    expect(order.totalAmount).toBe(60);
   });
 
-  it('charges the bulk fee (5 ₪) at exactly 5 items', async () => {
+  it('charges no fee (0 ₪) at exactly 5 items', async () => {
     const order = await createOrder('customer-1', {
       ...BASE_BODY,
       items: [item('p-chicken', 5)],
     });
-    expect(order.deliveryFee).toBe(5);
-    expect(order.totalAmount).toBe(80);
+    expect(order.deliveryFee).toBe(0);
+    expect(order.totalAmount).toBe(75);
   });
 
   it('quotes the same fee the order will be charged', async () => {
@@ -255,9 +254,9 @@ describe('delivery fee schedule', () => {
       storeId: 'store-1',
       items: [item('p-chicken', 5)],
     });
-    expect(quote.deliveryFee).toBe(5);
+    expect(quote.deliveryFee).toBe(0);
     expect(quote.subtotal).toBe(75);
-    expect(quote.totalAmount).toBe(80);
+    expect(quote.totalAmount).toBe(75);
   });
 });
 
@@ -362,12 +361,12 @@ describe('transaction rollback', () => {
 
     const order = await createOrder('customer-1', {
       ...BASE_BODY,
-      items: [item('p-chicken', 2)], // subtotal 30, fee 3, total 33
+      items: [item('p-chicken', 2)], // subtotal 30, fee 0, total 30
       voucherCode: 'save10',
     });
 
     expect(order.discount).toBe(3); // 10% of 30
-    expect(order.totalAmount).toBe(30); // 33 − 3
+    expect(order.totalAmount).toBe(27); // 30 − 3
     expect(h.tx.voucher.update).toHaveBeenCalledTimes(1);
   });
 

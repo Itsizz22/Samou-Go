@@ -6,6 +6,7 @@
  */
 
 import type { OrderStatus, UserRole, VoucherDiscountType } from "./enums";
+import type { DeliveryRegion } from './delivery';
 import type {
   OrderDetail,
   OrderSummary,
@@ -156,6 +157,7 @@ export interface ProductListQuery extends PaginationQuery {
 export interface CreateOrderItemInput {
   productId: string;
   quantity: number;
+  note?: string;
 }
 
 /**
@@ -168,13 +170,17 @@ export interface CreateOrderInput {
   storeId: string;
   items: CreateOrderItemInput[];
   customerAddressText: string;
+  deliveryRegion?: DeliveryRegion;
   addressNote?: string;
+  orderNote?: string;
   voucherCode?: string;
 }
 
 export interface UpdateOrderStatusInput {
   status: OrderStatus;
   note?: string;
+  /** STORE_MANAGER supplies this together with PENDING → ACCEPTED. */
+  estimatedPrepMinutes?: number;
 }
 
 export interface AssignCaptainInput {
@@ -192,6 +198,7 @@ export interface QuoteOrderInput {
   storeId: string;
   items: CreateOrderItemInput[];
   voucherCode?: string;
+  deliveryRegion?: DeliveryRegion;
 }
 
 export interface OrderQuote {
@@ -222,6 +229,7 @@ export interface OrderQuote {
 export interface ReorderItem {
   product: Product;
   quantity: number;
+  note?: string;
 }
 
 export interface ReorderResult {
@@ -302,6 +310,8 @@ export interface UpdateUserInput {
   role?: UserRole;
   /** Admin flag — captain verification. */
   isVerified?: boolean;
+  /** ADMIN-only captain assignment; null returns a captain to the shared pool. */
+  assignedStoreId?: string | null;
 }
 
 /** PATCH /auth/me/availability — a captain flips their own online/offline state. */
@@ -350,4 +360,51 @@ export interface AdminStats {
   };
   /** The five most recent orders, for the dashboard table. */
   recentOrders: OrderSummary[];
+}
+
+/* ---------------------------------------------------------------------------
+ * Uploads — POST /uploads/*
+ * ------------------------------------------------------------------------- */
+
+/** What a processed image eventually attaches to. */
+export type UploadKind = 'user' | 'product' | 'store';
+
+/** POST /uploads/presign */
+export interface PresignUploadInput {
+  /** Server validate: image/jpeg | image/png | image/webp. */
+  contentType: string;
+  kind: UploadKind;
+  /**
+   * Required when `kind === 'product'` or `kind === 'store'` — the product or
+   * store the image attaches to.
+   */
+  resourceId?: string;
+}
+
+export interface PresignUploadResult {
+  /**
+   * PUT target for the raw bytes. For the local storage driver this is a
+   * server route the caller reaches with its own bearer token; with the S3
+   * driver it is a presigned PUT into the bucket. The caller never builds this
+   * URL itself.
+   */
+  uploadUrl: string;
+  /** Server-generated object key — pass it back to `finalize` verbatim. */
+  key: string;
+  contentType: string;
+  /** Hard payload ceiling in bytes; larger bodies are rejected. */
+  maxBytes: number;
+}
+
+/** POST /uploads/:key/finalize */
+export interface FinalizeUploadInput {
+  key: string;
+  kind: UploadKind;
+}
+
+export interface FinalizeUploadResult {
+  /** Public, processed URL — cacheable (`Cache-Control: public, max-age=31536000, immutable`). */
+  url: string;
+  width: number;
+  height: number;
 }

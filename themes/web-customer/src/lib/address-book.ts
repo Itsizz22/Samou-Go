@@ -6,9 +6,25 @@
  * the form, and offers the "Save for next time" toggle.
  */
 
+export const ADDRESS_TAGS = ['home', 'work', 'other'] as const;
+export type AddressTag = (typeof ADDRESS_TAGS)[number];
+
+export const ADDRESS_TAG_META: Record<AddressTag, { ar: string; en: string }> = {
+  home: { ar: 'المنزل', en: 'Home' },
+  work: { ar: 'العمل', en: 'Work' },
+  other: { ar: 'أخرى', en: 'Other' },
+};
+
+/** Fallback for older saved entries that predate tags. */
+export function normalizeTag(tag: string | null | undefined): AddressTag {
+  return tag && (ADDRESS_TAGS as readonly string[]).includes(tag) ? (tag as AddressTag) : 'other';
+}
+
 export interface SavedAddress {
   id: string;
   label: string;
+  /** Home / Work / Other — free-form `label` stays for fine-tuning. */
+  tag?: AddressTag;
   addressText: string;
   addressNote?: string;
 }

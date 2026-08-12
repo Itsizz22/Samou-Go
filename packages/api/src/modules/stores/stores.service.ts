@@ -31,7 +31,8 @@ export async function listStores(query: StoreListQuery): Promise<Paginated<Store
     // `activeOnly` is the public catalogue: live AND approved. An admin asking
     // for everything (`activeOnly: false`) sees unapproved stores too, so the
     // approval workflow can list them.
-    ...(query.activeOnly ? { isActive: true, isApproved: true } : {}),
+    isApproved: true,
+    ...(query.activeOnly ? { isActive: true } : {}),
     ...(query.search
       ? {
           OR: [
@@ -92,6 +93,10 @@ export async function getStoreWithFullCatalogue(storeId: string): Promise<StoreW
   const store = await prisma.store.findUnique({
     where: { id: storeId },
     include: {
+      dedicatedCaptains: {
+        where: { role: UserRoleEnum.CAPTAIN },
+        select: { id: true, name: true, phone: true, isAvailable: true, isVerified: true },
+      },
       categories: {
         orderBy: [{ sortOrder: 'asc' }, { nameAr: 'asc' }],
         include: {

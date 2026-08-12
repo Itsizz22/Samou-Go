@@ -10,6 +10,22 @@ async function call(method, path, { token, body } = {}) {
   return { status: res.status, json: await res.json() };
 }
 
+/** Body-agnostic call — raw bytes for uploads, tolerant of empty 204 bodies. */
+async function callAny(method, path, { token, body, raw, contentType } = {}) {
+  const headers = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  if (raw) headers['Content-Type'] = contentType;
+  else headers['Content-Type'] = 'application/json';
+  const res = await fetch(BASE + path, {
+    method,
+    headers,
+    body: raw ?? (body ? JSON.stringify(body) : undefined),
+  });
+  const text = await res.text();
+  let json = null;
+  try { json = text ? JSON.parse(text) : null; } catch { /* non-JSON */ }
+  return { status: res.status, json };
+}
+
 function check(label, cond, extra = '') {
   if (cond) { pass++; console.log('  ok   ' + label); }
   else { fail++; console.log('  FAIL ' + label + '  ' + extra); }
@@ -45,18 +61,18 @@ check('store catalogue returns products', products.length > 0, products.length);
 check('unavailable products hidden', products.every(p => p.isAvailable));
 check('price is a number, not a Decimal string', typeof products[0].price === 'number', typeof products[0].price);
 
-console.log('\n[3] delivery tariff at the API boundary');
+console.log('\n[3] free delivery at the API boundary');
 const small = await call('POST', '/orders/quote', {
   body: { storeId: 'store-shawarma', items: [{ productId: 'p-shawarma-chicken', quantity: 4 }] },
 });
-check('4 units -> 3 ILS', small.json.data.deliveryFee === 3, JSON.stringify(small.json.data));
+check('4 units -> free (0 ILS)', small.json.data.deliveryFee === 0, JSON.stringify(small.json.data));
 
 const bulk = await call('POST', '/orders/quote', {
   body: { storeId: 'store-shawarma', items: [{ productId: 'p-shawarma-chicken', quantity: 5 }] },
 });
-check('5 units -> 5 ILS', bulk.json.data.deliveryFee === 5, JSON.stringify(bulk.json.data));
+check('5 units -> free (0 ILS)', bulk.json.data.deliveryFee === 0, JSON.stringify(bulk.json.data));
 check('subtotal priced from DB (5 x 15)', bulk.json.data.subtotal === 75, bulk.json.data.subtotal);
-check('total = subtotal + fee', bulk.json.data.totalAmount === 80, bulk.json.data.totalAmount);
+check('total = subtotal (delivery free)', bulk.json.data.totalAmount === 75, bulk.json.data.totalAmount);
 
 console.log('\n[4] money cannot come from the client');
 const forged = await call('POST', '/orders', {
@@ -73,8 +89,8 @@ const forged = await call('POST', '/orders', {
 const order = forged.json.data;
 check('order created (201)', forged.status === 201, JSON.stringify(forged.json.error ?? ''));
 check('forged subtotal ignored -> 44', order.subtotal === 44, order.subtotal);
-check('forged fee ignored -> 3', order.deliveryFee === 3, order.deliveryFee);
-check('total = 47', order.totalAmount === 47, order.totalAmount);
+check('forged fee ignored -> 0', order.deliveryFee === 0, order.deliveryFee);
+check('total = 44 (delivery free)', order.totalAmount === 44, order.totalAmount);
 check('orderNumber SG-YYMMDD-NNNN', /^SG-\d{6}-\d{4}$/.test(order.orderNumber), order.orderNumber);
 check('initial PENDING + 1 history row', order.status === 'PENDING' && order.statusHistory.length === 1);
 
@@ -172,6 +188,58 @@ check(
 
 const winner = claim1.status === 200 ? claim1 : claim2;
 check('winning captain is assigned on the order', winner.json.data?.captainId !== null, JSON.stringify(winner.json.error ?? ''));
+
+console.log('\n[10] image uploads round-trip');
+const tinyPng = Buffer.from(
+  // 1x1 red PNG (see packages/api/src/uploads/image.ts for the magic-byte sniff)
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=',
+  'base64'
+);
+const putRaw = async (uploadUrl, token, bytes) => {
+  const res = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${token}` },
+    body: bytes,
+  });
+  return { status: res.status };
+};
+const presign = (token, kind, resourceId) =>
+  callAny('POST', '/uploads/presign', { token, body: { contentType: 'image/png', kind, resourceId } });
+const finalize = (token, key, kind) =>
+  callAny('POST', '/uploads/finalize', { token, body: { key, kind } });
+const removeCurrent = (token, kind, resourceId) =>
+  callAny('DELETE', '/uploads/current', { token, body: { kind, resourceId } });
+
+const storePre = await presign(manager, 'store', 'store-shawarma');
+check('store logo presign (201)', storePre.status === 201, storePre.status);
+const storePut = await putRaw(storePre.json.data.uploadUrl, manager, tinyPng);
+check('store logo raw PUT (204)', storePut.status === 204, storePut.status);
+const storeFin = await finalize(manager, storePre.json.data.key, 'store');
+check('store logo finalize -> webp URL', storeFin.status === 200 && /\/uploads\/store\/store-shawarma\/[^/]+\.webp$/.test(storeFin.json.data.url), JSON.stringify(storeFin.json));
+const storeAfter = await call('GET', '/stores/store-shawarma');
+check('store logoUrl persisted', storeAfter.json.data.logoUrl === storeFin.json.data.url, storeAfter.json.data.logoUrl);
+const storeRemove = await removeCurrent(manager, 'store', 'store-shawarma');
+check('store logo removed (204)', storeRemove.status === 204, storeRemove.status);
+const storeGone = await call('GET', '/stores/store-shawarma');
+check('store logoUrl cleared', storeGone.json.data.logoUrl === null, storeGone.json.data.logoUrl);
+
+const prodPre = await presign(manager, 'product', 'p-shawarma-chicken');
+check('product presign (201)', prodPre.status === 201, prodPre.status);
+const prodPut = await putRaw(prodPre.json.data.uploadUrl, manager, tinyPng);
+check('product raw PUT (204)', prodPut.status === 204, prodPut.status);
+const prodFin = await finalize(manager, prodPre.json.data.key, 'product');
+check('product finalize -> md.webp URL', prodFin.status === 200 && /\/uploads\/product\/p-shawarma-chicken\/[^/]+\/md\.webp$/.test(prodFin.json.data.url), JSON.stringify(prodFin.json));
+const catAfter = await call('GET', '/stores/store-shawarma');
+const updatedProduct = catAfter.json.data.categories.flatMap(c => c.products).find(p => p.id === 'p-shawarma-chicken');
+check('product imageUrl persisted in catalogue', updatedProduct && updatedProduct.imageUrl === prodFin.json.data.url, updatedProduct?.imageUrl);
+const prodRemove = await removeCurrent(manager, 'product', 'p-shawarma-chicken');
+check('product image removed (204)', prodRemove.status === 204, prodRemove.status);
+
+// Ownership: a store manager cannot presign for someone else's store.
+const otherPre = await presign(manager, 'store', 'store-albaraka');
+check('logo for another store -> 403', otherPre.status === 403, otherPre.status);
+const customerStorePre = await presign(customer, 'store', 'store-shawarma');
+check('customer presign store -> 403', customerStorePre.status === 403, customerStorePre.status);
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

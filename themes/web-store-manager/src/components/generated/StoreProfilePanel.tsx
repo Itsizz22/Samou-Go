@@ -5,16 +5,18 @@
  * active/open status. Writes go through `PATCH /api/v1/stores/:id`.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Check,
+  ImagePlus,
   Loader2,
   Phone,
   RefreshCw,
   Store,
+  X,
 } from 'lucide-react';
-import { updateStore, useStore, useToast } from '@samou-go/api-client';
+import { removeCurrentImage, updateStore, useStore, useToast, useUploadImage } from '@samou-go/api-client';
 import type { Store as StoreType } from '@samou-go/shared-types';
 
 interface Props {
@@ -39,11 +41,22 @@ function formFromStore(s: StoreType): FormState {
 
 export function StoreProfilePanel({ storeId }: Props) {
   const toast = useToast();
+  const upload = useUploadImage();
 
   // Load just this store's header data for the form.
   // useStore hits GET /stores/:id (public) which includes phone, nameAr, nameEn, isActive.
   const storeResource = useStore(storeId);
   const storeData = storeResource.data ?? null;
+
+  // Logo preview — kept locally so an upload/remove reflects immediately, then
+  // the `useStore` reload re-syncs it from the server.
+  const [logoSrc, setLogoSrc] = useState<string | null>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (storeData) setLogoSrc(storeData.logoUrl);
+  }, [storeData]);
 
   const [form, setForm] = useState<FormState>({
     nameAr: '',
@@ -103,6 +116,44 @@ export function StoreProfilePanel({ storeId }: Props) {
     setSaveError(null);
   };
 
+  /* ---- Store logo (attach / change / remove) ------------------------------ */
+  const handleLogoPicked = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('الملف أكبر من 8MB', 'File exceeds 8MB');
+      return;
+    }
+    if (logoInputRef.current) logoInputRef.current.value = '';
+    setLogoBusy(true);
+    try {
+      const result = await upload.run({ kind: 'store', resourceId: storeId, file });
+      if (!result) {
+        toast.error(upload.error?.message ?? 'تعذّر رفع الشعار', 'Upload failed');
+        return;
+      }
+      setLogoSrc(result.url);
+      toast.success('تم تحديث شعار المتجر', 'Store logo updated');
+      void storeResource.reload();
+    } finally {
+      setLogoBusy(false);
+    }
+  };
+
+  const handleLogoRemove = async () => {
+    setLogoBusy(true);
+    try {
+      await removeCurrentImage('store', storeId);
+      setLogoSrc(null);
+      toast.info('تمت إزالة الشعار', 'Store logo removed');
+      void storeResource.reload();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error('تعذّر إزالة الشعار', msg);
+    } finally {
+      setLogoBusy(false);
+    }
+  };
+
   if (storeResource.loading) {
     return (
       <div className="space-y-4" aria-hidden="true">
@@ -138,6 +189,61 @@ export function StoreProfilePanel({ storeId }: Props) {
           <span className="text-[11px] font-semibold text-ink-muted" dir="ltr">
             Store ID: {storeId}
           </span>
+        </div>
+
+        {/* Store logo */}
+        <div className="p-5 pb-0">
+          <div className="rounded-xl border border-line bg-canvas p-3">
+            <span className="mb-2 block text-xs font-bold text-ink">
+              شعار المتجر
+              <span className="ms-1 font-normal text-ink-muted" dir="ltr">/ Store logo</span>
+            </span>
+            <div className="flex items-center gap-3">
+              {logoSrc ? (
+                <img
+                  src={logoSrc}
+                  alt={form.nameAr || 'Store logo'}
+                  className="h-16 w-16 shrink-0 rounded-xl object-cover"
+                />
+              ) : (
+                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
+                  <Store size={20} />
+                </span>
+              )}
+              <div className="flex flex-1 flex-wrap items-center gap-2">
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  aria-label="Choose a store logo"
+                  onChange={e => void handleLogoPicked(e.target.files?.[0])}
+                />
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={logoBusy}
+                  className="flex h-8 items-center gap-1.5 rounded-lg bg-brand px-3 text-[11px] font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
+                  aria-label="Change store logo"
+                >
+                  {logoBusy ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
+                  {logoSrc ? 'تغيير / Change' : 'إضافة / Add'}
+                </button>
+                {logoSrc && (
+                  <button
+                    type="button"
+                    onClick={() => void handleLogoRemove()}
+                    disabled={logoBusy}
+                    className="flex h-8 items-center gap-1 rounded-lg border border-line px-3 text-[11px] font-bold text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink active:scale-95 disabled:opacity-60"
+                    aria-label="Remove store logo"
+                  >
+                    <X size={12} />
+                    إزالة <span dir="ltr">Remove</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-5 p-5">

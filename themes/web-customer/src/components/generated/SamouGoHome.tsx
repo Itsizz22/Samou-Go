@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { NotificationBell, type BellNotification } from '@samou-go/ui';
 import { BottomNav } from '@/components/BottomNav';
+import { useDrawer } from '@/components/NavigationDrawer';
 import { DeliveryFee } from '@/components/ui/DeliveryFee';
 import { API_URL } from '@/services/api';
 import { useApiMeta, useOrders, useStores, useAuth } from '@/hooks/useApi';
@@ -63,10 +64,12 @@ const STATUS_BELL_TONE: Record<OrderStatus, NonNullable<BellNotification['tone']
 
 export function SamouGoHome() {
   const navigate = useNavigate();
+  const { openDrawer } = useDrawer();
   const [activeCategory, setActiveCategory] = useState<StoreCategoryKey>('all');
   const [banner, setBanner] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'open' | 'closed'>('all');
 
   // Every keystroke would otherwise be a round-trip over Samou' mobile data.
   useEffect(() => {
@@ -77,13 +80,13 @@ export function SamouGoHome() {
   // GET /api/v1/stores — the catalogue. Search is server-side; the category
   // chips filter client-side because the schema has no store-type column yet.
   const stores = useStores({
-    activeOnly: true,
+    activeOnly: availabilityFilter === 'open',
     pageSize: 24,
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
   });
 
-  // GET /api/v1/meta — the tariff the server is actually charging, so the "from
-  // 3 ₪" badge cannot drift from `calculateDeliveryFee`.
+  // GET /api/v1/meta — the tariff the server is actually charging, so the
+  // free-delivery badge cannot drift from `calculateDeliveryFee`.
   const meta = useApiMeta();
   const baseFee = meta.data?.deliveryFee.baseFee ?? DEFAULT_DELIVERY_FEE_CONFIG.baseFee;
 
@@ -109,8 +112,10 @@ export function SamouGoHome() {
       activeCategory === 'all'
         ? items
         : items.filter((store) => classifyStore(store) === activeCategory);
-    return filtered.map(toStoreCardModel);
-  }, [stores.data, activeCategory]);
+    return filtered
+      .filter((store) => availabilityFilter === 'all' || (availabilityFilter === 'open' ? store.isActive : !store.isActive))
+      .map(toStoreCardModel);
+  }, [stores.data, activeCategory, availabilityFilter]);
 
   const featured = cards.slice(0, FEATURED_COUNT);
   const showEmpty = !stores.loading && !stores.error && cards.length === 0;
@@ -136,7 +141,7 @@ export function SamouGoHome() {
           <button
             type="button"
             aria-label="القائمة / Menu"
-            onClick={() => document.getElementById('categories-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+            onClick={openDrawer}
             className="rounded-full p-2 transition hover:bg-surface/15"
           >
             <Menu size={22} />
@@ -167,9 +172,9 @@ export function SamouGoHome() {
         </section>
       </header>
 
-      <section className="mx-auto max-w-md px-5" aria-label="Search">
-        <label className="-mt-6 flex h-14 items-center gap-3 rounded-2xl bg-surface px-4 text-ink-muted shadow-raised">
-          <Search size={20} className="text-brand" /><input value={searchTerm} onChange={event => setSearchTerm(event.target.value)} className="w-full bg-transparent text-sm outline-none placeholder:text-ink-subtle" placeholder="ابحث عن متاجر أو منتجات / Search stores or products…" aria-label="Search stores or products" />
+      <section className="mx-auto max-w-md px-5" role="search" aria-label="Search">
+        <label className="-mt-6 flex h-14 cursor-text items-center gap-3 rounded-2xl bg-surface px-4 text-ink-muted shadow-raised">
+          <Search size={20} className="text-brand" /><input value={searchTerm} onChange={event => setSearchTerm(event.target.value)} enterKeyHint="search" aria-controls="home-results" onKeyDown={event => { if (event.key === 'Enter') setDebouncedSearch(searchTerm.trim()); }} className="w-full bg-transparent text-sm outline-none placeholder:text-ink-subtle" placeholder="ابحث عن متاجر أو منتجات / Search stores or products…" aria-label="Search stores or products" />
           {stores.refreshing && <Loader2 size={16} className="shrink-0 animate-spin text-brand" aria-label="Searching" />}
         </label>
       </section>
@@ -192,6 +197,11 @@ export function SamouGoHome() {
           const active = activeCategory === category.key;
           return <button key={category.key} type="button" aria-pressed={active} onClick={() => setActiveCategory(category.key)} className={`flex min-w-[82px] flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center transition ${active ? 'border-brand bg-brand-tint text-brand-dark' : 'border-transparent bg-surface text-ink-soft shadow-card'}`}><span className={`flex h-10 w-10 items-center justify-center rounded-xl ${active ? 'bg-brand text-white' : 'bg-brand-surface text-brand'}`}><Icon size={20} /></span><span className="text-[11px] font-bold leading-tight">{category.ar}</span><span className="text-[10px]" dir="ltr">{category.en}</span></button>;
         })}
+        </div>
+        <div className="mt-3 flex gap-2" aria-label="Store availability filter">
+          {([['all', 'الكل / All'], ['open', 'مفتوح / Open'], ['closed', 'مغلق / Closed']] as const).map(([value, label]) => (
+            <button key={value} type="button" onClick={() => setAvailabilityFilter(value)} aria-pressed={availabilityFilter === value} className={`rounded-full px-3 py-1.5 text-[10px] font-bold ${availabilityFilter === value ? 'bg-brand text-white' : 'bg-surface text-ink-muted shadow-card'}`}>{label}</button>
+          ))}
         </div>
       </section>
 
@@ -234,7 +244,7 @@ export function SamouGoHome() {
                       <h3 className="truncate text-sm font-extrabold">{store.nameAr}</h3>
                       <p className="mt-0.5 truncate text-[11px] text-ink-muted" dir="ltr">{store.nameEn}</p>
                       <p className="mt-2 text-[10px] text-ink-muted">{category.ar}</p>
-                      <div className="mt-2 flex items-center justify-between gap-2"><span className="flex items-center gap-1"><span className="text-[10px] text-ink-subtle">من</span><DeliveryFee amount={baseFee} variant="badge" showIcon /></span><span className="truncate text-[10px] text-ink-muted" dir="ltr">{category.en}</span></div>
+                      <div className="mt-2 flex items-center justify-between gap-2"><span className="flex items-center gap-1"><DeliveryFee amount={baseFee} variant="badge" showIcon /></span><span className="truncate text-[10px] text-ink-muted" dir="ltr">{category.en}</span></div>
                     </div>
                   </article>
                 </Link>
@@ -242,7 +252,7 @@ export function SamouGoHome() {
         </div>
       </section>}
 
-      {!stores.error && (stores.loading || cards.length > 0) && <section className="mx-auto max-w-md px-5 pt-8" aria-labelledby="nearby-title" aria-busy={stores.loading}>
+      {!stores.error && (stores.loading || cards.length > 0) && <section id="home-results" aria-live="polite" className="mx-auto max-w-md px-5 pt-8" aria-labelledby="nearby-title" aria-busy={stores.loading}>
         <div className="mb-4 flex items-end justify-between"><div><h2 id="nearby-title" className="text-lg font-extrabold">كل المتاجر</h2><p className="text-xs text-ink-muted" dir="ltr">All stores in Al-Samou'</p></div>{stores.refreshing ? <Loader2 size={16} className="animate-spin text-brand" aria-label="Refreshing" /> : <ChevronLeft size={18} className="text-ink-subtle" />}</div>
         <div className="space-y-3">
           {stores.loading
@@ -250,7 +260,7 @@ export function SamouGoHome() {
             : cards.map(({ store, category, initials, tint }) => (
                 <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card transition hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={`فتح متجر ${store.nameAr}`}>
                   <div className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-black ${tint}`}>{store.logoUrl ? <img src={store.logoUrl} alt="" className="h-full w-full object-cover" loading="lazy" /> : initials}</div>
-                  <div className="min-w-0 flex-1 text-end"><h3 className="truncate text-sm font-extrabold">{store.nameAr}</h3><p className="truncate text-[11px] text-ink-muted" dir="ltr">{store.nameEn} · {category.en}</p><p className="mt-1 flex items-center gap-2 text-[10px] font-semibold text-ink-muted"><span>يبدأ من</span><DeliveryFee amount={baseFee} variant="inline" /></p></div>
+                  <div className="min-w-0 flex-1 text-end"><h3 className="truncate text-sm font-extrabold">{store.nameAr}</h3><p className="truncate text-[11px] text-ink-muted" dir="ltr">{store.nameEn} · {category.en}</p><p className="mt-1 flex items-center gap-2 text-[10px] font-semibold text-ink-muted"><DeliveryFee amount={baseFee} variant="inline" /></p></div>
                   <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${store.isActive ? 'bg-brand-tint text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{store.isActive ? 'مفتوح' : 'مغلق'}</span>
                 </Link>
               ))}

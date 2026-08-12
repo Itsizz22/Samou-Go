@@ -130,6 +130,8 @@ export const adminUpdateUserSchema = z
     role: z.nativeEnum(UserRole).optional(),
     /** CAPTAIN verification — set by the admin dashboard. */
     isVerified: z.boolean().optional(),
+    /** ADMIN-only. A captain can belong to at most one dedicated store. */
+    assignedStoreId: z.string().min(1).nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message:

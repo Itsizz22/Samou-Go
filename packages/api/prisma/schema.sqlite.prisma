@@ -79,6 +79,11 @@ model User {
   isVerified   Boolean  @default(false)
   /// CAPTAIN self-managed availability — must be on to claim orders.
   isAvailable  Boolean  @default(false)
+  assignedStoreId String?
+  /// Processed avatar URL served by the uploads pipeline (webp, immutable-cached).
+  profileImageUrl String?
+  /// Storage key of the avatar object (never exposed over the API).
+  profileImageKey String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -88,8 +93,10 @@ model User {
   statusChanges  OrderStatusHistory[] @relation("StatusChangedBy")
   refreshTokens  RefreshToken[]
   favorites      Favorite[]           @relation("UserFavorites")
+  assignedStore  Store?               @relation("DedicatedStoreCaptain", fields: [assignedStoreId], references: [id], onDelete: SetNull)
 
   @@index([role, isActive])
+  @@index([assignedStoreId])
   @@map("users")
 }
 
@@ -148,6 +155,9 @@ model Store {
   /// New stores stay hidden from the public catalogue until an admin approves.
   isApproved Boolean  @default(false)
   managerId  String
+  /// Shopfront GPS, when known — powers the captain's "navigate to store".
+  latitude   Float?
+  longitude  Float?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -156,6 +166,7 @@ model Store {
   products   Product[]
   orders     Order[]
   favorites  Favorite[] @relation("StoreFavorites")
+  dedicatedCaptains User[] @relation("DedicatedStoreCaptain")
 
   @@index([managerId])
   @@index([isActive])
@@ -224,6 +235,8 @@ model Order {
   customerAddressText String 
   /// Optional extra directions, e.g. "بجانب مسجد عمر، الطابق الثاني".
   addressNote         String?
+  orderNote           String?
+  estimatedPrepMinutes Int?
 
   subtotal      Decimal      
   deliveryFee   Decimal      
@@ -258,6 +271,7 @@ model OrderItem {
   quantity   Int
   unitPrice  Decimal
   totalPrice Decimal
+  note       String?
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
