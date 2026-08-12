@@ -8,9 +8,9 @@ name: Deploy Production
 # Required GitHub Actions secrets (Settings -> Secrets and variables -> Actions):
 #   DATABASE_URL        Production PostgreSQL connection string (Prisma format).
 #                       Read ONLY from the secret below — never hardcoded.
-#   RENDER_API_KEY     Render API key (https://dashboard.render.com/u/settings#api-keys).
-#   RENDER_SERVICE_ID  ID of the API Web Service (Render service URL suffix).
-#   VERCEL_TOKEN       Vercel access token (https://vercel.com/account/tokens).
+#   RENDER_API_KEY      Render API key (https://dashboard.render.com/u/settings#api-keys).
+#   RENDER_SERVICE_ID   ID of the API Web Service (Render service URL suffix).
+#   VERCEL_TOKEN        Vercel access token (https://vercel.com/account/tokens).
 #
 # Required committed Vercel project links (non-secret, safe to commit): each
 # theme dir needs `themes/web-<name>/.vercel/project.json` holding
@@ -56,8 +56,9 @@ jobs:
       - name: Build API
         run: npm run build --workspace @samou-go/api
 
-      - name: Build Frontend Themes
+      - name: Build Root Workspaces & Frontend Themes
         run: |
+          npm run build
           set -euo pipefail
           for theme in customer store-details checkout order-tracking store-manager captain admin; do
             echo "::group::build:web-$theme"
@@ -107,7 +108,7 @@ jobs:
             echo "::group::vercel:web-$theme"
             (
               cd "themes/web-$theme"
-              npx --yes vercel@latest deploy --prod --yes \
+              npx --yes vercel@latest deploy --prod --yes --skip-build \
                 --token "${{ secrets.VERCEL_TOKEN }}"
             )
             echo "::endgroup::"
