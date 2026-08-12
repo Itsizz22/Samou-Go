@@ -1,0 +1,137 @@
+
+> samou-go@0.1.0 typecheck:all
+> npm run typecheck && tsc -b packages/shared-types packages/ui packages/api
+
+
+> samou-go@0.1.0 typecheck
+> npm run typecheck --workspaces --if-present
+
+
+> @samou-go/api@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+src/modules/orders/orders.service.ts(327,151): error TS1005: ';' expected.
+src/modules/orders/orders.service.ts(327,153): error TS1005: ',' expected.
+src/modules/orders/orders.service.ts(327,154): error TS1138: Parameter declaration expected.
+src/modules/orders/orders.service.ts(327,155): error TS1109: Expression expected.
+src/modules/orders/orders.service.ts(327,156): error TS1128: Declaration or statement expected.
+src/modules/orders/orders.service.ts(327,158): error TS1434: Unexpected keyword or identifier.
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 2
+npm error path C:\Users\Admin\Documents\Samou'Go\packages\api
+npm error workspace @samou-go/api@0.1.0
+npm error location C:\Users\Admin\Documents\Samou'Go\packages\api
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c tsc -p tsconfig.json --noEmit
+
+
+> @samou-go/api-client@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+src/useApi.ts(418,60): error TS1109: Expression expected.
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 2
+npm error path C:\Users\Admin\Documents\Samou'Go\packages\api-client
+npm error workspace @samou-go/api-client@0.1.0
+npm error location C:\Users\Admin\Documents\Samou'Go\packages\api-client
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c tsc -p tsconfig.json --noEmit
+
+
+> @samou-go/shared-types@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @samou-go/ui@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @samou-go/web-customer@0.0.0 typecheck
+> tsc -b
+
+../../packages/api-client/src/useApi.ts(418,60): error TS1109: Expression expected.
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 2
+npm error path C:\Users\Admin\Documents\Samou'Go\themes\web-customer
+npm error workspace @samou-go/web-customer@0.0.0
+npm error location C:\Users\Admin\Documents\Samou'Go\themes\web-customer
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c tsc -b
+
+
+> @samou-go/web-store-details@0.0.0 typecheck
+> tsc -b
+
+../../packages/api-client/src/useApi.ts(418,60): error TS1109: Expression expected.
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 2
+npm error path C:\Users\Admin\Documents\Samou'Go\themes\web-store-details
+npm error workspace @samou-go/web-store-details@0.0.0
+npm error location C:\Users\Admin\Documents\Samou'Go\themes\web-store-details
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c tsc -b
+
+
+> @samou-go/web-checkout@0.0.0 typecheck
+> tsc -b
+
+../../packages/api-client/src/useApi.ts(418,60): error TS1109: Expression expected.
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 2
+npm error path C:\Users\Admin\Documents\Samou'Go\themes\web-checkout
+npm error workspace @samou-go/web-checkout@0.0.0
+npm error location C:\Users\Admin\Documents\Samou'Go\themes\web-checkout
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c tsc -b
+
+
+> @samou-go/web-order-tracking@0.0.0 typecheck
+> tsc -b
+
+../../packages/api-client/src/useApi.ts(418,60): error TS1109: Expression expected.
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 2
+npm error path C:\Users\Admin\Documents\Samou'Go\themes\web-order-tracking
+npm error workspace @samou-go/web-order-tracking@0.0.0
+npm error location C:\Users\Admin\Documents\Samou'Go\themes\web-order-tracking
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c tsc -b
+
+
+> @samou-go/web-store-manager@0.0.0 typecheck
+> tsc -b
+
+../../packages/api-client/src/useApi.ts(418,60): error TS1109: Expression expected.
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 2
+npm error path C:\Users\Admin\Documents\Samou'Go\themes\web-store-manager
+npm error workspace @samou-go/web-store-manager@0.0.0
+npm error location C:\Users\Admin\Documents\Samou'Go\themes\web-store-manager
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c tsc -b
+
+
+> @samou-go/web-captain@0.0.0 typecheck
+> tsc -b
+
+../../packages/api-client/src/useApi.ts(418,60): error TS1109: Expression expected.
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 2
+npm error path C:\Users\Admin\Documents\Samou'Go\themes\web-captain
+npm error workspace @samou-go/web-captain@0.0.0
+npm error location C:\Users\Admin\Documents\Samou'Go\themes\web-captain
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c tsc -b
+
+
+> @samou-go/web-admin@0.0.0 typecheck
+> tsc -b
+
+../../packages/api-client/src/useApi.ts(418,60): error TS1109: Expression expected.
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 2
+npm error path C:\Users\Admin\Documents\Samou'Go\themes\web-admin
+npm error workspace @samou-go/web-admin@0.0.0
+npm error location C:\Users\Admin\Documents\Samou'Go\themes\web-admin
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c tsc -b

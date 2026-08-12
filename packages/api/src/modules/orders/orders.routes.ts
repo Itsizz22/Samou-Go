@@ -49,3 +49,15 @@ ordersRouter.patch(
   authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
   asyncHandler(controller.assignCaptainHandler)
 );
+
+/**
+ * SSE endpoint: GET /api/v1/orders/events/:orderId
+ * Returns a text/event-stream that fires whenever the order status changes.
+ * Works with the `useOrderEvent` hook on any frontend.
+ * Anonymous connections keep the stream alive; auth validates ownership.
+ */
+ordersRouter.get(
+  '/:orderId/events',
+  optionalAuthenticate,
+  asyncHandler(controller.orderEventSSEHandler)
+);

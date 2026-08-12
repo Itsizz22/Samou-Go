@@ -1,4 +1,4 @@
-import { bootstrapApp } from '@samou-go/ui';
+import { AppErrorBoundary, OfflineBanner, bootstrapApp } from '@samou-go/ui';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Toaster } from 'sonner';
@@ -9,9 +9,19 @@ import App from './App.tsx';
 // and global broken-image fallback. Single source of truth in @samou-go/ui.
 bootstrapApp();
 
+  // Register service worker for PWA offline capability.
+  // It will serve the app shell assets from cache and fallback to network for API data.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js').then((reg) => {
+      console.log('SW registered: ', reg);
+    }).catch((err) => {
+      console.error('SW registration failed: ', err);
+    });
+  }
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <AppErrorBoundary><OfflineBanner /><App /></AppErrorBoundary>
     <Toaster />
   </StrictMode>
 );

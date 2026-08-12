@@ -15,7 +15,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@samou-go/shared-types": "*"
+    "@samou-go/shared-types": "*",
+    "socket.io-client": "^4.8.3"
   },
   "peerDependencies": {
     "lucide-react": ">=0.4.0",

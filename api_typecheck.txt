@@ -1,0 +1,5 @@
+packages/api/src/modules/orders/orders.service.ts(327,151): error TS1005: ';' expected.
+packages/api/src/modules/orders/orders.service.ts(327,154): error TS1005: ',' expected.
+packages/api/src/modules/orders/orders.service.ts(327,155): error TS1109: Expression expected.
+packages/api/src/modules/orders/orders.service.ts(327,156): error TS1128: Declaration or statement expected.
+packages/api/src/modules/orders/orders.service.ts(327,158): error TS1434: Unexpected keyword or identifier.

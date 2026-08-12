@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Loader2, RefreshCw, Search as SearchIcon, Store as StoreIcon } from 'lucide-react';
 import { useStores } from '@/hooks/useApi';
 import { ScreenShell } from '@/components/ScreenShell';
@@ -97,12 +98,12 @@ export function SearchScreen() {
           </div>
         ) : (
           results.map(store => (
-            <article key={store.id} className="rounded-2xl bg-surface p-3 shadow-card">
+            <Link key={store.id} to={`/stores/${store.id}`} className="block cursor-pointer rounded-2xl bg-surface p-3 shadow-card transition hover:bg-brand-surface hover:ring-1 hover:ring-brand">
               <h3 className="truncate text-sm font-extrabold text-end">{store.nameAr}</h3>
               <p className="mt-0.5 truncate text-[11px] text-ink-muted" dir="ltr">
                 {store.nameEn}
               </p>
-            </article>
+            </Link>
           ))
         )}
       </section>

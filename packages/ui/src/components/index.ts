@@ -4,3 +4,8 @@ export {
   type BellNotification,
   type NotificationBellProps,
 } from './NotificationBell';
+export {
+  HorizontalScrollGallery,
+  type HorizontalScrollGalleryProps,
+} from './HorizontalScrollGallery';
+export { AppErrorBoundary, OfflineBanner } from './RuntimeSafety';

@@ -12,12 +12,14 @@
  * (`DELIVERED` or `CANCELLED`) — there is nothing left to follow, so the
  * screen stops hitting the API until the user leaves.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, Banknote, CheckCircle2, Loader2, MapPin, RefreshCw, RotateCw, ShoppingCart, StickyNote } from 'lucide-react';
 import { PaymentMethod, OrderStatus } from '@samou-go/shared-types';
 import { useAuth } from '@/hooks/useApi';
 import { useOrder, useToast, reorderOrder } from '@/hooks/useApi';
+import { connectRealtime } from '@samou-go/api-client';
+import { OrderMap } from '@/components/OrderMap';
 import { useCart } from '@/components/CartProvider';
 import { CustomerAuthGate } from '@/components/CustomerAuthGate';
 import { OrderStatusTimeline } from '@/components/OrderStatusTimeline';
@@ -53,6 +55,15 @@ export function OrderTrackingScreen() {
   const cart = useCart();
   const toast = useToast();
   const [reordering, setReordering] = useState(false);
+  const [captainLocation, setCaptainLocation] = useState<{ lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    if (!orderId) return;
+    const socket = connectRealtime();
+    socket.emit('order:join', orderId);
+    socket.on('captain:location', (location: { lat: number; lng: number }) => setCaptainLocation(location));
+    socket.on('order:status_updated', () => void order.refresh());
+    return () => { socket.disconnect(); };
+  }, [orderId, order.refresh]);
 
   const handleReorder = async () => {
     if (reordering || !order.data) return;
@@ -179,6 +190,7 @@ export function OrderTrackingScreen() {
                   <p className="text-[11px] text-ink-muted">{order.data.customerAddressText}</p>
                 </div>
               </section>
+              {order.data.store.latitude !== null && order.data.store.longitude !== null && <section className="rounded-2xl bg-surface p-2 shadow-card"><OrderMap store={{ latitude: order.data.store.latitude, longitude: order.data.store.longitude, name: order.data.store.nameAr }} captain={captainLocation} /></section>}
 
               {/* Items */}
               <section className="rounded-2xl bg-surface p-4 shadow-card">

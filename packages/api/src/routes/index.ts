@@ -15,6 +15,7 @@ import { captainsRouter } from '../modules/captains/captains.routes';
 import { adminRouter } from '../modules/admin/admin.routes';
 import { favoritesRouter } from '../modules/favorites/favorites.routes';
 import { uploadsRouter } from '../uploads/uploads.routes';
+import { platformRouter } from '../modules/platform/platform.routes';
 
 export const apiRouter: Router = Router();
 
@@ -42,3 +43,4 @@ apiRouter.use('/captains', captainsRouter);
 apiRouter.use('/admin', adminRouter);
 apiRouter.use('/favorites', favoritesRouter);
 apiRouter.use('/uploads', uploadsRouter);
+apiRouter.use('/platform', platformRouter);

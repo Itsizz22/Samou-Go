@@ -128,10 +128,6 @@ export function useResource<T>(
         setError(null);
       })
       .catch((cause: unknown) => {
-        // `cancelled` already covers our own cleanup — nothing else should be
-        // swallowed. An abort we did not ask for (a dropped connection, a
-        // navigation race) must surface as an error, otherwise the screen shows
-        // an empty catalogue and the customer thinks Samou' has no shops.
         if (cancelled) return;
         setError(
           cause instanceof ApiError
@@ -152,9 +148,6 @@ export function useResource<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, enabled, nonce]);
 
-  // Polling is a separate effect so a tick reuses the loader above via `reload`.
-  // `data` is a dependency so the moment a fetch returns a terminal payload the
-  // interval is torn down instead of firing once more.
   useEffect(() => {
     if (!enabled || !pollMs) return;
     if (stopWhenRef.current?.(data)) return;
@@ -179,10 +172,6 @@ export interface Mutation<TInput, TResult> {
 
 /**
  * One-shot writes — placing an order, signing in.
- *
- * `run` resolves to `null` instead of throwing, so a submit handler can be
- * written without try/catch; inspect `error` to render the failure. The promise
- * is still awaited, so callers can branch on the result.
  */
 export function useMutation<TInput, TResult>(
   perform: (input: TInput, signal: AbortSignal) => Promise<TResult>
@@ -255,8 +244,7 @@ export function useStore(
 }
 
 /**
- * `GET /stores/:id/full` — full catalogue for the store manager, including
- * unavailable products. Requires STORE_MANAGER (own store) or ADMIN auth.
+ * `GET /stores/:id/full` — full catalogue for the store manager.
  */
 export function useStoreManager(
   storeId: string | null | undefined,
@@ -269,11 +257,7 @@ export function useStoreManager(
   );
 }
 
-/**
- * `GET /orders/:id` — order tracking.
- * Pass `pollMs` to follow the status live; there is no websocket yet. Pass
- * `stopWhen` to halt polling once `data` reaches a terminal status.
- */
+/** `GET /orders/:id` — order tracking. */
 export function useOrder(
   orderId: string | null | undefined,
   options?: ResourceOptions<OrderDetail>
@@ -293,16 +277,12 @@ export function useOrders(
   return useResource(key, (signal) => listOrders(query, signal), options);
 }
 
-/**
- * `GET /favorites` — the signed-in customer's favorite stores.
- * Requires auth; leave `enabled` off (or the sign-in gate up) until the user
- * has a session, otherwise the request 401s pointlessly.
- */
+/** `GET /favorites` — the signed-in customer's favorite stores. */
 export function useFavorites(options?: ResourceOptions<FavoriteListResult>): Resource<FavoriteListResult> {
   return useResource('favorites', (signal) => getFavorites(signal), options);
 }
 
-/** `GET /meta` — the live delivery tariff (free — 0 ₪), so no screen hardcodes it. */
+/** `GET /meta` — the live delivery tariff. */
 export function useApiMeta(options?: ResourceOptions<ApiMeta>): Resource<ApiMeta> {
   return useResource('meta', (signal) => getMeta(signal), options);
 }
@@ -316,10 +296,7 @@ export function useUsers(
   return useResource(key, (signal) => listUsers(query, signal), options);
 }
 
-/**
- * `GET /admin/stats` — the whole admin dashboard in one round-trip.
- * Requires ADMIN. Poll it to keep the KPIs live without any websocket.
- */
+/** `GET /admin/stats` — the admin dashboard. */
 export function useAdminStats(options?: ResourceOptions<AdminStats>): Resource<AdminStats> {
   return useResource('admin-stats', (signal) => getAdminStats(signal), options);
 }
@@ -330,20 +307,140 @@ export function useAdminStats(options?: ResourceOptions<AdminStats>): Resource<A
 
 export interface UploadImageInput {
   kind: UploadKind;
-  /** Product id — required when `kind === 'product'`. */
   resourceId?: string;
-  /** The bytes to upload (a File or a Blob from a canvas). */
   file: Blob;
 }
 
-/**
- * Presign → stream → finalize in one mutation. `run` resolves to the processed
- * upload (`url`/`width`/`height`) or `null` on failure; inspect `error` to
- * render the server's bilingual message.
- */
 export function useUploadImage(): Mutation<UploadImageInput, FinalizeUploadResult> {
   return useMutation<UploadImageInput, FinalizeUploadResult>(
     ({ kind, resourceId, file }, signal) =>
       uploadImage({ kind, resourceId }, file, signal)
   );
+}
+
+/* ---------------------------------------------------------------------------
+ * Real-time SSE Events
+ * ------------------------------------------------------------------------- */
+
+/**
+ * `useOrderEvent` — Server-Sent Events hook that follows a single order's
+ * status changes in real time.
+ */
+export function useOrderEvent(
+  orderId: string | null | undefined,
+  options?: { onUpdate?: (detail: OrderDetail) => void; pollMs?: number }
+): {
+  detail: OrderDetail | null;
+  loading: boolean;
+  refreshing: boolean;
+  error: ApiError | null;
+  reload: () => void;
+} {
+  const [detail, setDetail] = useState<OrderDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<ApiError | null>(null);
+
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  const loadRef = useRef<(signal: AbortSignal) => Promise<OrderDetail>>(
+    (signal) => getOrder(orderId as string, signal)
+  );
+  loadRef.current = (signal) => getOrder(orderId as string, signal);
+
+  const onUpdateRef = useRef(options?.onUpdate);
+  onUpdateRef.current = options?.onUpdate;
+
+  // ——— SSE connection ———
+  useEffect(() => {
+    if (!orderId) return;
+
+    const url = `/api/v1/orders/events/${orderId}?t=${Date.now()}`;
+    const source = new EventSource(url, { withCredentials: true });
+
+    eventSourceRef.current = source;
+
+    source.onopen = () => {
+      setLoading(false);
+      setError(null);
+    };
+
+    source.onmessage = (event) => {
+      try {
+        loadRef
+          .current(new AbortController().signal)
+          .then((updatedDetail) => {
+            setDetail(updatedDetail);
+            if (onUpdateRef.current) {
+              onUpdateRef.current(updatedDetail);
+            }
+          })
+          .catch(() => { /* ignore fetch errors during SSE */ });
+      } catch (e) {
+        // ignore malformed messages
+      }
+    };
+
+    source.onerror = () => {
+      eventSourceRef.current = null;
+      source.close();
+      setError(new ApiError('SSE_ERROR', 'Connection lost — reconnecting…'));
+    };
+
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    };
+  }, [orderId]);
+
+  // ——— polling fallback when SSE is unsupported or fails ———
+  useEffect(() => {
+    if (!orderId || eventSourceRef.current) return;
+    const interval = setInterval(() => {
+      loadRef
+        .current(new AbortController().signal)
+        .then((updatedDetail) => setDetail(updatedDetail))
+        .catch(() => {});
+    }, options?.pollMs ?? 15_000);
+
+    return () => clearInterval(interval);
+  }, [orderId, options?.pollMs]);
+
+  const reload = useCallback(() => {
+    loadRef
+      .current(new AbortController().signal)
+      .then((updatedDetail) => setDetail(updatedDetail))
+      .catch((cause) =>
+        setError(
+          new ApiError(
+            'RELOAD_ERROR',
+            cause instanceof Error ? cause.message : String(cause)
+          )
+        )
+      );
+  }, []);
+
+  return { detail, loading, refreshing, error, reload };
+}
+
+/**
+ * Vibrate the device briefly — used for tap feedback.
+ * Safe to call in the browser; no-op on server-side rendering.
+ */
+export function hapticTap() {
+  if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+    navigator.vibrate(10);
+  }
+}
+
+/**
+ * Vibrate to confirm an action — distinct pattern from hapticTap.
+ * Safe to call in the browser; no-op on server-side rendering.
+ */
+export function hapticConfirm() {
+  if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+    navigator.vibrate([20, 50, 20]);
+  }
 }

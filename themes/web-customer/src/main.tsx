@@ -1,4 +1,4 @@
-import { bootstrapApp } from '@samou-go/ui';
+import { AppErrorBoundary, OfflineBanner, bootstrapApp } from '@samou-go/ui';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
@@ -14,15 +14,21 @@ import { FavoritesProvider } from './components/FavoritesProvider';
 // light-mode lock — ThemeProvider owns the `.dark` class instead.
 bootstrapApp({ allowDarkMode: true });
 
+  // Register service worker for PWA offline capability.
+  // It will serve the app shell assets from cache and fallback to network for API data.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js').then((reg) => {
+      console.log('SW registered: ', reg);
+    }).catch((err) => {
+      console.error('SW registration failed: ', err);
+    });
+  }
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <CartProvider>
-        <FavoritesProvider>
-          <App />
-        </FavoritesProvider>
-      </CartProvider>
-    </BrowserRouter>
+    <AppErrorBoundary><OfflineBanner /><BrowserRouter>
+      <CartProvider><FavoritesProvider><App /></FavoritesProvider></CartProvider>
+    </BrowserRouter></AppErrorBoundary>
     <Toaster />
   </StrictMode>
 );

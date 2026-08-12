@@ -60,6 +60,20 @@ enum VoucherDiscountType {
   FIXED
 }
 
+enum TicketStatus {
+  OPEN
+  RESOLVED
+}
+enum SettlementMethod {
+  CASH
+  BANK_TRANSFER
+}
+enum LedgerEntryType {
+  COMMISSION
+  EARNING
+  SETTLEMENT
+}
+
 // =============================================================================
 // Models
 // =============================================================================
@@ -94,6 +108,13 @@ model User {
   refreshTokens  RefreshToken[]
   favorites      Favorite[]           @relation("UserFavorites")
   assignedStore  Store?               @relation("DedicatedStoreCaptain", fields: [assignedStoreId], references: [id], onDelete: SetNull)
+  captainLocation CaptainLocation?
+  ratingsGiven Rating[] @relation("RatingCustomer")
+  ratingsAsCaptain Rating[] @relation("RatingCaptain")
+  chatMessages ChatMessage[]
+  supportTickets SupportTicket[]
+  wallet Wallet?
+  ledgerEntries LedgerEntry[]
 
   @@index([role, isActive])
   @@index([assignedStoreId])
@@ -167,6 +188,8 @@ model Store {
   orders     Order[]
   favorites  Favorite[] @relation("StoreFavorites")
   dedicatedCaptains User[] @relation("DedicatedStoreCaptain")
+  ratings Rating[]
+  wallet Wallet?
 
   @@index([managerId])
   @@index([isActive])
@@ -255,6 +278,8 @@ model Order {
   voucher       Voucher?             @relation(fields: [voucherId], references: [id], onDelete: Restrict)
   items         OrderItem[]
   statusHistory OrderStatusHistory[]
+  rating Rating?
+  chatMessages ChatMessage[]
 
   @@index([customerId, createdAt])
   @@index([storeId, status])
@@ -360,4 +385,101 @@ model DailyOrderSequence {
   sequence Int      @default(0)
 
   @@map("daily_order_sequences")
+}
+
+model CaptainLocation {
+  id String @id @default(cuid())
+  captainId String @unique
+  lat Float
+  lng Float
+  heading Float?
+  updatedAt DateTime @updatedAt
+  captain User @relation(fields: [captainId], references: [id], onDelete: Cascade)
+  @@map("captain_locations")
+}
+
+model Rating {
+  id String @id @default(cuid())
+  orderId String @unique
+  customerId String
+  storeId String
+  captainId String?
+  storeRating Int
+  captainRating Int?
+  comment String?
+  createdAt DateTime @default(now())
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customer User @relation("RatingCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  captain User? @relation("RatingCaptain", fields: [captainId], references: [id], onDelete: SetNull)
+  @@index([storeId, createdAt])
+  @@index([captainId, createdAt])
+  @@map("ratings")
+}
+
+model ChatMessage {
+  id String @id @default(cuid())
+  orderId String
+  senderId String
+  senderRole UserRole
+  message String
+  createdAt DateTime @default(now())
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  @@index([orderId, createdAt])
+  @@map("chat_messages")
+}
+
+model SupportTicket {
+  id String @id @default(cuid())
+  userId String
+  role UserRole
+  subject String
+  description String
+  status TicketStatus @default(OPEN)
+  createdAt DateTime @default(now())
+  resolvedAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([status, createdAt])
+  @@map("support_tickets")
+}
+
+model Wallet {
+  id String @id @default(cuid())
+  userId String? @unique
+  storeId String? @unique
+  balance Decimal @default(0)
+  commissionRate Decimal @default(0.10)
+  updatedAt DateTime @updatedAt
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store Store? @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  ledgerEntries LedgerEntry[]
+  settlements Settlement[]
+  @@map("wallets")
+}
+
+model LedgerEntry {
+  id String @id @default(cuid())
+  walletId String
+  userId String?
+  amount Decimal
+  type LedgerEntryType
+  description String?
+  createdAt DateTime @default(now())
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([walletId, createdAt])
+  @@map("ledger_entries")
+}
+
+model Settlement {
+  id String @id @default(cuid())
+  walletId String
+  amount Decimal
+  method SettlementMethod
+  note String?
+  createdAt DateTime @default(now())
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  @@index([walletId, createdAt])
+  @@map("settlements")
 }

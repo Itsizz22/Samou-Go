@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { Bell, Check, Globe, Moon, Palette, Sun, type LucideIcon } from 'lucide-react';
+import { Bell, Check, Globe, MapPin, Moon, Palette, Sun, type LucideIcon } from 'lucide-react';
 import { setAppLanguage } from '@samou-go/ui';
 import { ScreenShell } from '@/components/ScreenShell';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -99,6 +99,7 @@ export function SettingsScreen() {
   const [notifications, setNotifications] = useState(() =>
     readBoolean(NOTIFICATIONS_STORAGE_KEY, true)
   );
+  const [locationMessage, setLocationMessage] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -113,7 +114,22 @@ export function SettingsScreen() {
 
   const changeLanguage = (next: 'ar' | 'en') => {
     setLanguage(next);
-    setAppLanguage(next); // flips <html lang/dir> + persists via @samou-go/ui
+    setAppLanguage(next);
+    document.documentElement.lang = next;
+    document.documentElement.dir = next === 'en' ? 'ltr' : 'rtl';
+  };
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationMessage('تحديد الموقع غير مدعوم في هذا المتصفح / Geolocation is unavailable');
+      return;
+    }
+    setLocationMessage('جارٍ تحديد موقعك… / Detecting your location…');
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => setLocationMessage(`تم حفظ موقعك الحالي: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`),
+      () => setLocationMessage('تعذر تحديد الموقع. يرجى السماح بإذن الموقع / Location permission was not granted.'),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 }
+    );
   };
 
   return (
@@ -185,6 +201,13 @@ export function SettingsScreen() {
             onChange={changeLanguage}
             getLabel={(option) => (option === 'ar' ? 'العربية' : 'English')}
           />
+        </SettingsRow>
+
+        <SettingsRow icon={MapPin} titleAr="العناوين والمواقع" titleEn="Saved Addresses & GPS" hint="استخدم موقع الجهاز لتسهيل كتابة عنوان التوصيل">
+          <button type="button" onClick={detectLocation} className="rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-white transition hover:bg-brand-dark">
+            تحديد موقعي الحالي <span dir="ltr">/ Detect Current Location</span>
+          </button>
+          {locationMessage && <p className="mt-2 text-[11px] text-ink-muted" dir="auto">{locationMessage}</p>}
         </SettingsRow>
 
         <SettingsRow
