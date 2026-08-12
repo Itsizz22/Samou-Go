@@ -126,18 +126,13 @@ const h = vi.hoisted(() => {
       update: vi.fn(async ({ where, data }: any) => {
         // Yield to allow the other concurrent promise to interleave.
         await Promise.resolve();
-        // Emulate PostgreSQL optimistic lock: each read captures the current
-        // order status; the write filters on `where.status = capturedStatus`.
-        // If the order was updated concurrently, the filter matches zero rows
-        // → Prisma throws P2025, which we surface as a 409 CONFLICT.
-        // We track claim attempts via a set to ensure exactly one captain succeeds.
-        if (state.order && where.status !== state.order.status) {
-          const err: any = new Error('No Order record matches the filter');
-          err.code = 'P2025';
-          throw err;
-        }
+        
+        // Emulate PostgreSQL optimistic lock: track claim attempts via a set
+        // to ensure exactly one captain succeeds. For captain claims
+        // (where.captainId = nil), use claim tracking; for other
+        // transitions, use status-based optimistic lock.
         if (where.captainId === null) {
-          // Only the first concurrent claim succeeds; subsequent claims get P2025.
+          // Captain claim: only the first concurrent claim succeeds.
           if (h.state._claimTracking.has(where.captainId ?? 'unknown')) {
             const err: any = new Error('No Order record matches the filter');
             err.code = 'P2025';
@@ -145,6 +140,24 @@ const h = vi.hoisted(() => {
           }
           h.state._claimTracking.add(where.captainId ?? 'unknown');
           state.claimedBy = data.captainId;
+          // Build updated order without status check for claims
+          const updated = buildOrder({
+            ...state.order,
+            status: data.status,
+            ...(data.captainId !== undefined ? { captainId: data.captainId } : {}),
+          });
+          state.order = updated;
+          return updated;
+        }
+        
+        // General optimistic lock for non-claim transitions:
+        // the write filters on `where.status = capturedStatus`.
+        // If the order was updated concurrently, the filter matches zero rows
+        // → Prisma throws P2025, which we surface as a 409 CONFLICT.
+        if (state.order && where.status !== state.order.status) {
+          const err: any = new Error('No Order record matches the filter');
+          err.code = 'P2025';
+          throw err;
         }
         const updated = buildOrder({
           ...state.order,

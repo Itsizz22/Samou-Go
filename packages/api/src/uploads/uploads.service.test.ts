@@ -20,6 +20,7 @@ import { HttpError } from '../lib/http-error';
 process.env.UPLOAD_DIR = path.join(tmpdir(), `samou-uploads-test-${Date.now()}`);
 process.env.UPLOAD_MAX_BYTES = '4096';
 process.env.PUBLIC_API_ORIGIN = 'http://localhost:4000';
+process.env.JWT_SECRET = 'test-jwt-secret-for-testing-only';
 
 const h = vi.hoisted(() => {
   const state = {
