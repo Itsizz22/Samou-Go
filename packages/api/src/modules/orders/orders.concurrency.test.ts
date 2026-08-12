@@ -62,6 +62,8 @@ const h = vi.hoisted(() => {
     orderVersion: 0,
     /** Tracks which captain claimed this order (optimistic lock). */
     claimedBy: null as string | null,
+    /** Set of captain IDs that have attempted to claim this order. */
+    claimedCaptains: new Set<string>(),
   };
 
   const buildFakeOrder = (data: any) => {
@@ -130,14 +132,16 @@ const tx = {
         // Emulate PostgreSQL optimistic lock for captain claims.
         // Only the first writer to claim succeeds; subsequent claimants get P2025.
         if (where.captainId === null) {
-          // If this order is already claimed by another captain, reject.
-          if (state.claimedBy !== null) {
+          // If this captain has already claimed, or any captain has claimed, reject.
+          if (h.state.claimedCaptains.has(where.captainId ?? 'unknown') || h.state.claimedBy !== null) {
             const err: any = new Error('No Order record matches the filter');
             err.code = 'P2025';
             throw err;
           }
-          // Mark this order as claimed by the current captain.
-          state.claimedBy = data.captainId;
+          // Mark this captain as having claimed, and mark order as claimed.
+          h.state.claimedCaptains.add(where.captainId ?? 'unknown');
+          h.state.claimedBy = data.captainId;
+          // Build updated order without status check for claims
           const updated = buildOrder({
             ...state.order,
             status: data.status,
@@ -194,6 +198,7 @@ beforeEach(() => {
   h.state.order = null;
   h.state.orderVersion = 0;
   h.state.claimedBy = null;
+  h.state.claimedCaptains = new Set();
   h.state.captainProfile = { id: 'captain-1', isActive: true, isVerified: true, isAvailable: true };
   vi.clearAllMocks();
 });
