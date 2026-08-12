@@ -1249,24 +1249,14 @@ function StoresPanel() {
       refreshing={stores.refreshing}
       onRefresh={() => void stores.reload()}
       headerActions={
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => void window.location.href = '/admin/stores/add'}
-            className="rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white hover:bg-brand-dark transition"
-            aria-label="Add new store"
-          >
-            <Plus size={14} /> إضافة متجر جديد
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="sr-only"
-            aria-label="Choose an image"
-            onChange={(e) => void handleImagePicked(e.target.files?.[0])}
-          />
-        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="sr-only"
+          aria-label="Choose an image"
+          onChange={(e) => void handleImagePicked(e.target.files?.[0])}
+        />
       }
     >
       {selectedStores.size > 0 && (
@@ -1656,14 +1646,6 @@ function CaptainsPanel() {
           <select value={availability} onChange={(event) => setAvailability(event.target.value as 'ALL' | 'ONLINE' | 'OFFLINE')} className="h-9 rounded-xl border border-line bg-canvas px-2 text-xs font-semibold text-ink outline-none focus:border-brand" aria-label="Filter captain availability">
             <option value="ALL">All availability</option><option value="ONLINE">Online</option><option value="OFFLINE">Offline</option>
           </select>
-          <button
-            type="button"
-            onClick={() => void window.location.href = '/admin/captains/add'}
-            className="rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white hover:bg-brand-dark transition"
-            aria-label="Add new delivery captain"
-          >
-            <Plus size={14} /> إضافة سائق جديد
-          </button>
         </div>
       }
     >
