@@ -313,7 +313,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
       <div className="grid gap-4 p-5 lg:grid-cols-2">
         <section className="rounded-2xl border border-line bg-surface p-4 dark:bg-slate-800">
           <h2 className="text-sm font-extrabold">إعدادات النظام</h2><p dir="ltr" className="text-[11px] text-ink-muted">System controls</p>
-          <label className="mt-4 flex items-center justify-between gap-3 text-sm font-bold"><span>التوزيع التلقائي للسائقين</span><button type="button" role="switch" aria-checked={autoAssign} onClick={() => setAutoAssign((value) => !value)} className={`flex h-7 w-12 items-center rounded-full p-1 ${autoAssign ? 'justify-end bg-brand' : 'justify-start bg-line'}`}><span className="h-5 w-5 rounded-full bg-white" /></button></label>
+          <label className="flex items-center justify-between gap-2 text-sm font-bold"><span>التوزيع التلقائي للسائقين</span><button type="button" role="switch" aria-checked={autoAssign} onClick={() => setAutoAssign((value) => !value)} className="flex h-7 w-12 items-center rounded-full p-1 bg-surface transition-colors ${autoAssign ? 'justify-end bg-brand' : 'justify-start bg-line'}"><span className="h-5 w-5 rounded-full bg-white" /></button></label>
         </section>
         <section className="rounded-2xl border border-line bg-surface p-4 dark:bg-slate-800">
           <h2 className="text-sm font-extrabold">المظهر والنسق</h2><p dir="ltr" className="text-[11px] text-ink-muted">Appearance &amp; dark mode</p>
@@ -321,11 +321,11 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
         </section>
         <section className="rounded-2xl border border-line bg-surface p-4 dark:bg-slate-800">
           <h2 className="text-sm font-extrabold">الحساب والأمان</h2><p dir="ltr" className="text-[11px] text-ink-muted">Account &amp; security</p>
-          <div className="mt-3 space-y-2"><input value={name} onChange={(event) => setName(event.target.value)} placeholder="اسم العرض" className="w-full rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900" /><input value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} type="password" placeholder="كلمة المرور الحالية" className="w-full rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900" /><input value={newPassword} onChange={(event) => setNewPassword(event.target.value)} type="password" placeholder="كلمة المرور الجديدة" className="w-full rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900" /><button type="button" disabled={saving} onClick={() => void saveAccount()} className="rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white disabled:opacity-60">حفظ الحساب</button></div>
+          <div className="mt-3 space-y-2"><input value={name} onChange={(event) => setName(event.target.value)} placeholder="اسم العرض" className="rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900 w-[180px]" /><input value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} type="password" placeholder="كلمة المرور الحالية" className="rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900 w-[180px]" /><input value={newPassword} onChange={(event) => setNewPassword(event.target.value)} type="password" placeholder="كلمة المرور الجديدة" className="rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900 w-[180px]" /><button type="button" disabled={saving} onClick={() => void saveAccount()} className="rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white disabled:opacity-60 mt-2">حفظ الحساب</button></div>
         </section>
         <section className="rounded-2xl border border-line bg-surface p-4 dark:bg-slate-800">
           <h2 className="text-sm font-extrabold">رسوم التوصيل الافتراضية</h2><p dir="ltr" className="text-[11px] text-ink-muted">Default delivery fees</p>
-          <div className="mt-3 grid grid-cols-2 gap-2"><label className="text-[11px] font-bold">حصة المتجر<input dir="ltr" inputMode="decimal" value={baseStoreRate} onChange={(event) => setBaseStoreRate(event.target.value)} className="mt-1 w-full rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900" /></label><label className="text-[11px] font-bold">حصة السائق<input dir="ltr" inputMode="decimal" value={captainRate} onChange={(event) => setCaptainRate(event.target.value)} className="mt-1 w-full rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900" /></label></div>
+          <div className="mt-3 grid grid-cols-2 gap-2"><label className="text-[11px] font-bold">حصة المتجر<input dir="ltr" inputMode="decimal" value={baseStoreRate} onChange={(event) => setBaseStoreRate(event.target.value)} className="mt-1 rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900 w-24" /></label><label className="text-[11px] font-bold">حصة السائق<input dir="ltr" inputMode="decimal" value={captainRate} onChange={(event) => setCaptainRate(event.target.value)} className="mt-1 rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900 w-24" /></label></div>
         </section>
       </div>
       <div className="px-5 pb-5"><button type="button" onClick={saveSystemSettings} className="rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-white">حفظ إعدادات النظام والرسوم</button></div>
@@ -415,8 +415,8 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
             <span className="text-[10px] text-ink-subtle">Pipeline data refreshes every 10 seconds.</span>
           </div>
         </div>
-        <section className="mb-5 rounded-2xl border border-line bg-surface p-2 shadow-card" aria-label="خريطة التشغيل المباشرة">
-          <AdminMap />
+        <section className="mb-8 rounded-2xl border border-line bg-surface p-2 shadow-card" aria-label="خريطة التشغيل diretta" style={{zIndex: 10}}>
+          <AdminMap height="h-80" />
         </section>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -1249,14 +1249,24 @@ function StoresPanel() {
       refreshing={stores.refreshing}
       onRefresh={() => void stores.reload()}
       headerActions={
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="sr-only"
-          aria-label="Choose an image"
-          onChange={(e) => void handleImagePicked(e.target.files?.[0])}
-        />
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void window.location.href = '/admin/stores/add'}
+            className="rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white hover:bg-brand-dark transition"
+            aria-label="Add new store"
+          >
+            <Plus size={14} /> إضافة متجر جديد
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            aria-label="Choose an image"
+            onChange={(e) => void handleImagePicked(e.target.files?.[0])}
+          />
+        </div>
       }
     >
       {selectedStores.size > 0 && (
@@ -1646,6 +1656,14 @@ function CaptainsPanel() {
           <select value={availability} onChange={(event) => setAvailability(event.target.value as 'ALL' | 'ONLINE' | 'OFFLINE')} className="h-9 rounded-xl border border-line bg-canvas px-2 text-xs font-semibold text-ink outline-none focus:border-brand" aria-label="Filter captain availability">
             <option value="ALL">All availability</option><option value="ONLINE">Online</option><option value="OFFLINE">Offline</option>
           </select>
+          <button
+            type="button"
+            onClick={() => void window.location.href = '/admin/captains/add'}
+            className="rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white hover:bg-brand-dark transition"
+            aria-label="Add new delivery captain"
+          >
+            <Plus size={14} /> إضافة سائق جديد
+          </button>
         </div>
       }
     >
