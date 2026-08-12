@@ -109,7 +109,7 @@ const h = vi.hoisted(() => {
     };
   };
 
-  const tx = {
+const tx = {
     store: { findUnique: vi.fn(async () => state.store) },
     product: { findMany: vi.fn(async () => state.products) },
     dailyOrderSequence: {
@@ -127,20 +127,17 @@ const h = vi.hoisted(() => {
         // Yield to allow the other concurrent promise to interleave.
         await Promise.resolve();
         
-        // Emulate PostgreSQL optimistic lock: track claim attempts via a set
-        // to ensure exactly one captain succeeds. For captain claims
-        // (where.captainId = nil), use claim tracking; for other
-        // transitions, use status-based optimistic lock.
+        // Emulate PostgreSQL optimistic lock for captain claims.
+        // Only the first writer to claim succeeds; subsequent claimants get P2025.
         if (where.captainId === null) {
-          // Captain claim: only the first concurrent claim succeeds.
-          if (h.state._claimTracking.has(where.captainId ?? 'unknown')) {
+          // If this order is already claimed by another captain, reject.
+          if (state.claimedBy !== null) {
             const err: any = new Error('No Order record matches the filter');
             err.code = 'P2025';
             throw err;
           }
-          h.state._claimTracking.add(where.captainId ?? 'unknown');
+          // Mark this order as claimed by the current captain.
           state.claimedBy = data.captainId;
-          // Build updated order without status check for claims
           const updated = buildOrder({
             ...state.order,
             status: data.status,
@@ -149,9 +146,8 @@ const h = vi.hoisted(() => {
           state.order = updated;
           return updated;
         }
-        
-        // General optimistic lock for non-claim transitions:
-        // the write filters on `where.status = capturedStatus`.
+
+        // Non-claim transitions: filter on `where.status = capturedStatus`.
         // If the order was updated concurrently, the filter matches zero rows
         // → Prisma throws P2025, which we surface as a 409 CONFLICT.
         if (state.order && where.status !== state.order.status) {
@@ -198,7 +194,6 @@ beforeEach(() => {
   h.state.order = null;
   h.state.orderVersion = 0;
   h.state.claimedBy = null;
-  h.state._claimTracking = new Set();
   h.state.captainProfile = { id: 'captain-1', isActive: true, isVerified: true, isAvailable: true };
   vi.clearAllMocks();
 });
