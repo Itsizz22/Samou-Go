@@ -52,6 +52,7 @@
     "test": "npm run test --workspace @samou-go/shared-types"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "typescript": "~5.7.2"
   },
   "dependencies": {
