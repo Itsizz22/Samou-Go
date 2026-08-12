@@ -108,7 +108,7 @@ jobs:
             echo "::group::vercel:web-$theme"
             (
               cd "themes/web-$theme"
-              npx --yes vercel@latest deploy --prod --yes --skip-build \
+              npx --yes vercel@latest deploy --prod --yes \
                 --token "${{ secrets.VERCEL_TOKEN }}"
             )
             echo "::endgroup::"
