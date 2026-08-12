@@ -2,6 +2,19 @@ import { z } from 'zod';
 import { OrderStatus } from '@samou-go/shared-types';
 import { paginationSchema } from '../stores/stores.schemas';
 
+export const modifierOptionSchema = z.object({
+  key: z.string().min(1, 'مفتاح الخيار مطلوب / option key is required'),
+  labelAr: z.string().min(1, 'اسم الخيار بالعربية مطلوب / Arabic label is required'),
+  labelEn: z.string().min(1, 'English label is required'),
+  priceDelta: z.number().finite('سعر التعديل يجب أن يكون رقماً / price delta must be a number'),
+});
+
+export const modifierGroupSchema = z.object({
+  labelAr: z.string().min(1, 'اسم المجموعةRequired / Group name is required'),
+  labelEn: z.string().min(1, 'Group English label is required'),
+  options: z.array(modifierOptionSchema).min(1, 'يجب توفر خيار على الأقل / At least one option required'),
+});
+
 export const orderItemInputSchema = z.object({
   productId: z.string().min(1, 'معرّف المنتج مطلوب / productId is required'),
   quantity: z
@@ -10,6 +23,7 @@ export const orderItemInputSchema = z.object({
     .positive('الكمية يجب أن تكون أكبر من صفر / Quantity must be greater than zero')
     .max(99, 'الحد الأقصى 99 لكل منتج / Maximum 99 per product'),
   note: z.string().trim().max(500).optional(),
+  modifiers: z.array(modifierGroupSchema).optional(),
 });
 
 /**
@@ -49,6 +63,7 @@ export const updateOrderStatusSchema = z.object({
   status: z.nativeEnum(OrderStatus),
   note: z.string().trim().max(500).optional(),
   estimatedPrepMinutes: z.number().int().min(5).max(180).optional(),
+  pin: z.string().trim().optional(),
 });
 
 export const assignCaptainSchema = z.object({

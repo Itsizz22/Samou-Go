@@ -43,16 +43,17 @@ import {
   updateStore,
   useAuth,
   useMutation,
+  useOrderEvent,
   useOrders,
   useStoreManager,
   useStores,
   useToast,
 } from '@samou-go/api-client';
+import { playNewOrderChime } from '@/lib/chime';
 import {
   NotificationBell,
   type BellNotification,
 } from '@samou-go/ui';
-import { playNewOrderChime } from '@/lib/chime';
 import {
   ORDER_STATUS_LABELS,
   OrderStatus,
@@ -102,10 +103,10 @@ function statusBadge(status: OrderStatus): { label: { ar: string; en: string }; 
  * ------------------------------------------------------------------------- */
 
 const QUICK_ACTIONS = [
-  { icon: ClipboardList, ar: 'إدارة القائمة', en: 'Manage Menu' },
-  { icon: BarChart3, ar: 'تقرير المبيعات', en: 'Sales Report' },
-  { icon: Package, ar: 'الطلبات النشطة', en: 'Active Orders' },
-  { icon: Settings, ar: 'إعدادات المتجر', en: 'Store Settings' },
+  { icon: ClipboardList, ar: 'إدارة القائمة', en: 'Manage Menu', tab: 'products' },
+  { icon: BarChart3, ar: 'تقرير المبيعات', en: 'Sales Report', tab: 'reports' },
+  { icon: Package, ar: 'الطلبات النشطة', en: 'Active Orders', tab: 'orders' },
+  { icon: Settings, ar: 'إعدادات المتجر', en: 'Store Settings', tab: 'reports' },
 ] as const;
 
 const BOTTOM_TABS = [
@@ -122,36 +123,36 @@ const BOTTOM_TABS = [
 export function SamouGoStoreManager() {
   const auth = useAuth();
   const toast = useToast();
-  const [isOpen, setIsOpen] = useState(true);
-  const [prepMinutes, setPrepMinutes] = useState(25);
-  const [storeTogglePending, setStoreTogglePending] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>('home');
-  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
-
-  /* ---- Role gate --------------------------------------------------------- */
-
+  /* -- Role gate --------------------------------------------------------- */
   const isManager = auth.user?.role === UserRole.STORE_MANAGER;
 
   /* ---- Resolve the manager's store id ----------------------------------- */
-
-  // A manager may run multiple stores; we show whichever store the API returns
-  // first. All write operations include storeId so this is safe.
   const managedStores = useStores(
     { activeOnly: false, pageSize: 1 },
     { enabled: Boolean(auth.user) && isManager }
   );
   const managedStoreId: string | null =
     managedStores.data?.items.find(s => s.managerId === auth.user?.id)?.id ?? null;
-  const managedStore = useStoreManager(managedStoreId, { enabled: Boolean(auth.user) && isManager });
+  const managedStore = useStoreManager(managedStoreId, { enabled: isManager });
 
-  // The header's open/closed switch is the store's `isActive`, persisted via
-  // PATCH /stores/:id. It starts true (optimistic) and re-syncs once the store
-  // loads so a closed store never shows as open.
-  useEffect(() => {
-    if (!managedStores.data) return;
-    const store = managedStores.data.items.find(s => s.managerId === auth.user?.id);
-    if (store) setIsOpen(store.isActive);
-  }, [managedStores.data, auth.user?.id]);
+  /* -- Real-time order status sync via SSE -- */
+  const { detail: orderDetail, reload } = useOrderEvent(
+    managedStoreId,
+    {
+      onUpdate: (detail) => {
+        playNewOrderChime();
+        reload();
+      },
+    }
+  );
+  /* -- /Real-time order status sync via SSE -- */
+  const [isOpen, setIsOpen] = useState(true);
+  const [prepMinutes, setPrepMinutes] = useState(25);
+  const [storeTogglePending, setStoreTogglePending] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('home');
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+
+  /* -- /Role gate --------------------------------------------------------- */
 
   const handleToggleStore = async () => {
     if (!managedStoreId || storeTogglePending) return;
@@ -396,7 +397,20 @@ export function SamouGoStoreManager() {
   /* ---- Render ------------------------------------------------------------ */
 
   return (
-    <main dir="rtl" className="min-h-screen bg-canvas pb-24 font-sans text-ink">
+    <main dir="rtl" className="min-h-screen bg-canvas pb-24 font-sans text-ink md:pe-60">
+      <aside className="fixed inset-y-0 end-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل مدير المتجر">
+        <p className="px-3 text-lg font-extrabold">Samou' Go</p>
+        <p className="px-3 text-[11px] text-white/70">إدارة المتجر / Store Manager</p>
+        <nav className="mt-8 space-y-1">
+          {BOTTOM_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const selected = activeTab === tab.id;
+            return <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition ${selected ? 'bg-brand text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'}`}>
+              <Icon size={18} /><span>{tab.ar}</span><span dir="ltr" className="text-[10px] font-medium text-white/65">{tab.en}</span>
+            </button>;
+          })}
+        </nav>
+      </aside>
       <header className="bg-brand px-4 pb-4 pt-4 text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="التنقل الرئيسي">
           <button
@@ -619,7 +633,7 @@ export function SamouGoStoreManager() {
             <button
               key={action.en}
               type="button"
-              onClick={() => toast.info(`${action.ar}`, `${action.en}`)}
+              onClick={() => setActiveTab(action.tab)}
               className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 text-end shadow-card transition hover:border-brand-tint hover:bg-brand-surface focus:outline-none focus:ring-2 focus:ring-brand/30"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
@@ -798,7 +812,7 @@ export function SamouGoStoreManager() {
       )}
 
       <nav
-        className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface px-3 safe-bottom pt-2 shadow-raised"
+        className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface px-3 safe-bottom pt-2 shadow-raised md:hidden"
         aria-label="التنقل السفلي"
       >
         <div className="mx-auto flex max-w-md items-center justify-around">

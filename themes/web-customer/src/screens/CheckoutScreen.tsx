@@ -220,7 +220,7 @@ export function CheckoutScreen() {
 
     setPlacing(true);
     try {
-      const order = await createOrder({
+      await createOrder({
         storeId: cart.storeId,
         items,
         customerAddressText: finalText,
@@ -231,7 +231,7 @@ export function CheckoutScreen() {
       });
       await hapticSuccess();
       cart.clear();
-      navigate(`/orders/${order.id}`);
+      navigate('/');
     } catch (cause) {
       const apiError =
         cause instanceof Error && 'code' in (cause as ApiError)

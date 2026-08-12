@@ -12,9 +12,10 @@ import { AlertTriangle, ArrowRight, Heart, Loader2, Minus, Plus, RefreshCw, Shop
 import { useCart } from '@/components/CartProvider';
 import { useFavorites } from '@/components/FavoritesProvider';
 import { useStore } from '@/hooks/useApi';
+import { HorizontalScrollGallery } from '@samou-go/ui';
 import { ProductRowSkeleton, Skeleton } from '@/components/Skeleton';
 import { formatCurrency } from '@/lib/delivery';
-import { hapticConfirm, hapticTap } from '@/lib/haptics';
+import { hapticConfirm, hapticTap, useOrderEvent } from '@/hooks/useApi';
 import { PageTransition } from '@/components/PageTransition';
 
 export function StoreDetailScreen() {
@@ -23,6 +24,14 @@ export function StoreDetailScreen() {
   const store = useStore(storeId);
   const cart = useCart();
   const favorites = useFavorites();
+  const { detail: orderDetail, reload, error } = useOrderEvent(storeId, {
+    onUpdate: (detail) => {
+      // Status changed — could play a soft feedback or just re-render
+      // For now, we re-fetch via reload; the UI will update automatically
+      // since the detail is derived from the same store query.
+      // Uncomment to play chime: hapticConfirm();
+    },
+  });
 
   const handleToggleFavorite = async () => {
     const toggled = await favorites.toggle(storeId);
@@ -153,10 +162,13 @@ export function StoreDetailScreen() {
           </div>
         </header>
 
-        {/* Sticky category bar */}
-        <nav
-          className="sticky-header flex gap-2 overflow-x-auto border-b border-line bg-surface/95 px-4 py-2 backdrop-blur scrollbar-none"
-          aria-label="فئات المتجر / Categories"
+        {/* Quick-browse rail — horizontal scrollable categories */}
+        <HorizontalScrollGallery
+          titleAr="فئات المتجر"
+          titleEn="Categories"
+          ariaLabel="فئات المتجر"
+          trackClassName="gap-2"
+          showArrows={categories.length > 1}
         >
           {categories.map((category) => (
             <button
@@ -167,16 +179,14 @@ export function StoreDetailScreen() {
                 void hapticTap();
               }}
               aria-pressed={category.id === active}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
-                category.id === active
-                  ? 'bg-brand text-white'
-                  : 'bg-canvas text-ink-muted'
+              className={`flex shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                category.id === active ? 'bg-brand text-white' : 'bg-canvas text-ink-muted'
               }`}
             >
               {category.nameAr}
             </button>
           ))}
-        </nav>
+        </HorizontalScrollGallery>
 
         <div className="mx-auto max-w-md px-5 pt-5">
           {products.length === 0 ? (

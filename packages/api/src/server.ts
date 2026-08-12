@@ -2,6 +2,7 @@ import type { Server } from 'node:http';
 import { createApp } from './app';
 import { env } from './config/env';
 import { disconnectPrisma } from './lib/prisma';
+import { attachRealtime } from './realtime';
 
 const app = createApp();
 
@@ -16,6 +17,7 @@ const server: Server = app.listen(env.port, '0.0.0.0', () => {
       `Free delivery — fee 0 ₪, total = items subtotal`
   );
 });
+attachRealtime(server);
 
 /**
  * Graceful shutdown: stop accepting connections, let in-flight requests finish,

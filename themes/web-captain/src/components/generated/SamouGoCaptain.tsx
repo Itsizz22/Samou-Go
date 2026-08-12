@@ -32,9 +32,11 @@ import {
   updateProfile,
   useAuth,
   useMutation,
+  useOrderEvent,
   useOrder,
   useOrders,
   useToast,
+  connectRealtime,
 } from '@samou-go/api-client';
 import {
   NotificationBell,
@@ -53,6 +55,7 @@ import {
   type UpdateProfileInput,
 } from '@samou-go/shared-types';
 import { FREE_DELIVERY_LABEL } from '@/lib/delivery';
+import { CaptainMap } from '@/components/CaptainMap';
 
 /* ---------------------------------------------------------------------------
  * Helpers
@@ -158,6 +161,16 @@ export function SamouGoCaptain() {
   );
 
   const activeOrderDetail = useOrder(activeItems[0]?.id, { enabled: Boolean(auth.user) && isCaptain, pollMs: 10_000 });
+
+  useEffect(() => {
+    if (!isCaptain || !activeItems[0]?.id || !navigator.geolocation) return;
+    const socket = connectRealtime();
+    const orderId = activeItems[0].id;
+    const watchId = navigator.geolocation.watchPosition((position) => {
+      socket.emit('captain:location', { orderId, lat: position.coords.latitude, lng: position.coords.longitude, heading: position.coords.heading ?? undefined });
+    }, () => undefined, { enableHighAccuracy: true, maximumAge: 5_000 });
+    return () => { navigator.geolocation.clearWatch(watchId); socket.disconnect(); };
+  }, [activeItems, isCaptain]);
 
   const completedToday = useMemo(() => {
     const today = new Date().toDateString();
@@ -535,7 +548,20 @@ export function SamouGoCaptain() {
   /* ---- Render ------------------------------------------------------------ */
 
   return (
-    <main dir="rtl" className="min-h-screen bg-canvas pb-24 font-sans text-ink">
+    <main dir="rtl" className="min-h-screen bg-canvas pb-24 font-sans text-ink md:pe-60">
+      <aside className="fixed inset-y-0 end-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل الكابتن">
+        <p className="px-3 text-lg font-extrabold">Samou' Go</p>
+        <p className="px-3 text-[11px] text-white/70">الكابتن / Captain</p>
+        <nav className="mt-8 space-y-1">
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const selected = activeTab === item.id;
+            return <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition ${selected ? 'bg-brand text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'}`}>
+              <Icon size={18} /><span>{item.label}</span><span dir="ltr" className="text-[10px] font-medium text-white/65">{item.english}</span>
+            </button>;
+          })}
+        </nav>
+      </aside>
       <header className="bg-brand px-4 pb-4 pt-3 text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Captain navigation">
           <button type="button" aria-label="Profile" className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-surface/15 transition hover:bg-surface/25">
@@ -735,6 +761,7 @@ export function SamouGoCaptain() {
 
             {activeItems.length > 0 && activeOrderDetail.data ? (
               <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
+                {activeOrderDetail.data.store.latitude !== null && activeOrderDetail.data.store.longitude !== null && <CaptainMap latitude={activeOrderDetail.data.store.latitude} longitude={activeOrderDetail.data.store.longitude} label={activeOrderDetail.data.store.nameAr} />}
                 <div className="flex items-center justify-between">
                   <span className="rounded-full bg-warning-tint px-2.5 py-1 text-[10px] font-extrabold text-warning-ink">
                     توصيل جاري <span dir="ltr">/ Active route</span>
@@ -817,7 +844,7 @@ export function SamouGoCaptain() {
         )}
       </div>
 
-      <nav className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface/95 px-2 pb-[max(9px,env(safe-area-inset-bottom))] pt-2 shadow-raised backdrop-blur" aria-label="Bottom navigation">
+      <nav className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface/95 px-2 pb-[max(9px,env(safe-area-inset-bottom))] pt-2 shadow-raised backdrop-blur md:hidden" aria-label="Bottom navigation">
         <div className="mx-auto flex max-w-md items-center justify-around" dir="rtl">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;

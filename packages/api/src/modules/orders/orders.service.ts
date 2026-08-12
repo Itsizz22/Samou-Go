@@ -29,7 +29,7 @@ import type {
 } from './orders.schemas';
 
 /** The relation graph `toOrderDetail` expects. */
-const DETAIL_INCLUDE = {
+export const DETAIL_INCLUDE = {
   items: { include: { product: true } },
   customer: true,
   store: true,
@@ -38,7 +38,7 @@ const DETAIL_INCLUDE = {
   statusHistory: { orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.OrderInclude;
 
-const SUMMARY_INCLUDE = {
+export const SUMMARY_INCLUDE = {
   items: {
     select: {
       quantity: true,
@@ -291,13 +291,22 @@ export async function createOrder(
         voucherId: voucher?.id ?? null,
         paymentMethod: PaymentMethod.COD,
         items: {
-          create: lines.map(line => ({
-            productId: line.productId,
-            quantity: line.quantity,
-            unitPrice: line.unitPrice,
-            totalPrice: lineTotal(line.unitPrice, line.quantity),
-            note: body.items.find(item => item.productId === line.productId)?.note ?? null,
-          })),
+          create: lines.map(line => {
+            const itemSource = body.items.find((it: CreateOrderBody['items'][number]) => it.productId === line.productId);
+            return {
+              productId: line.productId,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              totalPrice: lineTotal(line.unitPrice, line.quantity),
+              note: itemSource?.note ?? null,
+              // Append modifier summary to note if present, for display in order detail
+              ...(itemSource?.modifiers
+                ? itemSource?.note
+                  ? { note: `${itemSource.note} | ${modifierSummary(itemSource.modifiers)}` }
+                  : { note: modifierSummary(itemSource.modifiers) }
+                : {}),
+            };
+          }),
         },
         statusHistory: {
           create: {
@@ -312,6 +321,18 @@ export async function createOrder(
 
     return toOrderDetail(order);
   });
+}
+
+/** Reduce a modifier group to a short Arabic/English summary string. */
+function modifierSummary(modifiers: readonly { labelAr: string; labelEn: string; options: readonly { key: string; labelAr: string; labelEn: string }[] }[]): string {
+  const parts: string[] = [];
+  for (const group of modifiers) {
+    const opt = group.options[0]; // take the first selected option
+    if (opt) {
+      parts.push(opt.labelAr);
+    }
+  }
+  return parts.join(' / ') || 'مخصص';
 }
 
 /* ---------------------------------------------------------------------------
@@ -382,7 +403,7 @@ export async function listOrders(
   };
 }
 
-async function loadOrderOrThrow(orderId: string) {
+export async function loadOrderOrThrow(orderId: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: DETAIL_INCLUDE,
@@ -391,7 +412,7 @@ async function loadOrderOrThrow(orderId: string) {
   return order;
 }
 
-async function assertCanView(
+export async function assertCanView(
   order: { customerId: string; storeId: string; captainId: string | null; status: OrderStatus },
   actor: { sub: string; role: UserRole }
 ): Promise<void> {
@@ -483,21 +504,21 @@ export async function updateOrderStatus(
   if (current === next) {
     throw badState(
       'STATUS_UNCHANGED',
-      `الطلب بالفعل في حالة "${ORDER_STATUS_LABELS[next].ar}" / Order is already ${ORDER_STATUS_LABELS[next].en}`
+      `الطلب بالفعل في حالة "${ORDER_STATUS_LABELS[next as OrderStatus].ar}" / Order is already ${ORDER_STATUS_LABELS[next as OrderStatus].en}`
     );
   }
 
   if (isTerminalOrderStatus(current)) {
     throw badState(
       'ORDER_CLOSED',
-      `الطلب مُغلق (${ORDER_STATUS_LABELS[current].ar}) ولا يمكن تعديله / Order is closed and cannot change`
+      `الطلب مُغلق (${ORDER_STATUS_LABELS[current as OrderStatus].ar}) ولا يمكن تعديله / Order is closed and cannot change`
     );
   }
 
   if (!canTransitionOrderStatus(current, next)) {
     throw badState(
       'ILLEGAL_TRANSITION',
-      `لا يمكن الانتقال من "${ORDER_STATUS_LABELS[current].ar}" إلى "${ORDER_STATUS_LABELS[next].ar}" / Illegal transition ${current} → ${next}`
+      `لا يمكن الانتقال من "${ORDER_STATUS_LABELS[current as OrderStatus].ar}" إلى "${ORDER_STATUS_LABELS[next as OrderStatus].ar}" / Illegal transition ${current} → ${next}`
     );
   }
 

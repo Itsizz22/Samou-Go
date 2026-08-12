@@ -1,18 +1,19 @@
-import { Theme } from './settings/types';
+import { useEffect } from 'react';
 import { SamouGoAdminDashboard } from './components/generated/SamouGoAdminDashboard';
-
-const theme: Theme = 'light';
+import { ADMIN_DARK_STORAGE_KEY } from './components/DarkModeToggle';
 
 function App() {
-  function setTheme(theme: Theme) {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+  // Apply the stored dark-mode preference on boot. The in-dashboard
+  // DarkModeToggle keeps the class + storage in sync afterwards.
+  useEffect(() => {
+    let dark = false;
+    try {
+      dark = window.localStorage.getItem(ADMIN_DARK_STORAGE_KEY) === '1';
+    } catch {
+      /* Private mode — light default. */
     }
-  }
-
-  setTheme(theme);
+    document.documentElement.classList.toggle('dark', dark);
+  }, []);
 
   return <SamouGoAdminDashboard />;
 }
