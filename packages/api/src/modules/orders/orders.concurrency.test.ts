@@ -57,7 +57,7 @@ const h = vi.hoisted(() => {
 
     /* updateOrderStatus path */
     order: buildOrder(),
-    captainProfile: { id: 'captain-1', isActive: true, isVerified: true, isAvailable: true },
+    captainProfile: { id: 'captain-1', isActive: true, isVerified: true, isAvailable: true, assignedStoreId: null },
     /** Simulates PostgreSQL row version for optimistic locking. */
     orderVersion: 0,
     /** Tracks which captain claimed this order (optimistic lock). */
@@ -199,7 +199,7 @@ beforeEach(() => {
   h.state.orderVersion = 0;
   h.state.claimedBy = null;
   h.state.claimedCaptains = new Set();
-  h.state.captainProfile = { id: 'captain-1', isActive: true, isVerified: true, isAvailable: true };
+  h.state.captainProfile = { id: 'captain-1', isActive: true, isVerified: true, isAvailable: true, assignedStoreId: null };
   vi.clearAllMocks();
 });
 
