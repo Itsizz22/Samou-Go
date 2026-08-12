@@ -1,0 +1,4 @@
+{
+  "installCommand": "echo 'Skipping install on Vercel'",
+  "buildCommand": "echo 'Skipping build on Vercel'"
+}
