@@ -10,7 +10,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Minus, Plus, RefreshCw, ShoppingBag, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/components/CartProvider';
-import { formatCurrency, calculateDeliveryFee, DEFAULT_DELIVERY_FEE_CONFIG } from '@/lib/delivery';
+import { formatCurrency, calculateDeliveryFee, DEFAULT_DELIVERY_FEE_CONFIG, isFreeDelivery, FREE_DELIVERY_LABEL, deliveryFeeLabel } from '@/lib/delivery';
 import { hapticTap } from '@/lib/haptics';
 import { PageTransition } from '@/components/PageTransition';
 import { SkeletonGrid, ProductRowSkeleton } from '@/components/Skeleton';
@@ -21,6 +21,7 @@ export function CartScreen() {
 
   const deliveryFee = calculateDeliveryFee(cart.itemCount, DEFAULT_DELIVERY_FEE_CONFIG);
   const total = cart.subtotal + deliveryFee;
+  const deliveryFree = isFreeDelivery(deliveryFee);
 
   return (
     <PageTransition>
@@ -95,6 +96,13 @@ export function CartScreen() {
                         <p className="mt-0.5 text-xs font-bold text-brand-dark" dir="ltr">
                           {formatCurrency(line.product.price)}
                         </p>
+                        <input
+                          value={line.note}
+                          onChange={(event) => cart.setNote(line.productId, event.target.value.slice(0, 500))}
+                          placeholder="ملاحظة للصنف / Item note"
+                          aria-label={`Item note for ${line.product.nameAr}`}
+                          className="mt-2 w-full rounded-lg border border-line bg-canvas px-2 py-1.5 text-[10px] text-ink outline-none focus:border-brand"
+                        />
                       </div>
                       <div className="flex shrink-0 items-center gap-2 rounded-full bg-brand px-1.5 py-1 text-white">
                         <button
@@ -142,8 +150,12 @@ export function CartScreen() {
                   <span dir="ltr" className="font-bold text-ink">{formatCurrency(cart.subtotal)}</span>
                 </div>
                 <div className="mt-2 flex justify-between text-xs text-ink-muted">
-                  <span>رسوم التوصيل</span>
-                  <span dir="ltr" className="font-bold text-ink">{formatCurrency(deliveryFee)}</span>
+                  <span>{deliveryFeeLabel('both')}</span>
+                  <span dir="ltr" className="font-bold text-brand-dark">
+                    {deliveryFree
+                      ? `${FREE_DELIVERY_LABEL.ar} / ${FREE_DELIVERY_LABEL.en}`
+                      : formatCurrency(deliveryFee)}
+                  </span>
                 </div>
                 <div className="mt-3 flex justify-between border-t border-line pt-3 text-sm">
                   <span className="font-extrabold">الإجمالي</span>

@@ -39,7 +39,13 @@ const DETAIL_INCLUDE = {
 } satisfies Prisma.OrderInclude;
 
 const SUMMARY_INCLUDE = {
-  items: { select: { quantity: true } },
+  items: {
+    select: {
+      quantity: true,
+      note: true,
+      product: { select: { nameAr: true } },
+    },
+  },
   store: { select: { nameAr: true } },
 } satisfies Prisma.OrderInclude;
 
@@ -182,7 +188,7 @@ async function priceBasket(
  */
 export async function quoteOrder(body: QuoteOrderBody): Promise<OrderQuote> {
   const lines = await priceBasket(prisma, body.storeId, body.items);
-  const totals = calculateOrderTotals(lines, env.deliveryFeeConfig);
+  const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, body.deliveryRegion);
 
   if (totals.subtotal <= 0) {
     throw unprocessable('EMPTY_BASKET', 'السلة فارغة / The basket is empty');
@@ -223,7 +229,7 @@ export async function createOrder(
     // If any step throws, the whole unit rolls back — no order, no items,
     // no voucher redemption, no partial financials.
     const lines = await priceBasket(tx, body.storeId, body.items);
-    const totals = calculateOrderTotals(lines, env.deliveryFeeConfig);
+    const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, body.deliveryRegion);
 
     if (totals.subtotal <= 0) {
       throw unprocessable('EMPTY_BASKET', 'السلة فارغة / The basket is empty');
@@ -277,6 +283,7 @@ export async function createOrder(
         status: OrderStatus.PENDING,
         customerAddressText: body.customerAddressText,
         addressNote: body.addressNote ?? null,
+        orderNote: body.orderNote ?? null,
         subtotal: totals.subtotal,
         deliveryFee: totals.deliveryFee,
         discount,
@@ -289,6 +296,7 @@ export async function createOrder(
             quantity: line.quantity,
             unitPrice: line.unitPrice,
             totalPrice: lineTotal(line.unitPrice, line.quantity),
+            note: body.items.find(item => item.productId === line.productId)?.note ?? null,
           })),
         },
         statusHistory: {
@@ -328,7 +336,8 @@ async function visibilityScope(
       return {
         OR: [
           { captainId: actor.sub },
-          { captainId: null, status: { in: [OrderStatus.READY_FOR_PICKUP] } },
+          { captainId: null, status: { in: [OrderStatus.READY_FOR_PICKUP] }, store: { dedicatedCaptains: { none: {} } } },
+          { captainId: null, status: { in: [OrderStatus.READY_FOR_PICKUP] }, store: { dedicatedCaptains: { some: { id: actor.sub } } } },
         ],
       };
     case UserRole.ADMIN:
@@ -439,7 +448,7 @@ export async function reorderOrder(
       skipped += 1;
       continue;
     }
-    items.push({ product: toProduct(product), quantity: item.quantity });
+    items.push({ product: toProduct(product), quantity: item.quantity, ...(item.note ? { note: item.note } : {}) });
   }
 
   return {
@@ -498,6 +507,11 @@ export async function updateOrderStatus(
     );
   }
 
+  if (body.estimatedPrepMinutes !== undefined &&
+    (actor.role !== UserRole.STORE_MANAGER || current !== OrderStatus.PENDING || next !== OrderStatus.ACCEPTED)) {
+    throw badState('PREP_ESTIMATE_NOT_ALLOWED', 'مدة التحضير تُحدَّد عند قبول المتجر للطلب فقط / Prep time is set only when the store accepts an order');
+  }
+
   // Ownership rules that the generic role table cannot express.
   if (actor.role === UserRole.CUSTOMER) {
     if (order.customerId !== actor.sub) {
@@ -530,7 +544,7 @@ export async function updateOrderStatus(
   if (isClaimAttempt) {
     const captain = await prisma.user.findUnique({
       where: { id: actor.sub },
-      select: { id: true, isActive: true, isVerified: true, isAvailable: true },
+      select: { id: true, isActive: true, isVerified: true, isAvailable: true, assignedStoreId: true },
     });
     if (!captain || !captain.isActive) {
       throw unprocessable(
@@ -549,6 +563,9 @@ export async function updateOrderStatus(
         'CAPTAIN_OFFLINE',
         'ضع حالتك على "متاح" لاستقبال الطلبات / Set your status to Available before accepting orders'
       );
+    }
+    if (captain.assignedStoreId !== null && captain.assignedStoreId !== order.storeId) {
+      throw forbidden('هذا الطلب مخصص لمتجر آخر / This order belongs to another store');
     }
   }
 
@@ -576,6 +593,7 @@ export async function updateOrderStatus(
         },
         data: {
           status: next,
+          ...(body.estimatedPrepMinutes !== undefined ? { estimatedPrepMinutes: body.estimatedPrepMinutes } : {}),
           ...(assignCaptainOnClaim ? { captainId: actor.sub } : {}),
           statusHistory: {
             create: {
@@ -634,7 +652,7 @@ export async function assignCaptain(
 
   const captain = await prisma.user.findUnique({
     where: { id: body.captainId },
-    select: { id: true, role: true, isActive: true, isVerified: true },
+    select: { id: true, role: true, isActive: true, isVerified: true, assignedStoreId: true },
   });
 
   if (!captain || captain.role !== UserRole.CAPTAIN) {
@@ -648,6 +666,9 @@ export async function assignCaptain(
       'CAPTAIN_UNVERIFIED',
       'الكابتن غير موثّق بعد — وثّق الحساب أولاً / Captain is not verified yet — verify the account first'
     );
+  }
+  if (captain.assignedStoreId !== null && captain.assignedStoreId !== order.storeId) {
+    throw unprocessable('CAPTAIN_STORE_MISMATCH', 'الكابتن مخصص لمتجر آخر / Captain is dedicated to another store');
   }
 
   const updated = await prisma.order.update({

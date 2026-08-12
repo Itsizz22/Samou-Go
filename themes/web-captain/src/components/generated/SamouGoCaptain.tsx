@@ -19,6 +19,8 @@ import {
   Package,
   Phone,
   RefreshCw,
+  StickyNote,
+  Store as StoreIcon,
   UserRound,
   WalletCards,
   X,
@@ -30,6 +32,7 @@ import {
   updateProfile,
   useAuth,
   useMutation,
+  useOrder,
   useOrders,
   useToast,
 } from '@samou-go/api-client';
@@ -49,6 +52,7 @@ import {
   type UpdateOrderStatusInput,
   type UpdateProfileInput,
 } from '@samou-go/shared-types';
+import { FREE_DELIVERY_LABEL } from '@/lib/delivery';
 
 /* ---------------------------------------------------------------------------
  * Helpers
@@ -78,6 +82,29 @@ const NAV_ITEMS = [
   { id: 'earnings', label: 'الأرباح', english: 'Earnings', icon: WalletCards },
   { id: 'account', label: 'حسابي', english: 'Account', icon: UserRound },
 ] as const;
+
+/** Captain's flat earnings per completed delivery, in ILS. */
+const CAPTAIN_RATE_PER_DELIVERY = 3;
+
+/* ---- Google Maps navigation ---------------------------------------------- */
+
+/** Directions to a coordinate pair, e.g. the store. Falls back to a query when a coordinate is missing. */
+function mapsDirections(destination: { latitude: number | null; longitude: number | null; label: string }): string {
+  const hasCoords =
+    typeof destination.latitude === 'number' &&
+    typeof destination.longitude === 'number' &&
+    Number.isFinite(destination.latitude) &&
+    Number.isFinite(destination.longitude);
+  const target = hasCoords
+    ? `${destination.latitude},${destination.longitude}`
+    : `${destination.label}, Al-Samou', Hebron`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(target)}`;
+}
+
+/** Directions to a customer landing (Samou' has no customer GPS, so it uses the free-text address). */
+function mapsDirectionsToAddress(addressText: string): string {
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${addressText}, Al-Samou', Hebron`)}`;
+}
 
 /* ---------------------------------------------------------------------------
  * Main
@@ -117,7 +144,7 @@ export function SamouGoCaptain() {
 
   // Today's completed deliveries — total count for earnings.
   const completedOrders = useOrders(
-    { status: OrderStatus.DELIVERED, pageSize: 1 },
+    { status: OrderStatus.DELIVERED, pageSize: 100 },
     { enabled: Boolean(auth.user) && isCaptain }
   );
 
@@ -130,11 +157,20 @@ export function SamouGoCaptain() {
     [activeOrders.data]
   );
 
-  const todayDeliveries = completedOrders.data?.total ?? 0;
+  const activeOrderDetail = useOrder(activeItems[0]?.id, { enabled: Boolean(auth.user) && isCaptain, pollMs: 10_000 });
+
+  const completedToday = useMemo(() => {
+    const today = new Date().toDateString();
+    return (completedOrders.data?.items ?? []).filter((order) => new Date(order.createdAt).toDateString() === today);
+  }, [completedOrders.data]);
+
+  const todayDeliveries = completedToday.length;
+  const todayCash = useMemo(() => completedToday.reduce((total, order) => total + order.totalAmount, 0), [completedToday]);
   const todayEarnings = useMemo(() => {
-    // Approximate — delivered orders total from the summary
-    return activeItems.reduce((sum, o) => sum + o.deliveryFee, 0) + todayDeliveries * 3;
-  }, [activeItems, todayDeliveries]);
+    // Delivery fees are FREE platform-wide (0 ₪), so the captain's earnings are
+    // the flat per-delivery rate, not a share of any delivery fee.
+    return todayDeliveries * CAPTAIN_RATE_PER_DELIVERY;
+  }, [todayDeliveries]);
 
   /* ---- New available-order toast ------------------------------------------ */
 
@@ -256,7 +292,7 @@ export function SamouGoCaptain() {
           id: `ready:${order.id}`,
           ar: `طلب جاهز للاستلام — ${order.storeNameAr}`,
           en: 'Order ready for pickup',
-          caption: `${time.ar} · ${order.deliveryFee} ₪`,
+          caption: `${time.ar} · ${FREE_DELIVERY_LABEL.ar}`,
           tone: 'brand',
         };
       }),
@@ -346,6 +382,10 @@ export function SamouGoCaptain() {
           {todayDeliveries} توصيلات <b dir="ltr" className="font-normal">/ {todayDeliveries} Deliveries</b>
         </span>
       </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/20 pt-3 text-[11px]">
+        <span>النقد المحصّل <b dir="ltr" className="block mt-1 text-base">₪{todayCash.toFixed(2)}</b></span>
+        <span>عمولتك <b dir="ltr" className="block mt-1 text-base">₪{todayEarnings.toFixed(2)}</b></span>
+      </div>
     </section>
   );
 
@@ -407,7 +447,7 @@ export function SamouGoCaptain() {
                         </p>
                       </div>
                       <span dir="ltr" className="rounded-lg bg-brand-tint px-2.5 py-1 text-[12px] font-black text-brand-dark">
-                        {order.deliveryFee} ₪
+                        {FREE_DELIVERY_LABEL.en}
                       </span>
                     </div>
                     <div className="mt-3 flex items-center justify-between text-[11px] text-ink-muted">
@@ -582,8 +622,10 @@ export function SamouGoCaptain() {
                           </p>
                         </div>
                         <div className="text-start">
-                          <p dir="ltr" className="text-lg font-black text-brand-dark">₪{order.deliveryFee}</p>
-                          <p className="text-[10px] text-ink-muted">delivery fee</p>
+                          <p dir="ltr" className="text-lg font-black text-brand-dark">
+                            {FREE_DELIVERY_LABEL.en}
+                          </p>
+                          <p className="text-[10px] text-ink-muted">{FREE_DELIVERY_LABEL.ar}</p>
                         </div>
                       </div>
                       <div className="mt-4 flex items-center gap-2" aria-label="Delivery status">
@@ -599,7 +641,57 @@ export function SamouGoCaptain() {
                           <span dir="ltr">On the Way</span>
                         </div>
                       </div>
+                      {activeOrderDetail.data?.id === order.id &&
+                        (activeOrderDetail.data.orderNote ||
+                          activeOrderDetail.data.items.some((item) => item.note)) && (
+                          <div className="mt-3 space-y-1.5 rounded-xl bg-brand-surface px-3 py-2 text-[11px] text-ink-soft">
+                            {activeOrderDetail.data.orderNote && (
+                              <p className="flex items-start gap-1.5 font-semibold text-ink">
+                                <StickyNote size={12} className="mt-0.5 shrink-0 text-brand" />
+                                <span>{activeOrderDetail.data.orderNote}</span>
+                              </p>
+                            )}
+                            {activeOrderDetail.data.items
+                              .filter((item) => item.note)
+                              .map((item) => (
+                                <p key={item.id} className="flex items-start gap-1.5">
+                                  <StickyNote size={12} className="mt-0.5 shrink-0 text-brand" />
+                                  <span>
+                                    <b className="font-bold text-ink">{item.product.nameAr}</b>: {item.note}
+                                  </span>
+                                </p>
+                              ))}
+                          </div>
+                        )}
                       <div className="mt-4 flex gap-2">
+                        <a
+                          href={activeOrderDetail.data?.store ? mapsDirections({
+                            latitude: activeOrderDetail.data.store.latitude,
+                            longitude: activeOrderDetail.data.store.longitude,
+                            label: activeOrderDetail.data.store.nameAr,
+                          }) : undefined}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-disabled={!activeOrderDetail.data?.store}
+                          title={`${activeOrderDetail.data?.store.nameEn ?? 'Store'}: Google Maps`}
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand px-3 py-2.5 text-[10px] font-bold text-brand transition hover:bg-brand-tint"
+                        >
+                          <StoreIcon size={15} />
+                          <span>المتجر</span>
+                          <span dir="ltr" className="font-semibold text-brand-dark/70">· Store</span>
+                        </a>
+                        <a
+                          href={activeOrderDetail.data ? mapsDirectionsToAddress(activeOrderDetail.data.customerAddressText) : undefined}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-disabled={!activeOrderDetail.data}
+                          title="Google Maps"
+                          className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand px-3 py-2.5 text-[10px] font-bold text-brand transition hover:bg-brand-tint ${activeOrderDetail.data ? '' : 'pointer-events-none opacity-50'}`}
+                        >
+                          <Navigation size={15} />
+                          <span>العميل</span>
+                          <span dir="ltr" className="font-semibold text-brand-dark/70">· Customer</span>
+                        </a>
                         <button
                           type="button"
                           disabled={deliverMutation.pending}
@@ -633,18 +725,84 @@ export function SamouGoCaptain() {
         )}
 
         {activeTab === 'map' && (
-          <section className="pt-6" aria-labelledby="map-title">
-            <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card">
-              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-surface text-brand">
-                <MapPin size={22} />
-              </span>
-              <h2 id="map-title" className="mt-3 text-sm font-extrabold">العناوين نصيّة بلا خرائط</h2>
-              <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">Free-text addresses — no GPS</p>
-              <p className="mt-3 text-xs leading-relaxed text-ink-soft">
-                في السموع لا توجد عناوين مرقّمة موثوقة، لذلك تقرأ عنوان العميل وتتصل به للوصول.
-                القائمة "الطلبات" تعرض كل الطلبات الجاهزة للاستلام.
-              </p>
+          <section className="mt-6" aria-labelledby="map-title">
+            <div className="mb-3 flex items-end justify-between">
+              <div>
+                <h2 id="map-title" className="text-[17px] font-extrabold">التوجيه إلى المتجر والعميل</h2>
+                <p dir="ltr" className="text-[11px] text-ink-muted">Google Maps Navigation</p>
+              </div>
             </div>
+
+            {activeItems.length > 0 && activeOrderDetail.data ? (
+              <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full bg-warning-tint px-2.5 py-1 text-[10px] font-extrabold text-warning-ink">
+                    توصيل جاري <span dir="ltr">/ Active route</span>
+                  </span>
+                  <p className="text-[11px] font-extrabold">{activeOrderDetail.data.store.nameAr}</p>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-start gap-3 rounded-xl bg-brand-surface p-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-white">
+                      <StoreIcon size={16} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-extrabold">استلام من المتجر <span dir="ltr" className="text-ink-muted">· Pickup</span></p>
+                      <p className="mt-0.5 truncate text-[11px] text-ink-muted">{activeOrderDetail.data.store.nameAr} — {activeOrderDetail.data.store.nameEn}</p>
+                      {activeOrderDetail.data.store.latitude !== null && activeOrderDetail.data.store.longitude !== null ? (
+                        <p dir="ltr" className="text-[10px] text-brand-deep">
+                          {activeOrderDetail.data.store.latitude.toFixed(5)}, {activeOrderDetail.data.store.longitude.toFixed(5)}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-ink-subtle">بدون إحداثيات · no coordinates</p>
+                      )}
+                      <a
+                        href={mapsDirections({
+                          latitude: activeOrderDetail.data.store.latitude,
+                          longitude: activeOrderDetail.data.store.longitude,
+                          label: activeOrderDetail.data.store.nameAr,
+                        })}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-brand px-3 py-1.5 text-[11px] font-bold text-brand transition hover:bg-brand-tint"
+                      >
+                        <Navigation size={14} /> توجيه إلى المتجر <span dir="ltr">· Navigate to store</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 rounded-xl bg-brand-surface p-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-white">
+                      <MapPin size={16} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-extrabold">إيصال للعميل <span dir="ltr" className="text-ink-muted">· Dropoff</span></p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed text-ink-muted">{activeOrderDetail.data.customerAddressText}</p>
+                      <a
+                        href={mapsDirectionsToAddress(activeOrderDetail.data.customerAddressText)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-brand px-3 py-1.5 text-[11px] font-bold text-brand transition hover:bg-brand-tint"
+                      >
+                        <Navigation size={14} /> توجيه إلى العميل <span dir="ltr">· Navigate to customer</span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card">
+                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-surface text-brand">
+                  <MapPin size={22} />
+                </span>
+                <h3 className="mt-3 text-sm font-extrabold">لا توجد رحلة جارية</h3>
+                <p dir="ltr" className="mt-1 text-[11px] text-ink-muted">No active delivery</p>
+                <p className="mt-3 text-xs leading-relaxed text-ink-soft">
+                  عند قبول طلب سيظهر هنا المسار من المتجر إلى العميل مع أزرار فتح خرائط Google.
+                </p>
+              </div>
+            )}
           </section>
         )}
 

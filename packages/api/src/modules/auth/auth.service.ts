@@ -228,6 +228,15 @@ export async function adminUpdateUser(
 ): Promise<PublicUser> {
   const user = await prisma.user.findUnique({ where: { id: targetId } });
   if (!user) throw notFound('المستخدم غير موجود / User not found');
+  if (body.assignedStoreId !== undefined) {
+    if (user.role !== UserRole.CAPTAIN) {
+      throw unprocessable('NOT_A_CAPTAIN', 'المستخدم ليس كابتن توصيل / User is not a captain');
+    }
+    if (body.assignedStoreId !== null) {
+      const store = await prisma.store.findUnique({ where: { id: body.assignedStoreId }, select: { id: true } });
+      if (!store) throw notFound('المتجر غير موجود / Store not found');
+    }
+  }
 
   const updated = await prisma.user.update({
     where: { id: targetId },
@@ -236,6 +245,7 @@ export async function adminUpdateUser(
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
       ...(body.role !== undefined ? { role: body.role } : {}),
       ...(body.isVerified !== undefined ? { isVerified: body.isVerified } : {}),
+      ...(body.assignedStoreId !== undefined ? { assignedStoreId: body.assignedStoreId } : {}),
     },
   });
 

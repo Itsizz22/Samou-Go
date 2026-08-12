@@ -22,6 +22,9 @@ themes/*/android/
 packages/api/prisma/migrations/dev.db*
 packages/api/prisma/*.db
 
+# uploaded images (local storage driver scratch + processed files)
+packages/api/.uploads/
+
 # logs
 logs/
 *.log

@@ -29,7 +29,7 @@ vi.mock('../config/env', () => ({
     sms: { provider: 'none', generic: {}, twilio: {}, firebase: {} },
     otp: { length: 6, ttlMs: 180000, rateMax: 3, rateWindowMs: 300000, maxAttempts: 5 },
     corsOrigins: ['http://localhost:5173'],
-    deliveryFeeConfig: { baseFee: 3, bulkFee: 5, bulkThreshold: 5, currency: 'ILS' },
+    deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' },
   },
 }));
 

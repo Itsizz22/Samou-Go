@@ -1,0 +1,5 @@
+2026/08/12-03:08:06.079 4fbc Creating DB C:\Users\Admin\Documents\Samou'Go\.browser-audit-profile\Default\EdgeCoupons/coupons_data.db since it was missing.
+2026/08/12-03:08:06.102 4fbc Reusing MANIFEST C:\Users\Admin\Documents\Samou'Go\.browser-audit-profile\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/08/12-03:09:39.403 4fa0 Level-0 table #5: started
+2026/08/12-03:09:39.419 4fa0 Level-0 table #5: 683273 bytes OK
+2026/08/12-03:09:39.425 4fa0 Delete type=0 #3

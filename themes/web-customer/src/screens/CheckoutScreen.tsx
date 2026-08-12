@@ -28,15 +28,20 @@ import { createOrder, quoteOrder } from '@/services/api';
 import { useCart } from '@/components/CartProvider';
 import { CustomerAuthGate } from '@/components/CustomerAuthGate';
 import { useAuth } from '@/hooks/useApi';
-import { formatCurrency } from '@/lib/delivery';
+import { formatCurrency, FREE_DELIVERY_LABEL, deliveryFeeLabel } from '@/lib/delivery';
 import { hapticError, hapticSuccess } from '@/lib/haptics';
 import {
+  ADDRESS_TAGS,
+  ADDRESS_TAG_META,
+  normalizeTag,
   readSavedAddresses,
   upsertAddress,
   writeSavedAddresses,
+  type AddressTag,
   type SavedAddress,
 } from '@/lib/address-book';
 import { PageTransition } from '@/components/PageTransition';
+import type { DeliveryRegion } from '@samou-go/shared-types';
 
 /**
  * Server codes that mean "the basket you are looking at is no longer current" —
@@ -66,7 +71,11 @@ export function CheckoutScreen() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [addressText, setAddressText] = useState('');
   const [addressNote, setAddressNote] = useState('');
+  const [deliveryRegion, setDeliveryRegion] = useState<DeliveryRegion>('central');
+  const [orderNote, setOrderNote] = useState('');
   const [saveForNextTime, setSaveForNextTime] = useState(true);
+  /** Home / Work / Other — persisted with the saved address, shown as a chip. */
+  const [addressTag, setAddressTag] = useState<AddressTag>('home');
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [quote, setQuote] = useState<{
     subtotal: number;
@@ -91,7 +100,7 @@ export function CheckoutScreen() {
   const submittingRef = useRef(false);
 
   const items = useMemo(
-    () => cart.lines.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+    () => cart.lines.map((line) => ({ productId: line.productId, quantity: line.quantity, ...(line.note.trim() ? { note: line.note.trim() } : {}) })),
     [cart.lines]
   );
 
@@ -99,6 +108,7 @@ export function CheckoutScreen() {
   useEffect(() => {
     if (saved.length > 0 && !selectedAddressId) {
       setSelectedAddressId(saved[0].id);
+      if (saved[0].tag) setAddressTag(normalizeTag(saved[0].tag));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved.length]);
@@ -119,6 +129,7 @@ export function CheckoutScreen() {
         storeId: cart.storeId,
         items,
         voucherCode: appliedVoucher || undefined,
+        deliveryRegion,
       },
       controller.signal
     )
@@ -144,7 +155,7 @@ export function CheckoutScreen() {
       cancelled = true;
       controller.abort();
     };
-  }, [cart.storeId, items, appliedVoucher, auth.user?.id, quoteRevision]);
+  }, [cart.storeId, items, appliedVoucher, deliveryRegion, auth.user?.id, quoteRevision]);
 
   if (!auth.ready) {
     return (
@@ -196,6 +207,7 @@ export function CheckoutScreen() {
       const entry: SavedAddress = {
         id: useSavedAddress?.id ?? `${Date.now()}`,
         label: useSavedAddress?.label ?? finalText.slice(0, 24),
+        tag: useSavedAddress?.tag ?? addressTag,
         addressText: finalText,
         addressNote: addressNote.trim() || useSavedAddress?.addressNote || undefined,
       };
@@ -212,7 +224,9 @@ export function CheckoutScreen() {
         storeId: cart.storeId,
         items,
         customerAddressText: finalText,
+        deliveryRegion,
         addressNote: addressNote.trim() || useSavedAddress?.addressNote || undefined,
+        orderNote: orderNote.trim() || undefined,
         voucherCode: appliedVoucher || undefined,
       });
       await hapticSuccess();
@@ -288,7 +302,10 @@ export function CheckoutScreen() {
                   <button
                     key={entry.id}
                     type="button"
-                    onClick={() => setSelectedAddressId(entry.id)}
+                    onClick={() => {
+                      setSelectedAddressId(entry.id);
+                      if (entry.tag) setAddressTag(normalizeTag(entry.tag));
+                    }}
                     className={`flex w-full items-start gap-2 rounded-xl border p-3 text-end transition ${
                       selectedAddressId === entry.id
                         ? 'border-brand bg-brand-tint'
@@ -296,7 +313,17 @@ export function CheckoutScreen() {
                     }`}
                   >
                     <span className="flex-1">
-                      <span className="block text-xs font-bold">{entry.label}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="block text-xs font-bold">{entry.label}</span>
+                        {entry.tag && (
+                          <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[9px] font-bold text-brand-dark">
+                            {ADDRESS_TAG_META[normalizeTag(entry.tag)].ar}
+                            <span dir="ltr" className="ms-1">
+                              {ADDRESS_TAG_META[normalizeTag(entry.tag)].en}
+                            </span>
+                          </span>
+                        )}
+                      </span>
                       <span className="block text-[11px] text-ink-muted">{entry.addressText}</span>
                     </span>
                     {selectedAddressId === entry.id && (
@@ -323,6 +350,19 @@ export function CheckoutScreen() {
                 />
               </label>
               <label className="block">
+                <span className="text-[11px] font-bold text-ink-muted">منطقة التوصيل / Delivery region</span>
+                <select
+                  value={deliveryRegion}
+                  onChange={(event) => setDeliveryRegion(event.target.value as DeliveryRegion)}
+                  className="input-field mt-1.5 w-full"
+                  aria-label="Delivery region"
+                >
+                  <option value="central">داخل السموع / Central</option>
+                  <option value="outer">الأطراف / Outer area</option>
+                  <option value="remote">منطقة بعيدة / Remote area</option>
+                </select>
+              </label>
+              <label className="block">
                 <span className="text-[11px] font-bold text-ink-muted">ملاحظات إضافية</span>
                 <input
                   type="text"
@@ -340,6 +380,7 @@ export function CheckoutScreen() {
                     onClick={() => {
                       setSelectedAddressId(null);
                       setAddressText('');
+                      setAddressTag('home');
                     }}
                     className="rounded-full bg-brand-tint px-3 py-1 text-[11px] font-bold text-brand-dark"
                   >
@@ -356,7 +397,39 @@ export function CheckoutScreen() {
                 />
                 <Save size={13} /> حفظ هذا العنوان للطلبات القادمة
               </label>
+
+              {saveForNextTime && (
+                <div className="rounded-xl bg-canvas p-3" role="group" aria-label="نوع العنوان / Address tag">
+                  <p className="text-[10px] font-bold text-ink-muted">نوع العنوان <span dir="ltr">/ Tag</span></p>
+                  <div className="mt-2 flex gap-2">
+                    {ADDRESS_TAGS.map((tag) => {
+                      const active = addressTag === tag;
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => setAddressTag(tag)}
+                          className={`flex-1 rounded-lg border px-2 py-1.5 text-[11px] font-bold transition ${
+                            active ? 'border-brand bg-brand-tint text-brand-dark' : 'border-line bg-surface text-ink-muted'
+                          }`}
+                        >
+                          {ADDRESS_TAG_META[tag].ar}
+                          <span dir="ltr" className="ms-1 text-[10px] font-semibold opacity-80">
+                            {ADDRESS_TAG_META[tag].en}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
+          </section>
+
+          <section className="rounded-2xl bg-surface p-4 shadow-card">
+            <h2 className="text-sm font-extrabold">ملاحظة للطلب <span dir="ltr" className="text-[10px] font-normal text-ink-muted">/ Order note</span></h2>
+            <textarea value={orderNote} onChange={(event) => setOrderNote(event.target.value)} maxLength={500} rows={2} placeholder="مثال: الاتصال قبل الوصول" className="input-field mt-3 w-full" />
           </section>
 
           {/* Payment — COD only, by design. */}
@@ -473,8 +546,12 @@ export function CheckoutScreen() {
                     <span dir="ltr" className="font-bold text-ink">{formatCurrency(quote.subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-ink-muted">
-                    <span>رسوم التوصيل</span>
-                    <span dir="ltr" className="font-bold text-ink">{formatCurrency(quote.deliveryFee)}</span>
+                    <span>{deliveryFeeLabel('both')}</span>
+                    <span dir="ltr" className="font-bold text-brand-dark">
+                      {quote.deliveryFee <= 0
+                        ? `${FREE_DELIVERY_LABEL.ar} / ${FREE_DELIVERY_LABEL.en}`
+                        : formatCurrency(quote.deliveryFee)}
+                    </span>
                   </div>
                   {quote.discount > 0 && (
                     <div className="flex justify-between text-brand-dark">

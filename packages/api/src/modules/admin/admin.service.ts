@@ -12,7 +12,13 @@ import { toOrderSummary } from '../orders/orders.mapper';
 
 /** Same relation shape the order list uses for its summary rows. */
 const SUMMARY_INCLUDE = {
-  items: { select: { quantity: true } },
+  items: {
+    select: {
+      quantity: true,
+      note: true,
+      product: { select: { nameAr: true } },
+    },
+  },
   store: { select: { nameAr: true } },
 } satisfies Prisma.OrderInclude;
 

@@ -7,10 +7,10 @@
  * "Delivery Fee", "ILS" or "₪", and none may carry a fee as a pre-formatted
  * string like `'3 ILS'`.
  *
- * Business rule, Samou' / Hebron, as of 2026-07:
- *   fewer than 5 items  → 3 ₪
- *   5 items or more     → 5 ₪
- *   empty basket        → 0 ₪
+ * Business rule, Samou' / Hebron, as of 2026-08:
+ *   DELIVERY IS FREE — every order ships with a 0 ₪ fee, so
+ *   totalAmount = subtotal. The tiered tariff below is kept in the types for
+ *   the day a fee returns, but `calculateDeliveryFee` never charges today.
  */
 
 export type Locale = 'ar' | 'en';
@@ -40,8 +40,9 @@ export const FREE_DELIVERY_LABEL = {
 } as const;
 
 /**
- * A tiered, item-count-based tariff. Stored per-store one day; for now a single
- * platform-wide default. `bulkThreshold` is inclusive of `bulkFee`.
+ * The tariff shape. Stored per-store one day; for now a single platform-wide
+ * default. `bulkThreshold` is inclusive of `bulkFee`. Kept so a future fee
+ * re-launch only changes amounts, never the call sites.
  */
 export interface DeliveryFeeConfig {
   /** Fee when `itemCount < bulkThreshold`, in ILS. */
@@ -52,25 +53,40 @@ export interface DeliveryFeeConfig {
   bulkThreshold: number;
   /** ISO 4217 code the fees are denominated in. */
   currency: typeof CURRENCY.code;
+  /** Additive regional tariff after the basket-size tier. */
+  regionSurcharges?: Partial<Record<DeliveryRegion, number>>;
 }
 
+export const DELIVERY_REGIONS = ['central', 'outer', 'remote'] as const;
+export type DeliveryRegion = (typeof DELIVERY_REGIONS)[number];
+
+/**
+ * The default tariff. Zeroed — delivery is free platform-wide as of 2026-08.
+ * The interface keeps `baseFee` / `bulkFee` / `bulkThreshold` so a future
+ * re-launch of the fee only touches this object, never the call sites.
+ */
 export const DEFAULT_DELIVERY_FEE_CONFIG: DeliveryFeeConfig = {
   baseFee: 3,
   bulkFee: 5,
   bulkThreshold: 5,
   currency: CURRENCY.code,
+  regionSurcharges: { central: 0, outer: 2, remote: 4 },
 };
 
 /**
- * Fee for an order, derived purely from item count.
- * An empty basket is free — never charge for nothing.
+ * Fee for an order — flatly 0, because delivery is FREE on Samou'.
+ * The `config` parameter is kept for signature compatibility with the tariff
+ * plumbing (env config, `/api/v1/meta`, the front-end mirrors), but the fee is
+ * never charged, regardless of what the config or environment says.
  */
 export function calculateDeliveryFee(
   itemCount: number,
-  config: DeliveryFeeConfig = DEFAULT_DELIVERY_FEE_CONFIG
+  config: DeliveryFeeConfig = DEFAULT_DELIVERY_FEE_CONFIG,
+  region: DeliveryRegion = 'central'
 ): number {
   if (!Number.isFinite(itemCount) || itemCount <= 0) return 0;
-  return itemCount >= config.bulkThreshold ? config.bulkFee : config.baseFee;
+  const tier = itemCount >= config.bulkThreshold ? config.bulkFee : config.baseFee;
+  return roundMoney(Math.max(0, tier) + Math.max(0, config.regionSurcharges?.[region] ?? 0));
 }
 
 /**
@@ -102,7 +118,7 @@ export function formatCurrency(amount: number, options: CurrencyOptions = {}): s
   return value;
 }
 
-/** `"رسوم التوصيل / Delivery Fee: ₪3"` — label and amount in one string. */
+/** `"رسوم التوصيل / Delivery Fee: ₪0"` — label and amount in one string. */
 export function formatDeliveryFee(
   amount: number,
   options: CurrencyOptions & { locale?: Locale | 'both'; short?: boolean } = {}
@@ -142,13 +158,14 @@ export interface OrderTotals {
  */
 export function calculateOrderTotals(
   lines: readonly { unitPrice: number; quantity: number }[],
-  config: DeliveryFeeConfig = DEFAULT_DELIVERY_FEE_CONFIG
+  config: DeliveryFeeConfig = DEFAULT_DELIVERY_FEE_CONFIG,
+  region: DeliveryRegion = 'central'
 ): OrderTotals {
   const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0);
   const subtotal = roundMoney(
     lines.reduce((sum, line) => sum + lineTotal(line.unitPrice, line.quantity), 0)
   );
-  const deliveryFee = calculateDeliveryFee(itemCount, config);
+  const deliveryFee = calculateDeliveryFee(itemCount, config, region);
 
   return {
     itemCount,

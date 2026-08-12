@@ -32,7 +32,7 @@ export const CURRENCY = {
   symbol: '₪',
 } as const;
 
-/** The tariff: a flat fee per order, stepped once the basket gets bulky. */
+/** The tariff shape, kept so call sites outlive the free-delivery promo. */
 export interface DeliveryFeeConfig {
   /** Fee for a basket below `bulkThreshold` items, in ILS. */
   baseFee: number;
@@ -44,12 +44,12 @@ export interface DeliveryFeeConfig {
 }
 
 /**
- * Samou' pricing: 3 ₪ for a small basket, 5 ₪ from 5 items up.
- * The API can override the amounts from the environment, but not the rule.
+ * The default tariff. Zeroed — delivery is free platform-wide as of 2026-08,
+ * so total = subtotal on every basket.
  */
 export const DEFAULT_DELIVERY_FEE_CONFIG: DeliveryFeeConfig = {
-  baseFee: 3,
-  bulkFee: 5,
+  baseFee: 0,
+  bulkFee: 0,
   bulkThreshold: 5,
   currency: CURRENCY.code,
 };
@@ -84,19 +84,19 @@ export function formatCurrency(amount: number, options: CurrencyOptions = {}): s
 }
 
 /**
- * Fee for an order, derived from item count — the rule the checkout screen uses.
- * Counts UNITS, not distinct products: 5× bread is a bulky basket.
- * An empty basket is free, because there is nothing to carry.
+ * Fee for an order — flatly 0, because delivery is FREE on Samou' as of 2026-08.
+ * The `config` parameter stays for signature compatibility with the server's
+ * `/api/v1/meta` tariff, but no basket is ever charged a fee.
  */
 export function calculateDeliveryFee(
   itemCount: number,
   config: DeliveryFeeConfig = DEFAULT_DELIVERY_FEE_CONFIG
 ): number {
-  if (!Number.isFinite(itemCount) || itemCount <= 0) return 0;
-  return itemCount >= config.bulkThreshold ? config.bulkFee : config.baseFee;
+  // Delivery is free — nothing to charge, whatever the item count.
+  return 0;
 }
 
-/** `"رسوم التوصيل / Delivery Fee: ₪3"` — label and amount in one string. */
+/** `"رسوم التوصيل / Delivery Fee: ₪0"` — label and amount in one string. */
 export function formatDeliveryFee(
   amount: number,
   options: CurrencyOptions & { locale?: Locale | 'both'; short?: boolean } = {}

@@ -20,6 +20,7 @@ import {
   getStores,
   listOrders,
   listUsers,
+  uploadImage,
   type ApiMeta,
   getMeta,
   getAdminStats,
@@ -27,6 +28,7 @@ import {
 import type {
   AdminStats,
   FavoriteListResult,
+  FinalizeUploadResult,
   OrderDetail,
   OrderListQuery,
   OrderSummary,
@@ -35,6 +37,7 @@ import type {
   Store,
   StoreListQuery,
   StoreWithCatalogue,
+  UploadKind,
   UserListQuery,
 } from '@samou-go/shared-types';
 
@@ -299,7 +302,7 @@ export function useFavorites(options?: ResourceOptions<FavoriteListResult>): Res
   return useResource('favorites', (signal) => getFavorites(signal), options);
 }
 
-/** `GET /meta` — the live delivery tariff, so no screen hardcodes 3 ₪ / 5 ₪. */
+/** `GET /meta` — the live delivery tariff (free — 0 ₪), so no screen hardcodes it. */
 export function useApiMeta(options?: ResourceOptions<ApiMeta>): Resource<ApiMeta> {
   return useResource('meta', (signal) => getMeta(signal), options);
 }
@@ -319,4 +322,28 @@ export function useUsers(
  */
 export function useAdminStats(options?: ResourceOptions<AdminStats>): Resource<AdminStats> {
   return useResource('admin-stats', (signal) => getAdminStats(signal), options);
+}
+
+/* ---------------------------------------------------------------------------
+ * Image uploads
+ * ------------------------------------------------------------------------- */
+
+export interface UploadImageInput {
+  kind: UploadKind;
+  /** Product id — required when `kind === 'product'`. */
+  resourceId?: string;
+  /** The bytes to upload (a File or a Blob from a canvas). */
+  file: Blob;
+}
+
+/**
+ * Presign → stream → finalize in one mutation. `run` resolves to the processed
+ * upload (`url`/`width`/`height`) or `null` on failure; inspect `error` to
+ * render the server's bilingual message.
+ */
+export function useUploadImage(): Mutation<UploadImageInput, FinalizeUploadResult> {
+  return useMutation<UploadImageInput, FinalizeUploadResult>(
+    ({ kind, resourceId, file }, signal) =>
+      uploadImage({ kind, resourceId }, file, signal)
+  );
 }

@@ -27,22 +27,33 @@ export function SearchScreen() {
 
   return (
     <ScreenShell title="بحث" subtitle="Search">
-      <label className="flex h-14 items-center gap-3 rounded-2xl bg-surface px-4 text-ink-muted shadow-raised">
-        <SearchIcon size={20} className="text-brand" />
-        <input
-          value={term}
-          onChange={event => setTerm(event.target.value)}
-          autoFocus
-          placeholder="ابحث عن متاجر أو منتجات…"
-          aria-label="Search stores or products"
-          className="w-full bg-transparent text-sm outline-none placeholder:text-ink-subtle"
-        />
-        {stores.refreshing && (
-          <Loader2 size={16} className="shrink-0 animate-spin text-brand" aria-label="Searching" />
-        )}
-      </label>
+      <form
+        role="search"
+        className="contents"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setTerm(term.trim());
+        }}
+      >
+        <label className="flex h-14 cursor-text items-center gap-3 rounded-2xl bg-surface px-4 text-ink-muted shadow-raised">
+          <SearchIcon size={20} className="text-brand" />
+          <input
+            value={term}
+            onChange={event => setTerm(event.target.value)}
+            autoFocus
+            enterKeyHint="search"
+            aria-controls="search-results"
+            placeholder="ابحث عن متاجر أو منتجات…"
+            aria-label="Search stores or products"
+            className="w-full bg-transparent text-sm outline-none placeholder:text-ink-subtle"
+          />
+          {stores.refreshing && (
+            <Loader2 size={16} className="shrink-0 animate-spin text-brand" aria-label="Searching" />
+          )}
+        </label>
+      </form>
 
-      <section className="mt-6 space-y-3" aria-live="polite">
+      <section id="search-results" className="mt-6 space-y-3" aria-live="polite">
         {stores.loading ? (
           [0, 1, 2].map(index => (
             <div

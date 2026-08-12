@@ -1,0 +1,964 @@
+{
+  "summary": {
+    "total": 59,
+    "pass": 44,
+    "fail": 15
+  },
+  "results": [
+    {
+      "id": 1,
+      "title": "Boot splash renders then hands off to the app",
+      "pass": false,
+      "evidence": "boot@300ms=false handoff=true",
+      "detail": ""
+    },
+    {
+      "id": 2,
+      "title": "Home renders store catalogue after sign-in",
+      "pass": true,
+      "evidence": "auth ok; home reachable",
+      "detail": ""
+    },
+    {
+      "id": 3,
+      "title": "Navigation drawer opens via header menu button",
+      "pass": true,
+      "evidence": "open=true",
+      "detail": ""
+    },
+    {
+      "id": 4,
+      "title": "Drawer exposes nav links, identity and theme switcher",
+      "pass": true,
+      "evidence": "nav=true theme=true identity=true",
+      "detail": "[\"إغلاق / Close\",\"الرئيسية Home\",\"البحث Search\",\"طلباتي Orders\",\"المفضلة Favorites\",\"ملفي Profile\",\"الإعدادات Settings\",\"زمردي\",\"أصفر دافئ\",\"وردي هادئ\",\"Dark\",\"تسجيل الخروج Sign out\"]"
+    },
+    {
+      "id": 5,
+      "title": "Drawer closes via scrim",
+      "pass": true,
+      "evidence": "closed=true",
+      "detail": ""
+    },
+    {
+      "id": 6,
+      "title": "Drawer navigation link navigates to /profile",
+      "pass": true,
+      "evidence": "path=/profile",
+      "detail": ""
+    },
+    {
+      "id": 7,
+      "title": "/profile renders user card + saved addresses list",
+      "pass": false,
+      "evidence": "user=true section=false address+delete=true",
+      "detail": ""
+    },
+    {
+      "id": 8,
+      "title": "/settings renders theme, language and notification controls",
+      "pass": true,
+      "evidence": "found=لون الواجهة,الوضع,اللغة,الإشعارات",
+      "detail": "radios=4"
+    },
+    {
+      "id": 9,
+      "title": "Theme accent switches to Warm Yellow instantly",
+      "pass": true,
+      "evidence": "click=true class=true var=#f59e0b",
+      "detail": ""
+    },
+    {
+      "id": 10,
+      "title": "Theme accent switches to Muted Red instantly",
+      "pass": true,
+      "evidence": "click=true class=true var=#e57373",
+      "detail": ""
+    },
+    {
+      "id": 11,
+      "title": "Theme accent returns to emerald default and persists",
+      "pass": true,
+      "evidence": "var=#10b981 stored=emerald",
+      "detail": ""
+    },
+    {
+      "id": 12,
+      "title": "Dark mode toggle applies .dark and persists",
+      "pass": true,
+      "evidence": "dark=true stored=dark",
+      "detail": ""
+    },
+    {
+      "id": 13,
+      "title": "/orders renders order history with status pills",
+      "pass": true,
+      "evidence": "numbers=[\"SG-260812-0010\",\"SG-260812-0009\",\"SG-260812-0008\",\"SG-260812-0007\"]",
+      "detail": ""
+    },
+    {
+      "id": 14,
+      "title": "In-SPA live tracking renders timeline from order history",
+      "pass": false,
+      "evidence": "timeline=false steps≈12 otw=false",
+      "detail": ""
+    },
+    {
+      "id": 15,
+      "title": "Customer responsive layout — no horizontal overflow @390/768/1440",
+      "pass": true,
+      "evidence": "390px:ok 768px:ok 1440px:ok",
+      "detail": ""
+    },
+    {
+      "id": 16,
+      "title": "Home shows loading skeletons and a no-match empty state",
+      "pass": false,
+      "evidence": "skeleton=false emptyState=true",
+      "detail": ""
+    },
+    {
+      "id": 17,
+      "title": "Sign-out via drawer returns to the login gate",
+      "pass": true,
+      "evidence": "click=true gate=true",
+      "detail": ""
+    },
+    {
+      "id": 18,
+      "title": "Store menu loads by ?storeId with categories and products",
+      "pass": true,
+      "evidence": "title=true categories=4 productControls=8",
+      "detail": ""
+    },
+    {
+      "id": 19,
+      "title": "Category tab filters product list client-side",
+      "pass": true,
+      "evidence": "click=true dairyHidden=true khobz=true",
+      "detail": ""
+    },
+    {
+      "id": 20,
+      "title": "Add-to-cart increments, toasts and shows View Cart CTA",
+      "pass": false,
+      "evidence": "click=false cta=false href=undefined toast=false",
+      "detail": ""
+    },
+    {
+      "id": 21,
+      "title": "Unavailable product (tea) is excluded from the menu",
+      "pass": true,
+      "evidence": "teaVisible=false",
+      "detail": ""
+    },
+    {
+      "id": 22,
+      "title": "Loading skeletons + error-with-retry states (no blank screens)",
+      "pass": false,
+      "evidence": "skeleton=false error=true retry=true",
+      "detail": "latency-injected skeleton + bad-store error"
+    },
+    {
+      "id": 23,
+      "title": "Store-details responsive layout — no horizontal overflow @390/768/1440",
+      "pass": true,
+      "evidence": "390px:ok 768px:ok 1440px:ok",
+      "detail": ""
+    },
+    {
+      "id": 24,
+      "title": "Checkout shows sign-in gate for anonymous visitor",
+      "pass": true,
+      "evidence": "gate=true",
+      "detail": ""
+    },
+    {
+      "id": 25,
+      "title": "Checkout renders product lines + steppers by ?storeId",
+      "pass": true,
+      "evidence": "plus=8 milk=true",
+      "detail": ""
+    },
+    {
+      "id": 26,
+      "title": "Quote updates with items — subtotal / fee / total rendered",
+      "pass": false,
+      "evidence": "{\"subtotal\":\"\",\"fee\":\"\",\"total\":\"\",\"free\":false}",
+      "detail": ""
+    },
+    {
+      "id": 27,
+      "title": "Address validation surfaces a too-short cue",
+      "pass": true,
+      "evidence": "cue=true",
+      "detail": ""
+    },
+    {
+      "id": 28,
+      "title": "Place order shows inline confirmation with order number + track link",
+      "pass": false,
+      "evidence": "confirmation=false order=null track=null",
+      "detail": ""
+    },
+    {
+      "id": 29,
+      "title": "Place-order is disabled with an empty basket",
+      "pass": true,
+      "evidence": "disabled=true",
+      "detail": ""
+    },
+    {
+      "id": 30,
+      "title": "Checkout responsive layout — no horizontal overflow @390/768/1440",
+      "pass": true,
+      "evidence": "390px:ok 768px:ok 1440px:ok",
+      "detail": ""
+    },
+    {
+      "id": 31,
+      "title": "Tracking loads order by ?orderId with number + store",
+      "pass": false,
+      "evidence": "number=null store=false",
+      "detail": ""
+    },
+    {
+      "id": 32,
+      "title": "Timeline renders completed/active/pending steps from history",
+      "pass": false,
+      "evidence": "{\"timeline\":false,\"completed\":0,\"active\":0,\"pending\":0,\"live\":false}",
+      "detail": ""
+    },
+    {
+      "id": 33,
+      "title": "Contact panel + order details render",
+      "pass": false,
+      "evidence": "callStore=false",
+      "detail": ""
+    },
+    {
+      "id": 34,
+      "title": "Bad order id shows error state with retry (no blank screen)",
+      "pass": false,
+      "evidence": "err=false retry=false",
+      "detail": ""
+    },
+    {
+      "id": 35,
+      "title": "Order-tracking responsive layout — no horizontal overflow @390/768/1440",
+      "pass": true,
+      "evidence": "390px:ok 768px:ok 1440px:ok",
+      "detail": ""
+    },
+    {
+      "id": 36,
+      "title": "Sign-in gate then dashboard (KPIs + inbox) after manager login",
+      "pass": true,
+      "evidence": "gate=true kpis=3",
+      "detail": ""
+    },
+    {
+      "id": 37,
+      "title": "Order status action button triggers a transition with toast feedback",
+      "pass": true,
+      "evidence": "click=true acceptedToast=true toast=\"تم قبول الطلب بنجاح Order accepted successfully\"",
+      "detail": ""
+    },
+    {
+      "id": 38,
+      "title": "Prep-time selector renders with minute options",
+      "pass": true,
+      "evidence": "options=[\"15\",\"20\",\"25\",\"30\",\"40\",\"50\",\"60\"]",
+      "detail": ""
+    },
+    {
+      "id": 39,
+      "title": "Product catalogue availability switches render",
+      "pass": true,
+      "evidence": "switches=[\"Mark unavailable\",\"Mark unavailable\",\"Mark unavailable\",\"Mark unavailable\",\"Mark unavailable\"]",
+      "detail": ""
+    },
+    {
+      "id": 40,
+      "title": "Store Profile & Settings tab renders",
+      "pass": true,
+      "evidence": "tab=true",
+      "detail": ""
+    },
+    {
+      "id": 41,
+      "title": "Empty-state component renders for a no-match dataset",
+      "pass": true,
+      "evidence": "searched=true empty=true",
+      "detail": "product search with no match"
+    },
+    {
+      "id": 42,
+      "title": "Store-manager responsive layout — no horizontal overflow @390/768/1440",
+      "pass": true,
+      "evidence": "390px:ok 768px:ok 1440px:ok",
+      "detail": ""
+    },
+    {
+      "id": 43,
+      "title": "Sign-in gate then dashboard with availability toggle state",
+      "pass": true,
+      "evidence": "gate=true avail={\"text\":\"متاح / Available\",\"pressed\":\"true\"}",
+      "detail": ""
+    },
+    {
+      "id": 44,
+      "title": "Availability toggle round-trips server state with toast",
+      "pass": true,
+      "evidence": "before=متاح / Available after=غير متاح / Offline toast=\"غادرت وضع الاستلام You are now offline\"",
+      "detail": ""
+    },
+    {
+      "id": 45,
+      "title": "Available-orders panel renders correctly (empty state here)",
+      "pass": true,
+      "evidence": "empty=true acceptBtn=false",
+      "detail": "DB has 0 READY_FOR_PICKUP → empty expected"
+    },
+    {
+      "id": 46,
+      "title": "Earnings widget renders today earnings + deliveries",
+      "pass": true,
+      "evidence": "{\"raw\":\"12 ₪\",\"deliveries\":\"4 توصيلات\"}",
+      "detail": ""
+    },
+    {
+      "id": 47,
+      "title": "Map tab renders Google Maps directions links",
+      "pass": true,
+      "evidence": "links=2 sample=https://www.google.com/maps/dir/?api=1&destination=31.3984%2C35.0702",
+      "detail": ""
+    },
+    {
+      "id": 48,
+      "title": "Captain responsive layout — no horizontal overflow @390/768/1440",
+      "pass": true,
+      "evidence": "390px:ok 768px:ok 1440px:ok",
+      "detail": ""
+    },
+    {
+      "id": 49,
+      "title": "Sign-in gate then dashboard KPI grid with numeric values",
+      "pass": true,
+      "evidence": "gate=true tiles=4 valued=4",
+      "detail": "[\"129.5 ₪ Revenue Today إيرادات اليوم\",\"10 Total Orders إجمالي الطلبات\",\"5 Active Deliveries توصيل نشط\",\"2 / 3 Online Captains كابتن متاح\"]"
+    },
+    {
+      "id": 50,
+      "title": "Revenue / earnings widget renders formatted ILS",
+      "pass": false,
+      "evidence": "revenue=null",
+      "detail": ""
+    },
+    {
+      "id": 51,
+      "title": "Recent-orders table renders",
+      "pass": true,
+      "evidence": "panel=true rows=5",
+      "detail": ""
+    },
+    {
+      "id": 52,
+      "title": "Sidebar navigation + all four panel tabs render",
+      "pass": true,
+      "evidence": "nav5=true orders=true users=true stores=true captains=true",
+      "detail": "[\"Dashboard لوحة التحكم\",\"Orders الطلبات\",\"Users المستخدمون\",\"Stores المتاجر\",\"Captains السائقون\"]"
+    },
+    {
+      "id": 53,
+      "title": "Stores panel renders store rows with actions",
+      "pass": false,
+      "evidence": "{\"names\":false,\"approve\":false,\"empty\":false}",
+      "detail": ""
+    },
+    {
+      "id": 54,
+      "title": "Admin responsive layout — no horizontal overflow @390/768/1440",
+      "pass": true,
+      "evidence": "390px:ok 768px:ok 1440px:ok",
+      "detail": ""
+    },
+    {
+      "id": 55,
+      "title": "Network timeout/offline → error state with retry → recovers (no blank screen)",
+      "pass": true,
+      "evidence": "error=true retry=true recovered=true",
+      "detail": ""
+    },
+    {
+      "id": 56,
+      "title": "No console errors / exceptions during customer + operational flows",
+      "pass": false,
+      "evidence": "customer=0 ops=6",
+      "detail": "[{\"kind\":\"error\",\"text\":\"React has detected a change in the order of Hooks called by %s. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://react.dev/link/rules-of-hooks\\n\\n   Previous render            Next render\\n   ------------------------------------------------------\\n%s   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n LiveOrderTracking 1. useState                   useState\\n2. useState                   useState\\n3. useState                   useState\\n4. useState                   useState\\n5. useRef                     useRef\\n6. useEffect                  useEffect\\n7. useEffect                  useEffect\\n8. useCallback                useCallback\\n9. useCallback                useCallback\\n10. useCallback               useCallback\\n11. useCallback               useCallback\\n12. useState                  useState\\n13. useMemo                   useMemo\\n14. useState                  useState\\n15. useState                  useState\\n16. useState                  useState\\n17. useState                  useState\\n18. useState                  useState\\n19. useRef                    useRef\\n20. useRef                    useRef\\n21. useRef                    useRef\\n22. useCallback               useCallback\\n23. useEffect                 useEffect\\n24. useEffect                 useEffect\\n25. useState                  useState\\n26. useState                  useState\\n27. useState                  useState\\n28. useState                  useState\\n29. useState                  useState\\n30. useState                  useState\\n31. useRef                    useRef\\n32. useRef                    useRef\\n33. useRef                    useRef\\n34. useCallback               useCallback\\n35. useEffect                 useEffect\\n36. useEffect                 useEffect\\n37. useEffect                 useEffect\\n38. useRef                    useRef\\n39. useEffect                 useEffect\\n40. useState                  useState\\n41. useState                  useState\\n42. useState                  useState\\n43. useRef                    useRef\\n44. useRef                    useRef\\n45. useEffect                 useEffect\\n46. useCallback               useCallback\\n47. useCallback               useCallback\\n48. useState                  useState\\n49. useState                  useState\\n50. useState                  useState\\n51. useState                  useState\\n52. useRef                    useRef\\n53. useRef                    useRef\\n54. useEffect                 useEffect\\n55. useCallback               useCallback\\n56. useCallback               useCallback\\n57. undefined                 useMemo\\n\"},{\"kind\":\"exception\",\"text\":\"Error: Rendered more hooks than during the previous render.\\n    at updateWorkInProgressHook (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:5792:19)\\n    at updateMemo (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:6540:20)\\n    at Object.useMemo (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:18969:20)\\n    at exports.useMemo (http://localhost:5178/node_modules/.vite/deps/chunk-GRZJNE7M.js?v=b9cc10c0:947:36)\\n    at LiveOrderTracking (http://localhost:5178/src/components/generated/LiveOrderTracking.tsx:185:29)\\n    at Object.react_stack_bottom_frame (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:18509:20)\\n    at renderWithHooks (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:5654:24)\\n    at updateFunctionComponent (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:7475:21)\\n    at beginWork (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:8525:20)\\n    at runWithFiberInDEV (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:997:72)\"},{\"kind\":\"error\",\"text\":\"React has detected a change in the order of Hooks called by %s. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://react.dev/link/rules-of-hooks\\n\\n   Previous render            Next render\\n   ------------------------------------------------------\\n%s   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n LiveOrderTracking 1. useState                   useState\\n2. useState                   useState\\n3. useState                   useState\\n4. useState                   useState\\n5. useRef                     useRef\\n6. useEffect                  useEffect\\n7. useEffect                  useEffect\\n8. useCallback                useCallback\\n9. useCallback                useCallback\\n10. useCallback               useCallback\\n11. useCallback               useCallback\\n12. useState                  useState\\n13. useMemo                   useMemo\\n14. useState                  useState\\n15. useState                  useState\\n16. useState                  useState\\n17. useState                  useState\\n18. useState                  useState\\n19. useRef                    useRef\\n20. useRef                    useRef\\n21. useRef                    useRef\\n22. useCallback               useCallback\\n23. useEffect                 useEffect\\n24. useEffect                 useEffect\\n25. useState                  useState\\n26. useState                  useState\\n27. useState                  useState\\n28. useState                  useState\\n29. useState                  useState\\n30. useState                  useState\\n31. useRef                    useRef\\n32. useRef                    useRef\\n33. useRef                    useRef\\n34. useCallback               useCallback\\n35. useEffect                 useEffect\\n36. useEffect                 useEffect\\n37. useEffect                 useEffect\\n38. useRef                    useRef\\n39. useEffect                 useEffect\\n40. useState                  useState\\n41. useState                  useState\\n42. useState                  useState\\n43. useRef                    useRef\\n44. useRef                    useRef\\n45. useEffect                 useEffect\\n46. useCallback               useCallback\\n47. useCallback               useCallback\\n48. useState                  useState\\n49. useState                  useState\\n50. useState                  useState\\n51. useState                  useState\\n52. useRef                    useRef\\n53. useRef                    useRef\\n54. useEffect                 useEffect\\n55. useCallback               useCallback\\n56. useCallback               useCallback\\n57. undefined                 useMemo\\n\"},{\"kind\":\"exception\",\"text\":\"Error: Rendered more hooks than during the previous render.\\n    at updateWorkInProgressHook (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:5792:19)\\n    at updateMemo (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:6540:20)\\n    at Object.useMemo (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:18969:20)\\n    at exports.useMemo (http://localhost:5178/node_modules/.vite/deps/chunk-GRZJNE7M.js?v=b9cc10c0:947:36)\\n    at LiveOrderTracking (http://localhost:5178/src/components/generated/LiveOrderTracking.tsx:185:29)\\n    at Object.react_stack_bottom_frame (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:18509:20)\\n    at renderWithHooks (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:5654:24)\\n    at updateFunctionComponent (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:7475:21)\\n    at beginWork (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:8525:20)\\n    at runWithFiberInDEV (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:997:72)\"},{\"kind\":\"error\",\"text\":\"React has detected a change in the order of Hooks called by %s. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://react.dev/link/rules-of-hooks\\n\\n   Previous render            Next render\\n   ------------------------------------------------------\\n%s   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n LiveOrderTracking 1. useState                   useState\\n2. useState                   useState\\n3. useState                   useState\\n4. useState                   useState\\n5. useRef                     useRef\\n6. useEffect                  useEffect\\n7. useEffect                  useEffect\\n8. useCallback                useCallback\\n9. useCallback                useCallback\\n10. useCallback               useCallback\\n11. useCallback               useCallback\\n12. useState                  useState\\n13. useMemo                   useMemo\\n14. useState                  useState\\n15. useState                  useState\\n16. useState                  useState\\n17. useState                  useState\\n18. useState                  useState\\n19. useRef                    useRef\\n20. useRef                    useRef\\n21. useRef                    useRef\\n22. useCallback               useCallback\\n23. useEffect                 useEffect\\n24. useEffect                 useEffect\\n25. useState                  useState\\n26. useState                  useState\\n27. useState                  useState\\n28. useState                  useState\\n29. useState                  useState\\n30. useState                  useState\\n31. useRef                    useRef\\n32. useRef                    useRef\\n33. useRef                    useRef\\n34. useCallback               useCallback\\n35. useEffect                 useEffect\\n36. useEffect                 useEffect\\n37. useEffect                 useEffect\\n38. useRef                    useRef\\n39. useEffect                 useEffect\\n40. useState                  useState\\n41. useState                  useState\\n42. useState                  useState\\n43. useRef                    useRef\\n44. useRef                    useRef\\n45. useEffect                 useEffect\\n46. useCallback               useCallback\\n47. useCallback               useCallback\\n48. useState                  useState\\n49. useState                  useState\\n50. useState                  useState\\n51. useState                  useState\\n52. useRef                    useRef\\n53. useRef                    useRef\\n54. useEffect                 useEffect\\n55. useCallback               useCallback\\n56. useCallback               useCallback\\n57. undefined                 useMemo\\n\"},{\"kind\":\"exception\",\"text\":\"Error: Rendered more hooks than during the previous render.\\n    at updateWorkInProgressHook (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:5792:19)\\n    at updateMemo (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:6540:20)\\n    at Object.useMemo (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:18969:20)\\n    at exports.useMemo (http://localhost:5178/node_modules/.vite/deps/chunk-GRZJNE7M.js?v=b9cc10c0:947:36)\\n    at LiveOrderTracking (http://localhost:5178/src/components/generated/LiveOrderTracking.tsx:185:29)\\n    at Object.react_stack_bottom_frame (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:18509:20)\\n    at renderWithHooks (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:5654:24)\\n    at updateFunctionComponent (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:7475:21)\\n    at beginWork (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:8525:20)\\n    at runWithFiberInDEV (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:997:72)\"}]"
+    },
+    {
+      "id": 57,
+      "title": "No unexpected HTTP 4xx/5xx during UI flows",
+      "pass": true,
+      "evidence": "0 errors",
+      "detail": "[]"
+    },
+    {
+      "id": 58,
+      "title": "RTL document direction preserved; LTR islands present for numbers/codes",
+      "pass": true,
+      "evidence": "{\"dir\":\"rtl\",\"lang\":\"ar\",\"ltrIslands\":34}",
+      "detail": ""
+    },
+    {
+      "id": 59,
+      "title": "Theme accent persists across reloads and clean slate restores emerald",
+      "pass": true,
+      "evidence": "stored=warm-yellow class=true",
+      "detail": ""
+    }
+  ],
+  "report": {
+    "generatedAt": "2026-08-12T00:47:59.208Z",
+    "apps": {
+      "customer": {
+        "consoleEvents": [
+          {
+            "kind": "log-error",
+            "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+          }
+        ],
+        "httpErrors": [
+          {
+            "url": "http://localhost:5174/favicon.ico",
+            "status": 404
+          }
+        ],
+        "netFailures": [
+          {
+            "url": "12380.371",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.370",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.376",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.378",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.379",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.380",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.385",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.510",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.509",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.515",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.516",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.642",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.641",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.647",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.772",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.771",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.777",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.902",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.901",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.907",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.908",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1035",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1034",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1040",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1041",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1042",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1170",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1169",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1175",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1176",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1177",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1178",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1307",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1306",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1312",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1313",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1314",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1315",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          }
+        ]
+      },
+      "storeDetails": {
+        "consoleEvents": [
+          {
+            "kind": "log-error",
+            "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+          },
+          {
+            "kind": "log-error",
+            "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+          }
+        ],
+        "httpErrors": [
+          {
+            "url": "http://localhost:5177/favicon.ico",
+            "status": 404
+          },
+          {
+            "url": "http://localhost:4000/api/v1/stores/nope-store",
+            "status": 404
+          }
+        ],
+        "netFailures": [
+          {
+            "url": "12380.1410",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1499",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1587",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          }
+        ]
+      },
+      "checkout": {
+        "consoleEvents": [
+          {
+            "kind": "log-error",
+            "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+          }
+        ],
+        "httpErrors": [
+          {
+            "url": "http://localhost:5175/favicon.ico",
+            "status": 404
+          }
+        ],
+        "netFailures": [
+          {
+            "url": "12380.1676",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1766",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1856",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1857",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1948",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.1949",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          }
+        ]
+      },
+      "orderTracking": {
+        "consoleEvents": [
+          {
+            "kind": "log-error",
+            "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+          },
+          {
+            "kind": "error",
+            "text": "React has detected a change in the order of Hooks called by %s. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://react.dev/link/rules-of-hooks\n\n   Previous render            Next render\n   ------------------------------------------------------\n%s   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n LiveOrderTracking 1. useState                   useState\n2. useState                   useState\n3. useState                   useState\n4. useState                   useState\n5. useRef                     useRef\n6. useEffect                  useEffect\n7. useEffect                  useEffect\n8. useCallback                useCallback\n9. useCallback                useCallback\n10. useCallback               useCallback\n11. useCallback               useCallback\n12. useState                  useState\n13. useMemo                   useMemo\n14. useState                  useState\n15. useState                  useState\n16. useState                  useState\n17. useState                  useState\n18. useState                  useState\n19. useRef                    useRef\n20. useRef                    useRef\n21. useRef                    useRef\n22. useCallback               useCallback\n23. useEffect                 useEffect\n24. useEffect                 useEffect\n25. useState                  useState\n26. useState                  useState\n27. useState                  useState\n28. useState                  useState\n29. useState                  useState\n30. useState                  useState\n31. useRef                    useRef\n32. useRef                    useRef\n33. useRef                    useRef\n34. useCallback               useCallback\n35. useEffect                 useEffect\n36. useEffect                 useEffect\n37. useEffect                 useEffect\n38. useRef                    useRef\n39. useEffect                 useEffect\n40. useState                  useState\n41. useState                  useState\n42. useState                  useState\n43. useRef                    useRef\n44. useRef                    useRef\n45. useEffect                 useEffect\n46. useCallback               useCallback\n47. useCallback               useCallback\n48. useState                  useState\n49. useState                  useState\n50. useState                  useState\n51. useState                  useState\n52. useRef                    useRef\n53. useRef                    useRef\n54. useEffect                 useEffect\n55. useCallback               useCallback\n56. useCallback               useCallback\n57. undefined                 useMemo\n"
+          },
+          {
+            "kind": "exception",
+            "text": "Error: Rendered more hooks than during the previous render.\n    at updateWorkInProgressHook (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:5792:19)\n    at updateMemo (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:6540:20)\n    at Object.useMemo (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:18969:20)\n    at exports.useMemo (http://localhost:5178/node_modules/.vite/deps/chunk-GRZJNE7M.js?v=b9cc10c0:947:36)\n    at LiveOrderTracking (http://localhost:5178/src/components/generated/LiveOrderTracking.tsx:185:29)\n    at Object.react_stack_bottom_frame (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:18509:20)\n    at renderWithHooks (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:5654:24)\n    at updateFunctionComponent (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:7475:21)\n    at beginWork (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:8525:20)\n    at runWithFiberInDEV (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:997:72)"
+          },
+          {
+            "kind": "error",
+            "text": "React has detected a change in the order of Hooks called by %s. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://react.dev/link/rules-of-hooks\n\n   Previous render            Next render\n   ------------------------------------------------------\n%s   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n LiveOrderTracking 1. useState                   useState\n2. useState                   useState\n3. useState                   useState\n4. useState                   useState\n5. useRef                     useRef\n6. useEffect                  useEffect\n7. useEffect                  useEffect\n8. useCallback                useCallback\n9. useCallback                useCallback\n10. useCallback               useCallback\n11. useCallback               useCallback\n12. useState                  useState\n13. useMemo                   useMemo\n14. useState                  useState\n15. useState                  useState\n16. useState                  useState\n17. useState                  useState\n18. useState                  useState\n19. useRef                    useRef\n20. useRef                    useRef\n21. useRef                    useRef\n22. useCallback               useCallback\n23. useEffect                 useEffect\n24. useEffect                 useEffect\n25. useState                  useState\n26. useState                  useState\n27. useState                  useState\n28. useState                  useState\n29. useState                  useState\n30. useState                  useState\n31. useRef                    useRef\n32. useRef                    useRef\n33. useRef                    useRef\n34. useCallback               useCallback\n35. useEffect                 useEffect\n36. useEffect                 useEffect\n37. useEffect                 useEffect\n38. useRef                    useRef\n39. useEffect                 useEffect\n40. useState                  useState\n41. useState                  useState\n42. useState                  useState\n43. useRef                    useRef\n44. useRef                    useRef\n45. useEffect                 useEffect\n46. useCallback               useCallback\n47. useCallback               useCallback\n48. useState                  useState\n49. useState                  useState\n50. useState                  useState\n51. useState                  useState\n52. useRef                    useRef\n53. useRef                    useRef\n54. useEffect                 useEffect\n55. useCallback               useCallback\n56. useCallback               useCallback\n57. undefined                 useMemo\n"
+          },
+          {
+            "kind": "exception",
+            "text": "Error: Rendered more hooks than during the previous render.\n    at updateWorkInProgressHook (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:5792:19)\n    at updateMemo (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:6540:20)\n    at Object.useMemo (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:18969:20)\n    at exports.useMemo (http://localhost:5178/node_modules/.vite/deps/chunk-GRZJNE7M.js?v=b9cc10c0:947:36)\n    at LiveOrderTracking (http://localhost:5178/src/components/generated/LiveOrderTracking.tsx:185:29)\n    at Object.react_stack_bottom_frame (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:18509:20)\n    at renderWithHooks (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:5654:24)\n    at updateFunctionComponent (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:7475:21)\n    at beginWork (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:8525:20)\n    at runWithFiberInDEV (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:997:72)"
+          },
+          {
+            "kind": "error",
+            "text": "React has detected a change in the order of Hooks called by %s. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://react.dev/link/rules-of-hooks\n\n   Previous render            Next render\n   ------------------------------------------------------\n%s   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n LiveOrderTracking 1. useState                   useState\n2. useState                   useState\n3. useState                   useState\n4. useState                   useState\n5. useRef                     useRef\n6. useEffect                  useEffect\n7. useEffect                  useEffect\n8. useCallback                useCallback\n9. useCallback                useCallback\n10. useCallback               useCallback\n11. useCallback               useCallback\n12. useState                  useState\n13. useMemo                   useMemo\n14. useState                  useState\n15. useState                  useState\n16. useState                  useState\n17. useState                  useState\n18. useState                  useState\n19. useRef                    useRef\n20. useRef                    useRef\n21. useRef                    useRef\n22. useCallback               useCallback\n23. useEffect                 useEffect\n24. useEffect                 useEffect\n25. useState                  useState\n26. useState                  useState\n27. useState                  useState\n28. useState                  useState\n29. useState                  useState\n30. useState                  useState\n31. useRef                    useRef\n32. useRef                    useRef\n33. useRef                    useRef\n34. useCallback               useCallback\n35. useEffect                 useEffect\n36. useEffect                 useEffect\n37. useEffect                 useEffect\n38. useRef                    useRef\n39. useEffect                 useEffect\n40. useState                  useState\n41. useState                  useState\n42. useState                  useState\n43. useRef                    useRef\n44. useRef                    useRef\n45. useEffect                 useEffect\n46. useCallback               useCallback\n47. useCallback               useCallback\n48. useState                  useState\n49. useState                  useState\n50. useState                  useState\n51. useState                  useState\n52. useRef                    useRef\n53. useRef                    useRef\n54. useEffect                 useEffect\n55. useCallback               useCallback\n56. useCallback               useCallback\n57. undefined                 useMemo\n"
+          },
+          {
+            "kind": "exception",
+            "text": "Error: Rendered more hooks than during the previous render.\n    at updateWorkInProgressHook (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:5792:19)\n    at updateMemo (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:6540:20)\n    at Object.useMemo (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:18969:20)\n    at exports.useMemo (http://localhost:5178/node_modules/.vite/deps/chunk-GRZJNE7M.js?v=b9cc10c0:947:36)\n    at LiveOrderTracking (http://localhost:5178/src/components/generated/LiveOrderTracking.tsx:185:29)\n    at Object.react_stack_bottom_frame (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:18509:20)\n    at renderWithHooks (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:5654:24)\n    at updateFunctionComponent (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:7475:21)\n    at beginWork (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:8525:20)\n    at runWithFiberInDEV (http://localhost:5178/node_modules/.vite/deps/react-dom_client.js?v=b9cc10c0:997:72)"
+          }
+        ],
+        "httpErrors": [
+          {
+            "url": "http://localhost:5178/favicon.ico",
+            "status": 404
+          }
+        ],
+        "netFailures": [
+          {
+            "url": "12380.2211",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.2299",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.2387",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          }
+        ]
+      },
+      "storeManager": {
+        "consoleEvents": [
+          {
+            "kind": "log-error",
+            "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+          },
+          {
+            "kind": "log-error",
+            "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+          }
+        ],
+        "httpErrors": [
+          {
+            "url": "http://localhost:5176/favicon.ico",
+            "status": 404
+          },
+          {
+            "url": "http://localhost:5176/favicon.ico",
+            "status": 404
+          }
+        ],
+        "netFailures": [
+          {
+            "url": "12380.2648",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.2662",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.2664",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.2666",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          }
+        ]
+      },
+      "captain": {
+        "consoleEvents": [
+          {
+            "kind": "log-error",
+            "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+          }
+        ],
+        "httpErrors": [
+          {
+            "url": "http://localhost:5179/favicon.ico",
+            "status": 404
+          }
+        ],
+        "netFailures": [
+          {
+            "url": "12380.2922",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          }
+        ]
+      },
+      "admin": {
+        "consoleEvents": [
+          {
+            "kind": "log-error",
+            "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+          }
+        ],
+        "httpErrors": [
+          {
+            "url": "http://localhost:5173/favicon.ico",
+            "status": 404
+          }
+        ],
+        "netFailures": [
+          {
+            "url": "12380.3183",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3186",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3188",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3190",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3192",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          }
+        ]
+      },
+      "crossCutting": {
+        "consoleEvents": [
+          {
+            "kind": "log-error",
+            "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+          },
+          {
+            "kind": "log-error",
+            "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+          }
+        ],
+        "httpErrors": [],
+        "netFailures": [
+          {
+            "url": "12380.3441",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3440",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3446",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3448",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3449",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3450",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3455",
+            "errorText": "net::ERR_INTERNET_DISCONNECTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3456",
+            "errorText": "net::ERR_INTERNET_DISCONNECTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3581",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3580",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3586",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3711",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3710",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          },
+          {
+            "url": "12380.3716",
+            "errorText": "net::ERR_ABORTED",
+            "type": "Fetch"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -14,7 +14,7 @@
  */
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, Banknote, CheckCircle2, Loader2, MapPin, RefreshCw, RotateCw, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Banknote, CheckCircle2, Loader2, MapPin, RefreshCw, RotateCw, ShoppingCart, StickyNote } from 'lucide-react';
 import { PaymentMethod, OrderStatus } from '@samou-go/shared-types';
 import { useAuth } from '@/hooks/useApi';
 import { useOrder, useToast, reorderOrder } from '@/hooks/useApi';
@@ -23,7 +23,7 @@ import { CustomerAuthGate } from '@/components/CustomerAuthGate';
 import { OrderStatusTimeline } from '@/components/OrderStatusTimeline';
 import { PageTransition } from '@/components/PageTransition';
 import { Skeleton } from '@/components/Skeleton';
-import { formatCurrency } from '@/lib/delivery';
+import { formatCurrency, FREE_DELIVERY_LABEL, deliveryFeeLabel } from '@/lib/delivery';
 
 const POLL_MS = 15_000;
 
@@ -203,6 +203,12 @@ export function OrderTrackingScreen() {
                         <p className="text-[10px] text-ink-muted" dir="ltr">
                           {item.quantity} × {formatCurrency(item.unitPrice)}
                         </p>
+                        {item.note && (
+                          <p className="mt-1 flex items-center gap-1 rounded-lg bg-brand-surface px-2 py-1 text-[10px] text-ink-soft">
+                            <StickyNote size={11} className="shrink-0 text-brand" />
+                            <span className="line-clamp-2 text-start">{item.note}</span>
+                          </p>
+                        )}
                       </div>
                       <span className="shrink-0 text-xs font-extrabold" dir="ltr">
                         {formatCurrency(item.totalPrice)}
@@ -217,8 +223,12 @@ export function OrderTrackingScreen() {
                     <dd dir="ltr" className="font-bold text-ink">{formatCurrency(order.data.subtotal)}</dd>
                   </div>
                   <div className="flex justify-between text-ink-muted">
-                    <dt>رسوم التوصيل</dt>
-                    <dd dir="ltr" className="font-bold text-ink">{formatCurrency(order.data.deliveryFee)}</dd>
+                    <dt>{deliveryFeeLabel('both')}</dt>
+                    <dd dir="ltr" className="font-bold text-brand-dark">
+                      {order.data.deliveryFee <= 0
+                        ? `${FREE_DELIVERY_LABEL.ar} / ${FREE_DELIVERY_LABEL.en}`
+                        : formatCurrency(order.data.deliveryFee)}
+                    </dd>
                   </div>
                   {order.data.discount > 0 && (
                     <div className="flex justify-between text-brand-dark">
@@ -269,6 +279,12 @@ export function OrderTrackingScreen() {
                   <div className="rounded-2xl bg-surface p-4 text-xs text-ink-soft shadow-card">
                     <span className="font-bold text-ink">ملاحظة العنوان: </span>
                     {order.data.addressNote}
+                  </div>
+                )}
+                {order.data.orderNote && (
+                  <div className="rounded-2xl bg-surface p-4 text-xs text-ink-soft shadow-card">
+                    <span className="font-bold text-ink">ملاحظة الطلب: </span>
+                    {order.data.orderNote}
                   </div>
                 )}
               </section>

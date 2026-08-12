@@ -10,7 +10,9 @@ import { FavoritesProvider } from './components/FavoritesProvider';
 
 // Handles: light-mode lock, Framer Motion skip-animations in editable mode,
 // and global broken-image fallback. Single source of truth in @samou-go/ui.
-bootstrapApp();
+// The customer app ships a dark-mode toggle, so it opts out of the forced
+// light-mode lock — ThemeProvider owns the `.dark` class instead.
+bootstrapApp({ allowDarkMode: true });
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

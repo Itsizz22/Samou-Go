@@ -9,6 +9,7 @@ export const orderItemInputSchema = z.object({
     .int('الكمية يجب أن تكون رقماً صحيحاً / Quantity must be a whole number')
     .positive('الكمية يجب أن تكون أكبر من صفر / Quantity must be greater than zero')
     .max(99, 'الحد الأقصى 99 لكل منتج / Maximum 99 per product'),
+  note: z.string().trim().max(500).optional(),
 });
 
 /**
@@ -30,7 +31,9 @@ export const createOrderSchema = z.object({
     .trim()
     .min(5, 'العنوان قصير جداً / Address is too short')
     .max(500),
+  deliveryRegion: z.enum(['central', 'outer', 'remote']).optional(),
   addressNote: z.string().trim().max(500).optional(),
+  orderNote: z.string().trim().max(500).optional(),
   voucherCode: voucherCodeField,
 });
 
@@ -39,11 +42,13 @@ export const quoteOrderSchema = createOrderSchema.pick({
   storeId: true,
   items: true,
   voucherCode: true,
+  deliveryRegion: true,
 });
 
 export const updateOrderStatusSchema = z.object({
   status: z.nativeEnum(OrderStatus),
   note: z.string().trim().max(500).optional(),
+  estimatedPrepMinutes: z.number().int().min(5).max(180).optional(),
 });
 
 export const assignCaptainSchema = z.object({

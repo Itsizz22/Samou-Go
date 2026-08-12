@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Check,
   ChevronDown,
+  ImagePlus,
   Loader2,
   Package,
   Pencil,
@@ -22,9 +23,11 @@ import {
 import {
   createProduct,
   deleteProduct,
+  removeCurrentImage,
   updateProduct,
   useStoreManager,
   useToast,
+  useUploadImage,
 } from '@samou-go/api-client';
 import type { Product } from '@samou-go/shared-types';
 import { formatCurrency } from '@/lib/delivery';
@@ -70,6 +73,7 @@ function formFromProduct(p: Product): ProductFormState {
 
 export function ProductCataloguePanel({ storeId }: Props) {
   const toast = useToast();
+  const upload = useUploadImage();
 
   // Full catalogue including unavailable products — the manager view.
   // Uses GET /stores/:id/full (auth-gated) so unavailable products are returned.
@@ -110,6 +114,8 @@ export function ProductCataloguePanel({ storeId }: Props) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
+  const [imageBusy, setImageBusy] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (modal) setTimeout(() => firstInputRef.current?.focus(), 60);
@@ -205,6 +211,45 @@ export function ProductCataloguePanel({ storeId }: Props) {
       toast.error('تعذّر تغيير حالة المنتج', msg);
     } finally {
       setTogglingId(null);
+    }
+  };
+
+  /* ---- Product image (attach / change / remove) -------------------------- */
+  const handleProductImagePicked = async (file: File | undefined) => {
+    if (!file || !editTarget) return;
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('الملف أكبر من 8MB', 'File exceeds 8MB');
+      return;
+    }
+    if (imageInputRef.current) imageInputRef.current.value = '';
+    setImageBusy(true);
+    try {
+      const result = await upload.run({ kind: 'product', resourceId: editTarget.id, file });
+      if (!result) {
+        toast.error(upload.error?.message ?? 'تعذّر رفع الصورة', 'Upload failed');
+        return;
+      }
+      setEditTarget(prev => (prev ? { ...prev, imageUrl: result.url } : prev));
+      toast.success('تم تحديث صورة المنتج', 'Product image updated');
+      reload();
+    } finally {
+      setImageBusy(false);
+    }
+  };
+
+  const handleProductImageRemove = async () => {
+    if (!editTarget) return;
+    setImageBusy(true);
+    try {
+      await removeCurrentImage('product', editTarget.id);
+      setEditTarget(prev => (prev ? { ...prev, imageUrl: null } : prev));
+      toast.info('تمت إزالة الصورة', 'Product image removed');
+      reload();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error('تعذّر إزالة الصورة', msg);
+    } finally {
+      setImageBusy(false);
     }
   };
 
@@ -428,6 +473,61 @@ export function ProductCataloguePanel({ storeId }: Props) {
                   className="w-full resize-none rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
                 />
               </label>
+
+              {/* Product image — attach to the existing product (edit mode) */}
+              {modal === 'edit' && editTarget && (
+                <div className="rounded-xl border border-line bg-canvas p-3">
+                  <span className="mb-2 block text-xs font-bold text-ink">
+                    صورة المنتج
+                    <span className="ms-1 font-normal text-ink-muted" dir="ltr">/ Product image</span>
+                  </span>
+                  <div className="flex items-center gap-3">
+                    {editTarget.imageUrl ? (
+                      <img
+                        src={editTarget.imageUrl}
+                        alt={editTarget.nameAr}
+                        className="h-16 w-16 shrink-0 rounded-xl object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
+                        <Package size={20} />
+                      </span>
+                    )}
+                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        aria-label="Choose a product image"
+                        onChange={e => void handleProductImagePicked(e.target.files?.[0])}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => imageInputRef.current?.click()}
+                        disabled={imageBusy}
+                        className="flex h-8 items-center gap-1.5 rounded-lg bg-brand px-3 text-[11px] font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
+                        aria-label="Change product image"
+                      >
+                        {imageBusy ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
+                        {editTarget.imageUrl ? 'تغيير / Change' : 'إضافة / Add'}
+                      </button>
+                      {editTarget.imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => void handleProductImageRemove()}
+                          disabled={imageBusy}
+                          className="flex h-8 items-center gap-1 rounded-lg border border-line px-3 text-[11px] font-bold text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink active:scale-95 disabled:opacity-60"
+                          aria-label="Remove product image"
+                        >
+                          <X size={12} />
+                          إزالة <span dir="ltr">Remove</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Price + Category row */}
               <div className="grid grid-cols-2 gap-3">

@@ -18,6 +18,12 @@
 export interface BootstrapOptions {
   /** Extra override — disable animations regardless of URL params. */
   skipAnimations?: boolean;
+  /**
+   * Opt out of the forced-light-mode listeners. Apps that ship their own
+   * theme switcher (dark mode toggle) set this to `true` and manage the
+   * `.dark` class themselves; everyone else keeps the safe light default.
+   */
+  allowDarkMode?: boolean;
 }
 
 export type BrandTheme = 'emerald' | 'crimson';
@@ -80,11 +86,13 @@ export function bootstrapApp(options: BootstrapOptions = {}): void {
     document.documentElement.classList.toggle('dark', false);
   };
 
-  forceLightMode();
-  document.addEventListener('DOMContentLoaded', forceLightMode);
-  window
-    .matchMedia('(prefers-color-scheme: dark)')
-    .addEventListener('change', forceLightMode);
+  if (!options.allowDarkMode) {
+    forceLightMode();
+    document.addEventListener('DOMContentLoaded', forceLightMode);
+    window
+      .matchMedia('(prefers-color-scheme: dark)')
+      .addEventListener('change', forceLightMode);
+  }
 
   /* ---- 2b. Brand theme --------------------------------------------------- */
   try {

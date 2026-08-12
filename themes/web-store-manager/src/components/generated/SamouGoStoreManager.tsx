@@ -31,6 +31,7 @@ import {
   Settings,
   ShoppingBag,
   SlidersHorizontal,
+  StickyNote,
   Store,
   UtensilsCrossed,
   X,
@@ -43,6 +44,7 @@ import {
   useAuth,
   useMutation,
   useOrders,
+  useStoreManager,
   useStores,
   useToast,
 } from '@samou-go/api-client';
@@ -121,6 +123,7 @@ export function SamouGoStoreManager() {
   const auth = useAuth();
   const toast = useToast();
   const [isOpen, setIsOpen] = useState(true);
+  const [prepMinutes, setPrepMinutes] = useState(25);
   const [storeTogglePending, setStoreTogglePending] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('home');
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
@@ -139,6 +142,7 @@ export function SamouGoStoreManager() {
   );
   const managedStoreId: string | null =
     managedStores.data?.items.find(s => s.managerId === auth.user?.id)?.id ?? null;
+  const managedStore = useStoreManager(managedStoreId, { enabled: Boolean(auth.user) && isManager });
 
   // The header's open/closed switch is the store's `isActive`, persisted via
   // PATCH /stores/:id. It starts true (optimistic) and re-syncs once the store
@@ -269,12 +273,13 @@ export function SamouGoStoreManager() {
     orderId: string,
     next: OrderStatus,
     ar: string,
-    en: string
+    en: string,
+    estimatedPrepMinutes?: number
   ): Promise<void> => {
     // Write the ref first — the closure in useMutation reads it synchronously.
     pendingOrderIdRef.current = orderId;
     setPendingOrderId(orderId);   // still needed so OrderRow spinner renders
-    const result = await transition.run({ status: next });
+    const result = await transition.run({ status: next, ...(estimatedPrepMinutes !== undefined ? { estimatedPrepMinutes } : {}) });
     pendingOrderIdRef.current = null;
     setPendingOrderId(null);
     if (result) {
@@ -293,7 +298,7 @@ export function SamouGoStoreManager() {
   };
 
   const handleAccept = (orderId: string) =>
-    void runTransition(orderId, OrderStatus.ACCEPTED, 'تم قبول الطلب بنجاح', 'Order accepted successfully');
+    void runTransition(orderId, OrderStatus.ACCEPTED, 'تم قبول الطلب بنجاح', 'Order accepted successfully', prepMinutes);
   const handleStartPreparing = (orderId: string) =>
     void runTransition(orderId, OrderStatus.PREPARING, 'بدأ التحضير', 'Preparation started');
   const handleReadyForPickup = (orderId: string) =>
@@ -441,6 +446,37 @@ export function SamouGoStoreManager() {
         </div>
       </header>
 
+      {managedStore.data?.dedicatedCaptains && (
+        <section className="mx-auto max-w-md px-4 pt-5" aria-label="Dedicated captains">
+          <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-extrabold">كباتن المتجر</h2>
+                <p className="text-[11px] text-ink-muted" dir="ltr">Dedicated captains</p>
+              </div>
+              <span className="badge-neutral">{managedStore.data.dedicatedCaptains.length}</span>
+            </div>
+            {managedStore.data.dedicatedCaptains.length > 0 ? (
+              <ul className="mt-3 space-y-2">
+                {managedStore.data.dedicatedCaptains.map((captain) => (
+                  <li key={captain.id} className="flex items-center justify-between rounded-xl bg-canvas px-3 py-2">
+                    <div>
+                      <p className="text-xs font-bold text-ink">{captain.name}</p>
+                      <p className="text-[10px] text-ink-muted" dir="ltr">{captain.phone}</p>
+                    </div>
+                    <span className={captain.isAvailable && captain.isVerified ? 'badge-brand' : 'badge-neutral'}>
+                      {captain.isAvailable && captain.isVerified ? 'متاح / Available' : 'غير متاح / Offline'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-xs text-ink-muted">لا يوجد كابتن مخصص لهذا المتجر / No dedicated captain assigned.</p>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* ---- HOME TAB ---------------------------------------------------- */}
       {activeTab === 'home' && <>
 
@@ -534,6 +570,12 @@ export function SamouGoStoreManager() {
           </p>
         )}
 
+        <label className="mb-3 flex items-center justify-between rounded-xl bg-brand-surface px-3 py-2 text-xs font-bold text-brand-deep">
+          <span>وقت التحضير عند القبول <span dir="ltr" className="font-normal">/ Prep time</span></span>
+          <select value={prepMinutes} onChange={(event) => setPrepMinutes(Number(event.target.value))} className="rounded-lg border border-brand bg-surface px-2 py-1 text-xs text-ink outline-none">
+            {[15, 20, 25, 30, 40, 50, 60].map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
+          </select>
+        </label>
         <div className="space-y-3">
           {loading && inbox.length === 0
             ? [0, 1].map((index) => (
@@ -888,6 +930,38 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
             ₪{order.totalAmount.toFixed(2)}
           </p>
         </div>
+        {order.estimatedPrepMinutes !== null && order.estimatedPrepMinutes !== undefined && (
+          <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-brand-dark" dir="ltr">
+            <Clock3 size={13} />
+            Estimated prep: {order.estimatedPrepMinutes} min
+            <span dir="rtl" className="font-medium text-ink-muted">· مدة التحضير المقدّرة</span>
+          </p>
+        )}
+        {(order.orderNote || order.itemNotes.length > 0) && (
+          <div className="mt-3 space-y-1.5 rounded-xl bg-brand-surface px-3 py-2">
+            {order.orderNote && (
+              <p className="flex items-start gap-1.5 text-[11px] font-semibold text-ink">
+                <StickyNote size={12} className="mt-0.5 shrink-0 text-brand" />
+                <span>{order.orderNote}</span>
+              </p>
+            )}
+            {order.itemNotes.map((entry) => (
+              <p
+                key={`${entry.productNameAr}:${entry.quantity}`}
+                className="flex items-start gap-1.5 text-[11px] text-ink-soft"
+              >
+                <StickyNote size={12} className="mt-0.5 shrink-0 text-brand" />
+                <span>
+                  <b className="font-bold text-ink">{entry.productNameAr}</b>
+                  <span className="mx-0.5 text-ink-muted" dir="ltr">
+                    ×{entry.quantity}
+                  </span>
+                  : {entry.note}
+                </span>
+              </p>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* READY_FOR_PICKUP: informational — captain is expected to claim it */}

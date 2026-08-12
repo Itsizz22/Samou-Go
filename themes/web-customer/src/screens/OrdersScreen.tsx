@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { SignInGate, useAuth, useOrders } from '@/hooks/useApi';
-import { Loader2, Package, RefreshCw } from 'lucide-react';
+import { Loader2, Package, RefreshCw, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { reorderOrder } from '@samou-go/api-client';
 import { ScreenShell } from '@/components/ScreenShell';
+import { useCart } from '@/components/CartProvider';
 import { ORDER_STATUS_LABELS, type OrderStatus } from '@samou-go/shared-types';
 
 /**
@@ -13,6 +16,8 @@ import { ORDER_STATUS_LABELS, type OrderStatus } from '@samou-go/shared-types';
 export function OrdersScreen() {
   const auth = useAuth();
   const navigate = useNavigate();
+  const cart = useCart();
+  const [reorderingId, setReorderingId] = useState<string | null>(null);
   const orders = useOrders({ pageSize: 20 }, { enabled: Boolean(auth.user) });
 
   const status = (state: OrderStatus) => ORDER_STATUS_LABELS[state]?.ar ?? state;
@@ -66,7 +71,6 @@ export function OrdersScreen() {
             orders.data?.items.map(order => (
               <article
                 key={order.id}
-                onClick={() => navigate(`/orders/${order.id}`)}
                 className="rounded-2xl border border-line bg-surface p-4 shadow-card transition active:scale-[0.99]"
               >
                 <div className="flex items-center justify-between gap-3">
@@ -79,6 +83,21 @@ export function OrdersScreen() {
                   <span className="shrink-0 rounded-full bg-brand-tint px-2.5 py-1 text-[10px] font-bold text-brand-dark">
                     {status(order.status)}
                   </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => navigate(`/orders/${order.id}`)} className="rounded-xl border border-line py-2 text-xs font-bold text-ink-muted">التفاصيل <span dir="ltr">Details</span></button>
+                  <button type="button" disabled={reorderingId === order.id} onClick={async () => {
+                    setReorderingId(order.id);
+                    try {
+                      const result = await reorderOrder(order.id);
+                      cart.clear();
+                      cart.setStore(result.storeId, result.storeNameAr);
+                      result.items.forEach((item) => cart.addItem(item.product, item.quantity, item.note));
+                      navigate('/cart');
+                    } finally { setReorderingId(null); }
+                  }} className="inline-flex items-center justify-center gap-1 rounded-xl bg-brand py-2 text-xs font-bold text-white disabled:opacity-60">
+                    {reorderingId === order.id ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} إعادة الطلب <span dir="ltr">Reorder</span>
+                  </button>
                 </div>
               </article>
             ))

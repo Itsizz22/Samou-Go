@@ -146,7 +146,7 @@ export const CartCheckoutSummary = () => {
   /* ---- Instant delivery-tariff preview ----------------------------------- */
 
   // The server quote debounces by 300 ms; this preview keeps the fee honest in
-  // the gap, using the exact rule the server prices with (3 ₪ / 5 ₪ ≥ 5 items).
+  // the gap, using the exact rule the server prices with (free delivery — 0 ₪).
   const previewDeliveryFee = hasItems ? calculateDeliveryFee(itemCount) : 0;
 
   /* ---- Quote ------------------------------------------------------------ */
@@ -571,7 +571,7 @@ export const CartCheckoutSummary = () => {
 
           {/* Instant delivery-tariff preview — shown while the debounced server
               quote is still in flight, so the fee never "jumps in" late. Uses the
-              exact rule the server prices with (3 ₪ base, 5 ₪ ≥ 5 items). */}
+              exact rule the server prices with (free delivery — 0 ₪). */}
           {hasItems && (quoteStale || !bill) && (
             <dl className="space-y-3 border-t border-dashed border-line pt-3 text-sm" aria-label="Delivery fee preview">
               <DeliveryFee amount={previewDeliveryFee} variant="row" showIcon note="تقدير فوري · Instant estimate" />

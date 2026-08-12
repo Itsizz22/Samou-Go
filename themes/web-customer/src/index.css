@@ -218,6 +218,117 @@
 }
 
 /* ----------------------------------------------------------------------------
+   Accent palettes (theme switcher).
+   These classes sit on <html> and re-declare the brand CSS custom properties
+   that Tailwind v4 utilities resolve through `var(--color-*)`, so bg-brand,
+   text-brand-dark, badge-brand, shadow-brand, headers and active tabs re-tint
+   instantly. The `.dark.theme-*` rows only adjust the semantic variables that
+   `.dark` owns (accent/ring/sidebar); the brand hue itself is shared by light
+   and dark so badges stay recognisable in both modes.
+   -------------------------------------------------------------------------- */
+.theme-warm-yellow {
+  --color-brand: #f59e0b; /* Amber 500 */
+  --color-brand-dark: #d97706; /* Amber 600 */
+  --color-brand-deep: #b45309; /* Amber 700 */
+  --color-brand-tint: #fef3c7; /* Amber 100 */
+  --color-brand-surface: #fffbeb; /* Amber 50 */
+  --color-brand-soft: #fbbf24; /* Amber 400 */
+
+  --brand: #f59e0b;
+  --brand-dark: #d97706;
+  --brand-deep: #b45309;
+  --brand-tint: #fef3c7;
+  --brand-surface: #fffbeb;
+  --brand-soft: #fbbf24;
+
+  --shadow-brand: 0 8px 20px -4px rgb(245 158 11 / 0.35);
+
+  --primary: #f59e0b;
+  --primary-foreground: #ffffff;
+  --secondary: #d97706;
+  --secondary-foreground: #ffffff;
+  --accent: #fef3c7;
+  --accent-foreground: #b45309;
+  --ring: #f59e0b;
+
+  --sidebar: #92400e;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #f59e0b;
+  --sidebar-primary-foreground: #451a03;
+  --sidebar-accent: #d97706;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.12);
+  --sidebar-ring: #fbbf24;
+
+  --chart-1: #f59e0b;
+  --chart-2: #fbbf24;
+  --chart-3: #fef3c7;
+  --chart-4: #b45309;
+  --chart-5: #d97706;
+}
+
+.dark.theme-warm-yellow {
+  --primary-foreground: #451a03;
+  --secondary: #d97706;
+  --accent: #78350f;
+  --accent-foreground: #fef3c7;
+  --sidebar: #78350f;
+  --sidebar-accent: #b45309;
+  --sidebar-primary-foreground: #fef3c7;
+}
+
+.theme-muted-red {
+  --color-brand: #e57373; /* Soft rose red */
+  --color-brand-dark: #d04747; /* Hover / active */
+  --color-brand-deep: #b03a3a; /* Text on tint, deep surfaces */
+  --color-brand-tint: #fde8e8; /* Light wash */
+  --color-brand-surface: #fef2f2; /* Palest rose */
+  --color-brand-soft: #ef9a9a; /* Secondary fills, charts */
+
+  --brand: #e57373;
+  --brand-dark: #d04747;
+  --brand-deep: #b03a3a;
+  --brand-tint: #fde8e8;
+  --brand-surface: #fef2f2;
+  --brand-soft: #ef9a9a;
+
+  --shadow-brand: 0 8px 20px -4px rgb(229 115 115 / 0.35);
+
+  --primary: #e57373;
+  --primary-foreground: #ffffff;
+  --secondary: #d04747;
+  --secondary-foreground: #ffffff;
+  --accent: #fde8e8;
+  --accent-foreground: #b03a3a;
+  --ring: #e57373;
+
+  --sidebar: #9f4030;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #e57373;
+  --sidebar-primary-foreground: #2b0808;
+  --sidebar-accent: #d04747;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.12);
+  --sidebar-ring: #ef9a9a;
+
+  --chart-1: #e57373;
+  --chart-2: #ef9a9a;
+  --chart-3: #fde8e8;
+  --chart-4: #b03a3a;
+  --chart-5: #d04747;
+}
+
+.dark.theme-muted-red {
+  --primary-foreground: #2b0808;
+  --secondary: #d04747;
+  --accent: #62241d;
+  --accent-foreground: #fde8e8;
+  --sidebar: #62241d;
+  --sidebar-accent: #b03a3a;
+  --sidebar-primary-foreground: #fde8e8;
+}
+
+/* ----------------------------------------------------------------------------
    3. BASE — Arabic-first RTL
    -------------------------------------------------------------------------- */
 @layer base {

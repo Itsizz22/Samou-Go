@@ -9,6 +9,7 @@ import { ok } from './lib/respond';
 import { errorHandler } from './middleware/error-handler';
 import { notFoundHandler } from './middleware/not-found';
 import { apiRouter } from './routes';
+import { uploadDirs } from './uploads/uploads.config';
 
 export const API_PREFIX = '/api/v1';
 
@@ -40,6 +41,21 @@ export function createApp(): Application {
 
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
+
+  // Processed uploads are immutable — every URL embeds a fresh random key, so a
+  // year-long immutable cache is safe. CORP must be cross-origin because the
+  // seven frontends live on other ports and load these images from here.
+  app.use(
+    '/uploads',
+    express.static(uploadDirs.finalDir, {
+      maxAge: '365d',
+      immutable: true,
+      setHeaders(res) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      },
+    })
+  );
 
   if (!env.isTest) {
     app.use(morgan(env.isProduction ? 'combined' : 'dev'));

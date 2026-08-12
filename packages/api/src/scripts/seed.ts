@@ -39,6 +39,8 @@ interface SeedStore {
   phone: string;
   logoUrl: string | null;
   managerId: string;
+  latitude: number;
+  longitude: number;
   categories: SeedCategory[];
 }
 
@@ -50,6 +52,8 @@ const STORES: SeedStore[] = [
     phone: '0599100201',
     logoUrl: null,
     managerId: 'user-manager-baraka',
+    latitude: 31.3971,
+    longitude: 35.0716,
     categories: [
       {
         id: 'cat-baraka-dairy',
@@ -93,6 +97,8 @@ const STORES: SeedStore[] = [
     phone: '0567100302',
     logoUrl: null,
     managerId: 'user-manager-shawarma',
+    latitude: 31.3984,
+    longitude: 35.0702,
     categories: [
       {
         id: 'cat-shawarma-sandwich',
@@ -134,6 +140,8 @@ const STORES: SeedStore[] = [
     phone: '0599100403',
     logoUrl: null,
     managerId: 'user-manager-pharmacy',
+    latitude: 31.3962,
+    longitude: 35.0691,
     categories: [
       {
         id: 'cat-pharmacy-otc',
@@ -201,6 +209,8 @@ async function seedUsers(): Promise<void> {
       update: {
         name: user.name,
         phone: user.phone,
+        // Re-seeding must restore the documented local-development login.
+        passwordHash,
         role: user.role,
         isActive: user.isActive ?? true,
         isVerified: user.isVerified ?? false,
@@ -313,6 +323,8 @@ async function seedCatalogue(): Promise<void> {
         phone: store.phone,
         logoUrl: store.logoUrl,
         managerId: store.managerId,
+        latitude: store.latitude,
+        longitude: store.longitude,
         isActive: true,
         isApproved: true,
       },
@@ -323,6 +335,8 @@ async function seedCatalogue(): Promise<void> {
         phone: store.phone,
         logoUrl: store.logoUrl,
         managerId: store.managerId,
+        latitude: store.latitude,
+        longitude: store.longitude,
         isActive: true,
         isApproved: true,
       },
@@ -476,7 +490,7 @@ async function seedOrders(): Promise<void> {
     });
 
     console.log(
-      `✓ ${order.id}: ${totals.itemCount} أصناف، توصيل ${totals.deliveryFee} ₪، المجموع ${totals.totalAmount} ₪`
+      `✓ ${order.id}: ${totals.itemCount} أصناف، توصيل مجاني (0 ₪)، المجموع ${totals.totalAmount} ₪`
     );
   }
 

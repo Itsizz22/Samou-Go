@@ -18,6 +18,7 @@ export interface CartLine {
   quantity: number;
   /** Snapshot captured when the line was added — the cart renders offline. */
   product: Product;
+  note: string;
 }
 
 export interface CartState {
@@ -28,7 +29,8 @@ export interface CartState {
   subtotal: number;
   /** Basket is scoped to one store; set when switching store. */
   setStore: (storeId: string, storeNameAr: string) => void;
-  addItem: (product: Product, quantity?: number) => void;
+  addItem: (product: Product, quantity?: number, note?: string) => void;
+  setNote: (productId: string, note: string) => void;
   setQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
   clear: () => void;
@@ -83,7 +85,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const addItem = useCallback((product: Product, quantity = 1) => {
+  const addItem = useCallback((product: Product, quantity = 1, note = '') => {
     setCart((current) => {
       const base: PersistedCart = {
         storeId: current.storeId ?? product.storeId,
@@ -94,10 +96,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const lines = existing
         ? base.lines.map((line) =>
             line.productId === product.id
-              ? { ...line, quantity: Math.min(99, line.quantity + quantity) }
+              ? { ...line, quantity: Math.min(99, line.quantity + quantity), note: note || line.note }
               : line
           )
-        : [...base.lines, { productId: product.id, quantity, product }];
+        : [...base.lines, { productId: product.id, quantity, product, note }];
       return { ...base, lines };
     });
   }, []);
@@ -123,6 +125,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const setNote = useCallback((productId: string, note: string) => {
+    setCart((current) => ({ ...current, lines: current.lines.map((line) => line.productId === productId ? { ...line, note } : line) }));
+  }, []);
+
   const clear = useCallback(() => {
     setCart({ storeId: null, storeNameAr: '', lines: [] });
   }, []);
@@ -143,12 +149,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       subtotal,
       setStore,
       addItem,
+      setNote,
       setQuantity,
       removeItem,
       clear,
       lineFor,
     };
-  }, [cart, setStore, addItem, setQuantity, removeItem, clear, lineFor]);
+  }, [cart, setStore, addItem, setNote, setQuantity, removeItem, clear, lineFor]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

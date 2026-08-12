@@ -27,7 +27,9 @@ export type OrderWithRelations = PrismaOrder & {
 };
 
 export type OrderForSummary = PrismaOrder & {
-  items: Pick<PrismaOrderItem, 'quantity'>[];
+  items: (Pick<PrismaOrderItem, 'quantity' | 'note'> & {
+    product: Pick<PrismaProduct, 'nameAr'>;
+  })[];
   store: Pick<PrismaStore, 'nameAr'>;
 };
 
@@ -41,6 +43,8 @@ export function toOrder(order: PrismaOrder): Order {
     status: order.status,
     customerAddressText: order.customerAddressText,
     addressNote: order.addressNote,
+    orderNote: order.orderNote,
+    estimatedPrepMinutes: order.estimatedPrepMinutes,
     subtotal: decimalToNumber(order.subtotal),
     deliveryFee: decimalToNumber(order.deliveryFee),
     discount: decimalToNumber(order.discount),
@@ -60,6 +64,7 @@ function toOrderItem(item: PrismaOrderItem & { product: PrismaProduct }): OrderI
     quantity: item.quantity,
     unitPrice: decimalToNumber(item.unitPrice),
     totalPrice: decimalToNumber(item.totalPrice),
+    note: item.note,
     product: {
       id: item.product.id,
       nameAr: item.product.nameAr,
@@ -93,6 +98,8 @@ export function toOrderDetail(order: OrderWithRelations): OrderDetail {
       nameAr: order.store.nameAr,
       nameEn: order.store.nameEn,
       phone: order.store.phone,
+      latitude: order.store.latitude,
+      longitude: order.store.longitude,
     },
     captain: order.captain ? toContact(order.captain) : null,
     voucher: order.voucher
@@ -117,5 +124,12 @@ export function toOrderSummary(order: OrderForSummary): OrderSummary {
     discount: decimalToNumber(order.discount),
     storeNameAr: order.store.nameAr,
     createdAt: order.createdAt.toISOString(),
+    orderNote: order.orderNote,
+    estimatedPrepMinutes: order.estimatedPrepMinutes,
+    itemNotes: order.items.flatMap((item) =>
+      item.note
+        ? [{ productNameAr: item.product.nameAr, quantity: item.quantity, note: item.note }]
+        : []
+    ),
   };
 }

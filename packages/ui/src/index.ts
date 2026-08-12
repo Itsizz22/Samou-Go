@@ -11,5 +11,5 @@ export * from './components';
 export * from './hooks';
 export * from './lib';
 export { playNewOrderChime, playTestBeep } from './chime';
-export { bootstrapApp } from './bootstrap';
-export type { BootstrapOptions } from './bootstrap';
+export { bootstrapApp, setAppLanguage, setBrandTheme } from './bootstrap';
+export type { BootstrapOptions, AppLanguage, BrandTheme } from './bootstrap';

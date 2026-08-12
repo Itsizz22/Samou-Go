@@ -1,0 +1,214 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/@fs/C:\\Users\\Admin\\Documents\\Samou'Go\\themes\\web-customer\\src\\components\\ui\\DeliveryFee.tsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=99c6e7ae"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+import { Truck } from "/node_modules/.vite/deps/lucide-react.js?v=287cecd2";
+import { cn } from "/src/lib/utils.ts";
+import {
+  CURRENCY,
+  DELIVERY_FEE_LABEL,
+  DELIVERY_FEE_LABEL_SHORT,
+  FREE_DELIVERY_LABEL,
+  formatCurrency,
+  isFreeDelivery
+} from "/src/lib/delivery.ts";
+export const DeliveryFee = ({
+  amount,
+  variant = "stacked",
+  showIcon = false,
+  note,
+  className,
+  currency
+}) => {
+  const free = isFreeDelivery(amount);
+  const value = free ? FREE_DELIVERY_LABEL.ar : formatCurrency(amount, currency);
+  const valueEn = free ? FREE_DELIVERY_LABEL.en : formatCurrency(amount, { unit: "code" });
+  if (variant === "badge") {
+    return /* @__PURE__ */ jsxDEV(
+      "span",
+      {
+        className: cn(
+          "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold",
+          free ? "bg-brand text-white" : "bg-brand-tint text-brand-deep",
+          className
+        ),
+        title: `${DELIVERY_FEE_LABEL.ar} / ${DELIVERY_FEE_LABEL.en}`,
+        children: [
+          showIcon && /* @__PURE__ */ jsxDEV(Truck, { className: "h-3 w-3", "aria-hidden": "true" }, void 0, false, {
+            fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+            lineNumber: 80,
+            columnNumber: 22
+          }, this),
+          /* @__PURE__ */ jsxDEV("span", { children: DELIVERY_FEE_LABEL_SHORT.ar }, void 0, false, {
+            fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+            lineNumber: 81,
+            columnNumber: 9
+          }, this),
+          /* @__PURE__ */ jsxDEV("span", { dir: "ltr", children: value }, void 0, false, {
+            fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+            lineNumber: 82,
+            columnNumber: 9
+          }, this)
+        ]
+      },
+      void 0,
+      true,
+      {
+        fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+        lineNumber: 72,
+        columnNumber: 7
+      },
+      this
+    );
+  }
+  if (variant === "inline") {
+    return /* @__PURE__ */ jsxDEV(
+      "span",
+      {
+        className: cn("inline-flex items-center gap-1.5 text-[11px] text-ink-muted", className),
+        children: [
+          showIcon && /* @__PURE__ */ jsxDEV(Truck, { className: "h-3.5 w-3.5 text-brand", "aria-hidden": "true" }, void 0, false, {
+            fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+            lineNumber: 92,
+            columnNumber: 22
+          }, this),
+          /* @__PURE__ */ jsxDEV("span", { children: DELIVERY_FEE_LABEL_SHORT.ar }, void 0, false, {
+            fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+            lineNumber: 93,
+            columnNumber: 9
+          }, this),
+          /* @__PURE__ */ jsxDEV("span", { dir: "ltr", className: "font-bold text-brand-dark", children: value }, void 0, false, {
+            fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+            lineNumber: 94,
+            columnNumber: 9
+          }, this)
+        ]
+      },
+      void 0,
+      true,
+      {
+        fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+        lineNumber: 89,
+        columnNumber: 7
+      },
+      this
+    );
+  }
+  if (variant === "row") {
+    return /* @__PURE__ */ jsxDEV("div", { className: cn("flex items-start justify-between gap-3", className), children: [
+      /* @__PURE__ */ jsxDEV("dt", { className: "text-ink-muted", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "flex items-center gap-1.5", children: [
+          showIcon && /* @__PURE__ */ jsxDEV(Truck, { className: "h-4 w-4 text-brand", "aria-hidden": "true" }, void 0, false, {
+            fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+            lineNumber: 106,
+            columnNumber: 26
+          }, this),
+          DELIVERY_FEE_LABEL.ar,
+          " ",
+          /* @__PURE__ */ jsxDEV("span", { dir: "ltr", children: [
+            "/ ",
+            DELIVERY_FEE_LABEL.en
+          ] }, void 0, true, {
+            fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+            lineNumber: 107,
+            columnNumber: 37
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+          lineNumber: 105,
+          columnNumber: 11
+        }, this),
+        note && /* @__PURE__ */ jsxDEV("span", { className: "mt-0.5 block text-[11px] text-ink-subtle", children: note }, void 0, false, {
+          fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+          lineNumber: 109,
+          columnNumber: 20
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+        lineNumber: 104,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("dd", { dir: "ltr", className: "shrink-0 font-bold text-ink", children: valueEn }, void 0, false, {
+        fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+        lineNumber: 111,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+      lineNumber: 103,
+      columnNumber: 7
+    }, this);
+  }
+  return /* @__PURE__ */ jsxDEV("div", { className: cn("text-end", className), children: [
+    /* @__PURE__ */ jsxDEV("p", { className: "flex items-center justify-end gap-1.5 text-[11px] font-semibold text-ink-muted", children: [
+      showIcon && /* @__PURE__ */ jsxDEV(Truck, { className: "h-3.5 w-3.5 text-brand", "aria-hidden": "true" }, void 0, false, {
+        fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+        lineNumber: 121,
+        columnNumber: 22
+      }, this),
+      DELIVERY_FEE_LABEL.ar
+    ] }, void 0, true, {
+      fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+      lineNumber: 120,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("p", { dir: "ltr", className: "text-[10px] text-ink-subtle", children: DELIVERY_FEE_LABEL.en }, void 0, false, {
+      fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+      lineNumber: 124,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("p", { dir: "ltr", className: "mt-1 text-sm font-extrabold text-brand-dark", children: [
+      value,
+      !free && /* @__PURE__ */ jsxDEV("span", { className: "ms-1 text-[10px] font-semibold", children: CURRENCY.code }, void 0, false, {
+        fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+        lineNumber: 129,
+        columnNumber: 19
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+      lineNumber: 127,
+      columnNumber: 7
+    }, this),
+    note && /* @__PURE__ */ jsxDEV("p", { className: "mt-0.5 text-[10px] text-ink-subtle", children: note }, void 0, false, {
+      fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+      lineNumber: 131,
+      columnNumber: 16
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx",
+    lineNumber: 119,
+    columnNumber: 5
+  }, this);
+};
+_c = DeliveryFee;
+export default DeliveryFee;
+var _c;
+$RefreshReg$(_c, "DeliveryFee");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Admin/Documents/Samou'Go/themes/web-customer/src/components/ui/DeliveryFee.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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cUJBREg7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQUVBO0FBQUEsU0FWRjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBV0E7QUFBQSxFQUVKO0FBRUEsU0FDRSx1QkFBQyxTQUFJLFdBQVdqQixHQUFHLFlBQVlZLFNBQVMsR0FDdEM7QUFBQSwyQkFBQyxPQUFFLFdBQVUsa0ZBQ1ZGO0FBQUFBLGtCQUFZLHVCQUFDLFNBQU0sV0FBVSwwQkFBeUIsZUFBWSxVQUF0RDtBQUFBO0FBQUE7QUFBQTtBQUFBLGFBQTREO0FBQUEsTUFDeEVSLG1CQUFtQmM7QUFBQUEsU0FGdEI7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQUdBO0FBQUEsSUFDQSx1QkFBQyxPQUFFLEtBQUksT0FBTSxXQUFVLCtCQUNwQmQsNkJBQW1CZ0IsTUFEdEI7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQUVBO0FBQUEsSUFDQSx1QkFBQyxPQUFFLEtBQUksT0FBTSxXQUFVLCtDQUNwQkg7QUFBQUE7QUFBQUEsTUFDQSxDQUFDRCxRQUFRLHVCQUFDLFVBQUssV0FBVSxrQ0FBa0NiLG1CQUFTbUIsUUFBM0Q7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQUFnRTtBQUFBLFNBRjVFO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FHQTtBQUFBLElBQ0NULFFBQVEsdUJBQUMsT0FBRSxXQUFVLHNDQUFzQ0Esa0JBQW5EO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FBd0Q7QUFBQSxPQVpuRTtBQUFBO0FBQUE7QUFBQTtBQUFBLFNBYUE7QUFFSjtBQUFFVSxLQTVFV2Q7QUE4RWIsZUFBZUE7QUFBWSxJQUFBYztBQUFBLGFBQUFBLElBQUEiLCJuYW1lcyI6WyJUcnVjayIsImNuIiwiQ1VSUkVOQ1kiLCJERUxJVkVSWV9GRUVfTEFCRUwiLCJERUxJVkVSWV9GRUVfTEFCRUxfU0hPUlQiLCJGUkVFX0RFTElWRVJZX0xBQkVMIiwiZm9ybWF0Q3VycmVuY3kiLCJpc0ZyZWVEZWxpdmVyeSIsIkRlbGl2ZXJ5RmVlIiwiYW1vdW50IiwidmFyaWFudCIsInNob3dJY29uIiwibm90ZSIsImNsYXNzTmFtZSIsImN1cnJlbmN5IiwiZnJlZSIsInZhbHVlIiwiYXIiLCJ2YWx1ZUVuIiwiZW4iLCJ1bml0IiwiY29kZSIsIl9jIl0sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIkRlbGl2ZXJ5RmVlLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QgZnJvbSAncmVhY3QnO1xuaW1wb3J0IHsgVHJ1Y2sgfSBmcm9tICdsdWNpZGUtcmVhY3QnO1xuaW1wb3J0IHsgY24gfSBmcm9tICdAL2xpYi91dGlscyc7XG5pbXBvcnQge1xuICBDVVJSRU5DWSxcbiAgREVMSVZFUllfRkVFX0xBQkVMLFxuICBERUxJVkVSWV9GRUVfTEFCRUxfU0hPUlQsXG4gIEZSRUVfREVMSVZFUllfTEFCRUwsXG4gIGZvcm1hdEN1cnJlbmN5LFxuICBpc0ZyZWVEZWxpdmVyeSxcbiAgdHlwZSBDdXJyZW5jeU9wdGlvbnMsXG59IGZyb20gJ0AvbGliL2RlbGl2ZXJ5JztcblxuZXhwb3J0IHR5cGUgRGVsaXZlcnlGZWVWYXJpYW50ID0gJ3N0YWNrZWQnIHwgJ2lubGluZScgfCAnYmFkZ2UnIHwgJ3Jvdyc7XG5cbmV4cG9ydCBpbnRlcmZhY2UgRGVsaXZlcnlGZWVQcm9wcyB7XG4gIC8qKiBGZWUgaW4gSUxTLiBBbHdheXMgYSBudW1iZXIg4oCUIG5ldmVyIGEgcHJlLWZvcm1hdHRlZCBzdHJpbmcuICovXG4gIGFtb3VudDogbnVtYmVyO1xuICB2YXJpYW50PzogRGVsaXZlcnlGZWVWYXJpYW50O1xuICAvKiogU2hvdyB0aGUgdHJ1Y2sgZ2x5cGggbmV4dCB0byB0aGUgbGFiZWwuICovXG4gIHNob3dJY29uPzogYm9vbGVhbjtcbiAgLyoqIE9wdGlvbmFsIGhpbnQgdW5kZXIgdGhlIGxhYmVsLCBlLmcuIGhvdyB0aGUgZmVlIHdhcyBkZXJpdmVkLiAqL1xuICBub3RlPzogc3RyaW5nO1xuICBjbGFzc05hbWU/OiBzdHJpbmc7XG4gIGN1cnJlbmN5PzogQ3VycmVuY3lPcHRpb25zO1xufVxuXG4vKipcbiAqIFRoZSBvbmx5IHNhbmN0aW9uZWQgd2F5IHRvIHJlbmRlciBhIGRlbGl2ZXJ5IGZlZS5cbiAqXG4gKiBMYWJlbHMgY29tZSBmcm9tIGBzcmMvbGliL2RlbGl2ZXJ5LnRzYCwgc28gY2hhbmdpbmcgdGhlIHdvcmRpbmcgb25jZSBjaGFuZ2VzXG4gKiBpdCBpbiBldmVyeSBzY3JlZW4uIFNlZSAvREVTSUdOX1NZU1RFTS5tZCDCpzhcbiAqXG4gKiAgIDxEZWxpdmVyeUZlZSBhbW91bnQ9ezN9IC8+ICAgICAgICAgICAgICAgICAgICBzdGFja2VkICDigJQgYXIgb3ZlciBlbiwgdGhlbiB2YWx1ZVxuICogICA8RGVsaXZlcnlGZWUgYW1vdW50PXszfSB2YXJpYW50PVwiaW5saW5lXCIgLz4gICBpbmxpbmUgICDigJQgb25lIHNob3J0IGxpbmVcbiAqICAgPERlbGl2ZXJ5RmVlIGFtb3VudD17M30gdmFyaWFudD1cImJhZGdlXCIgLz4gICAgYmFkZ2UgICAg4oCUIHRpbnRlZCBwaWxsXG4gKiAgIDxEZWxpdmVyeUZlZSBhbW91bnQ9ezN9IHZhcmlhbnQ9XCJyb3dcIiAvPiAgICAgIHJvdyAgICAgIOKAlCBiaWxsIGxpbmUsIGxhYmVsIOKLryB2YWx1ZVxuICovXG5leHBvcnQgY29uc3QgRGVsaXZlcnlGZWU6IFJlYWN0LkZDPERlbGl2ZXJ5RmVlUHJvcHM+ID0gKHtcbiAgYW1vdW50LFxuICB2YXJpYW50ID0gJ3N0YWNrZWQnLFxuICBzaG93SWNvbiA9IGZhbHNlLFxuICBub3RlLFxuICBjbGFzc05hbWUsXG4gIGN1cnJlbmN5LFxufSkgPT4ge1xuICBjb25zdCBmcmVlID0gaXNGcmVlRGVsaXZlcnkoYW1vdW50KTtcbiAgY29uc3QgdmFsdWUgPSBmcmVlID8gRlJFRV9ERUxJVkVSWV9MQUJFTC5hciA6IGZvcm1hdEN1cnJlbmN5KGFtb3VudCwgY3VycmVuY3kpO1xuICBjb25zdCB2YWx1ZUVuID0gZnJlZSA/IEZSRUVfREVMSVZFUllfTEFCRUwuZW4gOiBmb3JtYXRDdXJyZW5jeShhbW91bnQsIHsgdW5pdDogJ2NvZGUnIH0pO1xuXG4gIGlmICh2YXJpYW50ID09PSAnYmFkZ2UnKSB7XG4gICAgcmV0dXJuIChcbiAgICAgIDxzcGFuXG4gICAgICAgIGNsYXNzTmFtZT17Y24oXG4gICAgICAgICAgJ2lubGluZS1mbGV4IGl0ZW1zLWNlbnRlciBnYXAtMSByb3VuZGVkLWZ1bGwgcHgtMi41IHB5LTEgdGV4dC1bMTBweF0gZm9udC1ib2xkJyxcbiAgICAgICAgICBmcmVlID8gJ2JnLWJyYW5kIHRleHQtd2hpdGUnIDogJ2JnLWJyYW5kLXRpbnQgdGV4dC1icmFuZC1kZWVwJyxcbiAgICAgICAgICBjbGFzc05hbWVcbiAgICAgICAgKX1cbiAgICAgICAgdGl0bGU9e2Ake0RFTElWRVJZX0ZFRV9MQUJFTC5hcn0gLyAke0RFTElWRVJZX0ZFRV9MQUJFTC5lbn1gfVxuICAgICAgPlxuICAgICAgICB7c2hvd0ljb24gJiYgPFRydWNrIGNsYXNzTmFtZT1cImgtMyB3LTNcIiBhcmlhLWhpZGRlbj1cInRydWVcIiAvPn1cbiAgICAgICAgPHNwYW4+e0RFTElWRVJZX0ZFRV9MQUJFTF9TSE9SVC5hcn08L3NwYW4+XG4gICAgICAgIDxzcGFuIGRpcj1cImx0clwiPnt2YWx1ZX08L3NwYW4+XG4gICAgICA8L3NwYW4+XG4gICAgKTtcbiAgfVxuXG4gIGlmICh2YXJpYW50ID09PSAnaW5saW5lJykge1xuICAgIHJldHVybiAoXG4gICAgICA8c3BhblxuICAgICAgICBjbGFzc05hbWU9e2NuKCdpbmxpbmUtZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEuNSB0ZXh0LVsxMXB4XSB0ZXh0LWluay1tdXRlZCcsIGNsYXNzTmFtZSl9XG4gICAgICA+XG4gICAgICAgIHtzaG93SWNvbiAmJiA8VHJ1Y2sgY2xhc3NOYW1lPVwiaC0zLjUgdy0zLjUgdGV4dC1icmFuZFwiIGFyaWEtaGlkZGVuPVwidHJ1ZVwiIC8+fVxuICAgICAgICA8c3Bhbj57REVMSVZFUllfRkVFX0xBQkVMX1NIT1JULmFyfTwvc3Bhbj5cbiAgICAgICAgPHNwYW4gZGlyPVwibHRyXCIgY2xhc3NOYW1lPVwiZm9udC1ib2xkIHRleHQtYnJhbmQtZGFya1wiPlxuICAgICAgICAgIHt2YWx1ZX1cbiAgICAgICAgPC9zcGFuPlxuICAgICAgPC9zcGFuPlxuICAgICk7XG4gIH1cblxuICBpZiAodmFyaWFudCA9PT0gJ3JvdycpIHtcbiAgICByZXR1cm4gKFxuICAgICAgPGRpdiBjbGFzc05hbWU9e2NuKCdmbGV4IGl0ZW1zLXN0YXJ0IGp1c3RpZnktYmV0d2VlbiBnYXAtMycsIGNsYXNzTmFtZSl9PlxuICAgICAgICA8ZHQgY2xhc3NOYW1lPVwidGV4dC1pbmstbXV0ZWRcIj5cbiAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41XCI+XG4gICAgICAgICAgICB7c2hvd0ljb24gJiYgPFRydWNrIGNsYXNzTmFtZT1cImgtNCB3LTQgdGV4dC1icmFuZFwiIGFyaWEtaGlkZGVuPVwidHJ1ZVwiIC8+fVxuICAgICAgICAgICAge0RFTElWRVJZX0ZFRV9MQUJFTC5hcn0gPHNwYW4gZGlyPVwibHRyXCI+LyB7REVMSVZFUllfRkVFX0xBQkVMLmVufTwvc3Bhbj5cbiAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAge25vdGUgJiYgPHNwYW4gY2xhc3NOYW1lPVwibXQtMC41IGJsb2NrIHRleHQtWzExcHhdIHRleHQtaW5rLXN1YnRsZVwiPntub3RlfTwvc3Bhbj59XG4gICAgICAgIDwvZHQ+XG4gICAgICAgIDxkZCBkaXI9XCJsdHJcIiBjbGFzc05hbWU9XCJzaHJpbmstMCBmb250LWJvbGQgdGV4dC1pbmtcIj5cbiAgICAgICAgICB7dmFsdWVFbn1cbiAgICAgICAgPC9kZD5cbiAgICAgIDwvZGl2PlxuICAgICk7XG4gIH1cblxuICByZXR1cm4gKFxuICAgIDxkaXYgY2xhc3NOYW1lPXtjbigndGV4dC1lbmQnLCBjbGFzc05hbWUpfT5cbiAgICAgIDxwIGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktZW5kIGdhcC0xLjUgdGV4dC1bMTFweF0gZm9udC1zZW1pYm9sZCB0ZXh0LWluay1tdXRlZFwiPlxuICAgICAgICB7c2hvd0ljb24gJiYgPFRydWNrIGNsYXNzTmFtZT1cImgtMy41IHctMy41IHRleHQtYnJhbmRcIiBhcmlhLWhpZGRlbj1cInRydWVcIiAvPn1cbiAgICAgICAge0RFTElWRVJZX0ZFRV9MQUJFTC5hcn1cbiAgICAgIDwvcD5cbiAgICAgIDxwIGRpcj1cImx0clwiIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIHRleHQtaW5rLXN1YnRsZVwiPlxuICAgICAgICB7REVMSVZFUllfRkVFX0xBQkVMLmVufVxuICAgICAgPC9wPlxuICAgICAgPHAgZGlyPVwibHRyXCIgY2xhc3NOYW1lPVwibXQtMSB0ZXh0LXNtIGZvbnQtZXh0cmFib2xkIHRleHQtYnJhbmQtZGFya1wiPlxuICAgICAgICB7dmFsdWV9XG4gICAgICAgIHshZnJlZSAmJiA8c3BhbiBjbGFzc05hbWU9XCJtcy0xIHRleHQtWzEwcHhdIGZvbnQtc2VtaWJvbGRcIj57Q1VSUkVOQ1kuY29kZX08L3NwYW4+fVxuICAgICAgPC9wPlxuICAgICAge25vdGUgJiYgPHAgY2xhc3NOYW1lPVwibXQtMC41IHRleHQtWzEwcHhdIHRleHQtaW5rLXN1YnRsZVwiPntub3RlfTwvcD59XG4gICAgPC9kaXY+XG4gICk7XG59O1xuXG5leHBvcnQgZGVmYXVsdCBEZWxpdmVyeUZlZTtcbiJdLCJmaWxlIjoiQzovVXNlcnMvQWRtaW4vRG9jdW1lbnRzL1NhbW91J0dvL3RoZW1lcy93ZWItY3VzdG9tZXIvc3JjL2NvbXBvbmVudHMvdWkvRGVsaXZlcnlGZWUudHN4In0=

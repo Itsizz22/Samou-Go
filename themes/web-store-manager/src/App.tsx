@@ -2,7 +2,7 @@ import { Theme } from './settings/types';
 import { SamouGoStoreManager } from './components/generated/SamouGoStoreManager';
 // %IMPORT_STATEMENT%
 
-let theme: Theme = 'light';
+const theme: Theme = 'light';
 
 function App() {
   function setTheme(theme: Theme) {
