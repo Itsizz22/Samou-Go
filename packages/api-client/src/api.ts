@@ -384,11 +384,6 @@ export function setSessionPersistence(remember: boolean): void {
   sessionPersistence = remember ? "local" : "session";
 }
 
-/** True when either credential is present — used for session-restore probes. */
-export function hasStoredSession(): boolean {
-  return getToken() !== null || getRefreshToken() !== null;
-}
-
 /* ---------------------------------------------------------------------------
  * Transport
  * ------------------------------------------------------------------------- */
@@ -1084,17 +1079,6 @@ export function finalizeUpload(
   });
 }
 
-/** DELETE /uploads/raw/:key — detaches and deletes an uploaded image. */
-export async function removeUpload(
-  key: string,
-  signal?: AbortSignal,
-): Promise<void> {
-  await request<unknown>("DELETE", `/uploads/raw/${encodeURIComponent(key)}`, {
-    auth: true,
-    signal,
-  });
-}
-
 /**
  * DELETE /uploads/current — removes the image currently attached to the
  * caller's avatar (`kind: 'user'`) or to a managed product (`kind: 'product'`
@@ -1345,7 +1329,6 @@ export const api = {
   presignUpload,
   uploadRawFile,
   finalizeUpload,
-  removeUpload,
   removeCurrentImage,
   uploadImage,
   getToken,
@@ -1358,5 +1341,4 @@ export const api = {
   registerTokenStorage,
   setSessionPersistence,
   hydrateAuthSession,
-  hasStoredSession,
 } as const;
