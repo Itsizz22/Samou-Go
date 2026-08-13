@@ -180,11 +180,13 @@ export type AdminUpdateUserBody = z.infer<typeof adminUpdateUserSchema>;
 export type UserListQuery = z.infer<typeof userListQuerySchema>;
 export type LogoutBody = z.infer<typeof logoutSchema>;
 
-/** POST /api/v1/admin/stores — admin creates a new store. */
+/** POST /api/v1/admin/stores — admin creates a new store + its manager account. */
 export const adminCreateStoreSchema = z.object({
   nameAr: z.string().trim().min(2, "الاسم العربي قصير جداً / Arabic name too short").max(160, "الاسم العربي طويل جداً / Arabic name too long"),
   nameEn: z.string().trim().min(2, "English name too short / English name too short").max(160, "English name too long / English name too long"),
   phone: phoneSchema,
+  /** Display name for the STORE_MANAGER account; defaults to `nameAr`. */
+  managerName: z.string().trim().min(2, "اسم المدير قصير جداً / Manager name too short").max(120, "اسم المدير طويل جداً / Manager name too long").optional(),
   /** Admin sets the initial availability. */
   isActive: z.boolean().default(true),
 });

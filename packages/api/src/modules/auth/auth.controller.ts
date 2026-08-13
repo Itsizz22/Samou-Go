@@ -176,6 +176,9 @@ export async function adminCreateStoreOtpRequestHandler(
   req: Request,
   res: Response,
 ): Promise<void> {
+  // Route-level `authorize(ADMIN)` should already block others; explicit guard
+  // here prevents any future mis-wiring (same pattern as `updateUserHandler`).
+  if (requireAuth(req).role !== UserRole.ADMIN) throw forbidden();
   const body = parseWith(adminStoreOtpRequestSchema, req.body);
   ok(res, await otpService.requestOtp(body));
 }
@@ -185,6 +188,7 @@ export async function adminVerifyStoreOtpHandler(
   req: Request,
   res: Response,
 ): Promise<void> {
+  if (requireAuth(req).role !== UserRole.ADMIN) throw forbidden();
   const body = parseWith(adminOtpVerifySchema, req.body);
   ok(res, await otpService.adminVerifyStoreOtp(body));
 }
@@ -194,6 +198,7 @@ export async function adminCreateCaptainOtpRequestHandler(
   req: Request,
   res: Response,
 ): Promise<void> {
+  if (requireAuth(req).role !== UserRole.ADMIN) throw forbidden();
   const body = parseWith(adminCaptainOtpRequestSchema, req.body);
   ok(res, await otpService.requestOtp(body));
 }
@@ -203,6 +208,7 @@ export async function adminVerifyCaptainOtpHandler(
   req: Request,
   res: Response,
 ): Promise<void> {
+  if (requireAuth(req).role !== UserRole.ADMIN) throw forbidden();
   const body = parseWith(adminOtpVerifySchema, req.body);
   ok(res, await otpService.adminVerifyCaptainOtp(body));
 }

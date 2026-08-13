@@ -72,19 +72,28 @@ export async function rotateRefreshToken(raw: string): Promise<RotatedToken> {
   const nextRaw = generateRefreshToken();
   const nextHash = hashRefreshToken(nextRaw);
 
-  await prisma.$transaction([
-    prisma.refreshToken.create({
+  // Rotation must be an atomic "claim": the revocation is CONDITIONAL on
+  // `revokedAt: null`, so under concurrency exactly one request presenting the
+  // same raw token wins the updateMany; a loser sees count 0 and is rejected.
+  // Without the condition, two parallel refreshes both mint sessions from one
+  // token, defeating rotation's replay protection.
+  const rotated = await prisma.$transaction(async (tx) => {
+    const revocation = await tx.refreshToken.updateMany({
+      where: { id: stored.id, revokedAt: null },
+      data: { revokedAt: new Date(), replacedByHash: nextHash },
+    });
+    if (revocation.count === 0) return false;
+    await tx.refreshToken.create({
       data: {
         tokenHash: nextHash,
         userId: stored.userId,
         expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
       },
-    }),
-    prisma.refreshToken.update({
-      where: { id: stored.id },
-      data: { revokedAt: new Date(), replacedByHash: nextHash },
-    }),
-  ]);
+    });
+    return true;
+  });
+
+  if (!rotated) throw invalid;
 
   return { raw: nextRaw, userId: stored.userId };
 }

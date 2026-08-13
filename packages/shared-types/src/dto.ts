@@ -320,6 +320,40 @@ export interface SetAvailabilityInput {
 }
 
 /* ---------------------------------------------------------------------------
+ * Admin creation — POST /admin/stores & POST /admin/captains
+ * ------------------------------------------------------------------------- */
+
+/** POST /admin/stores — admin creates a store plus its manager account. */
+export interface AdminCreateStoreInput {
+  nameAr: string;
+  nameEn: string;
+  /** `05XXXXXXXX` — Palestinian mobile. Becomes the manager account's phone. */
+  phone: string;
+  /** Display name for the STORE_MANAGER account; defaults to `nameAr`. */
+  managerName?: string;
+  /** Initial availability; defaults to open. */
+  isActive?: boolean;
+}
+
+/** POST /admin/captains — admin creates a new captain. */
+export interface AdminCreateCaptainInput {
+  nameAr: string;
+  nameEn: string;
+  /** `05XXXXXXXX` — Palestinian mobile. */
+  phone: string;
+  /** The captain's dedicated store. Required. */
+  assignedStoreId: string;
+  /** Whether the captain may take jobs immediately; defaults to false. */
+  isVerified?: boolean;
+}
+
+/** Response for POST /admin/stores — the new manager account + store. */
+export interface AdminCreateStoreResult {
+  user: PublicUser;
+  store: Store;
+}
+
+/* ---------------------------------------------------------------------------
  * Admin dashboard — GET /admin/stats
  * ------------------------------------------------------------------------- */
 

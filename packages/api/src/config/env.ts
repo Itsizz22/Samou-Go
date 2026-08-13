@@ -112,17 +112,20 @@ if (raw.NODE_ENV === 'production') {
 }
 
 /**
- * The delivery tariff this deployment reports via `/api/v1/meta`. Values come
- * from the environment, but the fee charged per order is ALWAYS 0 — delivery
- * is free platform-wide — because `calculateDeliveryFee` (shared-types) no
- * longer reads these amounts. `currency` is the only field that still matters.
+ * The delivery tariff this deployment reports via `/api/v1/meta`.
+ *
+ * DELIVERY IS FREE platform-wide — the amounts are hard-zeroed so `/meta` and
+ * any consumer of the tariff (store-card badges, checkout previews) can never
+ * report a fee, regardless of the `DELIVERY_*` env vars. The env overrides
+ * remain as dormant plumbing for the day a fee re-launches: flip the three
+ * lines below back to their `raw.*` values then, and update the mirrors.
  */
 export const deliveryFeeConfig: DeliveryFeeConfig = {
-  baseFee: raw.DELIVERY_BASE_FEE,
-  bulkFee: raw.DELIVERY_BULK_FEE,
+  baseFee: 0,
+  bulkFee: 0,
   bulkThreshold: raw.DELIVERY_BULK_THRESHOLD,
   currency: DEFAULT_DELIVERY_FEE_CONFIG.currency,
-  regionSurcharges: DEFAULT_DELIVERY_FEE_CONFIG.regionSurcharges,
+  regionSurcharges: { central: 0, outer: 0, remote: 0 },
 };
 
 /** Parses duration strings (`7d`, `30m`, `2h`, `90` = seconds) into milliseconds. */
