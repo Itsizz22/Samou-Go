@@ -20,8 +20,8 @@ import {
 import { NotificationBell, type BellNotification } from '@samou-go/ui';
 import { BottomNav } from '@/components/BottomNav';
 import { useDrawer } from '@/components/NavigationDrawer';
-import { DeliveryFee } from '@/components/ui/DeliveryFee';
-import { API_URL } from '@/services/api';
+import { DeliveryFee } from '@samou-go/ui';
+import { API_URL } from '@/hooks/useApi';
 import { useApiMeta, useOrders, useStores, useAuth } from '@/hooks/useApi';
 import { useFavorites } from '@/components/FavoritesProvider';
 import { Link, useNavigate } from 'react-router-dom';
@@ -33,7 +33,7 @@ import {
   toStoreCardModel,
   type StoreCardModel,
   type StoreCategoryKey,
-} from '@/lib/store-display';
+} from '@samou-go/ui';
 
 /** Icon per category chip. The taxonomy itself lives in `lib/store-display.ts`. */
 const CATEGORY_ICONS: Record<StoreCategoryKey, LucideIcon> = {

@@ -46,8 +46,8 @@ interface AdminSidebarProps {
 export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, onSignOut }: AdminSidebarProps) {
   return (
     <aside
-      className={`fixed inset-y-0 end-0 z-30 w-[244px] flex-col bg-brand-deep px-4 py-6 text-white transition-transform duration-200 ${
-        open ? 'flex translate-x-0' : 'hidden -translate-x-full rtl:translate-x-full md:flex'
+      className={`fixed inset-y-0 start-0 z-30 w-[244px] flex-col bg-brand-deep px-4 py-6 text-white transition-transform duration-200 ${
+        open ? 'flex translate-x-0' : 'hidden -translate-x-full md:flex md:translate-x-0'
       }`}
       aria-label="Admin sidebar"
     >

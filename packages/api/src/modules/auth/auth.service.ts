@@ -330,4 +330,3 @@ export async function adminCreateCaptain(body: AdminCreateCaptainBody): Promise<
 
   return toPublicUser(user);
 }
-}

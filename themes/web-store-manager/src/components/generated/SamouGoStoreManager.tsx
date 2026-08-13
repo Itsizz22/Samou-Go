@@ -35,9 +35,9 @@ import {
   Store,
   UtensilsCrossed,
   X,
-  XCircle,
 } from 'lucide-react';
 import {
+  DarkModeToggle,
   SignInGate,
   updateOrderStatus,
   updateStore,
@@ -45,11 +45,12 @@ import {
   useMutation,
   useOrderEvent,
   useOrders,
+  useRoleRedirect,
   useStoreManager,
   useStores,
   useToast,
 } from '@samou-go/api-client';
-import { playNewOrderChime } from '@/lib/chime';
+import { playNewOrderChime } from '@samou-go/ui';
 import {
   NotificationBell,
   type BellNotification,
@@ -123,6 +124,10 @@ const BOTTOM_TABS = [
 export function SamouGoStoreManager() {
   const auth = useAuth();
   const toast = useToast();
+
+  // Unified login: non-store-manager roles are sent to their own workspace.
+  useRoleRedirect('store-manager');
+
   /* -- Role gate --------------------------------------------------------- */
   const isManager = auth.user?.role === UserRole.STORE_MANAGER;
 
@@ -367,30 +372,6 @@ export function SamouGoStoreManager() {
     );
   }
 
-  if (!isManager) {
-    return (
-      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-canvas px-5 py-10">
-        <div className="w-full max-w-sm rounded-2xl border border-danger-tint bg-surface p-6 text-center shadow-card">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
-            <XCircle size={22} />
-          </span>
-          <h1 className="mt-3 text-base font-extrabold">هذه الشاشة لمدير المتجر فقط</h1>
-          <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">
-            Store manager access required
-          </p>
-          <button
-            type="button"
-            onClick={auth.signOut}
-            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark"
-          >
-            <LogOut size={14} />
-            تسجيل الخروج <span dir="ltr">Sign out</span>
-          </button>
-        </div>
-      </main>
-    );
-  }
-
   const apiError = incoming.error ?? accepted.error ?? preparing.error ?? readyForPickup.error ?? deliveredToday.error;
   const loading = incoming.loading && accepted.loading && preparing.loading && readyForPickup.loading;
 
@@ -400,16 +381,36 @@ export function SamouGoStoreManager() {
     <main dir="rtl" className="min-h-screen bg-canvas pb-24 font-sans text-ink md:pe-60">
       <aside className="fixed inset-y-0 end-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل مدير المتجر">
         <p className="px-3 text-lg font-extrabold">Samou' Go</p>
-        <p className="px-3 text-[11px] text-white/70">إدارة المتجر / Store Manager</p>
-        <nav className="mt-8 space-y-1">
+        <p className="px-3 text-[11px] text-white/70">مدير المتجر</p>
+        <nav className="mt-8 flex-1 space-y-1">
           {BOTTOM_TABS.map((tab) => {
             const Icon = tab.icon;
             const selected = activeTab === tab.id;
             return <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition ${selected ? 'bg-brand text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'}`}>
-              <Icon size={18} /><span>{tab.ar}</span><span dir="ltr" className="text-[10px] font-medium text-white/65">{tab.en}</span>
+              <Icon size={18} /><span>{tab.ar}</span>
             </button>;
           })}
         </nav>
+        <div className="border-t border-white/10 pt-5">
+          <div className="flex items-center gap-3 rounded-xl px-2 py-2">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-tint text-sm font-extrabold text-brand-deep">
+              {auth.user?.name.slice(0, 2).toUpperCase() ?? 'م'}
+            </span>
+            <span className="min-w-0">
+              <strong className="block truncate text-[12px]">{auth.user?.name ?? 'مدير المتجر'}</strong>
+              <span className="block truncate text-[11px] text-white/70">مدير المتجر</span>
+            </span>
+            <button
+              type="button"
+              onClick={auth.signOut}
+              aria-label="تسجيل الخروج"
+              title="تسجيل الخروج"
+              className="ms-auto rounded-lg p-1 text-white/70 transition hover:bg-surface/10 hover:text-white"
+            >
+              <LogOut size={15} />
+            </button>
+          </div>
+        </div>
       </aside>
       <header className="bg-brand px-4 pb-4 pt-4 text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="التنقل الرئيسي">
@@ -426,13 +427,16 @@ export function SamouGoStoreManager() {
               Store Manager
             </p>
           </div>
-          <NotificationBell
-            notifications={bellNotifications}
-            storageKey="store-manager"
-            chimeOnNew
-            onDark
-            max={10}
-          />
+          <div className="flex items-center gap-2" dir="ltr">
+            <DarkModeToggle storageKey="samou-go.store-manager-dark" onDark />
+            <NotificationBell
+              notifications={bellNotifications}
+              storageKey="store-manager"
+              chimeOnNew
+              onDark
+              max={10}
+            />
+          </div>
         </nav>
         <div className="mx-auto mt-3 flex max-w-md items-center justify-between rounded-xl bg-brand-dark px-3 py-2">
           <div className="flex items-center gap-2">

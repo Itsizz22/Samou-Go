@@ -29,13 +29,13 @@ import {
   LogOut,
   Menu,
   Package,
+  Plus,
   RefreshCw,
   Search,
   Truck,
   Users,
   WalletCards,
   X,
-  XCircle,
 } from 'lucide-react';
 import {
   SignInGate,
@@ -51,6 +51,7 @@ import {
   useMutation,
   useOrders,
   useResource,
+  useRoleRedirect,
   useStores,
   useToast,
   useUploadImage,
@@ -75,11 +76,12 @@ import {
   type UpdateUserInput,
 } from '@samou-go/shared-types';
 import { AdminSidebar, ADMIN_NAV_ITEMS } from '@/components/Sidebar';
-import { DarkModeToggle } from '@/components/DarkModeToggle';
+import { DarkModeToggle } from '@samou-go/api-client';
 import { NotificationsDrawer, relativeTimeArabic } from '@/components/NotificationsDrawer';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { type BellNotification } from '@samou-go/ui';
 import { AdminMap } from '@/components/AdminMap';
+import { CreateCaptainDialog, CreateStoreDialog } from '@/components/CreateDialogs';
 
 /* ---------------------------------------------------------------------------
  * Shared bits
@@ -118,6 +120,9 @@ export function SamouGoAdminDashboard() {
   const toast = useToast();
   const [activeNav, setActiveNav] = useState<string>('Dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Unified login: non-admin roles are sent to their own workspace.
+  useRoleRedirect('admin');
 
   const isAdmin = auth.user?.role === UserRole.ADMIN;
 
@@ -181,38 +186,19 @@ export function SamouGoAdminDashboard() {
     );
   }
 
-  if (!isAdmin) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-canvas px-5">
-        <div className="w-full max-w-sm rounded-2xl border border-danger-tint bg-surface p-6 text-center shadow-card">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
-            <XCircle size={22} />
-          </span>
-          <h1 className="mt-3 text-base font-extrabold">لوحة الإدارة — للمشرفين فقط</h1>
-          <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">Admin access required</p>
-          <button
-            type="button"
-            onClick={auth.signOut}
-            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark"
-          >
-            <LogOut size={14} />
-            تسجيل الخروج <span dir="ltr">Sign out</span>
-          </button>
-        </div>
-      </main>
-    );
-  }
-
   /* ---- Render -------------------------------------------------------------- */
 
   return (
-    <main dir="rtl" className="min-h-screen bg-canvas font-sans text-ink dark:bg-slate-900 dark:text-slate-100">
+    <main
+      dir="rtl"
+      className="min-h-screen w-full bg-canvas font-sans text-ink dark:bg-slate-900 dark:text-slate-100"
+    >
       {/* Sidebar */}
       <AdminSidebar
         userName={auth.user.name}
         activeNav={activeNav}
         open={sidebarOpen}
-        onNavigate={(id) => {
+        onNavigate={id => {
           setActiveNav(id);
           setSidebarOpen(false);
         }}
@@ -221,7 +207,7 @@ export function SamouGoAdminDashboard() {
       />
 
       {/* Main content */}
-      <section className="min-h-screen md:pe-[244px]">
+      <section className="flex min-h-screen w-full flex-col md:ps-[244px]">
         <header className="sticky top-0 z-20 flex min-h-[78px] items-center justify-between border-b border-line bg-surface/95 px-5 shadow-card backdrop-blur md:px-8">
           <div className="flex items-center gap-3">
             <button
@@ -234,7 +220,10 @@ export function SamouGoAdminDashboard() {
             </button>
             <div>
               <h1 className="text-[18px] font-extrabold tracking-[-0.02em] md:text-[21px]">
-                {activeNav} <span className="font-semibold text-ink-muted">/ {ADMIN_NAV_ITEMS.find((n) => n.id === activeNav)?.ar}</span>
+                {activeNav}{' '}
+                <span className="font-semibold text-ink-muted">
+                  / {ADMIN_NAV_ITEMS.find(n => n.id === activeNav)?.ar}
+                </span>
               </h1>
             </div>
           </div>
@@ -246,19 +235,31 @@ export function SamouGoAdminDashboard() {
               className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-brand hover:bg-brand-surface disabled:opacity-60"
               aria-label="Refresh dashboard data"
             >
-              {stats.refreshing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+              {stats.refreshing ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <RefreshCw size={14} />
+              )}
               <span className="hidden sm:inline">تحديث / Refresh</span>
             </button>
-            <NotificationsDrawer notifications={notifications} onNavigate={(target) => setActiveNav(target)} />
-            <DarkModeToggle />
+            <NotificationsDrawer
+              notifications={notifications}
+              onNavigate={target => setActiveNav(target)}
+            />
+            <DarkModeToggle storageKey="samou-go.admin-dark" />
             <span className="hidden h-8 w-px bg-line md:block" />
             <ProfileMenu name={auth.user.name} phone={auth.user.phone} onSignOut={auth.signOut} />
           </div>
         </header>
 
-        <div className="mx-auto max-w-[1500px] px-5 py-7 md:px-8 md:py-9">
+        <div className="w-full flex-1 px-5 py-7 md:px-8 md:py-9">
           {activeNav === 'Dashboard' && (
-            <DashboardTab stats={stats.data} loading={stats.loading} error={stats.error} onRetry={() => void stats.reload()} />
+            <DashboardTab
+              stats={stats.data}
+              loading={stats.loading}
+              error={stats.error}
+              onRetry={() => void stats.reload()}
+            />
           )}
           {activeNav === 'Orders' && <OrdersPanel />}
           {activeNav === 'Users' && <UsersPanel />}
@@ -273,9 +274,15 @@ export function SamouGoAdminDashboard() {
 
 function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const toast = useToast();
-  const [autoAssign, setAutoAssign] = useState(() => window.localStorage.getItem('samou-go.admin.auto-assign') !== '0');
-  const [baseStoreRate, setBaseStoreRate] = useState(() => window.localStorage.getItem('samou-go.admin.base-store-rate') ?? '0');
-  const [captainRate, setCaptainRate] = useState(() => window.localStorage.getItem('samou-go.admin.captain-rate') ?? '3');
+  const [autoAssign, setAutoAssign] = useState(
+    () => window.localStorage.getItem('samou-go.admin.auto-assign') !== '0'
+  );
+  const [baseStoreRate, setBaseStoreRate] = useState(
+    () => window.localStorage.getItem('samou-go.admin.base-store-rate') ?? '0'
+  );
+  const [captainRate, setCaptainRate] = useState(
+    () => window.localStorage.getItem('samou-go.admin.captain-rate') ?? '3'
+  );
   const [name, setName] = useState(auth.user?.name ?? '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -296,7 +303,10 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
     }
     setSaving(true);
     try {
-      const user = await updateProfile({ name: name.trim(), ...(newPassword ? { currentPassword, newPassword } : {}) });
+      const user = await updateProfile({
+        name: name.trim(),
+        ...(newPassword ? { currentPassword, newPassword } : {}),
+      });
       auth.setUser(user);
       setCurrentPassword('');
       setNewPassword('');
@@ -309,26 +319,120 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
   };
 
   return (
-    <PanelShell title="الإعدادات" en="Settings" loading={false} error={null} refreshing={false} onRefresh={() => undefined}>
+    <PanelShell
+      title="الإعدادات"
+      en="Settings"
+      loading={false}
+      error={null}
+      refreshing={false}
+      onRefresh={() => undefined}
+    >
       <div className="grid gap-4 p-5 lg:grid-cols-2">
-        <section className="rounded-2xl border border-line bg-surface p-4 dark:bg-slate-800">
-          <h2 className="text-sm font-extrabold">إعدادات النظام</h2><p dir="ltr" className="text-[11px] text-ink-muted">System controls</p>
-          <label className="flex items-center justify-between gap-2 text-sm font-bold"><span>التوزيع التلقائي للسائقين</span><button type="button" role="switch" aria-checked={autoAssign} onClick={() => setAutoAssign((value) => !value)} className="flex h-7 w-12 items-center rounded-full p-1 bg-surface transition-colors ${autoAssign ? 'justify-end bg-brand' : 'justify-start bg-line'}"><span className="h-5 w-5 rounded-full bg-white" /></button></label>
+        <section className="rounded-2xl border border-line bg-surface p-4">
+          <h2 className="text-sm font-extrabold">إعدادات النظام</h2>
+          <p dir="ltr" className="text-[11px] text-ink-muted">
+            System controls
+          </p>
+          <label className="mt-3 flex items-center justify-between gap-3 text-sm font-bold">
+            <span>التوزيع التلقائي للسائقين</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autoAssign}
+              onClick={() => setAutoAssign(value => !value)}
+              className={`flex h-7 w-12 items-center rounded-full p-1 bg-surface transition-colors ${autoAssign ? 'justify-end bg-brand' : 'justify-start bg-line'}`}
+            >
+              <span className="h-5 w-5 rounded-full bg-white" />
+            </button>
+          </label>
         </section>
-        <section className="rounded-2xl border border-line bg-surface p-4 dark:bg-slate-800">
-          <h2 className="text-sm font-extrabold">المظهر والنسق</h2><p dir="ltr" className="text-[11px] text-ink-muted">Appearance &amp; dark mode</p>
-          <div className="mt-3 flex items-center justify-between"><span className="text-sm font-bold">الوضع الداكن</span><DarkModeToggle className="border border-line dark:bg-slate-700" /></div>
+        <section className="rounded-2xl border border-line bg-surface p-4">
+          <h2 className="text-sm font-extrabold">المظهر والنسق</h2>
+          <p dir="ltr" className="text-[11px] text-ink-muted">
+            Appearance &amp; dark mode
+          </p>
+          <div className="mt-3 flex items-center justify-between">
+            <span className="text-sm font-bold">الوضع الداكن</span>
+            <DarkModeToggle storageKey="samou-go.admin-dark" className="border border-line" />
+          </div>
         </section>
-        <section className="rounded-2xl border border-line bg-surface p-4 dark:bg-slate-800">
-          <h2 className="text-sm font-extrabold">الحساب والأمان</h2><p dir="ltr" className="text-[11px] text-ink-muted">Account &amp; security</p>
-          <div className="mt-3 space-y-2"><input value={name} onChange={(event) => setName(event.target.value)} placeholder="اسم العرض" className="rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900 w-[180px]" /><input value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} type="password" placeholder="كلمة المرور الحالية" className="rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900 w-[180px]" /><input value={newPassword} onChange={(event) => setNewPassword(event.target.value)} type="password" placeholder="كلمة المرور الجديدة" className="rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900 w-[180px]" /><button type="button" disabled={saving} onClick={() => void saveAccount()} className="rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white disabled:opacity-60 mt-2">حفظ الحساب</button></div>
+        <section className="rounded-2xl border border-line bg-surface p-4">
+          <h2 className="text-sm font-extrabold">الحساب والأمان</h2>
+          <p dir="ltr" className="text-[11px] text-ink-muted">
+            Account &amp; security
+          </p>
+          <div className="mt-3 space-y-2">
+            <input
+              value={name}
+              onChange={event => setName(event.target.value)}
+              placeholder="اسم العرض"
+              aria-label="Display name"
+              className="input-field"
+            />
+            <input
+              value={currentPassword}
+              onChange={event => setCurrentPassword(event.target.value)}
+              type="password"
+              placeholder="كلمة المرور الحالية"
+              aria-label="Current password"
+              className="input-field"
+            />
+            <input
+              value={newPassword}
+              onChange={event => setNewPassword(event.target.value)}
+              type="password"
+              placeholder="كلمة المرور الجديدة"
+              aria-label="New password"
+              className="input-field"
+            />
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void saveAccount()}
+              className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
+            >
+              حفظ الحساب
+            </button>
+          </div>
         </section>
-        <section className="rounded-2xl border border-line bg-surface p-4 dark:bg-slate-800">
-          <h2 className="text-sm font-extrabold">رسوم التوصيل الافتراضية</h2><p dir="ltr" className="text-[11px] text-ink-muted">Default delivery fees</p>
-          <div className="mt-3 grid grid-cols-2 gap-2"><label className="text-[11px] font-bold">حصة المتجر<input dir="ltr" inputMode="decimal" value={baseStoreRate} onChange={(event) => setBaseStoreRate(event.target.value)} className="mt-1 rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900 w-24" /></label><label className="text-[11px] font-bold">حصة السائق<input dir="ltr" inputMode="decimal" value={captainRate} onChange={(event) => setCaptainRate(event.target.value)} className="mt-1 rounded-xl border border-line bg-canvas px-3 py-2 text-sm dark:bg-slate-900 w-24" /></label></div>
+        <section className="rounded-2xl border border-line bg-surface p-4">
+          <h2 className="text-sm font-extrabold">رسوم التوصيل الافتراضية</h2>
+          <p dir="ltr" className="text-[11px] text-ink-muted">
+            Default delivery fees
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <label className="text-[11px] font-bold">
+              حصة المتجر
+              <input
+                dir="ltr"
+                inputMode="decimal"
+                value={baseStoreRate}
+                onChange={event => setBaseStoreRate(event.target.value)}
+                className="input-field mt-1"
+              />
+            </label>
+            <label className="text-[11px] font-bold">
+              حصة السائق
+              <input
+                dir="ltr"
+                inputMode="decimal"
+                value={captainRate}
+                onChange={event => setCaptainRate(event.target.value)}
+                className="input-field mt-1"
+              />
+            </label>
+          </div>
         </section>
       </div>
-      <div className="px-5 pb-5"><button type="button" onClick={saveSystemSettings} className="rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-white">حفظ إعدادات النظام والرسوم</button></div>
+      <div className="px-5 pb-5">
+        <button
+          type="button"
+          onClick={saveSystemSettings}
+          className="rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-white"
+        >
+          حفظ إعدادات النظام والرسوم
+        </button>
+      </div>
     </PanelShell>
   );
 }
@@ -349,12 +453,16 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
   const pipeline = useOrders({ page: 1, pageSize: 100 }, { pollMs: 10_000 });
   const rangeStart = useMemo(() => {
     const now = new Date();
-    if (range === 'today') return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    if (range === 'today')
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     if (range === 'week') return now.getTime() - 7 * 24 * 60 * 60 * 1000;
     return now.getTime() - 30 * 24 * 60 * 60 * 1000;
   }, [range]);
   const pipelineOrders = useMemo(
-    () => (pipeline.data?.items ?? []).filter((order) => new Date(order.createdAt).getTime() >= rangeStart),
+    () =>
+      (pipeline.data?.items ?? []).filter(
+        order => new Date(order.createdAt).getTime() >= rangeStart
+      ),
     [pipeline.data?.items, rangeStart]
   );
   const kpis = [
@@ -392,63 +500,121 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
         <div className="mb-5">
           <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-brand">Overview</p>
           <h2 id="overview-title" className="mt-1 text-[20px] font-extrabold tracking-[-0.025em]">
-            نظرة عامة <span dir="ltr" className="font-semibold text-ink-muted">/ Overview</span>
+            نظرة عامة{' '}
+            <span dir="ltr" className="font-semibold text-ink-muted">
+              / Overview
+            </span>
           </h2>
           <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Dashboard date range">
             <CalendarDays size={15} className="text-brand" />
-            {([
-              ['today', 'Today'],
-              ['week', 'This week'],
-              ['month', 'This month'],
-            ] as const).map(([value, label]) => (
+            {(
+              [
+                ['today', 'Today'],
+                ['week', 'This week'],
+                ['month', 'This month'],
+              ] as const
+            ).map(([value, label]) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => setRange(value)}
                 className={`rounded-full px-3 py-1.5 text-[11px] font-bold transition ${
-                  range === value ? 'bg-brand text-white' : 'bg-brand-tint text-brand-deep hover:bg-brand-surface'
+                  range === value
+                    ? 'bg-brand text-white'
+                    : 'bg-brand-tint text-brand-deep hover:bg-brand-surface'
                 }`}
               >
                 {label}
               </button>
             ))}
-            <span className="text-[10px] text-ink-subtle">Pipeline data refreshes every 10 seconds.</span>
+            <span className="text-[10px] text-ink-subtle">
+              Pipeline data refreshes every 10 seconds.
+            </span>
           </div>
         </div>
-        <section className="mb-8 rounded-2xl border border-line bg-surface p-2 shadow-card" aria-label="خريطة التشغيل diretta" style={{zIndex: 10}}>
-          <AdminMap height="h-80" />
+        <section
+          className="mb-8 overflow-hidden rounded-2xl border border-line bg-surface shadow-card"
+          aria-label="خريطة التشغيل / Operations map"
+        >
+          <div className="flex items-center justify-between border-b border-line-soft px-5 py-3">
+            <div>
+              <p className="text-xs font-extrabold text-ink">منطقة التشغيل — السموع</p>
+              <p dir="ltr" className="mt-0.5 text-[10px] text-ink-muted">
+                Operations map · Samou', Hebron
+              </p>
+            </div>
+          </div>
+          <div className="h-80">
+            <AdminMap height="h-full w-full" />
+          </div>
         </section>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {kpis.map((kpi) => {
+          {kpis.map(kpi => {
             const Icon = kpi.icon;
             return (
-              <article key={kpi.label} className="rounded-xl border border-line bg-surface p-5 shadow-card">
+              <article
+                key={kpi.label}
+                className="rounded-xl border border-line bg-surface p-5 shadow-card"
+              >
                 <div className="flex items-start justify-between">
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-tint text-brand">
                     <Icon size={20} />
                   </span>
                 </div>
-                <p dir="ltr" className="mt-5 text-[26px] font-extrabold leading-none tracking-[-0.04em] text-ink">
+                <p
+                  dir="ltr"
+                  className="mt-5 text-[26px] font-extrabold leading-none tracking-[-0.04em] text-ink"
+                >
                   {loading && !stats ? (
-                    <span className="inline-block h-8 w-16 animate-pulse rounded bg-line-soft" aria-hidden="true" />
+                    <span
+                      className="inline-block h-8 w-16 animate-pulse rounded bg-line-soft"
+                      aria-hidden="true"
+                    />
                   ) : (
                     kpi.display
                   )}
                 </p>
                 <p className="mt-2 text-xs font-semibold text-ink-soft">{kpi.label}</p>
-                <p dir="rtl" className="mt-0.5 text-[11px] text-ink-subtle">{kpi.ar}</p>
+                <p dir="rtl" className="mt-0.5 text-[11px] text-ink-subtle">
+                  {kpi.ar}
+                </p>
               </article>
             );
           })}
         </div>
 
         <div className="mt-5 grid gap-4 grid-cols-2 xl:grid-cols-4">
-          <StatusKpi label="بانتظار الموافقة" en="Pending" count={stats?.orders.byStatus[OrderStatus.PENDING] ?? 0} tone="warning" />
-          <StatusKpi label="جاهز للاستلام" en="Ready" count={stats?.orders.byStatus[OrderStatus.READY_FOR_PICKUP] ?? 0} tone="info" />
-          <StatusKpi label="متاجر بانتظار الموافقة" en="Stores awaiting approval" count={stats?.stores.pendingApproval ?? 0} tone="warning" />
-          <StatusKpi label="المتاجر النشطة" en="Active stores" count={stats?.stores.active ?? 0} tone="brand" />
-          <StatusKpi label="إجمالي المستخدمين" en="Registered users" count={stats?.users.total ?? 0} tone="brand" />
+          <StatusKpi
+            label="بانتظار الموافقة"
+            en="Pending"
+            count={stats?.orders.byStatus[OrderStatus.PENDING] ?? 0}
+            tone="warning"
+          />
+          <StatusKpi
+            label="جاهز للاستلام"
+            en="Ready"
+            count={stats?.orders.byStatus[OrderStatus.READY_FOR_PICKUP] ?? 0}
+            tone="info"
+          />
+          <StatusKpi
+            label="متاجر بانتظار الموافقة"
+            en="Stores awaiting approval"
+            count={stats?.stores.pendingApproval ?? 0}
+            tone="warning"
+          />
+          <StatusKpi
+            label="المتاجر النشطة"
+            en="Active stores"
+            count={stats?.stores.active ?? 0}
+            tone="brand"
+          />
+          <StatusKpi
+            label="إجمالي المستخدمين"
+            en="Registered users"
+            count={stats?.users.total ?? 0}
+            tone="brand"
+          />
         </div>
       </section>
 
@@ -473,34 +639,61 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
           <div className="min-w-[760px] rounded-xl border border-line bg-surface p-5 shadow-card">
             <div className="flex items-center justify-between">
               <div>
-                <h2 id="pipeline-title" className="text-[15px] font-extrabold">لوحة سير الطلبات</h2>
-                <p dir="ltr" className="mt-1 text-[11px] text-ink-muted">Live order pipeline · {pipelineOrders.length} orders in selected range</p>
+                <h2 id="pipeline-title" className="text-[15px] font-extrabold">
+                  لوحة سير الطلبات
+                </h2>
+                <p dir="ltr" className="mt-1 text-[11px] text-ink-muted">
+                  Live order pipeline · {pipelineOrders.length} orders in selected range
+                </p>
               </div>
-              {pipeline.refreshing && <Loader2 size={16} className="animate-spin text-brand" aria-label="Refreshing pipeline" />}
+              {pipeline.refreshing && (
+                <Loader2
+                  size={16}
+                  className="animate-spin text-brand"
+                  aria-label="Refreshing pipeline"
+                />
+              )}
             </div>
             <div className="mt-4 grid grid-cols-4 gap-3">
-              {([
-                OrderStatus.PENDING,
-                OrderStatus.PREPARING,
-                OrderStatus.ON_THE_WAY,
-                OrderStatus.DELIVERED,
-              ] as const).map((status) => {
-                const column = pipelineOrders.filter((order) => order.status === status);
+              {(
+                [
+                  OrderStatus.PENDING,
+                  OrderStatus.PREPARING,
+                  OrderStatus.ON_THE_WAY,
+                  OrderStatus.DELIVERED,
+                ] as const
+              ).map(status => {
+                const column = pipelineOrders.filter(order => order.status === status);
                 return (
                   <div key={status} className="min-h-32 rounded-xl bg-canvas p-3">
                     <div className="flex items-center justify-between">
-                      <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${statusBadgeClass(status)}`}>{ORDER_STATUS_LABELS[status].ar}</span>
-                      <span className="text-[11px] font-extrabold text-ink-muted">{column.length}</span>
+                      <span
+                        className={`rounded-full px-2 py-1 text-[10px] font-bold ${statusBadgeClass(status)}`}
+                      >
+                        {ORDER_STATUS_LABELS[status].ar}
+                      </span>
+                      <span className="text-[11px] font-extrabold text-ink-muted">
+                        {column.length}
+                      </span>
                     </div>
                     <ul className="mt-3 space-y-2">
-                      {column.slice(0, 5).map((order) => (
-                        <li key={order.id} className="rounded-lg border border-line bg-surface p-2 text-[10px] shadow-card">
-                          <p className="font-extrabold text-brand-deep" dir="ltr">{order.orderNumber}</p>
+                      {column.slice(0, 5).map(order => (
+                        <li
+                          key={order.id}
+                          className="rounded-lg border border-line bg-surface p-2 text-[10px] shadow-card"
+                        >
+                          <p className="font-extrabold text-brand-deep" dir="ltr">
+                            {order.orderNumber}
+                          </p>
                           <p className="mt-1 truncate text-ink-muted">{order.storeNameAr}</p>
-                          <p className="mt-1 font-bold text-ink" dir="ltr">{formatILS(order.totalAmount)}</p>
+                          <p className="mt-1 font-bold text-ink" dir="ltr">
+                            {formatILS(order.totalAmount)}
+                          </p>
                         </li>
                       ))}
-                      {column.length === 0 && <li className="pt-4 text-center text-[10px] text-ink-subtle">No orders</li>}
+                      {column.length === 0 && (
+                        <li className="pt-4 text-center text-[10px] text-ink-subtle">No orders</li>
+                      )}
                     </ul>
                   </div>
                 );
@@ -511,12 +704,17 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
       )}
 
       {!error && (
-        <section className="mt-7 grid gap-5 xl:grid-cols-[1.55fr_1fr]" aria-label="Recent orders and activity">
+        <section
+          className="mt-7 grid gap-5 xl:grid-cols-[1.55fr_1fr]"
+          aria-label="Recent orders and activity"
+        >
           <article className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
             <div className="flex items-center justify-between border-b border-line-soft px-5 py-5">
               <div>
                 <h2 className="text-[15px] font-extrabold">أحدث الطلبات</h2>
-                <p dir="ltr" className="mt-1 text-[11px] text-ink-muted">Recent Orders</p>
+                <p dir="ltr" className="mt-1 text-[11px] text-ink-muted">
+                  Recent Orders
+                </p>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -533,27 +731,36 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
                 </thead>
                 <tbody className="divide-y divide-line-soft">
                   {loading && !stats
-                    ? [0, 1, 2, 3, 4].map((i) => (
+                    ? [0, 1, 2, 3, 4].map(i => (
                         <tr key={i} aria-hidden="true">
-                          {[0, 1, 2, 3, 4, 5].map((j) => (
+                          {[0, 1, 2, 3, 4, 5].map(j => (
                             <td key={j} className="px-5 py-4">
                               <div className="h-3 animate-pulse rounded bg-line-soft" />
                             </td>
                           ))}
                         </tr>
                       ))
-                    : recent.map((order) => (
+                    : recent.map(order => (
                         <tr key={order.id} className="text-xs hover:bg-canvas">
-                          <td className="px-5 py-4 font-bold text-brand-deep" dir="ltr">{order.orderNumber}</td>
+                          <td className="px-5 py-4 font-bold text-brand-deep" dir="ltr">
+                            {order.orderNumber}
+                          </td>
                           <td className="px-3 py-4 text-ink-muted">{order.storeNameAr}</td>
                           <td className="px-3 py-4 text-ink-muted">{order.itemCount}</td>
                           <td className="px-3 py-4">
-                            <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${statusBadgeClass(order.status)}`}>
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${statusBadgeClass(order.status)}`}
+                            >
                               {ORDER_STATUS_LABELS[order.status].ar}
                             </span>
                           </td>
-                          <td className="px-3 py-4 text-ink-muted" dir="ltr">{shortTime(order.createdAt)}</td>
-                          <td className="px-5 py-4 text-end font-extrabold text-brand-deep" dir="ltr">
+                          <td className="px-3 py-4 text-ink-muted" dir="ltr">
+                            {shortTime(order.createdAt)}
+                          </td>
+                          <td
+                            className="px-5 py-4 text-end font-extrabold text-brand-deep"
+                            dir="ltr"
+                          >
                             {formatILS(order.totalAmount)}
                           </td>
                         </tr>
@@ -569,10 +776,12 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
           <article className="rounded-xl border border-line bg-surface p-5 shadow-card">
             <div>
               <h2 className="text-[15px] font-extrabold">الطلبات حسب الحالة</h2>
-              <p dir="ltr" className="mt-1 text-[11px] text-ink-muted">Orders by status</p>
+              <p dir="ltr" className="mt-1 text-[11px] text-ink-muted">
+                Orders by status
+              </p>
             </div>
             <ul className="mt-5 space-y-3">
-              {Object.values(OrderStatus).map((status) => {
+              {Object.values(OrderStatus).map(status => {
                 const count = stats?.orders.byStatus[status] ?? 0;
                 const total = stats?.orders.total ?? 1;
                 const pct = total > 0 ? Math.round((count / total) * 100) : 0;
@@ -581,9 +790,13 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="font-bold text-ink-soft">
                         {ORDER_STATUS_LABELS[status].ar}
-                        <span dir="ltr" className="ms-1 font-medium text-ink-subtle">· {ORDER_STATUS_LABELS[status].en}</span>
+                        <span dir="ltr" className="ms-1 font-medium text-ink-subtle">
+                          · {ORDER_STATUS_LABELS[status].en}
+                        </span>
                       </span>
-                      <span className="font-extrabold text-ink" dir="ltr">{count} ({pct}%)</span>
+                      <span className="font-extrabold text-ink" dir="ltr">
+                        {count} ({pct}%)
+                      </span>
                     </div>
                     <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-canvas">
                       <div
@@ -602,7 +815,17 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
   );
 }
 
-function StatusKpi({ label, en, count, tone }: { label: string; en: string; count: number; tone: 'brand' | 'warning' | 'info' | 'danger' }) {
+function StatusKpi({
+  label,
+  en,
+  count,
+  tone,
+}: {
+  label: string;
+  en: string;
+  count: number;
+  tone: 'brand' | 'warning' | 'info' | 'danger';
+}) {
   const tint: Record<string, string> = {
     brand: 'bg-brand-tint text-brand-deep',
     warning: 'bg-warning-tint text-warning-ink',
@@ -611,9 +834,13 @@ function StatusKpi({ label, en, count, tone }: { label: string; en: string; coun
   };
   return (
     <article className="rounded-xl border border-line bg-surface p-4 shadow-card">
-      <p className="text-[20px] font-extrabold text-ink" dir="ltr">{count}</p>
+      <p className="text-[20px] font-extrabold text-ink" dir="ltr">
+        {count}
+      </p>
       <p className="mt-1 text-xs font-bold text-ink-soft">{label}</p>
-      <p dir="ltr" className="mt-0.5 text-[10px] text-ink-subtle">{en}</p>
+      <p dir="ltr" className="mt-0.5 text-[10px] text-ink-subtle">
+        {en}
+      </p>
       <span className={`mt-2 inline-block h-1.5 w-8 rounded-full ${tint[tone]}`} />
     </article>
   );
@@ -640,10 +867,11 @@ function OrdersPanel() {
     { pollMs: 10_000 }
   );
   const rows = useMemo(() => {
-    const filtered = (orders.data?.items ?? []).filter((order) =>
-      !debouncedSearch ||
-      order.orderNumber.toLowerCase().includes(debouncedSearch) ||
-      order.storeNameAr.toLowerCase().includes(debouncedSearch)
+    const filtered = (orders.data?.items ?? []).filter(
+      order =>
+        !debouncedSearch ||
+        order.orderNumber.toLowerCase().includes(debouncedSearch) ||
+        order.storeNameAr.toLowerCase().includes(debouncedSearch)
     );
     return [...filtered].sort((left, right) =>
       sortBy === 'amount'
@@ -654,8 +882,8 @@ function OrdersPanel() {
 
   const pendingIdRef = useRef<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const transition = useMutation<UpdateOrderStatusInput, OrderDetail>(
-    (input, signal) => updateOrderStatus(pendingIdRef.current as string, input, signal)
+  const transition = useMutation<UpdateOrderStatusInput, OrderDetail>((input, signal) =>
+    updateOrderStatus(pendingIdRef.current as string, input, signal)
   );
 
   const overrideStatus = async (orderId: string, status: OrderStatus) => {
@@ -665,7 +893,10 @@ function OrdersPanel() {
     pendingIdRef.current = null;
     setPendingId(null);
     if (result) {
-      toast.success(`تم تغيير حالة ${result.orderNumber}`, `Order ${result.orderNumber} moved to ${ORDER_STATUS_LABELS[status].en}`);
+      toast.success(
+        `تم تغيير حالة ${result.orderNumber}`,
+        `Order ${result.orderNumber} moved to ${ORDER_STATUS_LABELS[status].en}`
+      );
       void orders.reload();
     } else if (transition.error) {
       toast.error('تعذّر تغيير الحالة', transition.error.message, { duration: 5_000 });
@@ -684,13 +915,32 @@ function OrdersPanel() {
         <div className="flex flex-wrap items-center gap-2">
           <label className="flex h-9 w-full items-center gap-2 rounded-xl border border-line bg-canvas px-3 text-ink-muted sm:w-[220px]">
             <Search size={15} />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full bg-transparent text-xs outline-none placeholder:text-ink-subtle" placeholder="Order or store…" aria-label="Search orders" />
+            <input
+              value={search}
+              onChange={event => setSearch(event.target.value)}
+              className="w-full bg-transparent text-xs outline-none placeholder:text-ink-subtle"
+              placeholder="Order or store…"
+              aria-label="Search orders"
+            />
           </label>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'ALL' | OrderStatus)} className="h-9 rounded-xl border border-line bg-canvas px-2 text-xs font-semibold text-ink outline-none focus:border-brand" aria-label="Filter order status">
+          <select
+            value={statusFilter}
+            onChange={event => setStatusFilter(event.target.value as 'ALL' | OrderStatus)}
+            className="h-9 rounded-xl border border-line bg-canvas px-2 text-xs font-semibold text-ink outline-none focus:border-brand"
+            aria-label="Filter order status"
+          >
             <option value="ALL">All statuses</option>
-            {Object.values(OrderStatus).map((status) => <option key={status} value={status}>{ORDER_STATUS_LABELS[status].en}</option>)}
+            {Object.values(OrderStatus).map(status => (
+              <option key={status} value={status}>
+                {ORDER_STATUS_LABELS[status].en}
+              </option>
+            ))}
           </select>
-          <button type="button" onClick={() => setSortBy((value) => value === 'newest' ? 'amount' : 'newest')} className="inline-flex h-9 items-center gap-1 rounded-xl border border-line bg-canvas px-3 text-xs font-bold text-ink-soft hover:border-brand">
+          <button
+            type="button"
+            onClick={() => setSortBy(value => (value === 'newest' ? 'amount' : 'newest'))}
+            className="inline-flex h-9 items-center gap-1 rounded-xl border border-line bg-canvas px-3 text-xs font-bold text-ink-soft hover:border-brand"
+          >
             <ArrowUpDown size={14} /> {sortBy === 'newest' ? 'Newest' : 'Amount'}
           </button>
         </div>
@@ -709,23 +959,29 @@ function OrdersPanel() {
           </thead>
           <tbody className="divide-y divide-line-soft">
             {orders.loading && rows.length === 0
-              ? [0, 1, 2, 3, 4].map((i) => (
+              ? [0, 1, 2, 3, 4].map(i => (
                   <tr key={i} aria-hidden="true">
-                    {[0, 1, 2, 3, 4].map((j) => (
-                      <td key={j} className="px-5 py-4"><div className="h-3 animate-pulse rounded bg-line-soft" /></td>
+                    {[0, 1, 2, 3, 4].map(j => (
+                      <td key={j} className="px-5 py-4">
+                        <div className="h-3 animate-pulse rounded bg-line-soft" />
+                      </td>
                     ))}
                   </tr>
                 ))
-              : rows.map((order) => {
+              : rows.map(order => {
                   const next = ORDER_STATUS_TRANSITIONS[order.status];
-                  const legal = next.filter((status) => ORDER_STATUS_TONES[status]);
+                  const legal = next.filter(status => ORDER_STATUS_TONES[status]);
                   const busy = pendingId === order.id && transition.pending;
                   return (
                     <tr key={order.id} className="text-xs hover:bg-canvas">
-                      <td className="px-5 py-3 font-bold text-brand-deep" dir="ltr">{order.orderNumber}</td>
+                      <td className="px-5 py-3 font-bold text-brand-deep" dir="ltr">
+                        {order.orderNumber}
+                      </td>
                       <td className="px-3 py-3 text-ink-muted">{order.storeNameAr}</td>
                       <td className="px-3 py-3">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${statusBadgeClass(order.status)}`}>
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${statusBadgeClass(order.status)}`}
+                        >
                           {ORDER_STATUS_LABELS[order.status].ar}
                         </span>
                       </td>
@@ -736,16 +992,20 @@ function OrdersPanel() {
                           <select
                             value=""
                             disabled={busy}
-                            onChange={(e) => {
+                            onChange={e => {
                               const value = e.target.value as OrderStatus;
                               if (value) void overrideStatus(order.id, value);
                             }}
                             className="rounded-lg border border-line bg-canvas px-2 py-1.5 text-[11px] font-semibold text-ink outline-none focus:border-brand disabled:opacity-60"
                             aria-label={`Override status for ${order.orderNumber}`}
                           >
-                            <option value="" disabled>{busy ? '…' : 'تحويل إلى / Move to…'}</option>
-                            {legal.map((status) => (
-                              <option key={status} value={status}>{ORDER_STATUS_LABELS[status].ar} / {ORDER_STATUS_LABELS[status].en}</option>
+                            <option value="" disabled>
+                              {busy ? '…' : 'تحويل إلى / Move to…'}
+                            </option>
+                            {legal.map(status => (
+                              <option key={status} value={status}>
+                                {ORDER_STATUS_LABELS[status].ar} / {ORDER_STATUS_LABELS[status].en}
+                              </option>
                             ))}
                           </select>
                         )}
@@ -768,8 +1028,8 @@ function OrdersPanel() {
           totalPages={orders.data.totalPages}
           total={orders.data.total}
           disabled={orders.loading}
-          onPrev={() => setPage((p) => Math.max(1, p - 1))}
-          onNext={() => setPage((p) => Math.min(orders.data?.totalPages ?? p, p + 1))}
+          onPrev={() => setPage(p => Math.max(1, p - 1))}
+          onNext={() => setPage(p => Math.min(orders.data?.totalPages ?? p, p + 1))}
         />
       )}
     </PanelShell>
@@ -808,8 +1068,8 @@ function UsersPanel() {
 
   const pendingIdRef = useRef<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const updateMutation = useMutation<UpdateUserInput, PublicUser>(
-    (input, signal) => updateUser(pendingIdRef.current as string, input, signal)
+  const updateMutation = useMutation<UpdateUserInput, PublicUser>((input, signal) =>
+    updateUser(pendingIdRef.current as string, input, signal)
   );
 
   /* ---- Bulk selection (activate / deactivate) ------------------------------ */
@@ -817,7 +1077,7 @@ function UsersPanel() {
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
+    setSelectedIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -826,23 +1086,25 @@ function UsersPanel() {
   };
 
   const selectVisible = (checked: boolean) => {
-    const selectable = rows.filter((user) => user.role !== UserRole.ADMIN).map((user) => user.id);
+    const selectable = rows.filter(user => user.role !== UserRole.ADMIN).map(user => user.id);
     setSelectedIds(checked ? new Set(selectable) : new Set());
   };
 
   const allVisibleSelected =
-    rows.length > 0 && rows.every((user) => user.role === UserRole.ADMIN || selectedIds.has(user.id));
+    rows.length > 0 && rows.every(user => user.role === UserRole.ADMIN || selectedIds.has(user.id));
 
   const runBulkActive = async (active: boolean) => {
     const ids = [...selectedIds];
     if (ids.length === 0) return;
     setBulkBusy(true);
-    const results = await Promise.allSettled(ids.map((id) => updateUser(id, { isActive: active })));
-    const ok = results.filter((r) => r.status === 'fulfilled').length;
+    const results = await Promise.allSettled(ids.map(id => updateUser(id, { isActive: active })));
+    const ok = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.length - ok;
     setSelectedIds(new Set());
     if (failed > 0) {
-      toast.error(`${ok} تمت معالجتها، تعذّر ${failed}`, `${ok} updated, ${failed} failed`, { duration: 5_000 });
+      toast.error(`${ok} تمت معالجتها، تعذّر ${failed}`, `${ok} updated, ${failed} failed`, {
+        duration: 5_000,
+      });
     } else {
       toast.success(
         active ? 'تم تفعيل الحسابات المحددة' : 'تم تعطيل الحسابات المحددة',
@@ -853,7 +1115,12 @@ function UsersPanel() {
     setBulkBusy(false);
   };
 
-  const runUpdate = async (id: string, input: UpdateUserInput, successAr: string, successEn: string) => {
+  const runUpdate = async (
+    id: string,
+    input: UpdateUserInput,
+    successAr: string,
+    successEn: string
+  ) => {
     pendingIdRef.current = id;
     setPendingId(id);
     const result = await updateMutation.run(input);
@@ -903,7 +1170,7 @@ function UsersPanel() {
             <Search size={15} />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={e => setSearch(e.target.value)}
               className="w-full bg-transparent text-xs outline-none placeholder:text-ink-subtle"
               placeholder="ابحث بالاسم أو الجوال / Search name or phone…"
               aria-label="Search users"
@@ -911,13 +1178,15 @@ function UsersPanel() {
           </label>
           <select
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value as 'ALL' | UserRole)}
+            onChange={e => setRoleFilter(e.target.value as 'ALL' | UserRole)}
             className="h-9 rounded-xl border border-line bg-canvas px-2 text-xs font-semibold text-ink outline-none focus:border-brand"
             aria-label="Filter by role"
           >
             <option value="ALL">كل الأدوار / All roles</option>
-            {(Object.keys(UserRole) as UserRole[]).map((role) => (
-              <option key={role} value={role}>{USER_ROLE_LABELS[role].ar} / {USER_ROLE_LABELS[role].en}</option>
+            {(Object.keys(UserRole) as UserRole[]).map(role => (
+              <option key={role} value={role}>
+                {USER_ROLE_LABELS[role].ar} / {USER_ROLE_LABELS[role].en}
+              </option>
             ))}
           </select>
         </div>
@@ -926,7 +1195,10 @@ function UsersPanel() {
       {selectedIds.size > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft bg-brand-surface/60 px-5 py-2.5">
           <span className="text-[11px] font-bold text-brand-deep">
-            {selectedIds.size} محدد <span dir="ltr" className="font-medium">/ selected</span>
+            {selectedIds.size} محدد{' '}
+            <span dir="ltr" className="font-medium">
+              / selected
+            </span>
           </span>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -936,7 +1208,10 @@ function UsersPanel() {
               className="flex items-center gap-1.5 rounded-lg bg-brand px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
             >
               {bulkBusy ? <Loader2 size={12} className="animate-spin" /> : null}
-              تفعيل <span dir="ltr" className="font-medium">Activate</span>
+              تفعيل{' '}
+              <span dir="ltr" className="font-medium">
+                Activate
+              </span>
             </button>
             <button
               type="button"
@@ -945,7 +1220,10 @@ function UsersPanel() {
               className="flex items-center gap-1.5 rounded-lg border border-danger-tint bg-danger-tint px-2.5 py-1.5 text-[11px] font-bold text-danger-ink transition hover:bg-danger-ink hover:text-white disabled:opacity-60"
             >
               {bulkBusy ? <Loader2 size={12} className="animate-spin" /> : null}
-              تعطيل <span dir="ltr" className="font-medium">Deactivate</span>
+              تعطيل{' '}
+              <span dir="ltr" className="font-medium">
+                Deactivate
+              </span>
             </button>
             <button
               type="button"
@@ -953,7 +1231,10 @@ function UsersPanel() {
               onClick={() => setSelectedIds(new Set())}
               className="rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:bg-canvas disabled:opacity-60"
             >
-              إلغاء <span dir="ltr" className="font-medium">Clear</span>
+              إلغاء{' '}
+              <span dir="ltr" className="font-medium">
+                Clear
+              </span>
             </button>
           </div>
         </div>
@@ -966,7 +1247,7 @@ function UsersPanel() {
                 <input
                   type="checkbox"
                   checked={allVisibleSelected}
-                  onChange={(e) => selectVisible(e.target.checked)}
+                  onChange={e => selectVisible(e.target.checked)}
                   className="h-3.5 w-3.5 accent-brand"
                   aria-label="Select all users on this page"
                 />
@@ -981,14 +1262,16 @@ function UsersPanel() {
           </thead>
           <tbody className="divide-y divide-line-soft">
             {users.loading && rows.length === 0
-              ? [0, 1, 2, 3, 4, 5, 6].map((i) => (
+              ? [0, 1, 2, 3, 4, 5, 6].map(i => (
                   <tr key={i} aria-hidden="true">
-                    {[0, 1, 2, 3, 4, 5, 6].map((j) => (
-                      <td key={j} className="px-5 py-4"><div className="h-3 animate-pulse rounded bg-line-soft" /></td>
+                    {[0, 1, 2, 3, 4, 5, 6].map(j => (
+                      <td key={j} className="px-5 py-4">
+                        <div className="h-3 animate-pulse rounded bg-line-soft" />
+                      </td>
                     ))}
                   </tr>
                 ))
-              : rows.map((user) => {
+              : rows.map(user => {
                   const busy = pendingId === user.id && updateMutation.pending;
                   return (
                     <tr key={user.id} className="text-xs hover:bg-canvas">
@@ -1010,17 +1293,21 @@ function UsersPanel() {
                           <span className="font-bold text-ink">{user.name}</span>
                         </div>
                       </td>
-                      <td className="px-3 py-3 text-ink-muted" dir="ltr">{user.phone}</td>
+                      <td className="px-3 py-3 text-ink-muted" dir="ltr">
+                        {user.phone}
+                      </td>
                       <td className="px-3 py-3">
                         <select
                           value={user.role}
                           disabled={busy || user.role === UserRole.ADMIN}
-                          onChange={(e) => changeRole(user, e.target.value as UserRole)}
+                          onChange={e => changeRole(user, e.target.value as UserRole)}
                           className="rounded-lg border border-line bg-canvas px-2 py-1.5 text-[11px] font-semibold text-ink outline-none focus:border-brand disabled:opacity-60"
                           aria-label={`Role for ${user.name}`}
                         >
-                          {(Object.keys(UserRole) as UserRole[]).map((role) => (
-                            <option key={role} value={role}>{USER_ROLE_LABELS[role].ar}</option>
+                          {(Object.keys(UserRole) as UserRole[]).map(role => (
+                            <option key={role} value={role}>
+                              {USER_ROLE_LABELS[role].ar}
+                            </option>
                           ))}
                         </select>
                       </td>
@@ -1029,29 +1316,46 @@ function UsersPanel() {
                           <select
                             value={user.assignedStoreId ?? ''}
                             disabled={busy || stores.loading}
-                            onChange={(e) => void runUpdate(
-                              user.id,
-                              { assignedStoreId: e.target.value || null },
-                              e.target.value ? 'تم تخصيص الكابتن للمتجر' : 'تم إلغاء تخصيص الكابتن',
-                              e.target.value ? 'Captain assigned to store' : 'Captain returned to shared pool'
-                            )}
+                            onChange={e =>
+                              void runUpdate(
+                                user.id,
+                                { assignedStoreId: e.target.value || null },
+                                e.target.value
+                                  ? 'تم تخصيص الكابتن للمتجر'
+                                  : 'تم إلغاء تخصيص الكابتن',
+                                e.target.value
+                                  ? 'Captain assigned to store'
+                                  : 'Captain returned to shared pool'
+                              )
+                            }
                             className="max-w-44 rounded-lg border border-line bg-canvas px-2 py-1.5 text-[11px] font-semibold text-ink outline-none focus:border-brand disabled:opacity-60"
                             aria-label={`Dedicated store for ${user.name}`}
                           >
                             <option value="">المجموعة المشتركة / Shared pool</option>
-                            {(stores.data?.items ?? []).map((store) => (
-                              <option key={store.id} value={store.id}>{store.nameAr}</option>
+                            {(stores.data?.items ?? []).map(store => (
+                              <option key={store.id} value={store.id}>
+                                {store.nameAr}
+                              </option>
                             ))}
                           </select>
-                        ) : <span className="text-ink-subtle">—</span>}
+                        ) : (
+                          <span className="text-ink-subtle">—</span>
+                        )}
                       </td>
                       <td className="px-3 py-3">
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                          user.isActive ? 'bg-brand-tint text-brand-deep' : 'bg-danger-tint text-danger-ink'
-                        }`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${user.isActive ? 'bg-brand' : 'bg-danger'}`} />
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                            user.isActive
+                              ? 'bg-brand-tint text-brand-deep'
+                              : 'bg-danger-tint text-danger-ink'
+                          }`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${user.isActive ? 'bg-brand' : 'bg-danger'}`}
+                          />
                           {user.isActive ? 'نشط' : 'موقوف'}
-                          {user.role === UserRole.CAPTAIN && (user.isVerified ? ' · موثّق' : ' · غير موثّق')}
+                          {user.role === UserRole.CAPTAIN &&
+                            (user.isVerified ? ' · موثّق' : ' · غير موثّق')}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-end">
@@ -1061,7 +1365,13 @@ function UsersPanel() {
                           onClick={() => toggleActive(user)}
                           className="rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:border-danger-tint hover:bg-danger-tint hover:text-danger-ink disabled:opacity-50"
                         >
-                          {busy ? <Loader2 size={12} className="animate-spin" /> : user.isActive ? 'تعطيل' : 'تفعيل'}
+                          {busy ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : user.isActive ? (
+                            'تعطيل'
+                          ) : (
+                            'تفعيل'
+                          )}
                         </button>
                       </td>
                     </tr>
@@ -1079,8 +1389,8 @@ function UsersPanel() {
           totalPages={users.data.totalPages}
           total={users.data.total}
           disabled={users.loading}
-          onPrev={() => setPage((p) => Math.max(1, p - 1))}
-          onNext={() => setPage((p) => Math.min(users.data?.totalPages ?? p, p + 1))}
+          onPrev={() => setPage(p => Math.max(1, p - 1))}
+          onNext={() => setPage(p => Math.min(users.data?.totalPages ?? p, p + 1))}
         />
       )}
     </PanelShell>
@@ -1097,16 +1407,19 @@ function StoresPanel() {
   const stores = useStores({ activeOnly: false, page, pageSize: 50 });
   const captains = useUsers({ role: UserRole.CAPTAIN, pageSize: 100 });
   const rows = stores.data?.items ?? [];
+  const [createOpen, setCreateOpen] = useState(false);
 
   const pendingIdRef = useRef<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const approveMutation = useMutation<null, StoreModel>((_, signal) => approveStore(pendingIdRef.current as string, signal));
-  const toggleMutation = useMutation<{ isActive: boolean }, StoreModel>(
-    (input, signal) => updateStore(pendingIdRef.current as string, input, signal)
+  const approveMutation = useMutation<null, StoreModel>((_, signal) =>
+    approveStore(pendingIdRef.current as string, signal)
+  );
+  const toggleMutation = useMutation<{ isActive: boolean }, StoreModel>((input, signal) =>
+    updateStore(pendingIdRef.current as string, input, signal)
   );
   const captainIdRef = useRef<string | null>(null);
-  const assignCaptainMutation = useMutation<UpdateUserInput, PublicUser>(
-    (input, signal) => updateUser(captainIdRef.current as string, input, signal)
+  const assignCaptainMutation = useMutation<UpdateUserInput, PublicUser>((input, signal) =>
+    updateUser(captainIdRef.current as string, input, signal)
   );
 
   const assignCaptain = async (captainId: string, storeId: string) => {
@@ -1126,7 +1439,7 @@ function StoresPanel() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const productImages = useResource(
     `admin-store-products:${expandedId ?? ''}`,
-    (signal) => getStoreProducts(expandedId as string, { page: 1, pageSize: 200 }, signal),
+    signal => getStoreProducts(expandedId as string, { page: 1, pageSize: 200 }, signal),
     { enabled: expandedId !== null }
   );
 
@@ -1185,7 +1498,12 @@ function StoresPanel() {
     }
   };
 
-  const runAction = async (id: string, action: () => Promise<StoreModel | null>, successAr: string, successEn: string) => {
+  const runAction = async (
+    id: string,
+    action: () => Promise<StoreModel | null>,
+    successAr: string,
+    successEn: string
+  ) => {
     pendingIdRef.current = id;
     setPendingId(id);
     const result = await action();
@@ -1205,7 +1523,7 @@ function StoresPanel() {
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const toggleStoreSelect = (id: string) => {
-    setSelectedStores((prev) => {
+    setSelectedStores(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -1213,21 +1531,23 @@ function StoresPanel() {
     });
   };
 
-  const allStoresSelected = rows.length > 0 && rows.every((store) => selectedStores.has(store.id));
+  const allStoresSelected = rows.length > 0 && rows.every(store => selectedStores.has(store.id));
 
   const runBulkStore = async (action: 'approve' | 'open' | 'close') => {
     const ids = [...selectedStores];
     if (ids.length === 0) return;
     setBulkBusy(true);
-    const jobs = ids.map((id) =>
+    const jobs = ids.map(id =>
       action === 'approve' ? approveStore(id) : updateStore(id, { isActive: action === 'open' })
     );
     const results = await Promise.allSettled(jobs);
-    const ok = results.filter((r) => r.status === 'fulfilled').length;
+    const ok = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.length - ok;
     setSelectedStores(new Set());
     if (failed > 0) {
-      toast.error(`${ok} تمت معالجتها، تعذّر ${failed}`, `${ok} completed, ${failed} failed`, { duration: 5_000 });
+      toast.error(`${ok} تمت معالجتها، تعذّر ${failed}`, `${ok} completed, ${failed} failed`, {
+        duration: 5_000,
+      });
     } else {
       const labels = {
         approve: ['تمت الموافقة على المتاجر المحددة', `${ok} store(s) approved`],
@@ -1249,20 +1569,40 @@ function StoresPanel() {
       refreshing={stores.refreshing}
       onRefresh={() => void stores.reload()}
       headerActions={
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="sr-only"
-          aria-label="Choose an image"
-          onChange={(e) => void handleImagePicked(e.target.files?.[0])}
-        />
+        <>
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-3.5 py-2 text-xs font-bold text-white shadow-brand transition hover:bg-brand-dark active:scale-[0.98]"
+          >
+            <Plus size={14} /> <span>إضافة متجر</span>
+            <span dir="ltr" className="font-medium text-white/85">
+              Add store
+            </span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            aria-label="Choose an image"
+            onChange={e => void handleImagePicked(e.target.files?.[0])}
+          />
+        </>
       }
     >
+      <CreateStoreDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => void stores.reload()}
+      />
       {selectedStores.size > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft bg-brand-surface/60 px-5 py-2.5">
           <span className="text-[11px] font-bold text-brand-deep">
-            {selectedStores.size} محدد <span dir="ltr" className="font-medium">/ selected</span>
+            {selectedStores.size} محدد{' '}
+            <span dir="ltr" className="font-medium">
+              / selected
+            </span>
           </span>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -1272,7 +1612,10 @@ function StoresPanel() {
               className="flex items-center gap-1.5 rounded-lg bg-brand px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
             >
               {bulkBusy ? <Loader2 size={12} className="animate-spin" /> : null}
-              موافقة <span dir="ltr" className="font-medium">Approve</span>
+              موافقة{' '}
+              <span dir="ltr" className="font-medium">
+                Approve
+              </span>
             </button>
             <button
               type="button"
@@ -1281,7 +1624,10 @@ function StoresPanel() {
               className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:border-brand hover:bg-brand-surface hover:text-brand-deep disabled:opacity-60"
             >
               {bulkBusy ? <Loader2 size={12} className="animate-spin" /> : null}
-              فتح <span dir="ltr" className="font-medium">Open</span>
+              فتح{' '}
+              <span dir="ltr" className="font-medium">
+                Open
+              </span>
             </button>
             <button
               type="button"
@@ -1290,7 +1636,10 @@ function StoresPanel() {
               className="flex items-center gap-1.5 rounded-lg border border-danger-tint bg-danger-tint px-2.5 py-1.5 text-[11px] font-bold text-danger-ink transition hover:bg-danger-ink hover:text-white disabled:opacity-60"
             >
               {bulkBusy ? <Loader2 size={12} className="animate-spin" /> : null}
-              إغلاق <span dir="ltr" className="font-medium">Close</span>
+              إغلاق{' '}
+              <span dir="ltr" className="font-medium">
+                Close
+              </span>
             </button>
             <button
               type="button"
@@ -1298,7 +1647,10 @@ function StoresPanel() {
               onClick={() => setSelectedStores(new Set())}
               className="rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:bg-canvas disabled:opacity-60"
             >
-              إلغاء <span dir="ltr" className="font-medium">Clear</span>
+              إلغاء{' '}
+              <span dir="ltr" className="font-medium">
+                Clear
+              </span>
             </button>
           </div>
         </div>
@@ -1311,7 +1663,11 @@ function StoresPanel() {
                 <input
                   type="checkbox"
                   checked={allStoresSelected}
-                  onChange={(e) => setSelectedStores(e.target.checked ? new Set(rows.map((row) => row.id)) : new Set())}
+                  onChange={e =>
+                    setSelectedStores(
+                      e.target.checked ? new Set(rows.map(row => row.id)) : new Set()
+                    )
+                  }
                   className="h-3.5 w-3.5 accent-brand"
                   aria-label="Select all stores on this page"
                 />
@@ -1324,14 +1680,16 @@ function StoresPanel() {
           </thead>
           <tbody className="divide-y divide-line-soft">
             {stores.loading && rows.length === 0
-              ? [0, 1, 2, 3, 4].map((i) => (
+              ? [0, 1, 2, 3, 4].map(i => (
                   <tr key={i} aria-hidden="true">
-                    {[0, 1, 2, 3, 4].map((j) => (
-                      <td key={j} className="px-5 py-4"><div className="h-3 animate-pulse rounded bg-line-soft" /></td>
+                    {[0, 1, 2, 3, 4].map(j => (
+                      <td key={j} className="px-5 py-4">
+                        <div className="h-3 animate-pulse rounded bg-line-soft" />
+                      </td>
                     ))}
                   </tr>
                 ))
-              : rows.map((store) => {
+              : rows.map(store => {
                   const busy = pendingId === store.id;
                   const logoBusy = imageBusyKey === `store:${store.id}`;
                   const expanded = expandedId === store.id;
@@ -1351,11 +1709,21 @@ function StoresPanel() {
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2.5">
                             <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-tint text-[10px] font-extrabold text-brand-deep">
-                              {store.logoUrl ? <img src={store.logoUrl} alt="" className="h-full w-full object-cover" /> : store.nameAr.slice(0, 2)}
+                              {store.logoUrl ? (
+                                <img
+                                  src={store.logoUrl}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                store.nameAr.slice(0, 2)
+                              )}
                             </span>
                             <span>
                               <strong className="block font-bold text-ink">{store.nameAr}</strong>
-                              <span className="block text-[10px] text-ink-subtle" dir="ltr">{store.nameEn}</span>
+                              <span className="block text-[10px] text-ink-subtle" dir="ltr">
+                                {store.nameEn}
+                              </span>
                             </span>
                           </div>
                         </td>
@@ -1371,9 +1739,13 @@ function StoresPanel() {
                           )}
                         </td>
                         <td className="px-3 py-3">
-                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                            store.isActive ? 'bg-brand-tint text-brand-deep' : 'bg-canvas text-ink-muted'
-                          }`}>
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                              store.isActive
+                                ? 'bg-brand-tint text-brand-deep'
+                                : 'bg-canvas text-ink-muted'
+                            }`}
+                          >
                             {store.isActive ? 'مفتوح' : 'مغلق'}
                           </span>
                         </td>
@@ -1383,41 +1755,69 @@ function StoresPanel() {
                               <button
                                 type="button"
                                 disabled={busy}
-                                onClick={() => void runAction(store.id, () => approveMutation.run(null), 'تمت الموافقة على المتجر', 'Store approved')}
+                                onClick={() =>
+                                  void runAction(
+                                    store.id,
+                                    () => approveMutation.run(null),
+                                    'تمت الموافقة على المتجر',
+                                    'Store approved'
+                                  )
+                                }
                                 className="rounded-lg bg-brand px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
                               >
-                                {busy && approveMutation.pending ? <Loader2 size={12} className="animate-spin" /> : 'موافقة'}
+                                {busy && approveMutation.pending ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                  'موافقة'
+                                )}
                               </button>
                             )}
                             <button
                               type="button"
                               disabled={busy}
-                              onClick={() => void runAction(
-                                store.id,
-                                () => toggleMutation.run({ isActive: !store.isActive }),
-                                store.isActive ? 'تم إغلاق المتجر' : 'تم فتح المتجر',
-                                store.isActive ? 'Store closed' : 'Store opened'
-                              )}
+                              onClick={() =>
+                                void runAction(
+                                  store.id,
+                                  () => toggleMutation.run({ isActive: !store.isActive }),
+                                  store.isActive ? 'تم إغلاق المتجر' : 'تم فتح المتجر',
+                                  store.isActive ? 'Store closed' : 'Store opened'
+                                )
+                              }
                               className="rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:border-brand hover:bg-brand-surface hover:text-brand-deep disabled:opacity-50"
                             >
-                              {busy && toggleMutation.pending ? <Loader2 size={12} className="animate-spin" /> : store.isActive ? 'إغلاق' : 'فتح'}
+                              {busy && toggleMutation.pending ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : store.isActive ? (
+                                'إغلاق'
+                              ) : (
+                                'فتح'
+                              )}
                             </button>
                             <label className="flex items-center gap-1 rounded-lg border border-line bg-surface px-2 py-1 text-[11px] font-bold text-ink-soft">
                               <span className="hidden sm:inline">إسناد سائق</span>
                               <select
                                 defaultValue=""
                                 disabled={busy || assignCaptainMutation.pending}
-                                onChange={(event) => {
-                                  if (event.target.value) void assignCaptain(event.target.value, store.id);
+                                onChange={event => {
+                                  if (event.target.value)
+                                    void assignCaptain(event.target.value, store.id);
                                   event.currentTarget.value = '';
                                 }}
                                 className="max-w-28 bg-transparent text-[11px] outline-none"
                                 aria-label={`Assign dedicated captain to ${store.nameAr}`}
                               >
                                 <option value="">Assign Captain</option>
-                                {(captains.data?.items ?? []).filter((captain) => !captain.assignedStoreId || captain.assignedStoreId === store.id).map((captain) => (
-                                  <option key={captain.id} value={captain.id}>{captain.name}</option>
-                                ))}
+                                {(captains.data?.items ?? [])
+                                  .filter(
+                                    captain =>
+                                      !captain.assignedStoreId ||
+                                      captain.assignedStoreId === store.id
+                                  )
+                                  .map(captain => (
+                                    <option key={captain.id} value={captain.id}>
+                                      {captain.name}
+                                    </option>
+                                  ))}
                               </select>
                             </label>
                             {store.logoUrl ? (
@@ -1428,7 +1828,11 @@ function StoresPanel() {
                                   onClick={() => openPicker('store', store.id)}
                                   className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-brand-deep transition hover:bg-brand-surface disabled:opacity-50"
                                 >
-                                  {logoBusy ? <Loader2 size={12} className="animate-spin" /> : <ImagePlus size={12} />}
+                                  {logoBusy ? (
+                                    <Loader2 size={12} className="animate-spin" />
+                                  ) : (
+                                    <ImagePlus size={12} />
+                                  )}
                                   <span>الشعار</span>
                                 </button>
                                 <button
@@ -1448,7 +1852,11 @@ function StoresPanel() {
                                 onClick={() => openPicker('store', store.id)}
                                 className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:border-brand hover:bg-brand-surface hover:text-brand-deep disabled:opacity-50"
                               >
-                                {logoBusy ? <Loader2 size={12} className="animate-spin" /> : <ImagePlus size={12} />}
+                                {logoBusy ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                  <ImagePlus size={12} />
+                                )}
                                 <span>شعار</span>
                               </button>
                             )}
@@ -1467,7 +1875,10 @@ function StoresPanel() {
                       </tr>
                       {expanded && (
                         <tr>
-                          <td colSpan={5} className="border-t border-line-soft bg-canvas/50 px-5 py-4">
+                          <td
+                            colSpan={5}
+                            className="border-t border-line-soft bg-canvas/50 px-5 py-4"
+                          >
                             <StoreProductImagesManager
                               storeId={store.id}
                               busyKey={imageBusyKey}
@@ -1493,8 +1904,8 @@ function StoresPanel() {
           totalPages={stores.data.totalPages}
           total={stores.data.total}
           disabled={stores.loading}
-          onPrev={() => setPage((p) => Math.max(1, p - 1))}
-          onNext={() => setPage((p) => Math.min(stores.data?.totalPages ?? p, p + 1))}
+          onPrev={() => setPage(p => Math.max(1, p - 1))}
+          onNext={() => setPage(p => Math.min(stores.data?.totalPages ?? p, p + 1))}
         />
       )}
     </PanelShell>
@@ -1522,24 +1933,30 @@ function StoreProductImagesManager({
         <div>
           <p className="text-xs font-extrabold text-ink">صور المنتجات</p>
           <p dir="ltr" className="mt-0.5 text-[10px] text-ink-muted">
-            Product images for store <span className="font-bold">{storeId}</span> — {products.length}
+            Product images for store <span className="font-bold">{storeId}</span> —{' '}
+            {products.length}
           </p>
         </div>
         {resource.loading && products.length === 0 && (
           <Loader2 size={14} className="animate-spin text-brand" aria-label="Loading products" />
         )}
         {resource.error && (
-          <span className="text-[10px] font-semibold text-danger-ink">{resource.error.message}</span>
+          <span className="text-[10px] font-semibold text-danger-ink">
+            {resource.error.message}
+          </span>
         )}
       </div>
       {products.length === 0 && !resource.loading && !resource.error ? (
         <p className="py-4 text-center text-[11px] text-ink-subtle">لا توجد منتجات في هذا المتجر</p>
       ) : (
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {products.map((product) => {
+          {products.map(product => {
             const busy = busyKey === `product:${product.id}`;
             return (
-              <div key={product.id} className="flex items-center gap-3 rounded-xl border border-line bg-surface p-3">
+              <div
+                key={product.id}
+                className="flex items-center gap-3 rounded-xl border border-line bg-surface p-3"
+              >
                 {product.imageUrl ? (
                   <img
                     src={product.imageUrl}
@@ -1553,7 +1970,9 @@ function StoreProductImagesManager({
                 )}
                 <div className="min-w-0 flex-1">
                   <strong className="block truncate text-[11px] text-ink">{product.nameAr}</strong>
-                  <span className="block text-[9px] text-ink-subtle" dir="ltr">{product.id}</span>
+                  <span className="block text-[9px] text-ink-subtle" dir="ltr">
+                    {product.id}
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -1593,26 +2012,44 @@ function CaptainsPanel() {
   const toast = useToast();
   const [search, setSearch] = useState('');
   const [availability, setAvailability] = useState<'ALL' | 'ONLINE' | 'OFFLINE'>('ALL');
+  const [createOpen, setCreateOpen] = useState(false);
   const captains = useUsers({ role: UserRole.CAPTAIN, pageSize: 50 });
   const stores = useStores({ activeOnly: false, page: 1, pageSize: 100 });
   const storeNames = useMemo(
-    () => new Map((stores.data?.items ?? []).map((store) => [store.id, store.nameAr])),
+    () => new Map((stores.data?.items ?? []).map(store => [store.id, store.nameAr])),
     [stores.data?.items]
   );
-  const rows = useMemo(() => (captains.data?.items ?? []).filter((captain) => {
-    const matchingSearch = !search.trim() || captain.name.toLowerCase().includes(search.trim().toLowerCase()) || captain.phone.includes(search.trim());
-    const online = captain.isActive && captain.isAvailable;
-    return matchingSearch && (availability === 'ALL' || (availability === 'ONLINE' ? online : !online));
-  }), [availability, captains.data?.items, search]);
+  const rows = useMemo(
+    () =>
+      (captains.data?.items ?? []).filter(captain => {
+        const matchingSearch =
+          !search.trim() ||
+          captain.name.toLowerCase().includes(search.trim().toLowerCase()) ||
+          captain.phone.includes(search.trim());
+        const online = captain.isActive && captain.isAvailable;
+        return (
+          matchingSearch &&
+          (availability === 'ALL' || (availability === 'ONLINE' ? online : !online))
+        );
+      }),
+    [availability, captains.data?.items, search]
+  );
 
   const pendingIdRef = useRef<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const verifyMutation = useMutation<null, PublicUser>((_, signal) => verifyCaptain(pendingIdRef.current as string, signal));
-  const updateMutation = useMutation<UpdateUserInput, PublicUser>(
-    (input, signal) => updateUser(pendingIdRef.current as string, input, signal)
+  const verifyMutation = useMutation<null, PublicUser>((_, signal) =>
+    verifyCaptain(pendingIdRef.current as string, signal)
+  );
+  const updateMutation = useMutation<UpdateUserInput, PublicUser>((input, signal) =>
+    updateUser(pendingIdRef.current as string, input, signal)
   );
 
-  const runAction = async (id: string, action: () => Promise<PublicUser | null>, successAr: string, successEn: string) => {
+  const runAction = async (
+    id: string,
+    action: () => Promise<PublicUser | null>,
+    successAr: string,
+    successEn: string
+  ) => {
     pendingIdRef.current = id;
     setPendingId(id);
     const result = await action();
@@ -1627,7 +2064,7 @@ function CaptainsPanel() {
     }
   };
 
-  const onlineCount = rows.filter((c) => c.isActive && c.isAvailable).length;
+  const onlineCount = rows.filter(c => c.isActive && c.isAvailable).length;
 
   return (
     <PanelShell
@@ -1639,16 +2076,44 @@ function CaptainsPanel() {
       onRefresh={() => void captains.reload()}
       headerActions={
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-3.5 py-2 text-xs font-bold text-white shadow-brand transition hover:bg-brand-dark active:scale-[0.98]"
+          >
+            <Plus size={14} /> <span>إضافة سائق</span>
+            <span dir="ltr" className="font-medium text-white/85">
+              Add driver
+            </span>
+          </button>
           <label className="flex h-9 w-full items-center gap-2 rounded-xl border border-line bg-canvas px-3 text-ink-muted sm:w-[200px]">
             <Search size={15} />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full bg-transparent text-xs outline-none placeholder:text-ink-subtle" placeholder="Captain name or phone…" aria-label="Search captains" />
+            <input
+              value={search}
+              onChange={event => setSearch(event.target.value)}
+              className="w-full bg-transparent text-xs outline-none placeholder:text-ink-subtle"
+              placeholder="Captain name or phone…"
+              aria-label="Search captains"
+            />
           </label>
-          <select value={availability} onChange={(event) => setAvailability(event.target.value as 'ALL' | 'ONLINE' | 'OFFLINE')} className="h-9 rounded-xl border border-line bg-canvas px-2 text-xs font-semibold text-ink outline-none focus:border-brand" aria-label="Filter captain availability">
-            <option value="ALL">All availability</option><option value="ONLINE">Online</option><option value="OFFLINE">Offline</option>
+          <select
+            value={availability}
+            onChange={event => setAvailability(event.target.value as 'ALL' | 'ONLINE' | 'OFFLINE')}
+            className="h-9 rounded-xl border border-line bg-canvas px-2 text-xs font-semibold text-ink outline-none focus:border-brand"
+            aria-label="Filter captain availability"
+          >
+            <option value="ALL">All availability</option>
+            <option value="ONLINE">Online</option>
+            <option value="OFFLINE">Offline</option>
           </select>
         </div>
       }
     >
+      <CreateCaptainDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => void captains.reload()}
+      />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[680px] text-start">
           <thead className="bg-canvas text-[10px] font-bold uppercase tracking-[0.06em] text-ink-muted">
@@ -1662,14 +2127,16 @@ function CaptainsPanel() {
           </thead>
           <tbody className="divide-y divide-line-soft">
             {captains.loading && rows.length === 0
-              ? [0, 1, 2].map((i) => (
+              ? [0, 1, 2].map(i => (
                   <tr key={i} aria-hidden="true">
-                    {[0, 1, 2, 3].map((j) => (
-                      <td key={j} className="px-5 py-4"><div className="h-3 animate-pulse rounded bg-line-soft" /></td>
+                    {[0, 1, 2, 3].map(j => (
+                      <td key={j} className="px-5 py-4">
+                        <div className="h-3 animate-pulse rounded bg-line-soft" />
+                      </td>
                     ))}
                   </tr>
                 ))
-              : rows.map((captain) => {
+              : rows.map(captain => {
                   const busy = pendingId === captain.id;
                   return (
                     <tr key={captain.id} className="text-xs hover:bg-canvas">
@@ -1680,7 +2147,9 @@ function CaptainsPanel() {
                           </span>
                           <span>
                             <strong className="block font-bold text-ink">{captain.name}</strong>
-                            <span className="block text-[10px] text-ink-subtle" dir="ltr">{captain.phone}</span>
+                            <span className="block text-[10px] text-ink-subtle" dir="ltr">
+                              {captain.phone}
+                            </span>
                           </span>
                         </div>
                       </td>
@@ -1696,28 +2165,47 @@ function CaptainsPanel() {
                         )}
                       </td>
                       <td className="px-3 py-3 text-[11px] font-semibold text-ink-soft">
-                        <label className="sr-only" htmlFor={`captain-store-${captain.id}`}>Bind captain to a store</label>
+                        <label className="sr-only" htmlFor={`captain-store-${captain.id}`}>
+                          Bind captain to a store
+                        </label>
                         <select
                           id={`captain-store-${captain.id}`}
                           value={captain.assignedStoreId ?? ''}
                           disabled={busy}
-                          onChange={(event) => void runAction(
-                            captain.id,
-                            () => updateMutation.run({ assignedStoreId: event.target.value || null }),
-                            event.target.value ? 'تم ربط السائق بالمطعم' : 'تمت إعادة السائق إلى المجموعة العامة',
-                            event.target.value ? 'Captain bound to store' : 'Captain assigned to general pool'
-                          )}
+                          onChange={event =>
+                            void runAction(
+                              captain.id,
+                              () =>
+                                updateMutation.run({ assignedStoreId: event.target.value || null }),
+                              event.target.value
+                                ? 'تم ربط السائق بالمطعم'
+                                : 'تمت إعادة السائق إلى المجموعة العامة',
+                              event.target.value
+                                ? 'Captain bound to store'
+                                : 'Captain assigned to general pool'
+                            )
+                          }
                           className="max-w-[180px] rounded-lg border border-line bg-surface px-2 py-1.5 text-[11px] font-semibold text-ink-soft outline-none focus:border-brand disabled:opacity-60"
                         >
                           <option value="">سائق عام / General driver</option>
-                          {(stores.data?.items ?? []).map((store) => <option key={store.id} value={store.id}>{store.nameAr}</option>)}
+                          {(stores.data?.items ?? []).map(store => (
+                            <option key={store.id} value={store.id}>
+                              {store.nameAr}
+                            </option>
+                          ))}
                         </select>
                       </td>
                       <td className="px-3 py-3">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                          captain.isActive && captain.isAvailable ? 'bg-brand-tint text-brand-deep' : 'bg-canvas text-ink-muted'
-                        }`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${captain.isActive && captain.isAvailable ? 'bg-brand' : 'bg-ink-subtle'}`} />
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                            captain.isActive && captain.isAvailable
+                              ? 'bg-brand-tint text-brand-deep'
+                              : 'bg-canvas text-ink-muted'
+                          }`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${captain.isActive && captain.isAvailable ? 'bg-brand' : 'bg-ink-subtle'}`}
+                          />
                           {!captain.isActive ? 'موقوف' : captain.isAvailable ? 'متاح' : 'غير متاح'}
                         </span>
                       </td>
@@ -1727,24 +2215,47 @@ function CaptainsPanel() {
                             <button
                               type="button"
                               disabled={busy || !captain.isActive}
-                              onClick={() => void runAction(captain.id, () => verifyMutation.run(null), 'تم توثيق الكابتن', 'Captain verified')}
+                              onClick={() =>
+                                void runAction(
+                                  captain.id,
+                                  () => verifyMutation.run(null),
+                                  'تم توثيق الكابتن',
+                                  'Captain verified'
+                                )
+                              }
                               className="rounded-lg bg-brand px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
                             >
-                              {busy && verifyMutation.pending ? <Loader2 size={12} className="animate-spin" /> : 'توثيق'}
+                              {busy && verifyMutation.pending ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                'توثيق'
+                              )}
                             </button>
                           )}
                           <button
                             type="button"
                             disabled={busy}
-                            onClick={() => void runAction(
-                              captain.id,
-                              () => updateMutation.run({ isActive: !captain.isActive }),
-                              captain.isActive ? 'تم إيقاف السائق ومنعه من استلام طلبات جديدة' : 'تمت إعادة تفعيل السائق',
-                              captain.isActive ? 'Captain suspended from new assignments' : 'Captain reactivated'
-                            )}
+                            onClick={() =>
+                              void runAction(
+                                captain.id,
+                                () => updateMutation.run({ isActive: !captain.isActive }),
+                                captain.isActive
+                                  ? 'تم إيقاف السائق ومنعه من استلام طلبات جديدة'
+                                  : 'تمت إعادة تفعيل السائق',
+                                captain.isActive
+                                  ? 'Captain suspended from new assignments'
+                                  : 'Captain reactivated'
+                              )
+                            }
                             className="rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:border-danger-tint hover:bg-danger-tint hover:text-danger-ink disabled:opacity-50"
                           >
-                            {busy && updateMutation.pending ? <Loader2 size={12} className="animate-spin" /> : captain.isActive ? 'إيقاف' : 'إعادة تفعيل'}
+                            {busy && updateMutation.pending ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : captain.isActive ? (
+                              'إيقاف'
+                            ) : (
+                              'إعادة تفعيل'
+                            )}
                           </button>
                         </div>
                       </td>
@@ -1796,7 +2307,9 @@ function PaginationBar({
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft px-5 py-3">
       <p className="text-[11px] font-semibold text-ink-muted">
         {total !== undefined ? `${total} نتيجة · ` : ''}
-        <span dir="ltr">Page {page} / {last}</span>
+        <span dir="ltr">
+          Page {page} / {last}
+        </span>
       </p>
       <div className="flex items-center gap-2">
         <button
@@ -1806,7 +2319,10 @@ function PaginationBar({
           className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:bg-canvas active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ChevronRight size={13} />
-          السابق <span dir="ltr" className="font-medium">Prev</span>
+          السابق{' '}
+          <span dir="ltr" className="font-medium">
+            Prev
+          </span>
         </button>
         <button
           type="button"
@@ -1814,7 +2330,10 @@ function PaginationBar({
           disabled={disabled || page >= last}
           className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:bg-canvas active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <span dir="ltr" className="font-medium">Next</span> التالي
+          <span dir="ltr" className="font-medium">
+            Next
+          </span>{' '}
+          التالي
           <ChevronLeft size={13} />
         </button>
       </div>
@@ -1822,7 +2341,16 @@ function PaginationBar({
   );
 }
 
-function PanelShell({ title, en, loading, error, refreshing, onRefresh, headerActions, children }: PanelShellProps) {
+function PanelShell({
+  title,
+  en,
+  loading,
+  error,
+  refreshing,
+  onRefresh,
+  headerActions,
+  children,
+}: PanelShellProps) {
   if (error) {
     return (
       <div className="rounded-xl border border-danger-tint bg-surface p-6 text-center shadow-card">
@@ -1846,7 +2374,9 @@ function PanelShell({ title, en, loading, error, refreshing, onRefresh, headerAc
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft px-5 py-5">
         <div>
           <h2 className="text-[15px] font-extrabold">{title}</h2>
-          <p dir="ltr" className="mt-1 text-[11px] text-ink-muted">{en}</p>
+          <p dir="ltr" className="mt-1 text-[11px] text-ink-muted">
+            {en}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           {headerActions}

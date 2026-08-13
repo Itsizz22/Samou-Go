@@ -45,3 +45,8 @@ coverage/
 .vite/
 node_modules/.tmp/
 .eslintcache
+
+# one-off browser-audit artifacts (regenerable, never commit)
+.browser-audit-profile/
+browser-audit-final.mjs
+browser-audit-results.json

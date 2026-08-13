@@ -225,6 +225,35 @@ describe('RBAC on protected routes', () => {
       data: { id: 'u-customer-1', role: UserRole.CUSTOMER },
     });
   });
+
+  it('rejects a CUSTOMER from admin store creation with 403', async () => {
+    const res = await call('/admin/stores', {
+      method: 'POST',
+      token: customerToken,
+      body: { nameAr: 'متجر', nameEn: 'Store', phone: '0599000005' },
+    });
+    expect(res.status).toBe(403);
+    expect(res.json).toMatchObject({ success: false, error: { code: 'FORBIDDEN' } });
+  });
+
+  it('rejects a STORE_MANAGER from admin captain creation with 403', async () => {
+    const res = await call('/admin/captains', {
+      method: 'POST',
+      token: managerToken,
+      body: { nameAr: 'كابتن', nameEn: 'Captain', phone: '0599000005', assignedStoreId: 's-1' },
+    });
+    expect(res.status).toBe(403);
+    expect(res.json).toMatchObject({ success: false, error: { code: 'FORBIDDEN' } });
+  });
+
+  it('rejects admin store creation without a token with 401', async () => {
+    const res = await call('/admin/stores', {
+      method: 'POST',
+      body: { nameAr: 'متجر', nameEn: 'Store', phone: '0599000005' },
+    });
+    expect(res.status).toBe(401);
+    expect(res.json).toMatchObject({ success: false, error: { code: 'UNAUTHORIZED' } });
+  });
 });
 
 /* ---------------------------------------------------------------------------
@@ -306,6 +335,26 @@ describe('invalid payload rejection', () => {
       method: 'POST',
       token: customerToken,
       body: { storeId: '', items: [] },
+    });
+    expect(res.status).toBe(422);
+    expect((res.json?.error as { code: string }).code).toBe('VALIDATION_ERROR');
+  });
+
+  it('rejects admin captain creation without an assigned store with 422', async () => {
+    const res = await call('/admin/captains', {
+      method: 'POST',
+      token: adminToken,
+      body: { nameAr: 'كابتن', nameEn: 'Captain', phone: '0599000005' },
+    });
+    expect(res.status).toBe(422);
+    expect((res.json?.error as { code: string }).code).toBe('VALIDATION_ERROR');
+  });
+
+  it('rejects admin store creation with a malformed phone with 422', async () => {
+    const res = await call('/admin/stores', {
+      method: 'POST',
+      token: adminToken,
+      body: { nameAr: 'متجر', nameEn: 'Store', phone: '123' },
     });
     expect(res.status).toBe(422);
     expect((res.json?.error as { code: string }).code).toBe('VALIDATION_ERROR');

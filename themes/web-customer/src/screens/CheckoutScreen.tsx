@@ -24,7 +24,7 @@ import {
   Ticket,
 } from 'lucide-react';
 import type { ApiError } from '@samou-go/api-client';
-import { createOrder, quoteOrder } from '@/services/api';
+import { createOrder, quoteOrder } from '@/hooks/useApi';
 import { useCart } from '@/components/CartProvider';
 import { CustomerAuthGate } from '@/components/CustomerAuthGate';
 import { useAuth } from '@/hooks/useApi';

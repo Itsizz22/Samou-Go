@@ -13,7 +13,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ApiError,
-  getFavorites,
+  createCaptain,
+  createStore,
   getOrder,
   getStore,
   getStoreManager,
@@ -26,8 +27,10 @@ import {
   getAdminStats,
 } from './api';
 import type {
+  AdminCreateCaptainInput,
+  AdminCreateStoreInput,
+  AdminCreateStoreResult,
   AdminStats,
-  FavoriteListResult,
   FinalizeUploadResult,
   OrderDetail,
   OrderListQuery,
@@ -277,11 +280,6 @@ export function useOrders(
   return useResource(key, (signal) => listOrders(query, signal), options);
 }
 
-/** `GET /favorites` — the signed-in customer's favorite stores. */
-export function useFavorites(options?: ResourceOptions<FavoriteListResult>): Resource<FavoriteListResult> {
-  return useResource('favorites', (signal) => getFavorites(signal), options);
-}
-
 /** `GET /meta` — the live delivery tariff. */
 export function useApiMeta(options?: ResourceOptions<ApiMeta>): Resource<ApiMeta> {
   return useResource('meta', (signal) => getMeta(signal), options);
@@ -299,6 +297,20 @@ export function useUsers(
 /** `GET /admin/stats` — the admin dashboard. */
 export function useAdminStats(options?: ResourceOptions<AdminStats>): Resource<AdminStats> {
   return useResource('admin-stats', (signal) => getAdminStats(signal), options);
+}
+
+/** POST /admin/stores — admin creates a store + manager account. */
+export function useCreateStore(): Mutation<AdminCreateStoreInput, AdminCreateStoreResult> {
+  return useMutation<AdminCreateStoreInput, AdminCreateStoreResult>(
+    (input, signal) => createStore(input, signal)
+  );
+}
+
+/** POST /admin/captains — admin creates a new delivery captain. */
+export function useCreateCaptain(): Mutation<AdminCreateCaptainInput, PublicUser> {
+  return useMutation<AdminCreateCaptainInput, PublicUser>(
+    (input, signal) => createCaptain(input, signal)
+  );
 }
 
 /* ---------------------------------------------------------------------------

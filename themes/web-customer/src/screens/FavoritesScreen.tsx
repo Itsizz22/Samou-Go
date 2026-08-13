@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { SignInGate, useAuth } from '@/hooks/useApi';
 import { ScreenShell } from '@/components/ScreenShell';
 import { useFavorites } from '@/components/FavoritesProvider';
-import { toStoreCardModel } from '@/lib/store-display';
+import { toStoreCardModel } from '@samou-go/ui';
 
 /**
  * Samou' Go — `/favorites`.
