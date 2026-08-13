@@ -60,6 +60,12 @@ export async function updateStoreHandler(req: Request, res: Response): Promise<v
   const { storeId } = parseWith(storeIdParamsSchema, req.params);
   await storesService.assertStoreAccess(storeId, auth.sub, auth.role);
   const body = parseWith(updateStoreSchema, req.body);
+  // `isApproved` publishes the store to the public catalogue — admin-only.
+  // A manager reaching for it here must instead go through the dedicated
+  // `PATCH /stores/:storeId/approve` route, which is gated to ADMIN.
+  if (auth.role !== UserRole.ADMIN && body.isApproved !== undefined) {
+    throw forbidden('اعتماد المتجر مسموح للمشرف فقط / Store approval is admin-only');
+  }
   ok(res, await storesService.updateStore(storeId, body));
 }
 

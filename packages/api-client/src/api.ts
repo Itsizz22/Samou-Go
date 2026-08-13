@@ -615,11 +615,10 @@ async function request<T>(
   }
 
   if (!envelope) {
-    throw new ApiError(
-      CLIENT_ERROR_CODES.MALFORMED_RESPONSE,
-      "ردّ غير متوقع من الخادم / Unexpected response from the server",
-      response.status,
-    );
+    // A 2xx with an empty body (e.g. HTTP 204 No Content from
+    // `DELETE /uploads/raw/:key`) is a valid success that carries no data.
+    // Return `undefined` instead of treating it as a malformed response.
+    return undefined as T;
   }
 
   return envelope.data;

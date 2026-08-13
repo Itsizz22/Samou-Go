@@ -66,27 +66,25 @@ export type DeliveryRegion = (typeof DELIVERY_REGIONS)[number];
  * re-launch of the fee only touches this object, never the call sites.
  */
 export const DEFAULT_DELIVERY_FEE_CONFIG: DeliveryFeeConfig = {
-  baseFee: 3,
-  bulkFee: 5,
+  baseFee: 0,
+  bulkFee: 0,
   bulkThreshold: 5,
   currency: CURRENCY.code,
-  regionSurcharges: { central: 0, outer: 2, remote: 4 },
+  regionSurcharges: { central: 0, outer: 0, remote: 0 },
 };
 
 /**
  * Fee for an order — flatly 0, because delivery is FREE on Samou'.
- * The `config` parameter is kept for signature compatibility with the tariff
- * plumbing (env config, `/api/v1/meta`, the front-end mirrors), but the fee is
- * never charged, regardless of what the config or environment says.
+ * The `config`/`region` parameters are kept for signature compatibility with
+ * the tariff plumbing (env config, `/api/v1/meta`, the front-end mirrors), but
+ * the fee is never charged, regardless of what the config or environment says.
  */
 export function calculateDeliveryFee(
   itemCount: number,
   config: DeliveryFeeConfig = DEFAULT_DELIVERY_FEE_CONFIG,
   region: DeliveryRegion = 'central'
 ): number {
-  if (!Number.isFinite(itemCount) || itemCount <= 0) return 0;
-  const tier = itemCount >= config.bulkThreshold ? config.bulkFee : config.baseFee;
-  return roundMoney(Math.max(0, tier) + Math.max(0, config.regionSurcharges?.[region] ?? 0));
+  return 0;
 }
 
 /**

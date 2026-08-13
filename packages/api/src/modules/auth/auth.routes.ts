@@ -51,25 +51,37 @@ authRouter.patch(
 
 /* ---------------------------------------------------------------------------
  * Admin store/captain creation via OTP
+ * These routes provision privileged roles (STORE_MANAGER / CAPTAIN) and an
+ * auto-approved store, so they must be ADMIN-only — otherwise any phone owner
+ * could mint themselves a staff account. `otpIpLimiter` stays as a secondary
+ * anti-spam layer on top of the ADMIN gate.
  * ------------------------------------------------------------------------- */
 
 authRouter.post(
   "/admin/stores/otp/request",
+  authenticate,
+  authorize(UserRole.ADMIN),
   otpIpLimiter,
   asyncHandler(controller.adminCreateStoreOtpRequestHandler),
 );
 authRouter.post(
   "/admin/stores/otp/verify",
+  authenticate,
+  authorize(UserRole.ADMIN),
   otpIpLimiter,
   asyncHandler(controller.adminVerifyStoreOtpHandler),
 );
 authRouter.post(
   "/admin/captains/otp/request",
+  authenticate,
+  authorize(UserRole.ADMIN),
   otpIpLimiter,
   asyncHandler(controller.adminCreateCaptainOtpRequestHandler),
 );
 authRouter.post(
   "/admin/captains/otp/verify",
+  authenticate,
+  authorize(UserRole.ADMIN),
   otpIpLimiter,
   asyncHandler(controller.adminVerifyCaptainOtpHandler),
 );

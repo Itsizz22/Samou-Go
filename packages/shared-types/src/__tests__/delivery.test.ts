@@ -31,23 +31,23 @@ describe('calculateDeliveryFee', () => {
   });
 
   it('returns 0 for 1 item — delivery is free', () => {
-    expect(calculateDeliveryFee(1)).toBe(3);
+    expect(calculateDeliveryFee(1)).toBe(0);
   });
 
   it('returns 0 for 4 items — delivery is free', () => {
-    expect(calculateDeliveryFee(4)).toBe(3);
+    expect(calculateDeliveryFee(4)).toBe(0);
   });
 
   it('returns 0 for exactly 5 items — delivery is free', () => {
-    expect(calculateDeliveryFee(5)).toBe(5);
+    expect(calculateDeliveryFee(5)).toBe(0);
   });
 
   it('returns 0 for 10 items', () => {
-    expect(calculateDeliveryFee(10)).toBe(5);
+    expect(calculateDeliveryFee(10)).toBe(0);
   });
 
   it('returns 0 for 99 items', () => {
-    expect(calculateDeliveryFee(99)).toBe(5);
+    expect(calculateDeliveryFee(99)).toBe(0);
   });
 
   it('stays free even under a custom DeliveryFeeConfig', () => {
@@ -57,20 +57,20 @@ describe('calculateDeliveryFee', () => {
       bulkThreshold: 3,
       currency: 'ILS',
     };
-    expect(calculateDeliveryFee(1, custom)).toBe(2);
-    expect(calculateDeliveryFee(2, custom)).toBe(2);
-    expect(calculateDeliveryFee(3, custom)).toBe(8);
-    expect(calculateDeliveryFee(10, custom)).toBe(8);
-    expect(calculateDeliveryFee(1, { ...custom, regionSurcharges: { remote: 4 } }, 'remote')).toBe(6);
+    expect(calculateDeliveryFee(1, custom)).toBe(0);
+    expect(calculateDeliveryFee(2, custom)).toBe(0);
+    expect(calculateDeliveryFee(3, custom)).toBe(0);
+    expect(calculateDeliveryFee(10, custom)).toBe(0);
+    expect(calculateDeliveryFee(1, { ...custom, regionSurcharges: { remote: 4 } }, 'remote')).toBe(0);
   });
 
   it('uses DEFAULT_DELIVERY_FEE_CONFIG when no config is provided', () => {
     const { baseFee, bulkFee } = DEFAULT_DELIVERY_FEE_CONFIG;
-    expect(baseFee).toBe(3);
-    expect(bulkFee).toBe(5);
+    expect(baseFee).toBe(0);
+    expect(bulkFee).toBe(0);
     expect(calculateDeliveryFee(0)).toBe(0);
-    expect(calculateDeliveryFee(1)).toBe(baseFee);
-    expect(calculateDeliveryFee(5)).toBe(bulkFee);
+    expect(calculateDeliveryFee(1)).toBe(0);
+    expect(calculateDeliveryFee(5)).toBe(0);
   });
 });
 
@@ -141,15 +141,15 @@ describe('calculateOrderTotals', () => {
 
   it('charges no delivery fee when itemCount < 5', () => {
     const totals = calculateOrderTotals([{ unitPrice: 10, quantity: 4 }]);
-    expect(totals.deliveryFee).toBe(3);
-    expect(totals.totalAmount).toBe(43);
+    expect(totals.deliveryFee).toBe(0);
+    expect(totals.totalAmount).toBe(40);
   });
 
   it('charges no delivery fee when itemCount >= 5', () => {
     const totals = calculateOrderTotals([{ unitPrice: 15, quantity: 5 }]);
-    expect(totals.deliveryFee).toBe(5);
+    expect(totals.deliveryFee).toBe(0);
     expect(totals.subtotal).toBe(75);
-    expect(totals.totalAmount).toBe(80);
+    expect(totals.totalAmount).toBe(75);
   });
 
   it('totalAmount = subtotal + deliveryFee (0, delivery is free)', () => {
@@ -173,8 +173,8 @@ describe('calculateOrderTotals', () => {
   it('stays free under a custom DeliveryFeeConfig', () => {
     const config: DeliveryFeeConfig = { baseFee: 1, bulkFee: 2, bulkThreshold: 2, currency: 'ILS' };
     const totals = calculateOrderTotals([{ unitPrice: 10, quantity: 2 }], config);
-    expect(totals.deliveryFee).toBe(2);
-    expect(totals.totalAmount).toBe(22);
+    expect(totals.deliveryFee).toBe(0);
+    expect(totals.totalAmount).toBe(20);
   });
 });
 

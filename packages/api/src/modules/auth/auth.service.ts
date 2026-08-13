@@ -1,4 +1,5 @@
-import type { User } from '@prisma/client';
+import { randomInt } from 'node:crypto';
+import type { Store, User } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 import type { AuthResponse, Paginated, PublicUser } from '@samou-go/shared-types';
 import { UserRole } from '@samou-go/shared-types';
@@ -9,6 +10,8 @@ import { hashPassword, verifyPassword } from '../../lib/password';
 import { toPublicUser } from './auth.mapper';
 import { issueRefreshToken, revokeAllUserRefreshTokens, rotateRefreshToken } from './refresh-token';
 import type {
+  AdminCreateCaptainBody,
+  AdminCreateStoreBody,
   AdminUpdateUserBody,
   LoginBody,
   RefreshTokenBody,
@@ -265,4 +268,66 @@ export async function verifyCaptain(captainId: string): Promise<PublicUser> {
     data: { isVerified: true },
   });
   return toPublicUser(updated);
+}
+
+/** POST /admin/stores — admin creates a store plus its STORE_MANAGER account. */
+export async function adminCreateStore(
+  body: AdminCreateStoreBody
+): Promise<{ user: PublicUser; store: Store }> {
+  const existing = await prisma.user.findUnique({ where: { phone: body.phone } });
+  if (existing) {
+    throw conflict('رقم الجوال مسجّل مسبقاً / This phone number is already registered');
+  }
+
+  const user = await prisma.user.create({
+    data: {
+      name: body.managerName ?? body.nameAr,
+      phone: body.phone,
+      passwordHash: await hashPassword(`otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`),
+      role: UserRole.STORE_MANAGER,
+      isActive: true,
+      isVerified: true,
+    },
+  });
+
+  const store = await prisma.store.create({
+    data: {
+      nameAr: body.nameAr,
+      nameEn: body.nameEn,
+      phone: body.phone,
+      isActive: body.isActive,
+      isApproved: true,
+      managerId: user.id,
+    },
+  });
+
+  return { user: toPublicUser(user), store };
+}
+
+/** POST /admin/captains — admin creates a new delivery captain. */
+export async function adminCreateCaptain(body: AdminCreateCaptainBody): Promise<PublicUser> {
+  const store = await prisma.store.findUnique({ where: { id: body.assignedStoreId } });
+  if (!store) {
+    throw notFound('المتجر غير موجود / Store not found');
+  }
+
+  const existing = await prisma.user.findUnique({ where: { phone: body.phone } });
+  if (existing) {
+    throw conflict('رقم الجوال مسجّل مسبقاً / This phone number is already registered');
+  }
+
+  const user = await prisma.user.create({
+    data: {
+      name: body.nameAr,
+      phone: body.phone,
+      passwordHash: await hashPassword(`otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`),
+      role: UserRole.CAPTAIN,
+      isActive: true,
+      isVerified: body.isVerified,
+      assignedStoreId: body.assignedStoreId,
+    },
+  });
+
+  return toPublicUser(user);
+}
 }
