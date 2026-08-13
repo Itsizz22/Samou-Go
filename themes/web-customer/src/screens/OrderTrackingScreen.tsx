@@ -19,7 +19,7 @@ import { PaymentMethod, OrderStatus } from '@samou-go/shared-types';
 import { useAuth } from '@/hooks/useApi';
 import { useOrder, useToast, reorderOrder } from '@/hooks/useApi';
 import { connectRealtime } from '@samou-go/api-client';
-import { OrderMap } from '@/components/OrderMap';
+import { LeafletMap } from '@samou-go/ui/map';
 import { useCart } from '@/components/CartProvider';
 import { CustomerAuthGate } from '@/components/CustomerAuthGate';
 import { OrderStatusTimeline } from '@/components/OrderStatusTimeline';
@@ -190,7 +190,7 @@ export function OrderTrackingScreen() {
                   <p className="text-[11px] text-ink-muted">{order.data.customerAddressText}</p>
                 </div>
               </section>
-              {order.data.store.latitude !== null && order.data.store.longitude !== null && <section className="rounded-2xl bg-surface p-2 shadow-card"><OrderMap store={{ latitude: order.data.store.latitude, longitude: order.data.store.longitude, name: order.data.store.nameAr }} captain={captainLocation} /></section>}
+              {order.data.store.latitude !== null && order.data.store.longitude !== null && <section className="rounded-2xl bg-surface p-2 shadow-card"><LeafletMap center={captainLocation ? [captainLocation.lat, captainLocation.lng] : [order.data.store.latitude, order.data.store.longitude]} markers={[{ position: [order.data.store.latitude, order.data.store.longitude], label: order.data.store.nameAr }, ...(captainLocation ? [{ position: [captainLocation.lat, captainLocation.lng] as [number, number], label: 'السائق / Captain' }] : [])]} /></section>}
 
               {/* Items */}
               <section className="rounded-2xl bg-surface p-4 shadow-card">
