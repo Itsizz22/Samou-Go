@@ -80,7 +80,7 @@ import { DarkModeToggle } from '@samou-go/api-client';
 import { NotificationsDrawer, relativeTimeArabic } from '@/components/NotificationsDrawer';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { type BellNotification } from '@samou-go/ui';
-import { AdminMap } from '@/components/AdminMap';
+import { LeafletMap } from '@samou-go/ui/map';
 import { CreateCaptainDialog, CreateStoreDialog } from '@/components/CreateDialogs';
 
 /* ---------------------------------------------------------------------------
@@ -545,7 +545,12 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
             </div>
           </div>
           <div className="h-80">
-            <AdminMap height="h-full w-full" />
+            <LeafletMap
+              center={[31.3971, 35.0716]}
+              zoom={13}
+              className="h-full w-full z-0"
+              markers={[{ position: [31.3971, 35.0716], label: "Samou' Go — منطقة التشغيل" }]}
+            />
           </div>
         </section>
 

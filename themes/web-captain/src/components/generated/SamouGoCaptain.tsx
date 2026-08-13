@@ -58,7 +58,7 @@ import {
   type UpdateProfileInput,
 } from '@samou-go/shared-types';
 import { FREE_DELIVERY_LABEL } from '@/lib/delivery';
-import { CaptainMap } from '@/components/CaptainMap';
+import { LeafletMap } from '@samou-go/ui/map';
 
 /* ---------------------------------------------------------------------------
  * Helpers
@@ -765,7 +765,7 @@ export function SamouGoCaptain() {
 
             {activeItems.length > 0 && activeOrderDetail.data ? (
               <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
-                {activeOrderDetail.data.store.latitude !== null && activeOrderDetail.data.store.longitude !== null && <CaptainMap latitude={activeOrderDetail.data.store.latitude} longitude={activeOrderDetail.data.store.longitude} label={activeOrderDetail.data.store.nameAr} />}
+                {activeOrderDetail.data.store.latitude !== null && activeOrderDetail.data.store.longitude !== null && <LeafletMap center={[activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude]} markers={[{ position: [activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude], label: activeOrderDetail.data.store.nameAr }]} />}
                 <div className="flex items-center justify-between">
                   <span className="rounded-full bg-warning-tint px-2.5 py-1 text-[10px] font-extrabold text-warning-ink">
                     توصيل جاري <span dir="ltr">/ Active route</span>
