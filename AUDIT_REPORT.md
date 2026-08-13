@@ -77,12 +77,12 @@ Commands: `npm run typecheck`, `npm run build`, `npm run build:all` — all exit
 
 | Severity | Item | Note |
 |---|---|---|
-| critical | `vitest` 2.1.9 (dev-only) | Only fixed by `npm audit fix --force` → vitest@4 (breaking; removes `test.typecheck` config used by both vitest.config.ts). Upgrade intentionally deferred. |
-| high | `vite`/`esbuild` inside `vite-node` (dev-only test tooling) | Resolves via the vitest upgrade above. |
-| moderate | `uuid`/`xcode`/`@capacitor/cli` (dev-only, Android packaging) | Fix requires `@capacitor/cli@8.4.2` (breaking). Deferred. |
-| low | `deploy.yml` empty | No deploy pipeline defined. |
+| ~~critical~~ | ~~`vitest` 2.1.9 (dev-only)~~ | **RESOLVED 2026-08-13** — now `vitest@4.1.10`; `npm audit` clean. |
+| ~~high~~ | ~~`vite`/`esbuild` inside `vite-node` (dev-only test tooling)~~ | **RESOLVED 2026-08-13** — via the vitest upgrade. |
+| ~~moderate~~ | ~~`uuid`/`xcode`/`@capacitor/cli` (dev-only, Android packaging)~~ | **RESOLVED 2026-08-13** — root `@capacitor/cli` pinned to `8.4.2` (the advisory-fixed release; deduped against web-customer). `npm audit` → 0 vulnerabilities. |
+| ~~low~~ | ~~`deploy.yml` empty~~ | **RESOLVED 2026-08-13** — full pipeline (build → secret guard → Vercel-link guard → migrate → Render API → 7× Vercel). |
 | info | `packages/api/.env` holds only a non-secret local placeholder `DATABASE_URL` | Local dev/test runs on SQLite (`schema.sqlite.prisma` → `prisma/dev.db`); the placeholder exists so `npm install`'s Prisma postinstall and prod-schema `validate`/`generate` succeed — it is never used for a connection. The real Neon URL was removed. `.env` is gitignored. |
-| info | `package.json#prisma` config deprecated (Prisma 7) | Prisma 6 warns to migrate to `prisma.config.ts`. Not blocking. |
+| ~~info~~ | ~~`package.json#prisma` config deprecated (Prisma 7)~~ | **RESOLVED 2026-08-13** — migrated to `packages/api/prisma.config.ts` (`import 'dotenv/config'` restores the .env loading Prisma does automatically only without a config file). Deprecation warning gone. |
 | info | GitHub Actions CI not verified on GitHub | `.github/workflows/ci.yml` is structurally correct (public dummy `DATABASE_URL` only; zero `continue-on-error`/masking) but no actual runner result exists yet — CI status is **NOT VERIFIED** until a real GitHub Actions run passes. |
 | info | Migration↔schema equivalence STATICALLY verified only | `prisma/migrations` (PostgreSQL) cross-checked against `schema.prisma` by inspection; no live/shadow PostgreSQL database was available, so `prisma migrate diff`/`migrate status` equivalence is not machine-verified. |
 
