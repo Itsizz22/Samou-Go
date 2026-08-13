@@ -13,7 +13,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowLeft, Loader2, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ApiError, requestOtp, verifyOtp } from '@/services/api';
+import { ApiError, requestOtp, verifyOtp } from '@/hooks/useApi';
 import { hapticConfirm, hapticError, hapticSuccess } from '@/lib/haptics';
 import { isValidPalestinianMobile } from '@/lib/phone';
 import { fadeSlideUp } from '@/lib/motion';

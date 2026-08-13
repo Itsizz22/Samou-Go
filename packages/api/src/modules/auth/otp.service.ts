@@ -34,8 +34,6 @@ import { issueRefreshToken } from "./refresh-token";
 import { revokeAllUserRefreshTokens } from "./refresh-token";
 import { notFound } from "../../lib/http-error";
 import type {
-  AdminCreateStoreBody,
-  AdminCreateCaptainBody,
   AdminStoreOtpRequestBody,
   AdminCaptainOtpRequestBody,
   AdminOtpVerifyBody,

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { SamouGoAdminDashboard } from './components/generated/SamouGoAdminDashboard';
-import { ADMIN_DARK_STORAGE_KEY } from './components/DarkModeToggle';
+
+const ADMIN_DARK_STORAGE_KEY = 'samou-go.admin-dark';
 
 function App() {
   // Apply the stored dark-mode preference on boot. The in-dashboard

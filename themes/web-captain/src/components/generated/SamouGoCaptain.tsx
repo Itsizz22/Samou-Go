@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Check,
   Loader2,
+  LogOut,
   MapPin,
   Navigation,
   Package,
@@ -26,6 +27,7 @@ import {
   X,
 } from 'lucide-react';
 import {
+  DarkModeToggle,
   SignInGate,
   setAvailability,
   updateOrderStatus,
@@ -35,6 +37,7 @@ import {
   useOrderEvent,
   useOrder,
   useOrders,
+  useRoleRedirect,
   useToast,
   connectRealtime,
 } from '@samou-go/api-client';
@@ -116,6 +119,9 @@ function mapsDirectionsToAddress(addressText: string): string {
 export function SamouGoCaptain() {
   const auth = useAuth();
   const toast = useToast();
+
+  // Unified login: non-captain roles are sent to their own workspace.
+  useRoleRedirect('captain');
 
   const [available, setAvailable] = useState<boolean>(auth.user?.isAvailable ?? false);
   const [activeTab, setActiveTab] = useState('home');
@@ -342,29 +348,6 @@ export function SamouGoCaptain() {
     );
   }
 
-  if (!isCaptain) {
-    return (
-      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-canvas px-5 py-10">
-        <div className="w-full max-w-sm rounded-2xl border border-danger-tint bg-surface p-6 text-center shadow-card">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
-            <UserRound size={22} />
-          </span>
-          <h1 className="mt-3 text-base font-extrabold">هذه الشاشة لكابتن التوصيل فقط</h1>
-          <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">
-            Delivery captain access required
-          </p>
-          <button
-            type="button"
-            onClick={auth.signOut}
-            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark"
-          >
-            تسجيل الخروج <span dir="ltr">Sign out</span>
-          </button>
-        </div>
-      </main>
-    );
-  }
-
   const loading = availableOrders.loading && activeOrders.loading;
   const error = availableOrders.error ?? activeOrders.error ?? completedOrders.error;
   const captainName = auth.user.name;
@@ -551,16 +534,36 @@ export function SamouGoCaptain() {
     <main dir="rtl" className="min-h-screen bg-canvas pb-24 font-sans text-ink md:pe-60">
       <aside className="fixed inset-y-0 end-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل الكابتن">
         <p className="px-3 text-lg font-extrabold">Samou' Go</p>
-        <p className="px-3 text-[11px] text-white/70">الكابتن / Captain</p>
-        <nav className="mt-8 space-y-1">
+        <p className="px-3 text-[11px] text-white/70">الكابتن</p>
+        <nav className="mt-8 flex-1 space-y-1">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const selected = activeTab === item.id;
             return <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition ${selected ? 'bg-brand text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'}`}>
-              <Icon size={18} /><span>{item.label}</span><span dir="ltr" className="text-[10px] font-medium text-white/65">{item.english}</span>
+              <Icon size={18} /><span>{item.label}</span>
             </button>;
           })}
         </nav>
+        <div className="border-t border-white/10 pt-5">
+          <div className="flex items-center gap-3 rounded-xl px-2 py-2">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-tint text-sm font-extrabold text-brand-deep">
+              {auth.user?.name.slice(0, 2).toUpperCase() ?? 'ك'}
+            </span>
+            <span className="min-w-0">
+              <strong className="block truncate text-[12px]">{auth.user?.name ?? 'الكابتن'}</strong>
+              <span className="block truncate text-[11px] text-white/70">سائق / كابتن</span>
+            </span>
+            <button
+              type="button"
+              onClick={auth.signOut}
+              aria-label="تسجيل الخروج"
+              title="تسجيل الخروج"
+              className="ms-auto rounded-lg p-1 text-white/70 transition hover:bg-surface/10 hover:text-white"
+            >
+              <LogOut size={15} />
+            </button>
+          </div>
+        </div>
       </aside>
       <header className="bg-brand px-4 pb-4 pt-3 text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Captain navigation">
@@ -572,6 +575,7 @@ export function SamouGoCaptain() {
             <p dir="ltr" className="text-[11px] font-medium text-white/85">Hello, {captainName}</p>
           </div>
           <div className="flex items-center gap-2" dir="ltr">
+            <DarkModeToggle storageKey="samou-go.captain-dark" onDark />
             <NotificationBell
               notifications={bellNotifications}
               storageKey="captain"

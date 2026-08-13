@@ -137,6 +137,17 @@
   --input: #e5e7eb;
   --ring: #10b981;
 
+  /* Semantic surfaces - so bg-surface / bg-canvas / border-line
+     adapt to dark mode without per-card dark:* overrides. */
+  --color-surface: #1f2937; /* cards / panels - slate-800 */
+  --color-canvas: #0f172a; /* page background - slate-900 */
+  --color-line: #374151; /* borders - slate-700 */
+  --color-line-soft: #1f2937; /* faint dividers */
+  --color-ink: #f9fafb;
+  --color-ink-soft: #d1d5db;
+  --color-ink-muted: #9ca3af;
+  --color-ink-subtle: #6b7280;
+
   --sidebar: #047857;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #10b981;

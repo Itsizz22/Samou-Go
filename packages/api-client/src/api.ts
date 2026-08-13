@@ -24,6 +24,9 @@
  */
 
 import type {
+  AdminCreateCaptainInput,
+  AdminCreateStoreInput,
+  AdminCreateStoreResult,
   AdminStats,
   ApiFieldError,
   ApiResponse,
@@ -94,9 +97,13 @@ function withVersionPrefix(base: string): string {
  *      ngrok tunnel, or a deployed origin). May already include `/api/v1`.
  *   2. `VITE_API_URL` — full API URL verbatim (legacy, unchanged).
  *   3. Production fallback — same-origin relative `/api/v1` (reverse-proxy assumption).
+ *   4. Dev fallback — loopback `http://localhost:4000` (the API's default port),
+ *      so a missing `.env` degrades to a working local backend instead of a
+ *      module-load crash / white screen.
  *
- * If none resolves to a non-empty string the module throws at import time
- * rather than letting every request silently go to `undefined/api/v1`.
+ * The final dev fallback deliberately never throws: a hard module-load error
+ * would blank the whole app when a `.env` is missing. It logs a loud warning
+ * instead so the misconfiguration is visible but non-fatal.
  */
 export const API_URL: string = (() => {
   const baseUrl = import.meta.env.VITE_API_BASE_URL;
@@ -125,9 +132,13 @@ export const API_URL: string = (() => {
     return url;
   }
 
-  throw new Error(
-    "Samou Go API base URL is not configured. Set VITE_API_BASE_URL in the web app environment.",
+  const url = withVersionPrefix("http://localhost:4000");
+  console.warn(
+    "[api-client] VITE_API_BASE_URL is not set — defaulting to local dev backend " +
+      url +
+      ". Create a theme .env (see .env.example) to pin the endpoint.",
   );
+  return url;
 })();
 
 /**
@@ -1233,6 +1244,30 @@ export function getAdminStats(signal?: AbortSignal): Promise<AdminStats> {
   return request<AdminStats>("GET", "/admin/stats", { auth: true, signal });
 }
 
+/** POST /admin/stores — admin creates a store plus its manager account. */
+export function createStore(
+  input: AdminCreateStoreInput,
+  signal?: AbortSignal,
+): Promise<AdminCreateStoreResult> {
+  return request<AdminCreateStoreResult>("POST", "/admin/stores", {
+    body: input,
+    auth: true,
+    signal,
+  });
+}
+
+/** POST /admin/captains — admin creates a new delivery captain. */
+export function createCaptain(
+  input: AdminCreateCaptainInput,
+  signal?: AbortSignal,
+): Promise<PublicUser> {
+  return request<PublicUser>("POST", "/admin/captains", {
+    body: input,
+    auth: true,
+    signal,
+  });
+}
+
 /* ---------------------------------------------------------------------------
  * /api/v1/stores — approval
  * ------------------------------------------------------------------------- */
@@ -1303,6 +1338,8 @@ export const api = {
   listUsers,
   updateUser,
   getAdminStats,
+  createStore,
+  createCaptain,
   approveStore,
   verifyCaptain,
   presignUpload,

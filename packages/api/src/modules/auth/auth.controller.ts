@@ -19,8 +19,6 @@ import {
   updateProfileSchema,
   userIdParamsSchema,
   userListQuerySchema,
-  adminCreateStoreSchema,
-  adminCreateCaptainSchema,
   adminStoreOtpRequestSchema,
   adminCaptainOtpRequestSchema,
   adminOtpVerifySchema,

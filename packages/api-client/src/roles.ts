@@ -7,6 +7,7 @@
  * instead of silently browsing a stranger's catalogue.
  */
 
+import { useEffect } from 'react';
 import { primaryAppForRole, type AppKey } from '@samou-go/shared-types';
 import type { UserRole } from '@samou-go/shared-types';
 import { useAuth } from './useAuth';
@@ -52,29 +53,32 @@ export function allowedInApp(role: UserRole, app: AppKey): boolean {
   return homeApp(role) === app;
 }
 
-export interface RoleGate {
-  ready: boolean;
-  /** True when the signed-in user does not belong in the current app. */
-  denied: boolean;
-  /** The app the user should switch to (`null` while `ready` is false). */
-  targetApp: AppKey | null;
-  /** URL to hand the user when they end up in the wrong app. */
-  targetUrl: string | null;
-}
-
 /**
- * Mount at an app root: when a signed-in role is not meant for this app, the
- * screen swaps to a notice pointing at `targetUrl` instead of the route tree.
+ * Mount at an app root for the **unified login** flow. Once the auth session
+ * resolves and the signed-in user's role does not belong in `app`, the current
+ * screen is immediately replaced by that role's home app (its `VITE_*_URL`, or
+ * `/${appKey}` on the production origin). This replaces the old "access denied"
+ * dead-ends: any user can sign in anywhere and lands in their own workspace
+ * without an error screen.
+ *
+ * Renders nothing — it only performs the navigation.
  */
-export function useRoleGate(app: AppKey): RoleGate {
+export function useRoleRedirect(app: AppKey): void {
   const auth = useAuth();
   const user = auth.user;
-  const denied = auth.ready && user !== null && !allowedInApp(user.role, app);
-  const targetApp = denied && user ? homeApp(user.role) : null;
-  return {
-    ready: auth.ready,
-    denied,
-    targetApp,
-    targetUrl: targetApp ? appUrl(targetApp) : null,
-  };
+
+  useEffect(() => {
+    if (!auth.ready || !user) return;
+    if (allowedInApp(user.role, app)) return;
+    const target = roleHomeUrl(user.role);
+    // Guard against a redirect loop. In local dev each Vite app is its own SPA
+    // on a separate port, so when no `VITE_*_URL` is configured `appUrl` falls
+    // back to a same-origin relative path (`/${appKey}`) that only reloads the
+    // *current* app — redirecting there loops forever. In production the seven
+    // apps share one origin (reverse proxy), so the relative path is correct.
+    if (import.meta.env.DEV && target.startsWith('/')) return;
+    window.location.replace(target);
+    // `roleHomeUrl` depends only on the role; auth/user captured in the closure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.ready, user, app]);
 }

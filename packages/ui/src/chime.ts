@@ -1,60 +1,63 @@
 /**
- * Audio chimes for new-order notifications.
+ * Samou' Go — new-order audio chime.
  *
- * Uses the Web Audio API so there is no audio file to bundle.
- * Both functions are no-ops in environments without AudioContext (SSR, Node).
+ * A tiny Web Audio API synth so the store manager / admin / captain hears a new
+ * order arrive even with the tab in the background. No audio asset to download,
+ * no autoplay-policy problem: the AudioContext is created lazily on the first
+ * user gesture (they have already signed in by then), which is all browsers
+ * require. `playNewOrderChime` is a no-op where audio is unavailable (SSR, Node).
  */
 
-function createContext(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
+/** Shared context, created lazily because Safari requires a user gesture first. */
+let sharedContext: AudioContext | null = null;
+
+function getContext(): AudioContext | null {
   try {
-    return new AudioContext();
+    if (!sharedContext) {
+      const Ctor =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) return null;
+      sharedContext = new Ctor();
+    }
+    if (sharedContext.state === 'suspended') {
+      void sharedContext.resume();
+    }
+    return sharedContext;
   } catch {
     return null;
   }
 }
 
-/**
- * Plays a two-tone "ding-dong" chime — used when a new order arrives in
- * the store-manager and captain dashboards.
- */
-export function playNewOrderChime(): void {
-  const ctx = createContext();
-  if (!ctx) return;
+/** Plays one sine tone with a quick attack/release envelope. */
+function tone(context: AudioContext, frequency: number, startAt: number, duration: number): void {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
 
-  const now = ctx.currentTime;
-  const gain = ctx.createGain();
-  gain.connect(ctx.destination);
+  oscillator.type = 'sine';
+  oscillator.frequency.value = frequency;
 
-  [523.25, 659.25].forEach((freq, i) => {
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-    osc.connect(gain);
-    osc.start(now + i * 0.18);
-    osc.stop(now + i * 0.18 + 0.35);
-  });
+  // Avoid a click at the start/end of the note.
+  gain.gain.setValueAtTime(0.0001, startAt);
+  gain.gain.exponentialRampToValueAtTime(0.18, startAt + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
 
-  gain.gain.setValueAtTime(0.25, now);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(startAt);
+  oscillator.stop(startAt + duration + 0.02);
 }
 
 /**
- * Short single beep — useful for testing that audio is working in dev.
+ * Plays the "new order" chime. Safe to call at any time — it is a no-op when
+ * the browser blocks audio or the API is unavailable.
  */
-export function playTestBeep(): void {
-  const ctx = createContext();
-  if (!ctx) return;
+export function playNewOrderChime(): void {
+  const context = getContext();
+  if (!context) return;
 
-  const now = ctx.currentTime;
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.frequency.value = 880;
-  gain.gain.setValueAtTime(0.2, now);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-  osc.start(now);
-  osc.stop(now + 0.3);
+  const now = context.currentTime;
+  // A friendly two-note "ding-dong" (E5 → A5), about 280 ms.
+  tone(context, 659.25, now, 0.16);
+  tone(context, 880.0, now + 0.12, 0.22);
 }

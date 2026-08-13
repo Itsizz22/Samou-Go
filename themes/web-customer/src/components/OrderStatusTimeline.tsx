@@ -10,7 +10,7 @@ import {
   OrderStatus,
 } from '@samou-go/shared-types';
 import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
+import { cn } from '@samou-go/ui';
 
 interface OrderStatusTimelineProps {
   status: OrderStatus;

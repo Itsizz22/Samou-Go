@@ -42,7 +42,7 @@ import type {
   OrderQuote,
   Product,
 } from '@samou-go/shared-types';
-import { DeliveryFee } from '@/components/ui/DeliveryFee';
+import { DeliveryFee } from '@samou-go/ui';
 import {
   CURRENCY,
   calculateDeliveryFee,

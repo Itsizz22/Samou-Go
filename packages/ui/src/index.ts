@@ -10,6 +10,6 @@
 export * from './components';
 export * from './hooks';
 export * from './lib';
-export { playNewOrderChime, playTestBeep } from './chime';
+export { playNewOrderChime } from './chime';
 export { bootstrapApp, setAppLanguage, setBrandTheme } from './bootstrap';
 export type { BootstrapOptions, AppLanguage, BrandTheme } from './bootstrap';

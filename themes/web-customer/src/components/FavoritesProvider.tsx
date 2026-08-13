@@ -33,7 +33,7 @@ import {
   removeFavorite,
   subscribeTokenChange,
   useAuth,
-} from '@/services/api';
+} from '@/hooks/useApi';
 import { useToast } from '@/hooks/useApi';
 
 export interface FavoritesState {

@@ -526,6 +526,45 @@ function historyFor(order: SeedOrder): { status: OrderStatus; changedByUserId: s
   }));
 }
 
+/**
+ * Wipe every table so a re-seed starts from a clean slate. Ordered in reverse
+ * dependency order (children before parents) to avoid violating foreign keys.
+ * Safe for local dev only — this runs strictly after the production guard.
+ */
+async function seedCleanup(): Promise<void> {
+  console.log('  ♻️  Cleaning tables (reverse dependency order)…');
+  const passes = [
+    // children of Order / User / Store / Wallet
+    prisma.orderItem.deleteMany({}),
+    prisma.orderStatusHistory.deleteMany({}),
+    prisma.rating.deleteMany({}),
+    prisma.chatMessage.deleteMany({}),
+    // children of Wallet
+    prisma.settlement.deleteMany({}),
+    prisma.ledgerEntry.deleteMany({}),
+    prisma.wallet.deleteMany({}),
+    // children of User / Store
+    prisma.captainLocation.deleteMany({}),
+    prisma.favorite.deleteMany({}),
+    prisma.supportTicket.deleteMany({}),
+    prisma.refreshToken.deleteMany({}),
+    prisma.otpRequest.deleteMany({}),
+    // orders reference users, stores, vouchers
+    prisma.order.deleteMany({}),
+    // products/categories reference stores
+    prisma.product.deleteMany({}),
+    prisma.category.deleteMany({}),
+    // independent sequence/voucher tables
+    prisma.dailyOrderSequence.deleteMany({}),
+    prisma.voucher.deleteMany({}),
+    // parent tables last
+    prisma.store.deleteMany({}),
+    prisma.user.deleteMany({}),
+  ];
+  await prisma.$transaction(passes);
+  console.log('  ✓ Cleaned all tables');
+}
+
 async function main(): Promise<void> {
   if (env.isProduction) {
     throw new Error(
@@ -535,6 +574,7 @@ async function main(): Promise<void> {
   }
   // Intentionally never prints the database URL — not even a redacted one.
   console.log("🌱 Seeding Samou' Go — local SQLite (prisma/dev.db)");
+  await seedCleanup();
   await seedUsers();
   await seedCatalogue();
   await seedVouchers();
