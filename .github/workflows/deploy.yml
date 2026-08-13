@@ -86,6 +86,25 @@ jobs:
             exit 1
           fi
 
+      - name: Verify Vercel project links
+        # Each theme needs a committed .vercel/project.json (from `npx vercel
+        # link` in that directory) or the deploy below fails non-interactively.
+        # Fail early with an actionable message instead of a cryptic CLI error.
+        run: |
+          set -euo pipefail
+          unlinked=0
+          for theme in customer store-details checkout order-tracking store-manager captain admin; do
+            if [ ! -f "themes/web-$theme/.vercel/project.json" ]; then
+              echo "::error::Missing themes/web-$theme/.vercel/project.json"
+              echo "         Run: (cd themes/web-$theme && npx vercel link --yes --project samou-go-web-$theme)"
+              unlinked=1
+            fi
+          done
+          if [ "$unlinked" -ne 0 ]; then
+            echo "::error::Link each theme to its Vercel project and commit the generated .vercel/project.json, then re-run this workflow."
+            exit 1
+          fi
+
       - name: Run Database Migrations (production PostgreSQL)
         run: npm run db:deploy
         env:
