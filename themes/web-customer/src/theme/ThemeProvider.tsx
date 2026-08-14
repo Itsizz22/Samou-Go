@@ -21,6 +21,11 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import {
+  applyThemeMode,
+  getStoredThemeMode,
+  persistThemeMode,
+} from '@samou-go/ui';
 
 export type AccentTheme = 'emerald' | 'warm-yellow' | 'muted-red';
 export type ColorMode = 'light' | 'dark';
@@ -36,7 +41,6 @@ export interface ThemeState {
 const ACCENT_CLASSES = ['theme-warm-yellow', 'theme-muted-red', 'theme-crimson'] as const;
 
 const ACCENT_STORAGE_KEY = 'samou.theme.accent';
-const MODE_STORAGE_KEY = 'samou.theme.mode';
 
 const ACCENTS: readonly AccentTheme[] = ['emerald', 'warm-yellow', 'muted-red'];
 const MODES: readonly ColorMode[] = ['light', 'dark'];
@@ -57,14 +61,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [accent, setAccentState] = useState<AccentTheme>(() =>
     readStored(ACCENT_STORAGE_KEY, 'emerald', ACCENTS)
   );
+  // Read the unified theme mode, mapping 'system' onto the concrete preference
+  // for this simple light/dark toggle.
   const [mode, setModeState] = useState<ColorMode>(() =>
-    readStored(MODE_STORAGE_KEY, 'light', MODES)
+    getStoredThemeMode() === 'dark' ? 'dark' : 'light'
   );
 
   useEffect(() => {
     try {
       window.localStorage.setItem(ACCENT_STORAGE_KEY, accent);
-      window.localStorage.setItem(MODE_STORAGE_KEY, mode);
+      persistThemeMode(mode);
     } catch {
       /* Private mode — theme still applies in-memory. */
     }
@@ -76,7 +82,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (accent === 'warm-yellow' || accent === 'muted-red') {
       root.classList.add(`theme-${accent}`);
     }
-    root.classList.toggle('dark', mode === 'dark');
+    applyThemeMode(mode);
   }, [accent, mode]);
 
   const value = useMemo<ThemeState>(

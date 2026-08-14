@@ -36,7 +36,6 @@ import {
   X,
 } from 'lucide-react';
 import {
-  DarkModeToggle,
   SignInGate,
   updateOrderStatus,
   updateStore,
@@ -51,6 +50,7 @@ import {
 import { playNewOrderChime } from '@samou-go/ui';
 import {
   NotificationBell,
+  ThemeToggle,
   type BellNotification,
 } from '@samou-go/ui';
 import {
@@ -408,7 +408,7 @@ export function SamouGoStoreManager() {
             </p>
           </div>
           <div className="flex items-center gap-2" dir="ltr">
-            <DarkModeToggle storageKey="samou-go.store-manager-dark" onDark />
+            <ThemeToggle onDark />
             <NotificationBell
               notifications={bellNotifications}
               storageKey="store-manager"

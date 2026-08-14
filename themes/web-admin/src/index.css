@@ -21,12 +21,12 @@
    -------------------------------------------------------------------------- */
 @theme {
   /* Brand — Vibrant Emerald Green */
-  --color-brand: #0d9488; /* Primary */
-  --color-brand-dark: #0a7d71; /* Hover / active */
-  --color-brand-deep: #035a52; /* Deep surfaces, text on tint */
-  --color-brand-tint: #d5f0e5; /* Light accent */
-  --color-brand-surface: #e6fdf5; /* Palest wash */
-  --color-brand-soft: #78d6cd; /* Secondary fills, charts */
+  --color-brand: #10b981; /* Primary */
+  --color-brand-dark: #059669; /* Hover / active */
+  --color-brand-deep: #047857; /* Deep surfaces, text on tint */
+  --color-brand-tint: #d1fae5; /* Light accent */
+  --color-brand-surface: #ecfdf5; /* Palest wash */
+  --color-brand-soft: #6ee7b7; /* Secondary fills, charts */
 
   /* Neutrals */
   --color-ink: #111827; /* Primary text */

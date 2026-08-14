@@ -9,3 +9,4 @@ export {
   type HorizontalScrollGalleryProps,
 } from './HorizontalScrollGallery';
 export { AppErrorBoundary, OfflineBanner } from './RuntimeSafety';
+export { ThemeToggle, type ThemeToggleProps } from './ThemeToggle';

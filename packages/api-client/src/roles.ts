@@ -11,6 +11,7 @@ import { useEffect } from 'react';
 import { primaryAppForRole, type AppKey } from '@samou-go/shared-types';
 import type { UserRole } from '@samou-go/shared-types';
 import { useAuth } from './useAuth';
+import { buildSsoUrl } from './sso';
 
 /** On the production origin the seven apps sit next to each other (reverse proxy). */
 export function appPath(app: AppKey): string {
@@ -77,6 +78,15 @@ export function useRoleRedirect(app: AppKey): void {
     // *current* app — redirecting there loops forever. In production the seven
     // apps share one origin (reverse proxy), so the relative path is correct.
     if (import.meta.env.DEV && target.startsWith('/')) return;
+    // In local dev each app lives on its own origin, so localStorage is NOT
+    // shared and the target app cannot read this session's token. Append the
+    // access token as an SSO hand-off (`?token=..&ref=sso`); the target's
+    // `consumeSsoToken()` ingests it on boot. In production the apps share one
+    // origin, so the relative path already carries the token via localStorage.
+    if (import.meta.env.DEV) {
+      window.location.replace(buildSsoUrl(target));
+      return;
+    }
     window.location.replace(target);
     // `roleHomeUrl` depends only on the role; auth/user captured in the closure.
     // eslint-disable-next-line react-hooks/exhaustive-deps

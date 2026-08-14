@@ -32,6 +32,7 @@ import {
   refreshAccessToken,
   subscribeTokenChange,
 } from "./api";
+import { consumeSsoToken } from "./sso";
 
 export interface Auth {
   /** The signed-in profile, or `null` when nobody is signed in. */
@@ -74,6 +75,11 @@ export function useAuth(): Auth {
 
   useEffect(() => {
     mounted.current = true;
+
+    // Ingest any SSO hand-off token from the URL before checking storage, so a
+    // staff member arriving via the unified-login redirect signs in straight
+    // to their dashboard without re-entering credentials.
+    consumeSsoToken();
 
     // No stored credentials means no session to restore — nothing to wait for.
     if (!getToken() && !getRefreshToken()) {

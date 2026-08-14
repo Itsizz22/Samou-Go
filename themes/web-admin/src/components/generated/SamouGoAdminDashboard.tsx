@@ -76,10 +76,9 @@ import {
   type UpdateUserInput,
 } from '@samou-go/shared-types';
 import { AdminSidebar, ADMIN_NAV_ITEMS } from '@/components/Sidebar';
-import { DarkModeToggle } from '@samou-go/api-client';
 import { NotificationsDrawer, relativeTimeArabic } from '@/components/NotificationsDrawer';
 import { ProfileMenu } from '@/components/ProfileMenu';
-import { type BellNotification } from '@samou-go/ui';
+import { type BellNotification, ThemeToggle } from '@samou-go/ui';
 import { LeafletMap } from '@samou-go/ui/map';
 import { CreateCaptainDialog, CreateStoreDialog } from '@/components/CreateDialogs';
 
@@ -246,7 +245,7 @@ export function SamouGoAdminDashboard() {
               notifications={notifications}
               onNavigate={target => setActiveNav(target)}
             />
-            <DarkModeToggle storageKey="samou-go.admin-dark" />
+            <ThemeToggle />
             <span className="hidden h-8 w-px bg-line md:block" />
             <ProfileMenu name={auth.user.name} phone={auth.user.phone} onSignOut={auth.signOut} />
           </div>
@@ -353,7 +352,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
           </p>
           <div className="mt-3 flex items-center justify-between">
             <span className="text-sm font-bold">الوضع الداكن</span>
-            <DarkModeToggle storageKey="samou-go.admin-dark" className="border border-line" />
+            <ThemeToggle className="border border-line" />
           </div>
         </section>
         <section className="rounded-2xl border border-line bg-surface p-4">
