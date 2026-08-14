@@ -75,12 +75,36 @@ import type {
  * Configuration
  * ------------------------------------------------------------------------- */
 
+/**
+ * Dev fallback base host — loopback only. A production build MUST provide
+ * `VITE_API_BASE_URL` (or `VITE_API_URL`); in production the fallback resolves
+ * to a same-origin relative path (`/api/v1`) so the reverse proxy serving the
+ * SPA also routes `/api/*` to the backend. No private LAN address is ever baked
+ * into a bundle.
+ */
 /** Appends `/api/v1` to a base host unless it already carries a version prefix. */
 function withVersionPrefix(base: string): string {
   const trimmed = base.replace(/\/+$/, "");
   return /\/api\/v\d+$/.test(trimmed) ? trimmed : `${trimmed}/api/v1`;
 }
 
+/**
+ * Resolved once at module load; Vite inlines the env var at build time.
+ *
+ * Precedence, logged on boot so the active choice is never silent:
+ *
+ *   1. `VITE_API_BASE_URL` — a base host (e.g. `https://api.samougo.app`, an
+ *      ngrok tunnel, or a deployed origin). May already include `/api/v1`.
+ *   2. `VITE_API_URL` — full API URL verbatim (legacy, unchanged).
+ *   3. Production fallback — same-origin relative `/api/v1` (reverse-proxy assumption).
+ *   4. Dev fallback — loopback `http://localhost:4000` (the API's default port),
+ *      so a missing `.env` degrades to a working local backend instead of a
+ *      module-load crash / white screen.
+ *
+ * The final dev fallback deliberately never throws: a hard module-load error
+ * would blank the whole app when a `.env` is missing. It logs a loud warning
+ * instead so the misconfiguration is visible but non-fatal.
+ */
 export const API_URL: string = (() => {
   const baseUrl = import.meta.env.VITE_API_BASE_URL;
   if (baseUrl) {
@@ -97,6 +121,9 @@ export const API_URL: string = (() => {
   }
 
   if (import.meta.env.PROD) {
+    // Same-origin reverse proxy: the deployment serves the SPA and proxies
+    // `/api/*` to the backend. Operators that run the API on another origin
+    // must set VITE_API_BASE_URL at build time.
     const url = "/api/v1";
     console.info(
       "[api-client] API base URL — production build, assuming same-origin reverse proxy: " +
@@ -114,21 +141,36 @@ export const API_URL: string = (() => {
   return url;
 })();
 
+/**
+ * Samou' runs on patchy mobile data. Twelve seconds is long enough for a slow
+ * 3G round-trip and short enough that a dead server does not freeze a spinner.
+ */
 const DEFAULT_TIMEOUT_MS = 12_000;
 
 /* ---------------------------------------------------------------------------
  * Errors
  * ------------------------------------------------------------------------- */
 
+/** Codes this client raises itself; everything else comes from the server. */
 export const CLIENT_ERROR_CODES = {
+  /** The request never reached the server — offline, DNS, CORS, refused. */
   NETWORK_ERROR: "NETWORK_ERROR",
+  /** The server did not answer within `DEFAULT_TIMEOUT_MS`. */
   TIMEOUT: "TIMEOUT",
+  /** The caller aborted deliberately (component unmounted, query changed). */
   ABORTED: "ABORTED",
+  /** A 2xx that was not the `{ success, data }` envelope — a proxy or a bug. */
   MALFORMED_RESPONSE: "MALFORMED_RESPONSE",
 } as const;
 
+/**
+ * Every rejection from this module is an `ApiError`. Callers can switch on
+ * `code`, show `message` (bilingual, server-authored), and read `details` to
+ * highlight individual form fields.
+ */
 export class ApiError extends Error {
   readonly code: string;
+  /** HTTP status, or `0` when the request never got a response. */
   readonly status: number;
   readonly details: ApiFieldError[];
 
@@ -145,6 +187,7 @@ export class ApiError extends Error {
     this.details = details;
   }
 
+  /** No response at all — worth offering a "retry" rather than an explanation. */
   get isOffline(): boolean {
     return (
       this.code === CLIENT_ERROR_CODES.NETWORK_ERROR ||
@@ -152,14 +195,17 @@ export class ApiError extends Error {
     );
   }
 
+  /** The caller cancelled; UIs should swallow this rather than render it. */
   get isAborted(): boolean {
     return this.code === CLIENT_ERROR_CODES.ABORTED;
   }
 
+  /** Missing, expired or rejected token — send the user to sign in. */
   get isAuthError(): boolean {
     return this.status === 401;
   }
 
+  /** Field-level validation feedback, keyed by dotted path. */
   fieldError(path: string): string | undefined {
     return this.details.find((detail) => detail.path === path)?.message;
   }
@@ -169,6 +215,13 @@ export class ApiError extends Error {
  * Token storage
  * ------------------------------------------------------------------------- */
 
+/**
+ * Kept in `localStorage` so a refresh does not sign the customer out.
+ * Wrapped in try/catch because Safari private mode throws on access. The
+ * in-memory copies keep callers synchronous; the first `getToken()` call pulls
+ * persisted tokens into memory.
+ */
+
 const TOKEN_STORAGE_KEY = "samou-go.accessToken";
 const REFRESH_TOKEN_STORAGE_KEY = "samou-go.refreshToken";
 type SessionPersistence = "local" | "session";
@@ -177,6 +230,7 @@ let sessionPersistence: SessionPersistence = "local";
 let inMemoryToken: string | null = null;
 let inMemoryRefreshToken: string | null = null;
 
+/** Best-effort persistence; failures never surface — the in-memory copy rules. */
 function persist(key: string, value: string | null): void {
   try {
     const target =
@@ -190,7 +244,7 @@ function persist(key: string, value: string | null): void {
       target.setItem(key, value);
     }
   } catch {
-    /* Private mode */
+    /* Private mode — the in-memory copy still carries this session. */
   }
 }
 
@@ -216,6 +270,12 @@ export function clearToken(): void {
   setToken(null);
 }
 
+/**
+ * Token lifecycle is app-global (any screen can sign in or out), so a store
+ * that caches session-scoped data — favorites, for instance — needs a way to
+ * hear about it. Subscribe here and re-read `getToken()` when notified.
+ * Returns an unsubscribe function.
+ */
 export function subscribeTokenChange(listener: () => void): () => void {
   tokenChangeListeners.add(listener);
   return () => {
@@ -230,7 +290,7 @@ function notifyTokenChange(): void {
     try {
       listener();
     } catch {
-      /* Protection */
+      /* A listener must never take the auth layer down with it. */
     }
   });
 }
@@ -257,6 +317,7 @@ export function clearTokens(): void {
   setRefreshToken(null);
 }
 
+/** Select storage before login/register: local survives browser restarts; session ends on tab close. */
 export function setSessionPersistence(remember: boolean): void {
   sessionPersistence = remember ? "local" : "session";
 }
@@ -268,11 +329,16 @@ export function setSessionPersistence(remember: boolean): void {
 type QueryValue = string | number | boolean | undefined | null;
 
 interface RequestOptions {
+  /** JSON request body. Serialised only when present. */
   body?: unknown;
+  /** Query string; `undefined` and `null` entries are dropped. */
   query?: Record<string, QueryValue>;
+  /** Attach `Authorization: Bearer …`. Throws early when no token is stored. */
   auth?: boolean;
+  /** Caller-owned cancellation, e.g. a React effect cleanup. */
   signal?: AbortSignal;
   timeoutMs?: number;
+  /** Internal: never retry with a refreshed token (used by the refresh call itself). */
   bypassRefreshRetry?: boolean;
 }
 
@@ -289,6 +355,11 @@ function buildUrl(path: string, query?: Record<string, QueryValue>): string {
   return search ? `${url}?${search}` : url;
 }
 
+/**
+ * Combines the caller's signal with a timeout.
+ * `AbortSignal.any` would do this in one line but is missing from the older
+ * Android WebViews this app has to run on, so it is done by hand.
+ */
 function withTimeout(
   timeoutMs: number,
   external?: AbortSignal,
@@ -317,6 +388,7 @@ function withTimeout(
   };
 }
 
+/** Reads the body defensively — a proxy error page is HTML, not our envelope. */
 async function readEnvelope<T>(
   response: Response,
 ): Promise<ApiResponse<T> | null> {
@@ -329,6 +401,11 @@ async function readEnvelope<T>(
   }
 }
 
+/**
+ * Single-flight session refresh. When several parallel requests all hit an
+ * expired access token at once, exactly one `/auth/refresh` round-trip happens
+ * and the rest await the same promise, then retry with the fresh token.
+ */
 let refreshInFlight: Promise<boolean> | null = null;
 
 async function refreshSessionIfPossible(): Promise<boolean> {
@@ -351,6 +428,8 @@ async function refreshSessionIfPossible(): Promise<boolean> {
       setRefreshToken(result.refreshToken ?? null);
       return true;
     } catch {
+      // Offline or rejected — the session is gone; drop the dead credentials so
+      // the UI can show a sign-in gate instead of infinite retries.
       clearTokens();
       return false;
     } finally {
@@ -378,6 +457,10 @@ async function request<T>(
 
   const headers: Record<string, string> = {
     Accept: "application/json",
+    // Free-tier ngrok serves an interstitial "browser warning" page to requests
+    // it does not recognise as a real browser. The Capacitor WebView counts as a
+    // browser, so without this header a phone on cellular data would receive the
+    // HTML warning instead of the API envelope. Harmless when not tunnelling.
     "ngrok-skip-browser-warning": "true",
   };
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -435,6 +518,8 @@ async function request<T>(
   const envelope = await readEnvelope<T>(response);
 
   if (envelope && envelope.success === false) {
+    // An expired access token triggers ONE silent refresh, then a retry. A
+    // second 401 (or a failed refresh) means the session is genuinely dead.
     if (
       response.status === 401 &&
       auth &&
@@ -474,25 +559,20 @@ async function request<T>(
   }
 
   if (!envelope) {
+    // A 2xx with an empty body (e.g. HTTP 204 No Content from
+    // `DELETE /uploads/raw/:key`) is a valid success that carries no data.
+    // Return `undefined` instead of treating it as a malformed response.
     return undefined as T;
   }
 
-  // ✅ التعديل الجوهري: تأكيد الـ Type Guard لـ TypeScript
-  if (envelope.success) {
-    return envelope.data;
-  }
-
-  throw new ApiError(
-    CLIENT_ERROR_CODES.MALFORMED_RESPONSE,
-    "استجابة غير متوقعة من الخادم / Malformed response",
-    response.status,
-  );
+  return envelope.data;
 }
 
 /* ---------------------------------------------------------------------------
  * GET /api/v1/meta
  * ------------------------------------------------------------------------- */
 
+/** Shape of `GET /meta` — the live tariff and vocabulary, straight from the server. */
 export interface ApiMeta {
   deliveryFee: DeliveryFeeConfig & { label: Record<Locale, string> };
   orderStatuses: OrderStatus[];
@@ -500,6 +580,11 @@ export interface ApiMeta {
   userRoleLabels: Record<UserRole, Record<Locale, string>>;
 }
 
+/**
+ * Reads the delivery tariff the server is actually charging. The rule lives in
+ * `@samou-go/shared-types`, but the *amounts* are env-overridable server side —
+ * so a screen that quotes a price should ask rather than assume.
+ */
 export function getMeta(signal?: AbortSignal): Promise<ApiMeta> {
   return request<ApiMeta>("GET", "/meta", { signal });
 }
@@ -508,6 +593,7 @@ export function getMeta(signal?: AbortSignal): Promise<ApiMeta> {
  * GET /api/v1/stores — catalogue
  * ------------------------------------------------------------------------- */
 
+/** Paginated store list. Inactive stores are hidden unless `activeOnly: false`. */
 export function getStores(
   query: StoreListQuery = {},
   signal?: AbortSignal,
@@ -518,6 +604,7 @@ export function getStores(
   });
 }
 
+/** One store with its categories and available products inlined. */
 export function getStore(
   storeId: string,
   signal?: AbortSignal,
@@ -529,6 +616,10 @@ export function getStore(
   );
 }
 
+/**
+ * Full catalogue for the store manager — includes unavailable products so the
+ * manager can re-enable them. Requires STORE_MANAGER (own store) or ADMIN.
+ */
 export function getStoreManager(
   storeId: string,
   signal?: AbortSignal,
@@ -543,6 +634,7 @@ export function getStoreManager(
   );
 }
 
+/** Paginated products within a store, filterable by category or search term. */
 export function getStoreProducts(
   storeId: string,
   query: ProductListQuery = {},
@@ -562,6 +654,10 @@ export function getStoreProducts(
  * POST /api/v1/orders — ordering
  * ------------------------------------------------------------------------- */
 
+/**
+ * Prices a basket without writing anything — this is how the cart shows a
+ * delivery fee before the customer commits. Public: no token required.
+ */
 export function quoteOrder(
   input: QuoteOrderInput,
   signal?: AbortSignal,
@@ -569,6 +665,11 @@ export function quoteOrder(
   return request<OrderQuote>("POST", "/orders/quote", { body: input, signal });
 }
 
+/**
+ * Places the order. Note what `CreateOrderInput` does not contain: `subtotal`,
+ * `deliveryFee`, `totalAmount`. The server prices the basket from the products
+ * table and derives the fee from the item count. Do not add them here.
+ */
 export function createOrder(
   input: CreateOrderInput,
   signal?: AbortSignal,
@@ -580,6 +681,7 @@ export function createOrder(
   });
 }
 
+/** `GET /orders/:id` — the tracking screen's poll target. Role-scoped server side. */
 export function getOrder(
   orderId: string,
   signal?: AbortSignal,
@@ -590,6 +692,7 @@ export function getOrder(
   });
 }
 
+/** The caller's own orders, scoped by role on the server. */
 export function listOrders(
   query: OrderListQuery = {},
   signal?: AbortSignal,
@@ -601,6 +704,10 @@ export function listOrders(
   });
 }
 
+/**
+ * Moves an order along the state machine. The server enforces three gates —
+ * legal transition, role, ownership — so a rejection here is expected, not a bug.
+ */
 export function updateOrderStatus(
   orderId: string,
   input: UpdateOrderStatusInput,
@@ -617,6 +724,11 @@ export function updateOrderStatus(
   );
 }
 
+/**
+ * Re-order — clones a past order's basket using CURRENT product prices, so the
+ * customer can load it straight into the cart. Requires the same visibility the
+ * order itself does (owner, or admin).
+ */
 export function reorderOrder(
   orderId: string,
   signal?: AbortSignal,
@@ -635,6 +747,7 @@ export function reorderOrder(
  * /api/v1/favorites — the signed-in customer's favourite stores
  * ------------------------------------------------------------------------- */
 
+/** The customer's favorited stores, newest first. */
 export function getFavorites(
   signal?: AbortSignal,
 ): Promise<FavoriteListResult> {
@@ -644,6 +757,7 @@ export function getFavorites(
   });
 }
 
+/** Idempotently adds a store to the customer's favorites. */
 export function addFavorite(
   storeId: string,
   signal?: AbortSignal,
@@ -658,6 +772,7 @@ export function addFavorite(
   );
 }
 
+/** Idempotently removes a store from the customer's favorites. */
 export function removeFavorite(
   storeId: string,
   signal?: AbortSignal,
@@ -676,6 +791,7 @@ export function removeFavorite(
  * /api/v1/auth
  * ------------------------------------------------------------------------- */
 
+/** Signs in and stores the bearer + refresh tokens for every later call. */
 export async function login(
   input: LoginInput,
   signal?: AbortSignal,
@@ -689,6 +805,7 @@ export async function login(
   return auth;
 }
 
+/** Self-service registration. The server forces `CUSTOMER`; staff roles need an admin. */
 export async function register(
   input: RegisterInput,
   signal?: AbortSignal,
@@ -702,6 +819,7 @@ export async function register(
   return auth;
 }
 
+/** Replaces a forgotten password after the customer proves phone ownership with an OTP. */
 export function resetPassword(
   input: ResetPasswordInput,
   signal?: AbortSignal,
@@ -712,6 +830,10 @@ export function resetPassword(
   }).then(() => undefined);
 }
 
+/**
+ * Requests a one-time code. The server rate-limits a phone to 3 per 5 minutes
+ * and answers overflow with a 429 whose `Retry-After` the UI can read.
+ */
 export function requestOtp(
   input: OtpRequestInput,
   signal?: AbortSignal,
@@ -722,6 +844,10 @@ export function requestOtp(
   return request("POST", "/auth/otp/request", { body: input, signal });
 }
 
+/**
+ * Exchanges a code for a session and stores both tokens. A brand-new phone
+ * auto-provisions a CUSTOMER account server-side.
+ */
 export async function verifyOtp(
   input: OtpVerifyInput,
   signal?: AbortSignal,
@@ -735,6 +861,10 @@ export async function verifyOtp(
   return auth;
 }
 
+/**
+ * Explicit refresh — used by session restore at boot. The request layer also
+ * refreshes silently on 401, so callers rarely need this directly.
+ */
 export async function refreshAccessToken(
   refreshToken: string,
   signal?: AbortSignal,
@@ -748,10 +878,12 @@ export async function refreshAccessToken(
   return auth;
 }
 
+/** The current profile. `passwordHash` is never part of this. */
 export function me(signal?: AbortSignal): Promise<PublicUser> {
   return request<PublicUser>("GET", "/auth/me", { auth: true, signal });
 }
 
+/** Stateless access tokens are dropped locally; the refresh token is revoked server-side. */
 export async function logout(signal?: AbortSignal): Promise<void> {
   try {
     const refresh = getRefreshToken();
@@ -768,6 +900,7 @@ export async function logout(signal?: AbortSignal): Promise<void> {
   }
 }
 
+/** Updates the signed-in user's own profile (name, phone, password). */
 export function updateProfile(
   input: UpdateProfileInput,
   signal?: AbortSignal,
@@ -779,6 +912,7 @@ export function updateProfile(
   });
 }
 
+/** Captains flip their own online/offline state. Rejected for non-captains. */
 export function setAvailability(
   input: SetAvailabilityInput,
   signal?: AbortSignal,
@@ -794,6 +928,10 @@ export function setAvailability(
  * /api/v1/uploads — image upload pipeline
  * ------------------------------------------------------------------------- */
 
+/**
+ * POST /uploads/presign — asks the server for a PUT target for raw bytes.
+ * The returned `key` must be handed back to `finalizeUpload` unchanged.
+ */
 export function presignUpload(
   input: PresignUploadInput,
   signal?: AbortSignal,
@@ -805,6 +943,11 @@ export function presignUpload(
   });
 }
 
+/**
+ * PUT /uploads/raw/:key — streams a File into the server's raw storage.
+ * Image bytes, not JSON; the raw content type is sent so a future S3 driver
+ * can pick it up. One silent 401-refresh retry, like the JSON transport.
+ */
 export async function uploadRawFile(
   key: string,
   file: Blob,
@@ -858,6 +1001,10 @@ export async function uploadRawFile(
   }
 }
 
+/**
+ * POST /uploads/finalize — tells the server the raw bytes are in; it validates,
+ * processes and attaches the image. Returns the public, cacheable URL.
+ */
 export function finalizeUpload(
   key: string,
   kind: UploadKind,
@@ -870,6 +1017,12 @@ export function finalizeUpload(
   });
 }
 
+/**
+ * DELETE /uploads/current — removes the image currently attached to the
+ * caller's avatar (`kind: 'user'`) or to a managed product (`kind: 'product'`
+ * with `resourceId`). No opaque key needed: the server resolves it from the
+ * profile/product record.
+ */
 export async function removeCurrentImage(
   kind: UploadKind,
   resourceId?: string,
@@ -882,6 +1035,13 @@ export async function removeCurrentImage(
   });
 }
 
+/**
+ * Presign → PUT bytes → finalize in one call. This is what a screen calls when
+ * the user picks a file; the three-step path is only needed for uploads that
+ * outlive the current request (offline queues, background workers). The
+ * `contentType` is taken from the file; the server still rejects anything that
+ * is not JPEG/PNG/WebP.
+ */
 export async function uploadImage(
   input: { kind: UploadKind; resourceId?: string; contentType?: string },
   file: Blob,
@@ -903,6 +1063,7 @@ export async function uploadImage(
  * /api/v1/stores — write operations (STORE_MANAGER / ADMIN)
  * ------------------------------------------------------------------------- */
 
+/** Updates a store's name, phone, logo, or active status. */
 export function updateStore(
   storeId: string,
   input: UpdateStoreInput,
@@ -915,6 +1076,7 @@ export function updateStore(
   });
 }
 
+/** Creates a new product inside a store. */
 export function createProduct(
   storeId: string,
   input: CreateProductInput,
@@ -931,6 +1093,7 @@ export function createProduct(
   );
 }
 
+/** Updates an existing product (price, availability, name, …). */
 export function updateProduct(
   storeId: string,
   productId: string,
@@ -939,30 +1102,128 @@ export function updateProduct(
 ): Promise<Product> {
   return request<Product>(
     "PATCH",
-    `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(
-      productId,
-    )}`,
+    `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}`,
+    { body: input, auth: true, signal },
+  );
+}
+
+/**
+ * Soft-deactivates a product (sets isAvailable = false).
+ * Hard delete is intentionally unsupported — products with order history cannot
+ * be removed without breaking the audit trail.
+ */
+export function deleteProduct(
+  storeId: string,
+  productId: string,
+  signal?: AbortSignal,
+): Promise<Product> {
+  return request<Product>(
+    "DELETE",
+    `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}`,
+    { auth: true, signal },
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/users — admin user management
+ * ------------------------------------------------------------------------- */
+
+/** Returns a paginated list of all users. Requires ADMIN. */
+export function listUsers(
+  query: UserListQuery = {},
+  signal?: AbortSignal,
+): Promise<Paginated<PublicUser>> {
+  return request<Paginated<PublicUser>>("GET", "/users", {
+    query: { ...query },
+    auth: true,
+    signal,
+  });
+}
+
+/** Activates/deactivates a user or changes their role. Requires ADMIN. */
+export function updateUser(
+  userId: string,
+  input: UpdateUserInput,
+  signal?: AbortSignal,
+): Promise<PublicUser> {
+  return request<PublicUser>("PATCH", `/users/${encodeURIComponent(userId)}`, {
+    body: input,
+    auth: true,
+    signal,
+  });
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/admin — admin dashboard aggregates
+ * ------------------------------------------------------------------------- */
+
+/**
+ * One round-trip with every number the admin dashboard renders: revenue,
+ * order counts by status, captain/store/user summaries, and the five most
+ * recent orders. Requires ADMIN.
+ */
+export function getAdminStats(signal?: AbortSignal): Promise<AdminStats> {
+  return request<AdminStats>("GET", "/admin/stats", { auth: true, signal });
+}
+
+/** POST /admin/stores — admin creates a store plus its manager account. */
+export function createStore(
+  input: AdminCreateStoreInput,
+  signal?: AbortSignal,
+): Promise<AdminCreateStoreResult> {
+  return request<AdminCreateStoreResult>("POST", "/admin/stores", {
+    body: input,
+    auth: true,
+    signal,
+  });
+}
+
+/** POST /admin/captains — admin creates a new delivery captain. */
+export function createCaptain(
+  input: AdminCreateCaptainInput,
+  signal?: AbortSignal,
+): Promise<PublicUser> {
+  return request<PublicUser>("POST", "/admin/captains", {
+    body: input,
+    auth: true,
+    signal,
+  });
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/stores — approval
+ * ------------------------------------------------------------------------- */
+
+/** Publishes a store to the public catalogue. Requires ADMIN. */
+export function approveStore(
+  storeId: string,
+  signal?: AbortSignal,
+): Promise<Store> {
+  return request<Store>(
+    "PATCH",
+    `/stores/${encodeURIComponent(storeId)}/approve`,
     {
-      body: input,
       auth: true,
       signal,
     },
   );
 }
 
-export function deleteProduct(
-  storeId: string,
-  productId: string,
+/* ---------------------------------------------------------------------------
+ * /api/v1/captains — verification
+ * ------------------------------------------------------------------------- */
+
+/** Confirms a CAPTAIN account so it may take jobs. Requires ADMIN. */
+export function verifyCaptain(
+  captainId: string,
   signal?: AbortSignal,
-): Promise<void> {
-  return request<unknown>(
-    "DELETE",
-    `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(
-      productId,
-    )}`,
+): Promise<PublicUser> {
+  return request<PublicUser>(
+    "PATCH",
+    `/captains/${encodeURIComponent(captainId)}/verify`,
     {
       auth: true,
       signal,
     },
-  ).then(() => undefined);
+  );
 }
