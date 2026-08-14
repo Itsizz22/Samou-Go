@@ -9,18 +9,7 @@ import { prisma } from '../../lib/prisma';
 import { decimalToNumber } from '../../lib/decimal';
 import { startOfDay } from '../../lib/order-number';
 import { toOrderSummary } from '../orders/orders.mapper';
-
-/** Same relation shape the order list uses for its summary rows. */
-const SUMMARY_INCLUDE = {
-  items: {
-    select: {
-      quantity: true,
-      note: true,
-      product: { select: { nameAr: true } },
-    },
-  },
-  store: { select: { nameAr: true } },
-} satisfies Prisma.OrderInclude;
+import { SUMMARY_INCLUDE } from '../orders/orders.service';
 
 function sum(value: { _sum: { totalAmount?: Prisma.Decimal | null } } | null): number {
   return value?._sum?.totalAmount ? decimalToNumber(value._sum.totalAmount) : 0;

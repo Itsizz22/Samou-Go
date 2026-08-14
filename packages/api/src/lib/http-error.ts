@@ -69,7 +69,3 @@ export const tooMany = (
 export const payloadTooLarge = (
   message = 'الملف أكبر من الحد المسموح / File exceeds the upload limit'
 ): HttpError => new HttpError(413, 'PAYLOAD_TOO_LARGE', message);
-
-export const unsupportedMediaType = (
-  message = 'نوع الملف غير مدعوم / Unsupported file type'
-): HttpError => new HttpError(415, 'UNSUPPORTED_MEDIA_TYPE', message);

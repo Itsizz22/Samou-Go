@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { ok } from '../../lib/respond';
 import { parseWith } from '../../lib/validate';
 import { requireAuth } from '../../middleware/authenticate';
-import { favoriteStoreIdParamsSchema } from './favorites.schemas';
+import { storeIdParamsSchema } from '../stores/stores.schemas';
 import * as favoritesService from './favorites.service';
 
 /** GET /api/v1/favorites */
@@ -14,7 +14,7 @@ export async function listFavoritesHandler(req: Request, res: Response): Promise
 /** PUT /api/v1/favorites/:storeId — idempotent add. */
 export async function addFavoriteHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);
-  const { storeId } = parseWith(favoriteStoreIdParamsSchema, req.params);
+  const { storeId } = parseWith(storeIdParamsSchema, req.params);
   await favoritesService.addFavorite(auth.sub, storeId);
   ok(res, { favorited: true });
 }
@@ -22,7 +22,7 @@ export async function addFavoriteHandler(req: Request, res: Response): Promise<v
 /** DELETE /api/v1/favorites/:storeId — idempotent remove. */
 export async function removeFavoriteHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);
-  const { storeId } = parseWith(favoriteStoreIdParamsSchema, req.params);
+  const { storeId } = parseWith(storeIdParamsSchema, req.params);
   await favoritesService.removeFavorite(auth.sub, storeId);
   ok(res, { favorited: false });
 }

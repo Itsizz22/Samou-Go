@@ -197,7 +197,7 @@ model Store {
   @@map("stores")
 }
 
-/// A menu section, scoped to one store. Two stores may both have "┘à╪┤╪▒┘ê╪¿╪º╪¬".
+/// A menu section, scoped to one store. Two stores may both have "مشروبات".
 model Category {
   id        String   @id @default(cuid())
   nameAr    String   @db.VarChar(120)
@@ -256,7 +256,7 @@ model Order {
 
   /// Free-text destination: neighbourhood, street, landmark. No GPS by design.
   customerAddressText String  @db.VarChar(500)
-  /// Optional extra directions, e.g. "╪¿╪¼╪º┘å╪¿ ┘à╪│╪¼╪» ╪╣┘à╪▒╪î ╪º┘ä╪╖╪º╪¿┘é ╪º┘ä╪½╪º┘å┘è".
+  /// Optional extra directions, e.g. "بجانب مسجد عمر، الطابق الثاني".
   addressNote         String? @db.VarChar(500)
   orderNote           String? @db.VarChar(500)
   estimatedPrepMinutes Int?
@@ -336,7 +336,7 @@ model Voucher {
   labelAr       String              @db.VarChar(160)
   labelEn       String              @db.VarChar(160)
   discountType  VoucherDiscountType @default(PERCENT)
-  /// PERCENT ΓåÆ 0ΓÇô100; FIXED ΓåÆ ILS amount off.
+  /// PERCENT → 0–100; FIXED → ILS amount off.
   discountValue Decimal             @db.Decimal(10, 2)
   /// Ignored until the basket's subtotal reaches this, in ILS.
   minSubtotal   Decimal?            @db.Decimal(10, 2)
