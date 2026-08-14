@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../lib/prisma-runtime';
 import { ZodError } from 'zod';
 import type { ApiFailure } from '@samou-go/shared-types';
 import { env } from '../config/env';

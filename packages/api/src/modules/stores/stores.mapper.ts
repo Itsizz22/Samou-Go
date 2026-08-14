@@ -2,7 +2,7 @@ import type {
   Category as PrismaCategory,
   Product as PrismaProduct,
   Store as PrismaStore,
-} from '@prisma/client';
+} from '../../lib/prisma-types';
 import type {
   Category,
   CategoryWithProducts,
@@ -53,7 +53,7 @@ export function toProduct(product: PrismaProduct): Product {
 export function toStoreWithCatalogue(
   store: PrismaStore & {
     categories: (PrismaCategory & { products: PrismaProduct[] })[];
-    dedicatedCaptains?: Array<Pick<import('@prisma/client').User, 'id' | 'name' | 'phone' | 'isAvailable' | 'isVerified'>>;
+    dedicatedCaptains?: Array<Pick<import('../../lib/prisma-types').User, 'id' | 'name' | 'phone' | 'isAvailable' | 'isVerified'>>;
   }
 ): StoreWithCatalogue {
   const categories: CategoryWithProducts[] = store.categories.map(category => ({

@@ -6,7 +6,7 @@ import type {
   Store as PrismaStore,
   User as PrismaUser,
   Voucher as PrismaVoucher,
-} from '@prisma/client';
+} from '../../lib/prisma-types';
 import type {
   Order,
   OrderDetail,

@@ -1,4 +1,0 @@
-
-> samou-go@0.1.0 typecheck:all
-> npm run typecheck && tsc -b packages/shared-types packages/ui packages/api
-

@@ -217,13 +217,9 @@ export class ApiError extends Error {
 
 /**
  * Kept in `localStorage` so a refresh does not sign the customer out.
- * Wrapped in try/catch because Safari private mode throws on access.
- *
- * On a native Capacitor device the storage is swapped for the encrypted
- * Android Keystore / iOS Keychain via {@link registerTokenStorage}, so an
- * extracted WebView database or a rooted-device backup yields nothing. The
- * in-memory copy keeps callers synchronous; {@link hydrateAuthSession} is
- * called once at app boot to pull persisted tokens into it.
+ * Wrapped in try/catch because Safari private mode throws on access. The
+ * in-memory copies keep callers synchronous; the first `getToken()` call pulls
+ * persisted tokens into memory.
  */
 
 const TOKEN_STORAGE_KEY = "samou-go.accessToken";
@@ -231,57 +227,8 @@ const REFRESH_TOKEN_STORAGE_KEY = "samou-go.refreshToken";
 type SessionPersistence = "local" | "session";
 let sessionPersistence: SessionPersistence = "local";
 
-/** The persistence contract a native app satisfies with Secure Storage. */
-export interface TokenStorageAdapter {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-  removeItem(key: string): Promise<void>;
-}
-
-let secureStorage: TokenStorageAdapter | null = null;
-
-/**
- * Registers the native Secure Storage adapter (from `capacitor-secure-storage-plugin`).
- * Call before the app renders and BEFORE {@link hydrateAuthSession}. Pass `null`
- * to run purely on the in-memory + localStorage fallback (browser / dev).
- */
-export function registerTokenStorage(
-  adapter: TokenStorageAdapter | null,
-): void {
-  secureStorage = adapter;
-}
-
 let inMemoryToken: string | null = null;
 let inMemoryRefreshToken: string | null = null;
-
-/**
- * Reads persisted tokens from the secure adapter (native) or localStorage
- * (browser) into memory. Await this at startup, before rendering, so the first
- * request issued by a screen sees the restored session.
- */
-export async function hydrateAuthSession(): Promise<void> {
-  try {
-    if (secureStorage) {
-      const [access, refresh] = await Promise.all([
-        secureStorage.getItem(TOKEN_STORAGE_KEY),
-        secureStorage.getItem(REFRESH_TOKEN_STORAGE_KEY),
-      ]);
-      inMemoryToken = access ?? localStorage.getItem(TOKEN_STORAGE_KEY) ?? null;
-      inMemoryRefreshToken =
-        refresh ?? localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) ?? null;
-      return;
-    }
-    const localAccess = localStorage.getItem(TOKEN_STORAGE_KEY);
-    const localRefresh = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
-    sessionPersistence = localAccess || localRefresh ? "local" : "session";
-    inMemoryToken = localAccess ?? sessionStorage.getItem(TOKEN_STORAGE_KEY);
-    inMemoryRefreshToken =
-      localRefresh ?? sessionStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
-  } catch {
-    inMemoryToken = null;
-    inMemoryRefreshToken = null;
-  }
-}
 
 /** Best-effort persistence; failures never surface — the in-memory copy rules. */
 function persist(key: string, value: string | null): void {
@@ -298,15 +245,6 @@ function persist(key: string, value: string | null): void {
     }
   } catch {
     /* Private mode — the in-memory copy still carries this session. */
-  }
-  if (secureStorage) {
-    const promise =
-      value === null
-        ? secureStorage.removeItem(key)
-        : secureStorage.setItem(key, value);
-    promise.catch(() => {
-      /* Native write failed (e.g. locked Keychain) — localStorage fallback stands. */
-    });
   }
 }
 
@@ -1289,56 +1227,3 @@ export function verifyCaptain(
     },
   );
 }
-
-/** Namespaced handle for callers that prefer `api.getStores()` over named imports. */
-export const api = {
-  getMeta,
-  getStores,
-  getStore,
-  getStoreProducts,
-  updateStore,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  quoteOrder,
-  createOrder,
-  getOrder,
-  listOrders,
-  updateOrderStatus,
-  reorderOrder,
-  getFavorites,
-  addFavorite,
-  removeFavorite,
-  login,
-  register,
-  resetPassword,
-  requestOtp,
-  verifyOtp,
-  refreshAccessToken,
-  me,
-  logout,
-  updateProfile,
-  setAvailability,
-  listUsers,
-  updateUser,
-  getAdminStats,
-  createStore,
-  createCaptain,
-  approveStore,
-  verifyCaptain,
-  presignUpload,
-  uploadRawFile,
-  finalizeUpload,
-  removeCurrentImage,
-  uploadImage,
-  getToken,
-  setToken,
-  clearToken,
-  subscribeTokenChange,
-  getRefreshToken,
-  setRefreshToken,
-  clearTokens,
-  registerTokenStorage,
-  setSessionPersistence,
-  hydrateAuthSession,
-} as const;

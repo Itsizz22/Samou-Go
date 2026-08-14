@@ -15,7 +15,7 @@ import { useStore } from '@/hooks/useApi';
 import { HorizontalScrollGallery } from '@samou-go/ui';
 import { ProductRowSkeleton, Skeleton } from '@/components/Skeleton';
 import { formatCurrency } from '@/lib/delivery';
-import { hapticConfirm, hapticTap, useOrderEvent } from '@/hooks/useApi';
+import { hapticConfirm, hapticTap } from '@/hooks/useApi';
 import { PageTransition } from '@/components/PageTransition';
 
 export function StoreDetailScreen() {
@@ -24,14 +24,6 @@ export function StoreDetailScreen() {
   const store = useStore(storeId);
   const cart = useCart();
   const favorites = useFavorites();
-  const { detail: orderDetail, reload, error } = useOrderEvent(storeId, {
-    onUpdate: (detail) => {
-      // Status changed — could play a soft feedback or just re-render
-      // For now, we re-fetch via reload; the UI will update automatically
-      // since the detail is derived from the same store query.
-      // Uncomment to play chime: hapticConfirm();
-    },
-  });
 
   const handleToggleFavorite = async () => {
     const toggled = await favorites.toggle(storeId);

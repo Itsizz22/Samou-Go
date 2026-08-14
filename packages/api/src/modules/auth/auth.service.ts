@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
-import type { Store, User } from '@prisma/client';
-import type { Prisma } from '@prisma/client';
+import type { Store, User } from '../../lib/prisma-types';
+import type { Prisma } from '../../lib/prisma-types';
 import type { AuthResponse, Paginated, PublicUser } from '@samou-go/shared-types';
 import { UserRole } from '@samou-go/shared-types';
 import { prisma, caseInsensitiveContains } from '../../lib/prisma';

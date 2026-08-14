@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../lib/prisma-runtime';
 import { errorHandler } from './error-handler';
 import { HttpError, conflict, notFound, unprocessable } from '../lib/http-error';
 

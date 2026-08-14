@@ -191,8 +191,9 @@ const USERS: SeedUser[] = [
 
 /**
  * Addresses are free text on purpose — Samou' has no reliable street numbering,
- * and the platform deliberately ships without GPS. The captain reads this and
- * calls the customer.
+ * so the captain reads this and calls the customer. GPS is operational only
+ * (store coordinates below + the assigned captain's live location), never part
+ * of the customer address.
  */
 const ADDRESSES = [
   'حارة الرأس، بجانب مسجد عمر، البيت الحجري الثاني',

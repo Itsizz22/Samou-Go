@@ -1,4 +1,4 @@
-import type { User } from '@prisma/client';
+import type { User } from '../../lib/prisma-types';
 import type { PublicUser } from '@samou-go/shared-types';
 
 /**

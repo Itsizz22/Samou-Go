@@ -34,7 +34,6 @@ import {
   updateProfile,
   useAuth,
   useMutation,
-  useOrderEvent,
   useOrder,
   useOrders,
   useRoleRedirect,

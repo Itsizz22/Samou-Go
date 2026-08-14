@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from './prisma-types';
 
 /**
  * PostgreSQL `Decimal(10,2)` arrives as a `Prisma.Decimal`, which `JSON.stringify`

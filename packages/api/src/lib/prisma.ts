@@ -1,16 +1,31 @@
-import { PrismaClient } from '@prisma/client';
+import type { PrismaClient as SqlitePrismaClient } from '../../generated/prisma-sqlite';
 import { env } from '../config/env';
+import { PrismaClient } from './prisma-runtime';
 
 /**
  * One PrismaClient for the process. `tsx watch` re-evaluates modules on every
  * save, so in development the instance is cached on `globalThis` to avoid
- * exhausting the PostgreSQL connection pool.
+ * exhausting the SQLite connection pool.
+ *
+ * The concrete client class comes from `prisma-runtime`, which selects between
+ * the independently generated SQLite and PostgreSQL clients based on the
+ * environment — so `db:generate` / `db:generate:prod` can never overwrite the
+ * other provider's generated output.
  */
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const globalForPrisma = globalThis as unknown as { prisma?: SqlitePrismaClient };
 
-export const prisma =
+/**
+ * The two generated clients are structurally identical for the models; their
+ * constructor types only differ in Prisma's internal generics, so the
+ * environment-selected constructor is cast to the SQLite constructor here.
+ * `new PrismaClientCtor(...)` constructs the runtime client of the active
+ * datasource (SQLite in dev/test, PostgreSQL in production).
+ */
+const PrismaClientCtor = PrismaClient as typeof SqlitePrismaClient;
+
+export const prisma: SqlitePrismaClient =
   globalForPrisma.prisma ??
-  new PrismaClient({
+  new PrismaClientCtor({
     log: env.isProduction ? ['warn', 'error'] : ['warn', 'error'],
   });
 

@@ -48,6 +48,28 @@ export const VoucherDiscountType = {
 export type VoucherDiscountType =
   (typeof VoucherDiscountType)[keyof typeof VoucherDiscountType];
 
+/** Lifecycle of a customer support ticket. */
+export const TicketStatus = {
+  OPEN: 'OPEN',
+  RESOLVED: 'RESOLVED',
+} as const;
+export type TicketStatus = (typeof TicketStatus)[keyof typeof TicketStatus];
+
+/** How an admin pays out a wallet settlement. */
+export const SettlementMethod = {
+  CASH: 'CASH',
+  BANK_TRANSFER: 'BANK_TRANSFER',
+} as const;
+export type SettlementMethod = (typeof SettlementMethod)[keyof typeof SettlementMethod];
+
+/** Type of a wallet ledger movement (earnings in, settlements out). */
+export const LedgerEntryType = {
+  COMMISSION: 'COMMISSION',
+  EARNING: 'EARNING',
+  SETTLEMENT: 'SETTLEMENT',
+} as const;
+export type LedgerEntryType = (typeof LedgerEntryType)[keyof typeof LedgerEntryType];
+
 export const VOUCHER_DISCOUNT_TYPE_LABELS: Record<VoucherDiscountType, { ar: string; en: string }> = {
   [VoucherDiscountType.PERCENT]: { ar: 'نسبة مئوية', en: 'Percent off' },
   [VoucherDiscountType.FIXED]: { ar: 'مبلغ ثابت', en: 'Fixed amount off' },

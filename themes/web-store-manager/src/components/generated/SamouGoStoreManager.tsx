@@ -43,7 +43,6 @@ import {
   updateStore,
   useAuth,
   useMutation,
-  useOrderEvent,
   useOrders,
   useRoleRedirect,
   useStoreManager,
@@ -140,17 +139,6 @@ export function SamouGoStoreManager() {
     managedStores.data?.items.find(s => s.managerId === auth.user?.id)?.id ?? null;
   const managedStore = useStoreManager(managedStoreId, { enabled: isManager });
 
-  /* -- Real-time order status sync via SSE -- */
-  const { detail: orderDetail, reload } = useOrderEvent(
-    managedStoreId,
-    {
-      onUpdate: (detail) => {
-        playNewOrderChime();
-        reload();
-      },
-    }
-  );
-  /* -- /Real-time order status sync via SSE -- */
   const [isOpen, setIsOpen] = useState(true);
   const [prepMinutes, setPrepMinutes] = useState(25);
   const [storeTogglePending, setStoreTogglePending] = useState(false);

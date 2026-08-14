@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../../lib/prisma-types';
 import type { Paginated, Product, Store, StoreWithCatalogue, UserRole } from '@samou-go/shared-types';
 import { UserRole as UserRoleEnum } from '@samou-go/shared-types';
 import { prisma, caseInsensitiveContains } from '../../lib/prisma';

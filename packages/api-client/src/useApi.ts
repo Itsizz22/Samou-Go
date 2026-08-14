@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  API_URL,
   ApiError,
   createCaptain,
   createStore,
@@ -367,7 +368,7 @@ export function useOrderEvent(
   useEffect(() => {
     if (!orderId) return;
 
-    const url = `/api/v1/orders/events/${orderId}?t=${Date.now()}`;
+    const url = `${API_URL}/orders/events/${orderId}?t=${Date.now()}`;
     const source = new EventSource(url, { withCredentials: true });
 
     eventSourceRef.current = source;
