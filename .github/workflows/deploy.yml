@@ -34,7 +34,7 @@ jobs:
           cache: npm
 
       # ============================================================
-      # 3. Install dependencies
+      # 3. Install dependencies (root, all workspaces)
       # ============================================================
       - name: Install Dependencies
         run: npm ci
@@ -44,7 +44,7 @@ jobs:
       # ============================================================
       - name: Build shared packages
         run: |
-          npm run build --workspace @samou-go/shared-types || true
+          npm run build --workspace @samou-go/shared-types
           npm run build --workspace @samou-go/ui || true
 
       # ============================================================
@@ -71,12 +71,24 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID_WEB_CUSTOMER: ${{ secrets.VERCEL_PROJECT_ID_WEB_CUSTOMER }}
+          VERCEL_PROJECT_ID_WEB_CHECKOUT: ${{ secrets.VERCEL_PROJECT_ID_WEB_CHECKOUT }}
+          VERCEL_PROJECT_ID_WEB_STORE_DETAILS: ${{ secrets.VERCEL_PROJECT_ID_WEB_STORE_DETAILS }}
+          VERCEL_PROJECT_ID_WEB_ORDER_TRACKING: ${{ secrets.VERCEL_PROJECT_ID_WEB_ORDER_TRACKING }}
+          VERCEL_PROJECT_ID_WEB_STORE_MANAGER: ${{ secrets.VERCEL_PROJECT_ID_WEB_STORE_MANAGER }}
+          VERCEL_PROJECT_ID_WEB_CAPTAIN: ${{ secrets.VERCEL_PROJECT_ID_WEB_CAPTAIN }}
+          VERCEL_PROJECT_ID_WEB_ADMIN: ${{ secrets.VERCEL_PROJECT_ID_WEB_ADMIN }}
         shell: bash
         run: |
           set -euo pipefail
 
           missing=0
-          for var in DATABASE_URL RENDER_API_KEY RENDER_SERVICE_ID VERCEL_TOKEN; do
+          for var in DATABASE_URL RENDER_API_KEY RENDER_SERVICE_ID VERCEL_TOKEN VERCEL_ORG_ID \
+                      VERCEL_PROJECT_ID_WEB_CUSTOMER VERCEL_PROJECT_ID_WEB_CHECKOUT \
+                      VERCEL_PROJECT_ID_WEB_STORE_DETAILS VERCEL_PROJECT_ID_WEB_ORDER_TRACKING \
+                      VERCEL_PROJECT_ID_WEB_STORE_MANAGER VERCEL_PROJECT_ID_WEB_CAPTAIN \
+                      VERCEL_PROJECT_ID_WEB_ADMIN; do
             if [ -z "${!var:-}" ]; then
               echo "::error::Missing required secret: $var"
               missing=1
@@ -89,7 +101,7 @@ jobs:
           echo "Required secrets: PASS"
 
       # ============================================================
-      # 8. Verify Neon PostgreSQL connectivity & Run Migrations
+      # 8. Run Database Migrations (Neon PostgreSQL)
       # ============================================================
       - name: Run Database Migrations
         working-directory: packages/api
@@ -102,7 +114,7 @@ jobs:
           npx prisma migrate deploy --schema=prisma/schema.prisma
 
       # ============================================================
-      # 9. Build frontend applications
+      # 9. Build frontend applications (all 7 SPAs)
       # ============================================================
       - name: Build Frontend Apps
         env:
@@ -111,10 +123,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          # بناء كل واجهة مع تجربة اسم المجلد واسم الحزمة بالتناوب
-          for app in customer store captain admin; do
-            echo "::group::Building web-$app"
-            npm run build --workspace "@samou-go/web-$app" || npm run build --workspace "@samou-go/$app" || true
+          for app in web-customer web-checkout web-store-details web-order-tracking web-store-manager web-captain web-admin; do
+            echo "::group::Building @samou-go/$app"
+            npm run build --workspace "@samou-go/$app"
             echo "::endgroup::"
           done
 
@@ -144,34 +155,40 @@ jobs:
           echo "Render deployment triggered successfully."
 
       # ============================================================
-      # 11. Deploy Frontends to Vercel
+      # 11. Deploy SPAs to Vercel (prebuilt — uses dist/ we already built)
       # ============================================================
       - name: Deploy SPAs to Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         shell: bash
         run: |
           set -euo pipefail
 
-          for app in customer store captain admin; do
-            echo "::group::Deploying $app app to Vercel"
+          declare -A PROJECT_IDS=(
+            ["web-customer"]="${{ secrets.VERCEL_PROJECT_ID_WEB_CUSTOMER }}"
+            ["web-checkout"]="${{ secrets.VERCEL_PROJECT_ID_WEB_CHECKOUT }}"
+            ["web-store-details"]="${{ secrets.VERCEL_PROJECT_ID_WEB_STORE_DETAILS }}"
+            ["web-order-tracking"]="${{ secrets.VERCEL_PROJECT_ID_WEB_ORDER_TRACKING }}"
+            ["web-store-manager"]="${{ secrets.VERCEL_PROJECT_ID_WEB_STORE_MANAGER }}"
+            ["web-captain"]="${{ secrets.VERCEL_PROJECT_ID_WEB_CAPTAIN }}"
+            ["web-admin"]="${{ secrets.VERCEL_PROJECT_ID_WEB_ADMIN }}"
+          )
 
-            (
-              # البحث عن مجلد الحزمة داخل packages/
-              if [ -d "packages/web-$app" ]; then
-                cd "packages/web-$app"
-              elif [ -d "packages/$app" ]; then
-                cd "packages/$app"
-              fi
+          for app in web-customer web-checkout web-store-details web-order-tracking web-store-manager web-captain web-admin; do
+            echo "::group::Deploying $app to Vercel"
 
-              # الرفع إلى Vercel وتجاوز مرحلة الـ build على Vercel لأننا بنينا الحزمة مسبقاً
-              npx --yes vercel@latest deploy \
-                --prod \
-                --yes \
-                --token "${VERCEL_TOKEN}"
-            )
+            export VERCEL_PROJECT_ID="${PROJECT_IDS[$app]}"
+            dir="themes/$app"
+
+            # Link this deployment to the right Vercel project + pull its env/config
+            npx --yes vercel@latest pull --yes --environment=production --token "${VERCEL_TOKEN}" "$dir"
+
+            # Deploy the already-built dist/ folder — no remote npm install needed
+            npx --yes vercel@latest deploy "$dir/dist" \
+              --prod \
+              --yes \
+              --token "${VERCEL_TOKEN}"
 
             echo "::endgroup::"
           done
