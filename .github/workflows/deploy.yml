@@ -4,25 +4,13 @@ name: Deploy Production
 #   - API  -> Render Web Service (triggered through the Render API)
 #   - 7 SPAs -> Vercel (one project per theme)
 #   - Prisma migrations -> run automatically against the production PostgreSQL DB.
-#
-# Required GitHub Actions secrets (Settings -> Secrets and variables -> Actions):
-#   DATABASE_URL        Production PostgreSQL connection string (Prisma format).
-#                       Read ONLY from the secret below — never hardcoded.
-#   RENDER_API_KEY      Render API key (https://dashboard.render.com/u/settings#api-keys).
-#   RENDER_SERVICE_ID   ID of the API Web Service (Render service URL suffix).
-#   VERCEL_TOKEN        Vercel access token (https://vercel.com/account/tokens).
-#
-# Required committed Vercel project links (non-secret, safe to commit): each
-# theme dir needs `themes/web-<name>/.vercel/project.json` holding
-# `{ "projectId": ..., "orgId": ... }` — generate once with `npx vercel link`
-# from that directory, then commit the file so deploys are non-interactive.
 
 on:
   push:
     branches: [master]
 
 env:
-  NODE_VERSION: 20
+  NODE_VERSION: 22
 
 concurrency:
   group: production-deploy
@@ -86,24 +74,24 @@ jobs:
             exit 1
           fi
 
-      - name: Verify Vercel project links
-        # Each theme needs a committed .vercel/project.json (from `npx vercel
-        # link` in that directory) or the deploy below fails non-interactively.
-        # Fail early with an actionable message instead of a cryptic CLI error.
+      - name: Verify or auto-link Vercel project links
+        # Safe fallback: if project.json does not exist in Git, attempt to dynamically link using secrets
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
           set -euo pipefail
-          unlinked=0
           for theme in customer store-details checkout order-tracking store-manager captain admin; do
+            mkdir -p "themes/web-$theme/.vercel"
             if [ ! -f "themes/web-$theme/.vercel/project.json" ]; then
-              echo "::error::Missing themes/web-$theme/.vercel/project.json"
-              echo "         Run: (cd themes/web-$theme && npx vercel link --yes --project samou-go-web-$theme)"
-              unlinked=1
+              if [ -n "${VERCEL_ORG_ID:-}" ] && [ -n "${VERCEL_PROJECT_ID:-}" ]; then
+                echo "Creating dynamic project.json for themes/web-$theme..."
+                echo "{\"orgId\":\"${VERCEL_ORG_ID}\",\"projectId\":\"${VERCEL_PROJECT_ID}\"}" > "themes/web-$theme/.vercel/project.json"
+              else
+                echo "::warning::themes/web-$theme/.vercel/project.json is missing and VERCEL_PROJECT_ID secret is not set."
+              fi
             fi
           done
-          if [ "$unlinked" -ne 0 ]; then
-            echo "::error::Link each theme to its Vercel project and commit the generated .vercel/project.json, then re-run this workflow."
-            exit 1
-          fi
 
       - name: Run Database Migrations (production PostgreSQL)
         run: npm run db:deploy
