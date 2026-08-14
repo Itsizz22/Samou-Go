@@ -2,16 +2,19 @@ import { LedgerEntryType, SettlementMethod, UserRole } from '@samou-go/shared-ty
 import type { JwtPayload } from '@samou-go/shared-types';
 import type { Prisma } from '../../lib/prisma-types';
 import { prisma } from '../../lib/prisma';
+import { Prisma as PrismaRuntime } from '../../lib/prisma-runtime';
 import { badRequest, forbidden, notFound } from '../../lib/http-error';
 import { decimalToNumber } from '../../lib/decimal';
 import { parseWith } from '../../lib/validate';
+import { isOrderPartyMember } from '../../lib/order-party';
 import type {
   LocationBody,
   RatingBody,
   SettlementBody,
   TicketBody,
+  WalletCreditBody,
 } from './platform.schemas';
-import { chatSchema, ratingSchema, settlementSchema } from './platform.schemas';
+import { chatSchema, ratingSchema, settlementSchema, walletCreditSchema } from './platform.schemas';
 
 /** A settlement row with money already converted to a plain number (DTO shape). */
 export interface SettlementRow {
@@ -65,22 +68,12 @@ export async function rateOrder(orderId: string, customerId: string, rawBody: un
   });
 }
 
-function canSeeOrderChat(
-  auth: JwtPayload,
-  order: { customerId: string; captainId: string | null; store: { managerId: string } }
-): boolean {
-  return (
-    auth.role === UserRole.ADMIN ||
-    [order.customerId, order.captainId, order.store.managerId].includes(auth.sub)
-  );
-}
-
 export async function listOrderChat(orderId: string, auth: JwtPayload) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: { customerId: true, captainId: true, store: { select: { managerId: true } } },
   });
-  if (!order || !canSeeOrderChat(auth, order)) throw forbidden();
+  if (!order || !isOrderPartyMember(auth, order)) throw forbidden();
   return prisma.chatMessage.findMany({
     where: { orderId },
     orderBy: { createdAt: 'asc' },
@@ -93,7 +86,7 @@ export async function sendOrderChat(orderId: string, auth: JwtPayload, rawBody: 
     where: { id: orderId },
     select: { customerId: true, captainId: true, store: { select: { managerId: true } } },
   });
-  if (!order || !canSeeOrderChat(auth, order)) throw forbidden();
+  if (!order || !isOrderPartyMember(auth, order)) throw forbidden();
   const body = parseWith(chatSchema, rawBody);
   return prisma.chatMessage.create({
     data: { orderId, senderId: auth.sub, senderRole: auth.role, message: body.message },
@@ -133,6 +126,137 @@ export async function getAdminFinancials() {
     wallets: wallets.map(w => ({ ...w, balance: decimalToNumber(w.balance) })),
     settlements: settlements.map(s => ({ ...s, amount: decimalToNumber(s.amount) })),
   };
+}
+
+/* ---------------------------------------------------------------------------
+ * Wallet credits — P0-2: every balance mutation carries a LedgerEntry in the
+ * SAME transaction, and every mutation is an atomic increment/decrement (never
+ * read-then-write), so concurrent writers can never corrupt a balance.
+ * ------------------------------------------------------------------------- */
+
+/** The money split for one delivered order. All Decimal — never float. */
+export interface OrderFinancials {
+  /** Order subtotal (gross, before commission). */
+  gross: Prisma.Decimal;
+  /** `gross × wallet.commissionRate`, rounded half-up to 2dp. */
+  commission: Prisma.Decimal;
+  /** `gross − commission` — what lands in the store wallet. */
+  storeNet: Prisma.Decimal;
+  /** `deliveryFee` — what lands in the captain wallet. */
+  captainPayout: Prisma.Decimal;
+}
+
+export function computeOrderFinancials(
+  subtotal: Prisma.Decimal | number | string,
+  deliveryFee: Prisma.Decimal | number | string,
+  commissionRate: Prisma.Decimal | number | string
+): OrderFinancials {
+  const gross = new PrismaRuntime.Decimal(subtotal);
+  const commission = gross
+    .mul(new PrismaRuntime.Decimal(commissionRate))
+    .toDecimalPlaces(2, PrismaRuntime.Decimal.ROUND_HALF_UP);
+  return {
+    gross,
+    commission,
+    storeNet: gross.minus(commission),
+    captainPayout: new PrismaRuntime.Decimal(deliveryFee),
+  };
+}
+
+/**
+ * Credits both wallets for a delivered order, atomically, inside the caller's
+ * transaction — the balance increment/upsert and the LedgerEntry rows commit or
+ * roll back together with the DELIVERED status change. The store wallet is
+ * upserted by `storeId` and the captain wallet by `userId`, so lazy creation of
+ * a missing wallet and concurrent orders on the same wallet are both safe.
+ * A zero (or missing) captain accrues no payout and writes no rows.
+ */
+export async function creditDeliveredOrder(
+  tx: Prisma.TransactionClient,
+  order: {
+    storeId: string;
+    captainId: string | null;
+    subtotal: Prisma.Decimal | number | string;
+    deliveryFee: Prisma.Decimal | number | string;
+    orderNumber: string;
+  }
+): Promise<void> {
+  const existingStoreWallet = await tx.wallet.findUnique({
+    where: { storeId: order.storeId },
+    select: { commissionRate: true },
+  });
+  const financials = computeOrderFinancials(
+    order.subtotal,
+    order.deliveryFee,
+    existingStoreWallet?.commissionRate ?? '0.10'
+  );
+
+  const storeWallet = await tx.wallet.upsert({
+    where: { storeId: order.storeId },
+    update: { balance: { increment: financials.storeNet } },
+    create: { storeId: order.storeId, balance: financials.storeNet },
+    select: { id: true },
+  });
+
+  await tx.ledgerEntry.create({
+    data: {
+      walletId: storeWallet.id,
+      amount: financials.gross,
+      type: LedgerEntryType.EARNING,
+      description: `أرباح المتجر عن الطلب ${order.orderNumber} / Store earnings for order ${order.orderNumber}`,
+    },
+  });
+  await tx.ledgerEntry.create({
+    data: {
+      walletId: storeWallet.id,
+      amount: financials.commission.negated(),
+      type: LedgerEntryType.COMMISSION,
+      description: `عمولة المنصة عن الطلب ${order.orderNumber} / Platform commission for order ${order.orderNumber}`,
+    },
+  });
+
+  if (order.captainId && financials.captainPayout.greaterThan(0)) {
+    const captainWallet = await tx.wallet.upsert({
+      where: { userId: order.captainId },
+      update: { balance: { increment: financials.captainPayout } },
+      create: { userId: order.captainId, balance: financials.captainPayout },
+      select: { id: true },
+    });
+    await tx.ledgerEntry.create({
+      data: {
+        walletId: captainWallet.id,
+        amount: financials.captainPayout,
+        type: LedgerEntryType.EARNING,
+        description: `أرباح التوصيل عن الطلب ${order.orderNumber} / Delivery earnings for order ${order.orderNumber}`,
+      },
+    });
+  }
+}
+
+/** Admin manual top-up. Positive-only, atomic, always ledgered. */
+export async function creditWallet(
+  walletId: string,
+  rawBody: unknown
+): Promise<{ balance: number }> {
+  const wallet = await prisma.wallet.findUnique({ where: { id: walletId } });
+  if (!wallet) throw notFound('المحفظة غير موجودة / Wallet not found');
+  const body: WalletCreditBody = parseWith(walletCreditSchema, rawBody);
+  const amount = new PrismaRuntime.Decimal(body.amount);
+  return prisma.$transaction(async tx => {
+    const updated = await tx.wallet.update({
+      where: { id: walletId },
+      data: { balance: { increment: amount } },
+    });
+    await tx.ledgerEntry.create({
+      data: {
+        walletId,
+        amount,
+        type: LedgerEntryType.ADJUSTMENT,
+        description: body.note ?? 'تعديل رصيد يدوي / Manual wallet adjustment',
+      },
+    });
+    return { balance: decimalToNumber(updated.balance) };
+  });
 }
 
 /**

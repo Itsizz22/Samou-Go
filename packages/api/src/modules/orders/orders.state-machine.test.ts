@@ -85,6 +85,12 @@ vi.mock('../../config/env', () => ({
   env: { deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' } },
 }));
 
+// The DELIVERED transition triggers the wallet credit path; those credits are
+// verified in `orders.delivered.test.ts`, so this suite just stubs it out.
+vi.mock('../../modules/platform/platform.service', () => ({
+  creditDeliveredOrder: vi.fn(async () => undefined),
+}));
+
 /** Asserts a state-machine violation: HTTP 400 with the given code. */
 function expectBadState(promise: Promise<unknown>, code: string) {
   return promise.then(

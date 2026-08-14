@@ -199,6 +199,26 @@ describe('handleCaptainLocation — S-2 location write', () => {
 
     expect(prisma.captainLocation.upsert).toHaveBeenCalledTimes(1);
   });
+
+  it('caps the tracked captains so the throttle map cannot grow unbounded', async () => {
+    const io = makeIo() as unknown as Server;
+
+    // First write registers captain-1 in the throttle map.
+    await handleCaptainLocation(io, CAPTAIN, { lat: 31.5, lng: 35.1 });
+    // 500 further distinct captains push the map past its 500-entry cap, which
+    // evicts the oldest entry (captain-1).
+    for (let i = 2; i <= 501; i += 1) {
+      await handleCaptainLocation(
+        io,
+        { sub: `captain-${i}`, role: UserRole.CAPTAIN },
+        { lat: 31.5, lng: 35.1 }
+      );
+    }
+    // captain-1 is no longer tracked, so its immediate re-write is not throttled.
+    await handleCaptainLocation(io, CAPTAIN, { lat: 31.6, lng: 35.2 });
+
+    expect(prisma.captainLocation.upsert).toHaveBeenCalledTimes(502);
+  });
 });
 
 describe('handleChatSend — membership + broadcast', () => {

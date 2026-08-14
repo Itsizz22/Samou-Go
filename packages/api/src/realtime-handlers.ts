@@ -1,11 +1,31 @@
 import type { Server, Socket } from 'socket.io';
 import { UserRole } from '@samou-go/shared-types';
 import { prisma } from './lib/prisma';
+import { isOrderPartyMember } from './lib/order-party';
 import { assertCanView, loadOrderOrThrow } from './modules/orders/orders.service';
 
 /** How often a captain may write their location at most, in ms. */
 const LOCATION_MIN_INTERVAL_MS = 5_000;
+/** Upper bound of captains tracked simultaneously — prevents unbounded growth. */
+const LOCATION_TRACK_MAX = 500;
+/** Stale entries are dropped once older than this, ms. */
+const LOCATION_TRACK_TTL_MS = 60 * 60 * 1_000;
 const lastLocationWrite = new Map<string, number>();
+
+/** Records a throttled write, evicting the oldest entry when the cap is hit. */
+function markLocationWrite(captainId: string, now: number): void {
+  if (lastLocationWrite.size >= LOCATION_TRACK_MAX) {
+    const oldest = lastLocationWrite.keys().next().value;
+    if (oldest !== undefined) lastLocationWrite.delete(oldest);
+  }
+  lastLocationWrite.set(captainId, now);
+  // Drop stale entries opportunistically. Map iterates oldest-first, so the
+  // moment one entry is fresh, every later one is too.
+  for (const [id, ts] of lastLocationWrite) {
+    if (now - ts > LOCATION_TRACK_TTL_MS) lastLocationWrite.delete(id);
+    else break;
+  }
+}
 
 /** Test seam: clears the location throttle so a fresh captain can write again. */
 export function resetLocationThrottle(): void {
@@ -63,7 +83,7 @@ export async function handleCaptainLocation(
   const now = Date.now();
   const last = lastLocationWrite.get(auth.sub);
   if (last !== undefined && now - last < LOCATION_MIN_INTERVAL_MS) return;
-  lastLocationWrite.set(auth.sub, now);
+  markLocationWrite(auth.sub, now);
 
   const location = await prisma.captainLocation.upsert({
     where: { captainId: auth.sub },
@@ -96,11 +116,7 @@ export async function handleChatSend(io: Server, auth: Auth, payload: unknown): 
     where: { id: orderId },
     select: { customerId: true, captainId: true, store: { select: { managerId: true } } },
   });
-  if (
-    !order ||
-    (auth.role !== UserRole.ADMIN &&
-      ![order.customerId, order.captainId, order.store.managerId].includes(auth.sub))
-  ) {
+  if (!order || !isOrderPartyMember(auth, order)) {
     return;
   }
   const row = await prisma.chatMessage.create({

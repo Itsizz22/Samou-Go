@@ -364,9 +364,27 @@ export function useOrderEvent(
   const onUpdateRef = useRef(options?.onUpdate);
   onUpdateRef.current = options?.onUpdate;
 
-  // ——— SSE connection ———
+  /** Fetches the fresh detail; resolves `false` when the fetch fails. */
+  const fetchDetail = useCallback(async (): Promise<boolean> => {
+    try {
+      const updated = await loadRef.current(new AbortController().signal);
+      setDetail(updated);
+      setLoading(false);
+      setRefreshing(false);
+      if (onUpdateRef.current) onUpdateRef.current(updated);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // ——— SSE connection (push channel) ———
   useEffect(() => {
-    if (!orderId) return;
+    // No order to follow: nothing is loading, nothing to keep open.
+    if (!orderId) {
+      setLoading(false);
+      return;
+    }
 
     const url = `${API_URL}/orders/events/${orderId}?t=${Date.now()}`;
     const source = new EventSource(url, { withCredentials: true });
@@ -378,20 +396,8 @@ export function useOrderEvent(
       setError(null);
     };
 
-    source.onmessage = (event) => {
-      try {
-        loadRef
-          .current(new AbortController().signal)
-          .then((updatedDetail) => {
-            setDetail(updatedDetail);
-            if (onUpdateRef.current) {
-              onUpdateRef.current(updatedDetail);
-            }
-          })
-          .catch(() => { /* ignore fetch errors during SSE */ });
-      } catch (e) {
-        // ignore malformed messages
-      }
+    source.onmessage = () => {
+      void fetchDetail();
     };
 
     source.onerror = () => {
@@ -401,39 +407,34 @@ export function useOrderEvent(
     };
 
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
+      if (eventSourceRef.current === source) eventSourceRef.current = null;
+      source.close();
     };
-  }, [orderId]);
+  }, [orderId, fetchDetail]);
 
-  // ——— polling fallback when SSE is unsupported or fails ———
+  // ——— polling safety net ———
+  // Runs whenever SSE is missing or a push was missed; `pollMs: 0` disables it
+  // (a terminal order has nothing left to watch).
+  const pollMs = options?.pollMs ?? 15_000;
   useEffect(() => {
-    if (!orderId || eventSourceRef.current) return;
+    if (!orderId || pollMs <= 0) return;
     const interval = setInterval(() => {
-      loadRef
-        .current(new AbortController().signal)
-        .then((updatedDetail) => setDetail(updatedDetail))
-        .catch(() => {});
-    }, options?.pollMs ?? 15_000);
-
+      void (async () => {
+        setRefreshing(true);
+        const ok = await fetchDetail();
+        if (!ok) setRefreshing(false);
+      })();
+    }, pollMs);
     return () => clearInterval(interval);
-  }, [orderId, options?.pollMs]);
+  }, [orderId, pollMs, fetchDetail]);
 
   const reload = useCallback(() => {
-    loadRef
-      .current(new AbortController().signal)
-      .then((updatedDetail) => setDetail(updatedDetail))
-      .catch((cause) =>
-        setError(
-          new ApiError(
-            'RELOAD_ERROR',
-            cause instanceof Error ? cause.message : String(cause)
-          )
-        )
-      );
-  }, []);
+    setRefreshing(true);
+    void (async () => {
+      const ok = await fetchDetail();
+      if (!ok) setError(new ApiError('RELOAD_ERROR', 'Reload failed'));
+    })();
+  }, [fetchDetail]);
 
   return { detail, loading, refreshing, error, reload };
 }

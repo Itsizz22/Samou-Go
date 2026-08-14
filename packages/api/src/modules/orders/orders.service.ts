@@ -20,6 +20,7 @@ import { badState, conflict, forbidden, notFound, unprocessable } from '../../li
 import { formatOrderNumber, startOfDay } from '../../lib/order-number';
 import { toOrderDetail, toOrderSummary } from './orders.mapper';
 import { toProduct } from '../stores/stores.mapper';
+import { creditDeliveredOrder } from '../platform/platform.service';
 import type {
   AssignCaptainBody,
   CreateOrderBody,
@@ -627,6 +628,22 @@ export async function updateOrderStatus(
         },
         include: DETAIL_INCLUDE,
       });
+
+      // The moment the money lands. DELIVERED is terminal and the optimistic
+      // lock above guarantees exactly one transition commits, so crediting the
+      // store + captain wallets here (with their ledger entries) happens exactly
+      // once — never on a stale, lost race. If any credit write fails, the
+      // whole unit rolls back including the status change.
+      if (next === OrderStatus.DELIVERED) {
+        await creditDeliveredOrder(tx, {
+          storeId: order.storeId,
+          captainId: order.captainId,
+          subtotal: order.subtotal,
+          deliveryFee: order.deliveryFee,
+          orderNumber: order.orderNumber,
+        });
+      }
+
       return result;
     });
   } catch (err) {

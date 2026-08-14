@@ -13,6 +13,7 @@ import { env } from '../config/env';
 import { prisma } from '../lib/prisma';
 import { hashPassword } from '../lib/password';
 import { formatOrderNumber, startOfDay } from '../lib/order-number';
+import { creditDeliveredOrder } from '../modules/platform/platform.service';
 
 const DEMO_PASSWORD = 'samou1234';
 
@@ -566,6 +567,35 @@ async function seedCleanup(): Promise<void> {
   console.log('  ✓ Cleaned all tables');
 }
 
+/**
+ * Creates zero-balance wallets for every demo store and active captain (so the
+ * wallet endpoints work out of the box), then replays the production credit
+ * path — `creditDeliveredOrder` — for the DELIVERED demo order so the seeded
+ * financials reflect real P0-2 behaviour instead of a hand-copied shortcut.
+ */
+async function seedWalletCredits(): Promise<void> {
+  const targets: ({ storeId: string } | { userId: string })[] = [
+    { storeId: 'store-albaraka' },
+    { storeId: 'store-shawarma' },
+    { storeId: 'store-pharmacy' },
+    { userId: 'user-captain-1' },
+    { userId: 'user-captain-2' },
+  ];
+  for (const target of targets) {
+    await prisma.wallet.upsert({ where: target, update: {}, create: target });
+  }
+  console.log(`✓ ${targets.length} wallets`);
+
+  const delivered = await prisma.order.findUnique({
+    where: { id: 'order-demo-3' },
+    select: { storeId: true, captainId: true, subtotal: true, deliveryFee: true, orderNumber: true },
+  });
+  if (delivered) {
+    await prisma.$transaction(tx => creditDeliveredOrder(tx, delivered));
+    console.log('✓ wallet credits for the delivered demo order');
+  }
+}
+
 async function main(): Promise<void> {
   if (env.isProduction) {
     throw new Error(
@@ -580,6 +610,7 @@ async function main(): Promise<void> {
   await seedCatalogue();
   await seedVouchers();
   await seedOrders();
+  await seedWalletCredits();
   console.log(`\nDone. Demo password for every account: ${DEMO_PASSWORD}`);
 }
 

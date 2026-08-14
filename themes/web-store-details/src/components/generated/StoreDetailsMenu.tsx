@@ -13,14 +13,12 @@ import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ChevronRight,
-  Clock3,
   Loader2,
   MapPin,
   Minus,
   Package,
   Plus,
   RefreshCw,
-  Star,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore, useStores } from '@/hooks/useApi';
@@ -178,19 +176,9 @@ export const StoreDetailsMenu = () => {
                       {store.data?.nameEn ?? ''}
                     </p>
                   </div>
-                  {store.data && (
-                    <div className="flex shrink-0 items-center gap-1 rounded-full bg-brand-surface px-3 py-1.5 text-sm font-bold text-brand-deep">
-                      <Star className="h-4 w-4 fill-warning text-warning" aria-hidden="true" />
-                      <span>4.8</span>
-                    </div>
-                  )}
                 </div>
                 {store.data && (
                   <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-ink-muted">
-                    <span className="inline-flex items-center gap-1.5">
-                      <Clock3 className="h-4 w-4 text-brand" aria-hidden="true" />
-                      20–30 min · دقيقة
-                    </span>
                     <span className="inline-flex items-center gap-1.5">
                       <MapPin className="h-4 w-4 text-brand" aria-hidden="true" />
                       السموع

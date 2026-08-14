@@ -25,14 +25,13 @@ import type {
 import { UserRole } from "@samou-go/shared-types";
 import { env } from "../../config/env";
 import { prisma } from "../../lib/prisma";
-import { tooMany, unauthorized } from "../../lib/http-error";
+import { notFound, tooMany, unauthorized, type HttpError } from "../../lib/http-error";
 import { hashPassword } from "../../lib/password";
 import { signAccessToken } from "../../lib/jwt";
 import { getSmsGateway } from "../../lib/sms/gateway";
 import { toPublicUser } from "./auth.mapper";
 import { issueRefreshToken } from "./refresh-token";
 import { revokeAllUserRefreshTokens } from "./refresh-token";
-import { notFound } from "../../lib/http-error";
 import type {
   AdminStoreOtpRequestBody,
   AdminCaptainOtpRequestBody,
@@ -69,6 +68,54 @@ export interface OtpRequestResult {
   retryAfterSeconds: number;
   /** True when the code was dispatched to a live carrier. */
   dispatched: boolean;
+}
+
+/** The bilingual failures each OTP flow wants to surface, verbatim. */
+interface OtpVerifyErrors {
+  /** No code was ever requested for this phone. */
+  missing: () => HttpError;
+  /** The code is older than `OTP_TTL_SECONDS` — or its attempt budget is spent. */
+  expired: () => HttpError;
+  /** The attempt budget is spent. */
+  maxAttempts: () => HttpError;
+  /** The code does not match. */
+  invalid: () => HttpError;
+}
+
+/**
+ * Shared OTP verification for every flow — customer sign-in, store-manager
+ * provisioning, captain provisioning. Checks existence, expiry, the attempt
+ * budget, then the code itself (bcrypt compare), throwing the caller's error
+ * on the first violation. It does NOT consume the row on success: each caller
+ * provisions its account first and deletes the code only once that work is
+ * guaranteed, so a transient provisioning failure never forces a fresh code.
+ */
+async function verifyOtpCode(
+  phone: string,
+  code: string,
+  errors: OtpVerifyErrors,
+): Promise<void> {
+  const record = await prisma.otpRequest.findUnique({ where: { phone } });
+  if (!record) throw errors.missing();
+
+  if (record.expiresAt.getTime() < Date.now()) {
+    await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
+    throw errors.expired();
+  }
+
+  if (record.attempts >= env.otp.maxAttempts) {
+    await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
+    throw errors.maxAttempts();
+  }
+
+  const matches = await bcrypt.compare(code, record.codeHash);
+  if (!matches) {
+    await prisma.otpRequest.update({
+      where: { phone },
+      data: { attempts: { increment: 1 } },
+    });
+    throw errors.invalid();
+  }
 }
 
 /** POST /auth/otp/request — rate-limited dispatch of a one-time code. */
@@ -145,27 +192,12 @@ export async function requestOtp(
 export async function verifyOtp(body: OtpVerifyInput): Promise<AuthResponse> {
   const { phone, code, name } = body;
 
-  const record = await prisma.otpRequest.findUnique({ where: { phone } });
-  if (!record) throw CODE_INVALID;
-
-  if (record.expiresAt.getTime() < Date.now()) {
-    await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
-    throw CODE_EXPIRED;
-  }
-
-  if (record.attempts >= env.otp.maxAttempts) {
-    await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
-    throw CODE_EXPIRED;
-  }
-
-  const matches = await bcrypt.compare(code, record.codeHash);
-  if (!matches) {
-    await prisma.otpRequest.update({
-      where: { phone },
-      data: { attempts: { increment: 1 } },
-    });
-    throw CODE_INVALID;
-  }
+  await verifyOtpCode(phone, code, {
+    missing: () => CODE_INVALID,
+    expired: () => CODE_EXPIRED,
+    maxAttempts: () => CODE_EXPIRED,
+    invalid: () => CODE_INVALID,
+  });
 
   // Provision the account BEFORE consuming the code: if the create fails
   // (e.g. a transient DB error), the code stays valid and the customer can
@@ -213,27 +245,13 @@ export async function adminVerifyStoreOtp(body: AdminOtpVerifyBody): Promise<Aut
     throw unauthorized("نوع حساب غير صحيح / Invalid account type");
   }
 
-  const record = await prisma.otpRequest.findUnique({ where: { phone } });
-  if (!record) throw unauthorized("لا يوجد طلب رمز للرقم هذا / No OTP request for this phone");
-
-  if (record.expiresAt.getTime() < Date.now()) {
-    await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
-    throw unauthorized("انتهت صلاحية الرمز، اطلب رمزاً جديداً / Code expired — request a new one");
-  }
-
-  if (record.attempts >= env.otp.maxAttempts) {
-    await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
-    throw unauthorized("تم تجاوزlimit المحاولات / Maximum attempts exceeded");
-  }
-
-  const matches = await bcrypt.compare(code, record.codeHash);
-  if (!matches) {
-    await prisma.otpRequest.update({
-      where: { phone },
-      data: { attempts: { increment: 1 } },
-    });
-    throw unauthorized("رمز خاطئ / Incorrect code");
-  }
+  await verifyOtpCode(phone, code, {
+    missing: () => unauthorized("لا يوجد طلب رمز للرقم هذا / No OTP request for this phone"),
+    expired: () =>
+      unauthorized("انتهت صلاحية الرمز، اطلب رمزاً جديداً / Code expired — request a new one"),
+    maxAttempts: () => unauthorized("تم تجاوزlimit المحاولات / Maximum attempts exceeded"),
+    invalid: () => unauthorized("رمز خاطئ / Incorrect code"),
+  });
 
   // Create the user (store manager) first
   const user = await prisma.user.create({
@@ -280,27 +298,13 @@ export async function adminVerifyCaptainOtp(body: AdminOtpVerifyBody): Promise<A
     throw unauthorized("نوع حساب غير صحيح / Invalid account type");
   }
 
-  const record = await prisma.otpRequest.findUnique({ where: { phone } });
-  if (!record) throw unauthorized("لا يوجد طلب رمز للرقم هذا / No OTP request for this phone");
-
-  if (record.expiresAt.getTime() < Date.now()) {
-    await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
-    throw unauthorized("انتهت صلاحية الرمز، اطلب رمزاً جديداً / Code expired — request a new one");
-  }
-
-  if (record.attempts >= env.otp.maxAttempts) {
-    await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
-    throw unauthorized("تم تجاوزlimit المحاولات / Maximum attempts exceeded");
-  }
-
-  const matches = await bcrypt.compare(code, record.codeHash);
-  if (!matches) {
-    await prisma.otpRequest.update({
-      where: { phone },
-      data: { attempts: { increment: 1 } },
-    });
-    throw unauthorized("رمز خاطئ / Incorrect code");
-  }
+  await verifyOtpCode(phone, code, {
+    missing: () => unauthorized("لا يوجد طلب رمز للرقم هذا / No OTP request for this phone"),
+    expired: () =>
+      unauthorized("انتهت صلاحية الرمز، اطلب رمزاً جديداً / Code expired — request a new one"),
+    maxAttempts: () => unauthorized("تم تجاوزlimit المحاولات / Maximum attempts exceeded"),
+    invalid: () => unauthorized("رمز خاطئ / Incorrect code"),
+  });
 
   // Check the assigned store exists
   const store = await prisma.store.findUnique({ where: { id: captainData?.assignedStoreId } });

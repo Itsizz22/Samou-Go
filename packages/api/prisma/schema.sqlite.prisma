@@ -78,6 +78,7 @@ enum LedgerEntryType {
   COMMISSION
   EARNING
   SETTLEMENT
+  ADJUSTMENT
 }
 
 // =============================================================================

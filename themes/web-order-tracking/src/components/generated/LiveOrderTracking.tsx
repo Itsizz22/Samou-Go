@@ -1,9 +1,11 @@
 /**
  * Samou' Go — live order tracking.
  *
- * Follows one order via `GET /orders/:id`, re-polled every 15 s until the order
- * reaches a terminal status. There is no websocket yet, and polling a delivered
- * order is pure waste, so the timer stops itself.
+ * Follows one order via `GET /orders/:id`. Updates arrive over a live SSE
+ * channel (`/orders/events/:id`), with a 5 s polling safety net so a missed
+ * push can never leave the customer staring at a stale screen. Both stop
+ * themselves once the order reaches a terminal status — a delivered order has
+ * nothing left to watch, and Samou' runs on metered mobile data.
  *
  * Nothing on this screen is invented. The timeline is derived from
  * `ORDER_STATUS_SEQUENCE` and the order's own `statusHistory`; the destination
@@ -32,7 +34,7 @@ import {
   updateProfile,
   useAuth,
   useMutation,
-  useOrder,
+  useOrderEvent,
   useOrders,
   useToast,
 } from '@samou-go/api-client';
@@ -128,27 +130,26 @@ export const LiveOrderTracking = () => {
   );
   const orderId = orderIdParam ?? recent.data?.items[0]?.id ?? null;
 
-  /* ---- Polling ---------------------------------------------------------- */
+  /* ---- Live updates ------------------------------------------------------ */
 
-  // Stops itself once the order is delivered or cancelled: there is nothing
-  // left to watch, and Samou' runs on metered mobile data.
+  // SSE push channel with a polling safety net. Polling stops itself once the
+  // order is delivered or cancelled: nothing left to watch, metered mobile data.
   const [live, setLive] = useState(true);
-  const order = useOrder(orderId, {
-    enabled: Boolean(auth.user),
-    ...(live ? { pollMs: POLL_MS } : {}),
+  const order = useOrderEvent(auth.user ? orderId : null, {
+    ...(live ? { pollMs: POLL_MS } : { pollMs: 0 }),
   });
 
   useEffect(() => {
-    if (!order.data) return;
-    setLive(!isTerminalOrderStatus(order.data.status));
-  }, [order.data]);
+    if (!order.detail) return;
+    setLive(!isTerminalOrderStatus(order.detail.status));
+  }, [order.detail]);
 
   // Toast whenever the status advances — gives the customer an in-app
   // notification without requiring push notifications or a websocket.
   const prevStatusRef = useRef<OrderStatus | null>(null);
   useEffect(() => {
-    if (!order.data) return;
-    const current = order.data.status;
+    if (!order.detail) return;
+    const current = order.detail.status;
     const prev = prevStatusRef.current;
     if (prev !== null && prev !== current) {
       const label = ORDER_STATUS_LABELS[current];
@@ -159,7 +160,7 @@ export const LiveOrderTracking = () => {
     }
     prevStatusRef.current = current;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order.data?.status]);
+  }, [order.detail?.status]);
 
   /* ---- Cancel ----------------------------------------------------------- */
 
@@ -168,7 +169,7 @@ export const LiveOrderTracking = () => {
   );
   const [confirmingCancel, setConfirmingCancel] = useState(false);
 
-  const detail = order.data;
+  const detail = order.detail;
   // Three gates, the same three the server checks in `orders.service.ts`:
   // a legal edge, a role allowed to make it, and — server-side — ownership.
   const canCancel =
@@ -318,7 +319,7 @@ export const LiveOrderTracking = () => {
               <p className="mt-2 text-xs text-ink-soft">{error.message}</p>
               <button
                 type="button"
-                onClick={orderIdParam ? order.refresh : recent.refresh}
+                onClick={orderIdParam ? order.reload : recent.refresh}
                 disabled={order.refreshing || recent.refreshing}
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
               >
