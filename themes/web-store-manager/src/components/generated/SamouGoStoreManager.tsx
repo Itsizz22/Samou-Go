@@ -24,7 +24,6 @@ import {
   Home,
   Loader2,
   LogOut,
-  Menu,
   Package,
   PackageCheck,
   RefreshCw,
@@ -104,16 +103,16 @@ function statusBadge(status: OrderStatus): { label: { ar: string; en: string }; 
 
 const QUICK_ACTIONS = [
   { icon: ClipboardList, ar: 'إدارة القائمة', en: 'Manage Menu', tab: 'products' },
-  { icon: BarChart3, ar: 'تقرير المبيعات', en: 'Sales Report', tab: 'reports' },
+  { icon: Settings, ar: 'إعدادات المتجر', en: 'Store Settings', tab: 'settings' },
   { icon: Package, ar: 'الطلبات النشطة', en: 'Active Orders', tab: 'orders' },
-  { icon: Settings, ar: 'إعدادات المتجر', en: 'Store Settings', tab: 'reports' },
+  { icon: BarChart3, ar: 'لوحة التحكم', en: 'Dashboard', tab: 'home' },
 ] as const;
 
 const BOTTOM_TABS = [
   { id: 'home', icon: Home, ar: 'الرئيسية', en: 'Home' },
   { id: 'orders', icon: Package, ar: 'الطلبات', en: 'Orders' },
   { id: 'products', icon: ShoppingBag, ar: 'المنتجات', en: 'Products' },
-  { id: 'reports', icon: BarChart3, ar: 'التقارير', en: 'Reports' },
+  { id: 'settings', icon: Settings, ar: 'إعدادات المتجر', en: 'Settings' },
 ] as const;
 
 /* ---------------------------------------------------------------------------
@@ -402,14 +401,7 @@ export function SamouGoStoreManager() {
       </aside>
       <header className="bg-brand px-4 pb-4 pt-4 text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="التنقل الرئيسي">
-          <button
-            type="button"
-            aria-label="فتح القائمة"
-            className="rounded-xl p-2 transition hover:bg-surface/15 focus:outline-none focus:ring-2 focus:ring-white/70"
-          >
-            <Menu size={23} />
-          </button>
-          <div className="text-center leading-tight">
+          <div className="flex-1 text-center leading-tight">
             <h1 className="text-[15px] font-extrabold">لوحة المتجر</h1>
             <p dir="ltr" className="text-[10px] font-medium text-white/80">
               Store Manager
@@ -765,7 +757,7 @@ export function SamouGoStoreManager() {
       )}
 
       {/* Store profile tab */}
-      {activeTab === 'reports' && (
+      {activeTab === 'settings' && (
         <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="profile-tab-title">
           <div className="mb-5">
             <h2 id="profile-tab-title" className="text-lg font-extrabold">إعدادات المتجر</h2>

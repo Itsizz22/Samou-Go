@@ -2,7 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LedgerEntryType, SettlementMethod, UserRole } from '@samou-go/shared-types';
 import type { Prisma } from '../../lib/prisma-types';
 import { HttpError } from '../../lib/http-error';
-import { claimSettlement, rateOrder, sendOrderChat, settleWallet } from './platform.service';
+import {
+  claimSettlement,
+  computeOrderFinancials,
+  creditDeliveredOrder,
+  creditWallet,
+  rateOrder,
+  sendOrderChat,
+  settleWallet,
+} from './platform.service';
 
 /**
  * Unit tests for the platform module's critical paths.
@@ -20,10 +28,18 @@ const h = vi.hoisted(() => {
   const state = {
     balance: 50,
     wallet: { id: 'wallet-1', userId: 'u-1', balance: 50 },
+    /** Credit-path wallets: `balance` is a number, `commissionRate` a string. */
+    wallets: [] as { id: string; userId: string | null; storeId: string | null; balance: number; commissionRate: string }[],
     settlements: [] as unknown[],
     ledgerEntries: [] as unknown[],
     order: null as Record<string, unknown> | null,
   };
+
+  const toNum = (v: unknown): number =>
+    typeof v === 'object' && v !== null && 'toNumber' in v
+      ? (v as { toNumber(): number }).toNumber()
+      : Number(v);
+  const round2 = (v: number): number => Math.round(v * 100) / 100;
 
   const tx = {
     wallet: {
@@ -37,6 +53,41 @@ const h = vi.hoisted(() => {
         return { count: 0 };
       }),
       findUniqueOrThrow: vi.fn(async () => ({ id: 'wallet-1', balance: state.balance })),
+      findUnique: vi.fn(async ({ where }: any) => {
+        const key = where.storeId !== undefined ? 'storeId' : where.userId !== undefined ? 'userId' : 'id';
+        const row = state.wallets.find(w => w[key] === where[key]);
+        return row ? { commissionRate: row.commissionRate } : null;
+      }),
+      upsert: vi.fn(async ({ where, update, create }: any) => {
+        const key = where.storeId !== undefined ? 'storeId' : 'userId';
+        let row = state.wallets.find(w => w[key] === where[key]);
+        if (row) {
+          const inc = update?.balance?.increment;
+          if (inc !== undefined) row.balance = round2(row.balance + toNum(inc));
+          return { id: row.id };
+        }
+        row = {
+          id: `wallet-${state.wallets.length + 1}`,
+          userId: null,
+          storeId: null,
+          ...create,
+          balance: toNum(create.balance),
+          commissionRate: '0.10',
+        };
+        state.wallets.push(row);
+        return { id: row.id };
+      }),
+      update: vi.fn(async ({ where, data }: any) => {
+        const row = state.wallets.find(w => w.id === where.id);
+        if (!row) {
+          const err: unknown = new Error('No Wallet record matches the filter');
+          Object.assign(err as { code?: string }, { code: 'P2025' });
+          throw err;
+        }
+        const inc = data?.balance?.increment;
+        if (inc !== undefined) row.balance = round2(row.balance + toNum(inc));
+        return { ...row };
+      }),
     },
     settlement: {
       create: vi.fn(async ({ data }: any) => {
@@ -79,6 +130,13 @@ vi.mock('../../lib/prisma', () => ({
   },
 }));
 
+// `prisma-runtime` (pulls the Decimal implementation) reads env at import time —
+// there is no JWT_SECRET in the test environment, so the real env module would
+// throw on load. Same pattern as the other API suites.
+vi.mock('../../config/env', () => ({
+  env: { isProduction: false, deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' } },
+}));
+
 import { prisma } from '../../lib/prisma';
 
 beforeEach(() => {
@@ -86,6 +144,9 @@ beforeEach(() => {
   h.state.settlements = [];
   h.state.ledgerEntries = [];
   h.state.order = null;
+  h.state.wallets = [
+    { id: 'wallet-1', userId: 'u-1', storeId: null, balance: 50, commissionRate: '0.10' },
+  ];
   vi.clearAllMocks();
 });
 
@@ -291,5 +352,149 @@ describe('sendOrderChat — REST-side membership gating', () => {
       )
     ).rejects.toMatchObject({ statusCode: 422, code: 'VALIDATION_ERROR' });
     expect(prisma.chatMessage.create).not.toHaveBeenCalled();
+  });
+});
+
+/* ---------------------------------------------------------------------------
+ * P0-2 wallet credits
+ * ------------------------------------------------------------------------- */
+
+describe('computeOrderFinancials — Decimal math, never float', () => {
+  it('splits subtotal, commission and delivery fee with the wallet rate', () => {
+    const f = computeOrderFinancials('100.00', '15.00', '0.10');
+
+    expect(f.gross.toFixed(2)).toBe('100.00');
+    expect(f.commission.toFixed(2)).toBe('10.00');
+    expect(f.storeNet.toFixed(2)).toBe('90.00');
+    expect(f.captainPayout.toFixed(2)).toBe('15.00');
+  });
+
+  it('rounds commission half-up to 2dp', () => {
+    const f = computeOrderFinancials('33.33', '0.00', '0.10');
+
+    expect(f.commission.toFixed(2)).toBe('3.33');
+    expect(f.storeNet.toFixed(2)).toBe('30.00');
+  });
+
+  it('applies the store wallet commission rate', () => {
+    const f = computeOrderFinancials('200.00', '10.00', '0.15');
+
+    expect(f.commission.toFixed(2)).toBe('30.00');
+    expect(f.storeNet.toFixed(2)).toBe('170.00');
+  });
+});
+
+describe('creditDeliveredOrder — atomic credits with ledger entries', () => {
+  const order = {
+    storeId: 'store-1',
+    captainId: 'captain-1',
+    subtotal: '100.00',
+    deliveryFee: '15.00',
+    orderNumber: 'SG-260816-0001',
+  };
+
+  it('creates both wallets and writes EARNING/COMMISSION ledgers in one transaction', async () => {
+    await creditDeliveredOrder(tx, order);
+
+    const storeWallet = h.state.wallets.find(w => w.storeId === 'store-1')!;
+    const captainWallet = h.state.wallets.find(w => w.userId === 'captain-1')!;
+    expect(storeWallet.balance).toBe(90);
+    expect(captainWallet.balance).toBe(15);
+
+    expect(h.state.ledgerEntries).toHaveLength(3);
+    const [earning, commission, captainEarning] = h.state.ledgerEntries as any[];
+    expect(earning).toMatchObject({
+      walletId: storeWallet.id,
+      type: LedgerEntryType.EARNING,
+      description: 'أرباح المتجر عن الطلب SG-260816-0001 / Store earnings for order SG-260816-0001',
+    });
+    expect(earning.amount.toNumber()).toBe(100);
+    expect(commission).toMatchObject({
+      walletId: storeWallet.id,
+      type: LedgerEntryType.COMMISSION,
+      description: 'عمولة المنصة عن الطلب SG-260816-0001 / Platform commission for order SG-260816-0001',
+    });
+    expect(commission.amount.toNumber()).toBe(-10);
+    expect(captainEarning).toMatchObject({
+      walletId: captainWallet.id,
+      type: LedgerEntryType.EARNING,
+      description: 'أرباح التوصيل عن الطلب SG-260816-0001 / Delivery earnings for order SG-260816-0001',
+    });
+    expect(captainEarning.amount.toNumber()).toBe(15);
+    // Balance reconciles exactly with the ledger: +100 −10 +15 = +105 across wallets.
+    const delta = h.state.ledgerEntries.reduce((sum, entry: any) => sum + entry.amount.toNumber(), 0);
+    expect(delta).toBe(105);
+    expect(storeWallet.balance + captainWallet.balance).toBe(105);
+  });
+
+  it('increments an existing store wallet and honours its commission rate', async () => {
+    h.state.wallets.push({ id: 'store-wallet', userId: null, storeId: 'store-1', balance: 200, commissionRate: '0.15' });
+
+    await creditDeliveredOrder(tx, order);
+
+    const storeWallet = h.state.wallets.find(w => w.storeId === 'store-1')!;
+    expect(storeWallet.balance).toBe(285); // 200 + (100 − 15)
+    expect(h.state.ledgerEntries[1]).toMatchObject({
+      walletId: 'store-wallet',
+      type: LedgerEntryType.COMMISSION,
+    });
+    expect(h.state.ledgerEntries[1].amount.toNumber()).toBe(-15);
+  });
+
+  it('skips the captain entirely when there is no delivery fee', async () => {
+    await creditDeliveredOrder(tx, { ...order, captainId: 'captain-1', deliveryFee: '0.00' });
+
+    expect(h.state.wallets.some(w => w.userId === 'captain-1')).toBe(false);
+    expect(h.state.ledgerEntries).toHaveLength(2);
+  });
+
+  it('skips the captain when the order has none assigned', async () => {
+    await creditDeliveredOrder(tx, { ...order, captainId: null, deliveryFee: '15.00' });
+
+    expect(h.state.wallets.some(w => w.userId === 'captain-1')).toBe(false);
+    expect(h.state.ledgerEntries).toHaveLength(2);
+  });
+});
+
+describe('creditWallet — admin manual top-up', () => {
+  it('404 when the wallet does not exist — nothing is written', async () => {
+    (prisma.wallet.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
+
+    await expect(creditWallet('nope', { amount: 10 })).rejects.toMatchObject({
+      statusCode: 404,
+      code: 'NOT_FOUND',
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('422 when the amount is not positive', async () => {
+    await expect(creditWallet('wallet-1', { amount: -5 })).rejects.toMatchObject({
+      statusCode: 422,
+      code: 'VALIDATION_ERROR',
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('credits the balance and writes an ADJUSTMENT ledger entry atomically', async () => {
+    const result = await creditWallet('wallet-1', { amount: 20, note: 'Top-up' });
+
+    expect(result).toEqual({ balance: 70 });
+    expect(h.state.ledgerEntries).toHaveLength(1);
+    expect(h.state.ledgerEntries[0]).toMatchObject({
+      walletId: 'wallet-1',
+      type: LedgerEntryType.ADJUSTMENT,
+      description: 'Top-up',
+    });
+    expect(h.state.ledgerEntries[0].amount.toNumber()).toBe(20);
+    expect(h.state.wallets.find(w => w.id === 'wallet-1')!.balance).toBe(70);
+  });
+
+  it('defaults the ledger description when no note is given', async () => {
+    await creditWallet('wallet-1', { amount: 10 });
+
+    expect(h.state.ledgerEntries[0]).toMatchObject({
+      type: LedgerEntryType.ADJUSTMENT,
+      description: 'تعديل رصيد يدوي / Manual wallet adjustment',
+    });
   });
 });

@@ -37,3 +37,9 @@ platformRouter.post(
   authorize(UserRole.ADMIN),
   asyncHandler(controller.settleWalletHandler)
 );
+
+platformRouter.post(
+  '/admin/wallets/:walletId/credit',
+  authorize(UserRole.ADMIN),
+  asyncHandler(controller.creditWalletHandler)
+);

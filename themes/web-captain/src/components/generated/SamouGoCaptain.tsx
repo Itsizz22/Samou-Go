@@ -566,7 +566,7 @@ export function SamouGoCaptain() {
       </aside>
       <header className="bg-brand px-4 pb-4 pt-3 text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Captain navigation">
-          <button type="button" aria-label="Profile" className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-surface/15 transition hover:bg-surface/25">
+          <button type="button" aria-label="Profile" onClick={() => setActiveTab('account')} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-surface/15 transition hover:bg-surface/25">
             <UserRound size={21} />
           </button>
           <div className="text-center leading-tight">

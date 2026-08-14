@@ -67,6 +67,7 @@ export const LedgerEntryType = {
   COMMISSION: 'COMMISSION',
   EARNING: 'EARNING',
   SETTLEMENT: 'SETTLEMENT',
+  ADJUSTMENT: 'ADJUSTMENT',
 } as const;
 export type LedgerEntryType = (typeof LedgerEntryType)[keyof typeof LedgerEntryType];
 

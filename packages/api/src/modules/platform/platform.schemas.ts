@@ -39,8 +39,15 @@ export const settlementSchema = z.object({
   note: z.string().max(500).optional(),
 });
 
+/** Admin manual top-up. Positive amounts only — corrections belong to settlements. */
+export const walletCreditSchema = z.object({
+  amount: z.number().positive(),
+  note: z.string().max(500).optional(),
+});
+
 export type LocationBody = z.infer<typeof locationSchema>;
 export type RatingBody = z.infer<typeof ratingSchema>;
 export type ChatBody = z.infer<typeof chatSchema>;
 export type TicketBody = z.infer<typeof ticketSchema>;
 export type SettlementBody = z.infer<typeof settlementSchema>;
+export type WalletCreditBody = z.infer<typeof walletCreditSchema>;

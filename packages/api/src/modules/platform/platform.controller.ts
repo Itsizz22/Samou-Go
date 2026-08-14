@@ -63,3 +63,9 @@ export async function settleWalletHandler(req: Request, res: Response): Promise<
   const { walletId } = parseWith(walletIdParamsSchema, req.params);
   ok(res, await platformService.settleWallet(walletId, req.body));
 }
+
+/** POST /api/v1/platform/admin/wallets/:walletId/credit */
+export async function creditWalletHandler(req: Request, res: Response): Promise<void> {
+  const { walletId } = parseWith(walletIdParamsSchema, req.params);
+  ok(res, await platformService.creditWallet(walletId, req.body));
+}
