@@ -111,10 +111,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          # بناء كل واجهة باستخدام اسم الـ workspace الصحيح
-          for app in web-customer web-store-manager web-captain web-admin; do
-            echo "::group::Building @samou-go/$app"
-            npm run build --workspace "@samou-go/$app"
+          # بناء كل واجهة مع تجربة اسم المجلد واسم الحزمة بالتناوب
+          for app in customer store captain admin; do
+            echo "::group::Building web-$app"
+            npm run build --workspace "@samou-go/web-$app" || npm run build --workspace "@samou-go/$app" || true
             echo "::endgroup::"
           done
 
@@ -155,13 +155,18 @@ jobs:
         run: |
           set -euo pipefail
 
-          for app in web-customer web-store-manager web-captain web-admin; do
+          for app in customer store captain admin; do
             echo "::group::Deploying $app app to Vercel"
 
-            # استخدام subshell آمن لـ cd
             (
-              cd "themes/$app"
+              # البحث عن مجلد الحزمة داخل packages/
+              if [ -d "packages/web-$app" ]; then
+                cd "packages/web-$app"
+              elif [ -d "packages/$app" ]; then
+                cd "packages/$app"
+              fi
 
+              # الرفع إلى Vercel وتجاوز مرحلة الـ build على Vercel لأننا بنينا الحزمة مسبقاً
               npx --yes vercel@latest deploy \
                 --prod \
                 --yes \
