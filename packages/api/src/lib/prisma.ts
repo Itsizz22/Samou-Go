@@ -1,54 +1,26 @@
-import type { PrismaClient as SqlitePrismaClient } from '../../generated/prisma-sqlite';
+import { PrismaClient } from '@prisma/client';
 import { env } from '../config/env';
-import { PrismaClient } from './prisma-runtime';
 
 /**
- * One PrismaClient for the process. `tsx watch` re-evaluates modules on every
- * save, so in development the instance is cached on `globalThis` to avoid
- * exhausting the SQLite connection pool.
- *
- * The concrete client class comes from `prisma-runtime`, which selects between
- * the independently generated SQLite and PostgreSQL clients based on the
- * environment — so `db:generate` / `db:generate:prod` can never overwrite the
- * other provider's generated output.
+ * Single PrismaClient instance across the process.
+ * In development, `tsx watch` re-evaluates modules on save, so we cache
+ * the instance on `globalThis` to prevent connection pool exhaustion.
  */
-const globalForPrisma = globalThis as unknown as { prisma?: SqlitePrismaClient };
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-/**
- * The two generated clients are structurally identical for the models; their
- * constructor types only differ in Prisma's internal generics, so the
- * environment-selected constructor is cast to the SQLite constructor here.
- * `new PrismaClientCtor(...)` constructs the runtime client of the active
- * datasource (SQLite in dev/test, PostgreSQL in production).
- */
-const PrismaClientCtor = PrismaClient as typeof SqlitePrismaClient;
-
-export const prisma: SqlitePrismaClient =
+export const prisma =
   globalForPrisma.prisma ??
-  new PrismaClientCtor({
-    log: env.isProduction ? ['warn', 'error'] : ['warn', 'error'],
+  new PrismaClient({
+    log: env.isProduction ? ['warn', 'error'] : ['query', 'info', 'warn', 'error'],
   });
 
-/**
- * Active database provider of the generated client (`sqlite` locally, Postgres
- * in production). Read off the engine config because Prisma exposes no public
- * typed accessor for it.
- */
-const activeProvider = (prisma as unknown as { _engineConfig: { activeProvider?: string } })
-  ._engineConfig.activeProvider;
-
-export const isPostgresProvider = activeProvider === 'postgresql';
+export const isPostgresProvider = true;
 
 /**
- * Case-insensitive `contains` filter. `mode: 'insensitive'` is a Postgres-only
- * feature — the SQLite client rejects it at the type level and at runtime, and
- * SQLite's LIKE is already case-insensitive for ASCII. Keeps search semantics
- * equivalent on both providers.
+ * Case-insensitive `contains` filter for Postgres queries.
  */
-export function caseInsensitiveContains(value: string): { contains: string; mode?: 'insensitive' } {
-  return isPostgresProvider
-    ? { contains: value, mode: 'insensitive' }
-    : { contains: value };
+export function caseInsensitiveContains(value: string): { contains: string; mode: 'insensitive' } {
+  return { contains: value, mode: 'insensitive' };
 }
 
 if (!env.isProduction) {

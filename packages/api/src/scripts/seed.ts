@@ -3,7 +3,7 @@
  *
  * Idempotent: every row carries an explicit deterministic id, so re-running
  * updates in place instead of piling up duplicates. Safe to run after every
- * `npm run db:push` (local SQLite schema sync).
+ * `npm run db:push` (Neon PostgreSQL sync).
  *
  * Never run against production: the passwords below are public knowledge.
  */
@@ -190,12 +190,6 @@ const USERS: SeedUser[] = [
   { id: 'user-customer-2', name: 'سُهى العواودة', phone: '0567300102', role: UserRole.CUSTOMER },
 ];
 
-/**
- * Addresses are free text on purpose — Samou' has no reliable street numbering,
- * so the captain reads this and calls the customer. GPS is operational only
- * (store coordinates below + the assigned captain's live location), never part
- * of the customer address.
- */
 const ADDRESSES = [
   'حارة الرأس، بجانب مسجد عمر، البيت الحجري الثاني',
   'شارع المدرسة الثانوية، فوق محل الأدوات الكهربائية',
@@ -211,7 +205,6 @@ async function seedUsers(): Promise<void> {
       update: {
         name: user.name,
         phone: user.phone,
-        // Re-seeding must restore the documented local-development login.
         passwordHash,
         role: user.role,
         isActive: user.isActive ?? true,
@@ -247,7 +240,6 @@ interface SeedVoucher {
   expiresAt?: Date;
 }
 
-/** Demo vouchers a tester can paste into the checkout box. */
 const VOUCHERS: SeedVoucher[] = [
   {
     id: 'voucher-welcome10',
@@ -409,10 +401,6 @@ interface SeedOrder {
   lines: SeedOrderLine[];
 }
 
-/**
- * Two baskets that straddle the tariff threshold, so the dashboards show both
- * fee tiers: 4 items → base fee, 7 items → bulk fee.
- */
 const ORDERS: SeedOrder[] = [
   {
     id: 'order-demo-1',
@@ -456,8 +444,6 @@ const ORDERS: SeedOrder[] = [
 async function seedOrders(): Promise<void> {
   const today = new Date();
 
-  // Wipe all seed orders before recreating — order numbers are date-based so
-  // a previous run with different ids would collide on the UNIQUE constraint.
   await prisma.order.deleteMany({});
   console.log('  ♻️  Cleared existing orders');
 
@@ -496,9 +482,6 @@ async function seedOrders(): Promise<void> {
     );
   }
 
-  // Advance the per-day sequence to the highest seeded number so the next
-  // real order never reuses `SG-YYMMDD-0001` and trips the UNIQUE constraint.
-  // (`createOrder` increments this row atomically to mint order numbers.)
   const maxSequence = Math.max(...ORDERS.map(order => order.sequence));
   await prisma.dailyOrderSequence.upsert({
     where: { date: startOfDay(today) },
@@ -507,7 +490,6 @@ async function seedOrders(): Promise<void> {
   });
 }
 
-/** Replays the status ladder up to the order's current state. */
 function historyFor(order: SeedOrder): { status: OrderStatus; changedByUserId: string | null; note: string }[] {
   const ladder: OrderStatus[] = [
     OrderStatus.PENDING,
@@ -528,38 +510,26 @@ function historyFor(order: SeedOrder): { status: OrderStatus; changedByUserId: s
   }));
 }
 
-/**
- * Wipe every table so a re-seed starts from a clean slate. Ordered in reverse
- * dependency order (children before parents) to avoid violating foreign keys.
- * Safe for local dev only — this runs strictly after the production guard.
- */
 async function seedCleanup(): Promise<void> {
   console.log('  ♻️  Cleaning tables (reverse dependency order)…');
   const passes = [
-    // children of Order / User / Store / Wallet
     prisma.orderItem.deleteMany({}),
     prisma.orderStatusHistory.deleteMany({}),
     prisma.rating.deleteMany({}),
     prisma.chatMessage.deleteMany({}),
-    // children of Wallet
     prisma.settlement.deleteMany({}),
     prisma.ledgerEntry.deleteMany({}),
     prisma.wallet.deleteMany({}),
-    // children of User / Store
     prisma.captainLocation.deleteMany({}),
     prisma.favorite.deleteMany({}),
     prisma.supportTicket.deleteMany({}),
     prisma.refreshToken.deleteMany({}),
     prisma.otpRequest.deleteMany({}),
-    // orders reference users, stores, vouchers
     prisma.order.deleteMany({}),
-    // products/categories reference stores
     prisma.product.deleteMany({}),
     prisma.category.deleteMany({}),
-    // independent sequence/voucher tables
     prisma.dailyOrderSequence.deleteMany({}),
     prisma.voucher.deleteMany({}),
-    // parent tables last
     prisma.store.deleteMany({}),
     prisma.user.deleteMany({}),
   ];
@@ -567,12 +537,6 @@ async function seedCleanup(): Promise<void> {
   console.log('  ✓ Cleaned all tables');
 }
 
-/**
- * Creates zero-balance wallets for every demo store and active captain (so the
- * wallet endpoints work out of the box), then replays the production credit
- * path — `creditDeliveredOrder` — for the DELIVERED demo order so the seeded
- * financials reflect real P0-2 behaviour instead of a hand-copied shortcut.
- */
 async function seedWalletCredits(): Promise<void> {
   const targets: ({ storeId: string } | { userId: string })[] = [
     { storeId: 'store-albaraka' },
@@ -603,8 +567,8 @@ async function main(): Promise<void> {
         'creates/grows real rows. Seed only in development or staging.'
     );
   }
-  // Intentionally never prints the database URL — not even a redacted one.
-  console.log("🌱 Seeding Samou' Go — local SQLite (prisma/dev.db)");
+  
+  console.log("🌱 Seeding Samou' Go — Neon PostgreSQL Database");
   await seedCleanup();
   await seedUsers();
   await seedCatalogue();
