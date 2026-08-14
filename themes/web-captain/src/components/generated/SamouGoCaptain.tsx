@@ -27,7 +27,6 @@ import {
   X,
 } from 'lucide-react';
 import {
-  DarkModeToggle,
   SignInGate,
   setAvailability,
   updateOrderStatus,
@@ -42,10 +41,12 @@ import {
 } from '@samou-go/api-client';
 import {
   NotificationBell,
+  ThemeToggle,
   type BellNotification,
 } from '@samou-go/ui';
 import {
   ORDER_STATUS_LABELS,
+  ORDER_STATUS_TONES,
   OrderStatus,
   UserRole,
   canRoleSetOrderStatus,
@@ -53,6 +54,7 @@ import {
   type OrderDetail,
   type OrderSummary,
   type PublicUser,
+  type StatusTone,
   type UpdateOrderStatusInput,
   type UpdateProfileInput,
 } from '@samou-go/shared-types';
@@ -74,6 +76,18 @@ function relativeTime(iso: string, now: number = Date.now()): { ar: string; en: 
   if (hours < 24) return { ar: `منذ ${hours} ساعة`, en: `${hours} h ago` };
   const days = Math.floor(hours / 24);
   return { ar: `منذ ${days} يوم`, en: `${days} d ago` };
+}
+
+/** Tone class for a status badge, matching the design system's `badge-*` scheme. */
+function statusToneClass(status: OrderStatus): string {
+  const tintByTone: Record<StatusTone, string> = {
+    brand: 'bg-brand-tint text-brand-deep',
+    warning: 'bg-warning-tint text-warning-ink',
+    info: 'bg-info-tint text-info-ink',
+    danger: 'bg-danger-tint text-danger-ink',
+    neutral: 'bg-canvas text-ink-muted',
+  };
+  return tintByTone[ORDER_STATUS_TONES[status]];
 }
 
 /* ---------------------------------------------------------------------------
@@ -446,9 +460,9 @@ export function SamouGoCaptain() {
                       </span>
                     </div>
                     <div className="mt-3 flex items-center justify-between text-[11px] text-ink-muted">
-                      <span className="font-semibold">
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${statusToneClass(order.status)}`}>
                         {ORDER_STATUS_LABELS[order.status].ar}
-                        <b dir="ltr" className="font-normal text-ink-subtle"> / {ORDER_STATUS_LABELS[order.status].en}</b>
+                        <span dir="ltr" className="font-semibold"> / {ORDER_STATUS_LABELS[order.status].en}</span>
                       </span>
                       <span>{order.itemCount} items</span>
                     </div>
@@ -574,7 +588,7 @@ export function SamouGoCaptain() {
             <p dir="ltr" className="text-[11px] font-medium text-white/85">Hello, {captainName}</p>
           </div>
           <div className="flex items-center gap-2" dir="ltr">
-            <DarkModeToggle storageKey="samou-go.captain-dark" onDark />
+            <ThemeToggle onDark />
             <NotificationBell
               notifications={bellNotifications}
               storageKey="captain"

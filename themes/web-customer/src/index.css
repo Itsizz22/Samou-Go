@@ -21,12 +21,12 @@
    -------------------------------------------------------------------------- */
 @theme {
   /* Brand — Vibrant Emerald Green */
-  --color-brand: #0d9488; /* Primary */
-  --color-brand-dark: #0a7d71; /* Hover / active */
-  --color-brand-deep: #035a52; /* Deep surfaces, text on tint */
-  --color-brand-tint: #d5f0e5; /* Light accent */
-  --color-brand-surface: #e6fdf5; /* Palest wash */
-  --color-brand-soft: #78d6cd; /* Secondary fills, charts */
+  --color-brand: #10b981; /* Primary */
+  --color-brand-dark: #059669; /* Hover / active */
+  --color-brand-deep: #047857; /* Deep surfaces, text on tint */
+  --color-brand-tint: #d1fae5; /* Light accent */
+  --color-brand-surface: #ecfdf5; /* Palest wash */
+  --color-brand-soft: #6ee7b7; /* Secondary fills, charts */
 
   /* Neutrals */
   --color-ink: #111827; /* Primary text */
@@ -113,12 +113,12 @@
 :root {
   --font-arabic: 'Cairo', sans-serif;
   --font-english: 'Plus Jakarta Sans', sans-serif;
-  --brand: #0d9488;
-  --brand-dark: #0a7d71;
-  --brand-deep: #035a52;
-  --brand-tint: #d5f0e5;
-  --brand-surface: #e6fdf5;
-  --brand-soft: #78d6cd;
+  --brand: #10b981;
+  --brand-dark: #059669;
+  --brand-deep: #047857;
+  --brand-tint: #d1fae5;
+  --brand-surface: #ecfdf5;
+  --brand-soft: #6ee7b7;
   --radius: 0.75rem;
 
   --background: #f3f4f6;
