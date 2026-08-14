@@ -32,10 +32,14 @@ type OrderEvent = {
 export async function orderEventSSEHandler(req: Request, res: Response): Promise<void> {
   const { orderId } = parseWith(orderIdParamsSchema, req.params);
 
-  // Auth: if a token is provided, validate ownership; otherwise the stream
-  // works for any viewer (captains/customers can follow their own orders).
+  // The order must exist before the stream opens — a valid order id gets a
+  // live stream, an invented one closes immediately instead of becoming an
+  // "is this id real?" oracle.
+  const order = await ordersService.loadOrderOrThrow(orderId);
+  // Auth: when a token is present, enforce ownership so a signed-in caller can
+  // only follow their own orders. Anonymous streams carry status updates only
+  // (no address/phone/captain PII is ever emitted) for unguessable order ids.
   if (req.auth) {
-    const order = await ordersService.loadOrderOrThrow(orderId);
     await ordersService.assertCanView(order, req.auth);
   }
 

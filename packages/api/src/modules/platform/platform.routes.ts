@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { UserRole } from '@samou-go/shared-types';
+import { LedgerEntryType, SettlementMethod, UserRole } from '@samou-go/shared-types';
 import { asyncHandler } from '../../lib/async-handler';
 import { created, ok } from '../../lib/respond';
 import { badRequest, forbidden, notFound } from '../../lib/http-error';
@@ -12,7 +12,10 @@ const locationSchema = z.object({ lat: z.number().finite(), lng: z.number().fini
 const ratingSchema = z.object({ storeRating: z.number().int().min(1).max(5), captainRating: z.number().int().min(1).max(5).optional(), comment: z.string().max(1000).optional() });
 const chatSchema = z.object({ message: z.string().trim().min(1).max(2000) });
 const ticketSchema = z.object({ subject: z.string().trim().min(1).max(200), description: z.string().trim().min(1).max(4000) });
-const settlementSchema = z.object({ amount: z.number().positive(), method: z.enum(['CASH', 'BANK_TRANSFER']), note: z.string().max(500).optional() });
+const settlementMethodSchema = z.enum(
+  Object.values(SettlementMethod) as [SettlementMethod, ...SettlementMethod[]]
+);
+const settlementSchema = z.object({ amount: z.number().positive(), method: settlementMethodSchema, note: z.string().max(500).optional() });
 
 export const platformRouter: Router = Router();
 platformRouter.use(authenticate);
@@ -85,11 +88,21 @@ platformRouter.post('/admin/wallets/:walletId/settle', authorize(UserRole.ADMIN)
   const wallet = await prisma.wallet.findUnique({ where: { id: req.params.walletId } });
   if (!wallet) throw notFound('المحفظة غير موجودة / Wallet not found');
   const body = settlementSchema.parse(req.body);
-  if (Number(wallet.balance) < body.amount) throw badRequest('الرصيد غير كافٍ / Insufficient wallet balance');
   const result = await prisma.$transaction(async (tx) => {
-    const updated = await tx.wallet.update({ where: { id: wallet.id }, data: { balance: { decrement: body.amount } } });
+    // Atomic guard: decrement only if the balance can cover the amount. The
+    // `updateMany` filter does the check and the write in one statement, so two
+    // concurrent settlements can never both pass a read-then-write balance check
+    // and push the balance negative.
+    const claimed = await tx.wallet.updateMany({
+      where: { id: wallet.id, balance: { gte: body.amount } },
+      data: { balance: { decrement: body.amount } },
+    });
+    if (claimed.count === 0) {
+      throw badRequest('الرصيد غير كافٍ / Insufficient wallet balance');
+    }
+    const updated = await tx.wallet.findUniqueOrThrow({ where: { id: wallet.id } });
     const settlement = await tx.settlement.create({ data: { walletId: wallet.id, amount: body.amount, method: body.method, note: body.note } });
-    await tx.ledgerEntry.create({ data: { walletId: wallet.id, amount: -body.amount, type: 'SETTLEMENT', description: body.note ?? 'Admin settlement' } });
+    await tx.ledgerEntry.create({ data: { walletId: wallet.id, amount: -body.amount, type: LedgerEntryType.SETTLEMENT, description: body.note ?? 'Admin settlement' } });
     return { updated, settlement };
   });
   ok(res, { balance: decimalToNumber(result.updated.balance), settlement: { ...result.settlement, amount: decimalToNumber(result.settlement.amount) } });

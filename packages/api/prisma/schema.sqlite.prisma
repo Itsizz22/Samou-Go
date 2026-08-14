@@ -9,9 +9,12 @@
 // Hyper-local delivery for Samou', Hebron, Palestine.
 //
 // Two deliberate constraints shape this model:
-//   1. NO GPS. Samou' has no reliable street addressing, and the platform ships
-//      no live map. Destinations are free text (neighbourhood / landmark) and
-//      the captain phones the customer. There is no lat/lng column anywhere.
+//   1. Customer destinations are FREE TEXT. Samou' has no reliable street
+//      numbering, so orders carry `customerAddressText` (neighbourhood /
+//      landmark) and the captain phones the customer. GPS exists only on the
+//      operational side: `Store.latitude/longitude` pin the shop and the
+//      `CaptainLocation` model streams the assigned captain's live position
+//      for order tracking — never on the customer address.
 //   2. Money is Decimal(10,2), never Float. Prisma returns Decimal objects;
 //      `src/modules/**/**.mapper.ts` converts them to numbers at the edge.
 //
@@ -20,6 +23,9 @@
 
 generator client {
   provider = "prisma-client-js"
+  // Independent output so SQLite codegen never overwrites the PostgreSQL client
+  // (which is generated into `../generated/prisma-postgres`).
+  output = "../generated/prisma-sqlite"
 }
 
 datasource db {

@@ -6,6 +6,10 @@ export const modifierOptionSchema = z.object({
   key: z.string().min(1, 'مفتاح الخيار مطلوب / option key is required'),
   labelAr: z.string().min(1, 'اسم الخيار بالعربية مطلوب / Arabic label is required'),
   labelEn: z.string().min(1, 'English label is required'),
+  // Informational only. This value is CLIENT-SUPPLIED, so the server never adds
+  // it to the unit price — money is priced from the products table, and trusting
+  // a client delta would reopen the "buy a fridge for 1 ₪" hole. If modifiers
+  // must affect price, they need a DB-backed catalogue (admin-owned) first.
   priceDelta: z.number().finite('سعر التعديل يجب أن يكون رقماً / price delta must be a number'),
 });
 
@@ -63,7 +67,6 @@ export const updateOrderStatusSchema = z.object({
   status: z.nativeEnum(OrderStatus),
   note: z.string().trim().max(500).optional(),
   estimatedPrepMinutes: z.number().int().min(5).max(180).optional(),
-  pin: z.string().trim().optional(),
 });
 
 export const assignCaptainSchema = z.object({

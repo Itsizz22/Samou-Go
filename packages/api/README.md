@@ -80,10 +80,11 @@ items, 5 ₪ from 5 up, counting units rather than distinct products. The amount
 are env-overridable (`DELIVERY_BASE_FEE`, `DELIVERY_BULK_FEE`,
 `DELIVERY_BULK_THRESHOLD`); the *rule* is not.
 
-**No GPS, by design.** Samou' has no reliable street addressing, so an order
-carries `customerAddressText` (neighbourhood / landmark) plus an optional
-`addressNote`. There is no latitude/longitude column anywhere, and there should
-not be one.
+**No GPS for the customer address, by design.** Samou' has no reliable street
+numbering, so an order carries `customerAddressText` (neighbourhood / landmark)
+plus an optional `addressNote`. GPS is used only operationally: stores pin
+`Store.latitude/longitude`, and the `CaptainLocation` model streams the assigned
+captain's live position for order tracking — never the customer's destination.
 
 **Money is `Decimal(10,2)` in Postgres**, so Prisma hands back
 `Prisma.Decimal`. Convert at the API edge with `decimalToNumber()` — the shared

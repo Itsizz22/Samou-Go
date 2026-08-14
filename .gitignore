@@ -21,6 +21,8 @@ themes/*/android/
 # prisma
 packages/api/prisma/migrations/dev.db*
 packages/api/prisma/*.db
+# generated Prisma clients (regenerable via db:generate / db:generate:prod)
+packages/api/generated/
 
 # uploaded images (local storage driver scratch + processed files)
 packages/api/.uploads/

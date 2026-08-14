@@ -1,12 +1,15 @@
 // =============================================================================
-// Samou' Go ΓÇö PostgreSQL schema
+// Samou' Go — PostgreSQL schema
 // -----------------------------------------------------------------------------
 // Hyper-local delivery for Samou', Hebron, Palestine.
 //
 // Two deliberate constraints shape this model:
-//   1. NO GPS. Samou' has no reliable street addressing, and the platform ships
-//      no live map. Destinations are free text (neighbourhood / landmark) and
-//      the captain phones the customer. There is no lat/lng column anywhere.
+//   1. Customer destinations are FREE TEXT. Samou' has no reliable street
+//      numbering, so orders carry `customerAddressText` (neighbourhood /
+//      landmark) and the captain phones the customer. GPS exists only on the
+//      operational side: `Store.latitude/longitude` pin the shop and the
+//      `CaptainLocation` model streams the assigned captain's live position
+//      for order tracking — never on the customer address.
 //   2. Money is Decimal(10,2), never Float. Prisma returns Decimal objects;
 //      `src/modules/**/**.mapper.ts` converts them to numbers at the edge.
 //
@@ -15,6 +18,9 @@
 
 generator client {
   provider = "prisma-client-js"
+  // Independent output so PostgreSQL codegen never overwrites the SQLite client
+  // (which is generated into `../generated/prisma-sqlite`).
+  output = "../generated/prisma-postgres"
 }
 
 datasource db {
@@ -72,7 +78,7 @@ enum LedgerEntryType {
 // Models
 // =============================================================================
 
-/// One account, one role. Phone is the login identifier ΓÇö Samou' users do not
+/// One account, one role. Phone is the login identifier — Samou' users do not
 /// reliably have email.
 model User {
   id           String   @id @default(cuid())
@@ -85,7 +91,7 @@ model User {
   isActive     Boolean  @default(true)
   /// CAPTAIN accounts must be confirmed by an admin before they can take jobs.
   isVerified   Boolean  @default(false)
-  /// CAPTAIN self-managed availability ΓÇö must be on to claim orders.
+  /// CAPTAIN self-managed availability — must be on to claim orders.
   isAvailable  Boolean  @default(false)
   assignedStoreId String?
   /// Processed avatar URL served by the uploads pipeline (webp, immutable-cached).
@@ -124,7 +130,7 @@ model OtpRequest {
   /// bcrypt hash of the 6-digit code. Never store the plaintext.
   codeHash       String
   expiresAt      DateTime
-  /// Successful `code` attempts ΓÇö wrong codes can only be tried a few times
+  /// Successful `code` attempts — wrong codes can only be tried a few times
   /// before the code is invalidated.
   attempts       Int      @default(0)
   /// OTP dispatch count inside the current rate-limit window.
@@ -233,7 +239,7 @@ model Product {
   @@map("products")
 }
 
-/// A basket that has been committed. Financials are written by the server only ΓÇö
+/// A basket that has been committed. Financials are written by the server only —
 /// `deliveryFee` always comes from `calculateDeliveryFee(itemCount)` in
 /// @samou-go/shared-types, never from the client.
 model Order {
@@ -257,7 +263,7 @@ model Order {
 
   subtotal      Decimal       @db.Decimal(10, 2)
   deliveryFee   Decimal       @db.Decimal(10, 2)
-  /// Voucher savings, in ILS ΓÇö 0 when no voucher was applied.
+  /// Voucher savings, in ILS — 0 when no voucher was applied.
   discount      Decimal       @default(0) @db.Decimal(10, 2)
   totalAmount   Decimal       @db.Decimal(10, 2)
   paymentMethod PaymentMethod @default(COD)
@@ -295,7 +301,7 @@ model OrderItem {
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
-  /// One row per product per order ΓÇö quantity carries the count.
+  /// One row per product per order — quantity carries the count.
   @@unique([orderId, productId])
   @@index([productId])
   @@map("order_items")
@@ -321,7 +327,7 @@ model OrderStatusHistory {
 }
 
 /// A discount the customer types in at checkout as a CODE. The client only ever
-/// sends the code ΓÇö the server resolves it and applies `calculateVoucherDiscount`
+/// sends the code — the server resolves it and applies `calculateVoucherDiscount`
 /// from @samou-go/shared-types, preserving the "client never sends money" rule.
 model Voucher {
   id            String              @id @default(cuid())
@@ -352,7 +358,7 @@ model Voucher {
   @@map("vouchers")
 }
 
-/// A customer's saved store ΓÇö the heart toggle on the home screen.
+/// A customer's saved store — the heart toggle on the home screen.
 /// Free-text addresses already live on each order; favorites are store-level.
 model Favorite {
   id        String   @id @default(cuid())
@@ -371,7 +377,7 @@ model Favorite {
 /// Per-day counter for human-facing order numbers (`SG-260808-0001`).
 /// One row per calendar day; `sequence` is bumped ATOMICALLY inside the order
 /// transaction (`upsert` + `increment`), so concurrent order creation can never
-/// mint the same number ΓÇö unlike a `COUNT(*)` race that the old code retried.
+/// mint the same number — unlike a `COUNT(*)` race that the old code retried.
 /// A rolled-back order rolls back its bump too, leaving (harmless) gaps.
 model DailyOrderSequence {
   /// Local calendar day, stored as DATE (time-of-day is irrelevant).

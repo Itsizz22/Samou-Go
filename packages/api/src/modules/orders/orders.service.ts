@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '../../lib/prisma-types';
 import {
   OrderStatus,
   PaymentMethod,
@@ -323,13 +323,14 @@ export async function createOrder(
   });
 }
 
-/** Reduce a modifier group to a short Arabic/English summary string. */
+/** Reduce modifier groups to a short Arabic/English summary string. */
 function modifierSummary(modifiers: readonly { labelAr: string; labelEn: string; options: readonly { key: string; labelAr: string; labelEn: string }[] }[]): string {
   const parts: string[] = [];
   for (const group of modifiers) {
-    const opt = group.options[0]; // take the first selected option
-    if (opt) {
-      parts.push(opt.labelAr);
+    // Every selected option is shown, not just the first — a "chicken + cheese
+    // + salad" sandwich would otherwise read as just "chicken".
+    for (const option of group.options) {
+      parts.push(option.labelAr);
     }
   }
   return parts.join(' / ') || 'مخصص';

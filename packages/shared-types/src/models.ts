@@ -128,8 +128,10 @@ export interface Order {
   status: OrderStatus;
   /**
    * Free-text destination — neighbourhood, street, landmark.
-   * Samou' has no reliable street addressing and this platform ships no GPS,
-   * so the captain phones the customer. There is intentionally no lat/lng.
+   * Samou' has no reliable street numbering, so the captain phones the customer.
+   * The customer address is intentionally free text with no lat/lng — GPS is
+   * used only operationally (store coordinates + the assigned captain's live
+   * position via `CaptainLocation`), never on the customer destination.
    */
   customerAddressText: string;
   /** Optional extra directions ("بجانب مسجد عمر، الطابق الثاني"). */
