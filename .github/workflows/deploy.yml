@@ -179,21 +179,16 @@ jobs:
             echo "::group::Deploying $app to Vercel"
 
             export VERCEL_PROJECT_ID="${PROJECT_IDS[$app]}"
+            dir="themes/$app"
 
-            # cd into the app dir first — the project's Root Directory setting on
-            # Vercel is already "themes/$app", so passing that path again as an
-            # argument would double it up (e.g. dist/themes/web-customer). Running
-            # from inside the folder and using a plain relative "dist" avoids that.
-            (
-              cd "themes/$app"
+            # Link this deployment to the right Vercel project + pull its env/config
+            npx --yes vercel@latest pull --yes --environment=production --token "${VERCEL_TOKEN}" "$dir"
 
-              npx --yes vercel@latest pull --yes --environment=production --token "${VERCEL_TOKEN}"
-
-              npx --yes vercel@latest deploy dist \
-                --prod \
-                --yes \
-                --token "${VERCEL_TOKEN}"
-            )
+            # Deploy the already-built dist/ folder — no remote npm install needed
+            npx --yes vercel@latest deploy "$dir/dist" \
+              --prod \
+              --yes \
+              --token "${VERCEL_TOKEN}"
 
             echo "::endgroup::"
           done
