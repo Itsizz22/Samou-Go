@@ -80,7 +80,7 @@ export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(20, "رمز غير صالح / Invalid token"),
 });
 
-/** POST /auth/password/reset â€” an OTP is the proof of account ownership. */
+/** POST /auth/password/reset — an OTP is the proof of account ownership. */
 export const resetPasswordSchema = z.object({
   phone: phoneSchema,
   code: z

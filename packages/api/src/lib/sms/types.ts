@@ -30,7 +30,3 @@ export interface SmsGateway {
   readonly provider: string;
   send(message: SmsMessage): Promise<SmsSendResult>;
 }
-
-export function isConfigured(gateway: SmsGateway): boolean {
-  return gateway.provider !== 'none' && gateway.provider !== 'console';
-}
