@@ -112,9 +112,9 @@ jobs:
           set -euo pipefail
 
           # بناء كل واجهة باستخدام اسم الـ workspace الصحيح
-          for app in customer store captain admin; do
+          for app in web-customer web-store-manager web-captain web-admin; do
             echo "::group::Building @samou-go/$app"
-            npm run build --workspace "@samou-go/$app" || npm run build --workspace "@samou-go/web-$app"
+            npm run build --workspace "@samou-go/$app"
             echo "::endgroup::"
           done
 
@@ -155,16 +155,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          for app in customer store captain admin; do
+          for app in web-customer web-store-manager web-captain web-admin; do
             echo "::group::Deploying $app app to Vercel"
 
             # استخدام subshell آمن لـ cd
             (
-              if [ -d "packages/$app" ]; then
-                cd "packages/$app"
-              elif [ -d "packages/web-$app" ]; then
-                cd "packages/web-$app"
-              fi
+              cd "themes/$app"
 
               npx --yes vercel@latest deploy \
                 --prod \
