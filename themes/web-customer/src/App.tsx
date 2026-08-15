@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { UserRole, type UserRole as UserRoleValue } from '@samou-go/shared-types';
 import { SamouGoHome } from './components/generated/SamouGoHome';
 import { OrdersScreen } from './screens/OrdersScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
@@ -14,8 +15,30 @@ import { ForgotPasswordScreen, LoginScreen, RegisterScreen } from './screens/Aut
 import { BootScreen } from './components/BootScreen';
 import { NavigationDrawer, NavigationDrawerProvider } from './components/NavigationDrawer';
 import { ThemeProvider } from './theme/ThemeProvider';
-import { useAuth, useRoleRedirect, type Auth } from './hooks/useApi';
+import { useAuth, type Auth } from './hooks/useApi';
+import { roleHomePath } from './lib/roles';
 // %IMPORT_STATEMENT
+
+/**
+ * The Captain and Store Manager dashboards are merged into this single-entry
+ * app under `/captain/*` and `/store-manager/*`. They are heavy, so they are
+ * code-split with `React.lazy` and only fetched when a role-gated route mounts.
+ */
+const CaptainDashboard = lazy(() =>
+  import('./staff/captain/SamouGoCaptain').then((module) => ({ default: module.SamouGoCaptain }))
+);
+const StoreManagerDashboard = lazy(() =>
+  import('./staff/store-manager/SamouGoStoreManager').then((module) => ({
+    default: module.SamouGoStoreManager,
+  }))
+);
+
+/**
+ * The in-app home for a signed-in user's role. Staff roles land in their merged
+ * dashboard instead of the customer feed; customers go to the feed root. This
+ * is the single place that maps role → redirect target (no `location.replace`
+ * loops — everything stays inside the SPA router).
+ */
 
 /**
  * Android hardware back button → SPA history.
@@ -70,9 +93,6 @@ function useAndroidBackButton() {
 function App() {
   useAndroidBackButton();
   const auth = useAuth();
-  // Unified login: a signed-in role that does not belong in the customer app is
-  // redirected to its own workspace instead of being blocked with an error.
-  useRoleRedirect('customer');
   const [splashElapsed, setSplashElapsed] = useState(false);
 
   useEffect(() => {
@@ -99,7 +119,33 @@ function ProtectedRoute({ auth, children }: { auth: Auth; children: React.ReactN
 
 function AuthRoute({ auth, children }: { auth: Auth; children: React.ReactNode }) {
   if (!auth.ready) return <BootScreen />;
-  return auth.user ? <Navigate to="/home" replace /> : <>{children}</>;
+  return auth.user ? <Navigate to={roleHomePath(auth.user.role)} replace /> : <>{children}</>;
+}
+
+/**
+ * Role gate for the merged staff routes. Grants access ONLY to the requested
+ * role; unauthorised users (including other signed-in roles) are sent back to
+ * the customer feed, and anonymous users to the sign-in screen — never to the
+ * guarded path again, so there is no redirect loop.
+ */
+function RoleGuard({
+  auth,
+  role,
+  children,
+}: {
+  auth: Auth;
+  role: UserRoleValue;
+  children: ReactNode;
+}) {
+  if (!auth.ready) return <BootScreen />;
+  if (!auth.user) return <Navigate to="/login" replace />;
+  if (auth.user.role !== role) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+/** Suspense boundary shared by the lazy staff dashboards. */
+function StaffFallback() {
+  return <BootScreen />;
 }
 
 function StartupRoutes({ auth }: { auth: Auth }) {
@@ -119,7 +165,68 @@ function StartupRoutes({ auth }: { auth: Auth }) {
       <Route path="/login" element={<AuthRoute auth={auth}><LoginScreen /></AuthRoute>} />
       <Route path="/register" element={<AuthRoute auth={auth}><RegisterScreen /></AuthRoute>} />
       <Route path="/forgot-password" element={<AuthRoute auth={auth}><ForgotPasswordScreen /></AuthRoute>} />
-      <Route path="*" element={<Navigate to={auth.user ? '/home' : '/login'} replace />} />
+
+      {/* Merged staff apps — lazy-loaded, CAPTAIN-only. */}
+      <Route
+        path="/captain"
+        element={
+          <RoleGuard auth={auth} role={UserRole.CAPTAIN}>
+            <Navigate to="/captain/dashboard" replace />
+          </RoleGuard>
+        }
+      />
+      <Route
+        path="/captain/dashboard"
+        element={
+          <RoleGuard auth={auth} role={UserRole.CAPTAIN}>
+            <Suspense fallback={<StaffFallback />}>
+              <CaptainDashboard />
+            </Suspense>
+          </RoleGuard>
+        }
+      />
+      <Route
+        path="/captain/*"
+        element={
+          <RoleGuard auth={auth} role={UserRole.CAPTAIN}>
+            <Suspense fallback={<StaffFallback />}>
+              <CaptainDashboard />
+            </Suspense>
+          </RoleGuard>
+        }
+      />
+
+      {/* Merged staff apps — lazy-loaded, STORE_MANAGER-only. */}
+      <Route
+        path="/store-manager"
+        element={
+          <RoleGuard auth={auth} role={UserRole.STORE_MANAGER}>
+            <Navigate to="/store-manager/orders" replace />
+          </RoleGuard>
+        }
+      />
+      <Route
+        path="/store-manager/orders"
+        element={
+          <RoleGuard auth={auth} role={UserRole.STORE_MANAGER}>
+            <Suspense fallback={<StaffFallback />}>
+              <StoreManagerDashboard />
+            </Suspense>
+          </RoleGuard>
+        }
+      />
+      <Route
+        path="/store-manager/*"
+        element={
+          <RoleGuard auth={auth} role={UserRole.STORE_MANAGER}>
+            <Suspense fallback={<StaffFallback />}>
+              <StoreManagerDashboard />
+            </Suspense>
+          </RoleGuard>
+        }
+      />
+
+      <Route path="*" element={<Navigate to={auth.user ? roleHomePath(auth.user.role) : '/login'} replace />} />
     </Routes>
   );
 }
