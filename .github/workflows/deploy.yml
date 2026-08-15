@@ -180,16 +180,19 @@ jobs:
 
             export VERCEL_PROJECT_ID="${PROJECT_IDS[$app]}"
 
-            # cd into the app dir first — the project's Root Directory setting on
-            # Vercel is already "themes/$app", so passing that path again as an
-            # argument would double it up (e.g. dist/themes/web-customer). Running
-            # from inside the folder and using a plain relative "dist" avoids that.
+            # cd into the app dir, then let Vercel itself produce its own
+            # `.vercel/output` build artifact (vercel build) from the local,
+            # already-installed workspace — no network install, no ambiguity
+            # about paths. `deploy --prebuilt` then uploads that artifact
+            # verbatim with zero rebuilding on Vercel's side.
             (
               cd "themes/$app"
 
               npx --yes vercel@latest pull --yes --environment=production --token "${VERCEL_TOKEN}"
 
-              npx --yes vercel@latest deploy dist \
+              npx --yes vercel@latest build --prod --token "${VERCEL_TOKEN}"
+
+              npx --yes vercel@latest deploy --prebuilt \
                 --prod \
                 --yes \
                 --token "${VERCEL_TOKEN}"
