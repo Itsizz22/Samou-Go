@@ -65,11 +65,17 @@ export const ALLOWED_METHODS: readonly string[] = [
 /**
  * `Last-Event-ID` is listed because the SSE order-tracking stream replays from
  * it on reconnect, and a browser will not send it cross-origin unless allowed.
+ *
+ * `ngrok-skip-browser-warning` is sent by the API client when it is tunnelling
+ * through free-tier ngrok (which serves an interstitial to unrecognised
+ * requests). Allowed here so those preflights succeed; a normal deployment
+ * never sends it.
  */
 export const ALLOWED_HEADERS: readonly string[] = [
   'Content-Type',
   'Authorization',
   'Last-Event-ID',
+  'ngrok-skip-browser-warning',
 ];
 
 /** `true` when `origin` may make credentialed cross-origin requests. */

@@ -142,6 +142,15 @@ export const API_URL: string = (() => {
   return url;
 })();
 
+/** True when `url` points at a free-tier ngrok tunnel host. */
+function isNgrokUrl(url: string): boolean {
+  try {
+    return /(^|\.)ngrok-(free\.)?app$/.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Samou' runs on patchy mobile data. Twelve seconds is long enough for a slow
  * 3G round-trip and short enough that a dead server does not freeze a spinner.
@@ -458,12 +467,13 @@ async function request<T>(
 
   const headers: Record<string, string> = {
     Accept: "application/json",
-    // Free-tier ngrok serves an interstitial "browser warning" page to requests
-    // it does not recognise as a real browser. The Capacitor WebView counts as a
-    // browser, so without this header a phone on cellular data would receive the
-    // HTML warning instead of the API envelope. Harmless when not tunnelling.
-    "ngrok-skip-browser-warning": "true",
   };
+  // Free-tier ngrok serves an interstitial "browser warning" page to requests
+  // it does not recognise as a real browser, so while the API is fronted by an
+  // ngrok tunnel the client opts out with this header. It is sent ONLY for
+  // ngrok hosts: a non-ngrok origin (Vercel→Render, a LAN IP) must not receive
+  // a header its CORS policy never sanctioned, or the preflight dies.
+  if (isNgrokUrl(API_URL)) headers["ngrok-skip-browser-warning"] = "true";
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
   if (auth) {

@@ -114,6 +114,10 @@ describe('policy shape', () => {
     expect(corsOptions.allowedHeaders).toContain('Authorization');
   });
 
+  it('allows ngrok-skip-browser-warning so tunnel preflights succeed', () => {
+    expect(corsOptions.allowedHeaders).toContain('ngrok-skip-browser-warning');
+  });
+
   it('treats `*` in CORS_ORIGINS as the wildcard escape hatch', () => {
     h.env.corsOrigins = ['*'];
     expect(isAllowedOrigin('https://anything.example.com')).toBe(true);
