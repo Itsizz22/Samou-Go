@@ -30,6 +30,7 @@ import type {
   AdminStats,
   ApiFieldError,
   ApiResponse,
+  ApiSuccess,
   AuthResponse,
   CreateOrderInput,
   CreateProductInput,
@@ -565,7 +566,11 @@ async function request<T>(
     return undefined as T;
   }
 
-  return envelope.data;
+  // By this point every ApiFailure case has already thrown above, so the only
+  // shape `envelope` can still be is ApiSuccess<T>. TypeScript's control-flow
+  // narrowing doesn't carry across the unrelated `!response.ok` check in
+  // between, so we assert explicitly rather than fight the inference.
+  return (envelope as ApiSuccess<T>).data;
 }
 
 /* ---------------------------------------------------------------------------
