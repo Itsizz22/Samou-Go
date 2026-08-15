@@ -20,6 +20,7 @@
     "prisma:push": "prisma db push --schema=prisma/schema.sqlite.prisma",
     "prisma:studio": "prisma studio --schema=prisma/schema.sqlite.prisma",
     "prisma:seed": "tsx src/scripts/seed.ts",
+    "admin:password": "tsx src/scripts/set-admin-password.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "node scripts/e2e-smoke.mjs",
