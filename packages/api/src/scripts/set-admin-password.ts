@@ -1,63 +1,71 @@
 /**
- * Targeted admin bootstrap — `npm run db:admin-password`
+ * Re-hash every demo account's password to `samou1234` — `npm run db:demo-passwords`
  *
- * Upserts the ADMIN account for a given phone with a fresh bcrypt hash for the
- * given password, without touching any other table. Unlike `db:seed`, this
- * never wipes orders/users/catalogue, so it is safe to point at a database
+ * Non-destructive: only touches the users' `passwordHash` (and phone/role/lifecycle
+ * flags, in case the production DB drifted), never other tables. Unlike `db:seed`
+ * it does not wipe orders, users, or catalogue — safe to run against a database
  * that already carries real data.
  *
- * Usage:
- *   npm run db:admin-password                       # 0599000000 / samou1234
- *   npm run db:admin-password -- 0599000000 sup3rSecret
+ * Production guard: refuses `NODE_ENV=production` because these credentials are
+ * public knowledge. For a one-off fix on the real deployment, run with
+ * `NODE_ENV=development` against a URL that points at the production database
+ * (the script resolves `DATABASE_URL` from the environment).
  *
- * The phone is run through the same phoneSchema as the login endpoint, so
- * `+970...` / `00970...` forms are normalised before the lookup.
+ * Usage:
+ *   npm run db:demo-passwords               # all demo users → samou1234
+ *   DATABASE_URL=postgres://... npm run db:demo-passwords
  */
-import { UserRole } from '@samou-go/shared-types';
 import { env } from '../config/env';
 import { prisma } from '../lib/prisma';
 import { hashPassword } from '../lib/password';
+import { DEMO_PASSWORD, DEMO_USERS } from './demo-users';
 import { phoneSchema } from '../modules/auth/auth.schemas';
-
-const PHONE = process.argv[2] ?? '0599000000';
-const PASSWORD = process.argv[3] ?? 'samou1234';
 
 async function main(): Promise<void> {
   if (env.isProduction) {
     throw new Error(
-      'Refusing to set an admin password in production: this upserts a known, ' +
-        'public demo credential. Run it only in development or staging.'
+      'Refusing to re-hash demo passwords in production: these are public credentials. ' +
+        'Run with NODE_ENV=development and a DATABASE_URL pointing at the target database.'
     );
   }
 
-  const phone = phoneSchema.parse(PHONE);
-  if (PASSWORD.length < 8) {
-    throw new Error('Password must be at least 8 characters');
+  const passwordHash = await hashPassword(DEMO_PASSWORD);
+
+  for (const user of DEMO_USERS) {
+    const phone = phoneSchema.parse(user.phone);
+    const existing = await prisma.user.findUnique({ where: { phone } });
+
+    await prisma.user.upsert({
+      where: { id: existing?.id ?? user.id },
+      update: {
+        name: user.name,
+        phone,
+        passwordHash,
+        role: user.role,
+        isActive: user.isActive ?? true,
+        isVerified: user.isVerified ?? false,
+        isAvailable: user.isAvailable ?? false,
+      },
+      create: {
+        id: existing?.id ?? user.id,
+        name: user.name,
+        phone,
+        role: user.role,
+        isActive: user.isActive ?? true,
+        isVerified: user.isVerified ?? false,
+        isAvailable: user.isAvailable ?? false,
+        passwordHash,
+      },
+    });
   }
 
-  const passwordHash = await hashPassword(PASSWORD);
-
-  const existing = await prisma.user.findUnique({ where: { phone } });
-  const user = await prisma.user.upsert({
-    where: { id: existing?.id ?? 'user-admin' },
-    update: { phone, role: UserRole.ADMIN, isActive: true, passwordHash },
-    create: {
-      id: existing?.id ?? 'user-admin',
-      name: 'مدير النظام',
-      phone,
-      role: UserRole.ADMIN,
-      isActive: true,
-      passwordHash,
-    },
-  });
-
-  console.log(`✓ ADMIN ${user.role} — ${user.phone} (${user.name})`);
-  console.log('  Password hash set; test with: curl -X POST /api/v1/auth/login');
+  console.log(`✓ Re-hashed ${DEMO_USERS.length} demo users to password "${DEMO_PASSWORD}"`);
+  console.log(`  ADMIN: 0599000000 — test with POST /api/v1/auth/login`);
 }
 
 main()
   .catch(error => {
-    console.error('Set admin password failed:', error);
+    console.error('Re-hash demo passwords failed:', error);
     process.exitCode = 1;
   })
   .finally(() => {

@@ -7,15 +7,14 @@
  *
  * Never run against production: the passwords below are public knowledge.
  */
-import { OrderStatus, PaymentMethod, UserRole } from '@samou-go/shared-types';
+import { OrderStatus, PaymentMethod } from '@samou-go/shared-types';
 import { calculateOrderTotals, lineTotal } from '@samou-go/shared-types';
 import { env } from '../config/env';
 import { prisma } from '../lib/prisma';
 import { hashPassword } from '../lib/password';
 import { formatOrderNumber, startOfDay } from '../lib/order-number';
 import { creditDeliveredOrder } from '../modules/platform/platform.service';
-
-const DEMO_PASSWORD = 'samou1234';
+import { DEMO_PASSWORD, DEMO_USERS } from './demo-users';
 
 interface SeedProduct {
   id: string;
@@ -168,27 +167,11 @@ const STORES: SeedStore[] = [
   },
 ];
 
-interface SeedUser {
-  id: string;
-  name: string;
-  phone: string;
-  role: UserRole;
-  isActive?: boolean;
-  isVerified?: boolean;
-  isAvailable?: boolean;
+interface SeedOrderLine {
+  productId: string;
+  quantity: number;
+  unitPrice: number;
 }
-
-const USERS: SeedUser[] = [
-  { id: 'user-admin', name: 'مدير النظام', phone: '0599000000', role: UserRole.ADMIN },
-  { id: 'user-manager-baraka', name: 'محمود أبو عرام', phone: '0599100201', role: UserRole.STORE_MANAGER },
-  { id: 'user-manager-shawarma', name: 'صالح المحاريق', phone: '0567100302', role: UserRole.STORE_MANAGER },
-  { id: 'user-manager-pharmacy', name: 'رنا الهمص', phone: '0599100403', role: UserRole.STORE_MANAGER },
-  { id: 'user-captain-1', name: 'أنس الدغامين', phone: '0599200101', role: UserRole.CAPTAIN, isVerified: true, isAvailable: true },
-  { id: 'user-captain-2', name: 'يوسف أبو قبيطة', phone: '0567200102', role: UserRole.CAPTAIN, isVerified: true, isAvailable: true },
-  { id: 'user-captain-3', name: 'كريم الشرحة', phone: '0599200103', role: UserRole.CAPTAIN, isActive: false },
-  { id: 'user-customer-1', name: 'أحمد الشرحة', phone: '0599300101', role: UserRole.CUSTOMER },
-  { id: 'user-customer-2', name: 'سُهى العواودة', phone: '0567300102', role: UserRole.CUSTOMER },
-];
 
 const ADDRESSES = [
   'حارة الرأس، بجانب مسجد عمر، البيت الحجري الثاني',
@@ -199,7 +182,7 @@ const ADDRESSES = [
 async function seedUsers(): Promise<void> {
   const passwordHash = await hashPassword(DEMO_PASSWORD);
 
-  for (const user of USERS) {
+  for (const user of DEMO_USERS) {
     await prisma.user.upsert({
       where: { id: user.id },
       update: {
@@ -224,7 +207,7 @@ async function seedUsers(): Promise<void> {
     });
   }
 
-  console.log(`✓ ${USERS.length} users`);
+  console.log(`✓ ${DEMO_USERS.length} users`);
 }
 
 interface SeedVoucher {
