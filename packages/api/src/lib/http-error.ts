@@ -69,3 +69,11 @@ export const tooMany = (
 export const payloadTooLarge = (
   message = 'الملف أكبر من الحد المسموح / File exceeds the upload limit'
 ): HttpError => new HttpError(413, 'PAYLOAD_TOO_LARGE', message);
+
+/**
+ * An upstream dependency (SMS carrier, cloud function) refused or is down.
+ * Deliberately a 5xx class the CLIENT can explain — a delivery outage is
+ * retryable and must never surface as the generic "Something went wrong".
+ */
+export const serviceUnavailable = (code: string, message: string): HttpError =>
+  new HttpError(503, code, message);

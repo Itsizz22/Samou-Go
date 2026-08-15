@@ -11,10 +11,22 @@ import {
   verifyOtp,
 } from '@/hooks/useApi';
 import { OtpPinInput } from '@/components/OtpPinInput';
+import { normalizePhone, isValidPalestinianMobile } from '@/lib/phone';
 import { roleHomePath } from '@/lib/roles';
 
-const phoneValid = (phone: string) => /^05\d{8}$/.test(phone.replace(/[\s-]/g, ''));
+const phoneValid = (phone: string) => isValidPalestinianMobile(phone);
 const passwordStrong = (password: string) => password.length >= 8;
+
+/**
+ * Turns any API failure into a banner sentence. Field-level validation
+ * messages (422 `details`) are shown verbatim — a malformed phone says so
+ * instead of hiding behind the generic "Something went wrong".
+ */
+function apiErrorMessage(cause: unknown, fallback: string): string {
+  if (!(cause instanceof ApiError)) return fallback;
+  const fieldMessages = cause.details.map(detail => detail.message).filter(Boolean);
+  return fieldMessages.length > 0 ? fieldMessages.join(' · ') : cause.message;
+}
 
 function AuthShell({ children }: { children: React.ReactNode }) {
   return (
@@ -115,7 +127,7 @@ export function LoginScreen() {
           event.preventDefault();
           if (!valid || auth.pending) return;
           setSessionPersistence(remember);
-          void auth.signIn({ phone: phone.replace(/[\s-]/g, ''), password }).then(user => {
+          void auth.signIn({ phone: normalizePhone(phone), password }).then(user => {
             if (user) navigate(roleHomePath(user.role), { replace: true });
           });
         }}
@@ -207,7 +219,7 @@ export function RegisterScreen() {
         : password.length < 12
           ? 'جيدة'
           : 'قوية';
-  const normalizedPhone = phone.replace(/[\s-]/g, '');
+  const normalizedPhone = normalizePhone(phone);
   const finish = () => {
     if (code.length !== 6 || pending) return;
     setPending(true);
@@ -216,7 +228,7 @@ export function RegisterScreen() {
     void verifyOtp({ phone: normalizedPhone, code, name: name.trim() })
       .then(() => navigate('/', { replace: true }))
       .catch((cause: unknown) =>
-        setError(cause instanceof ApiError ? cause.message : 'رمز التحقق غير صحيح.')
+        setError(apiErrorMessage(cause, 'رمز التحقق غير صحيح.'))
       )
       .finally(() => setPending(false));
   };
@@ -227,7 +239,7 @@ export function RegisterScreen() {
     void requestOtp({ phone: normalizedPhone })
       .then(() => setResendIn(30))
       .catch((cause: unknown) =>
-        setError(cause instanceof ApiError ? cause.message : 'تعذر إرسال الرمز.')
+        setError(apiErrorMessage(cause, 'تعذر إرسال الرمز.'))
       )
       .finally(() => setPending(false));
   };
@@ -251,7 +263,7 @@ export function RegisterScreen() {
                 setResendIn(30);
               })
               .catch((cause: unknown) =>
-                setError(cause instanceof ApiError ? cause.message : 'تعذر إنشاء الحساب.')
+                setError(apiErrorMessage(cause, 'تعذر إنشاء الحساب.'))
               )
               .finally(() => setPending(false));
           }}
@@ -378,13 +390,13 @@ export function ForgotPasswordScreen() {
     if (!phoneValid(phone) || pending) return;
     setPending(true);
     setError(null);
-    void requestOtp({ phone: phone.replace(/[\s-]/g, '') })
+    void requestOtp({ phone: normalizePhone(phone) })
       .then(() => {
         setStep(2);
         setResendIn(30);
       })
       .catch((cause: unknown) =>
-        setError(cause instanceof ApiError ? cause.message : 'تعذر إرسال الرمز.')
+        setError(apiErrorMessage(cause, 'تعذر إرسال الرمز.'))
       )
       .finally(() => setPending(false));
   };
@@ -392,10 +404,10 @@ export function ForgotPasswordScreen() {
     if (code.length !== 6 || !passwordStrong(password) || password !== confirm || pending) return;
     setPending(true);
     setError(null);
-    void resetPassword({ phone: phone.replace(/[\s-]/g, ''), code, password })
+    void resetPassword({ phone: normalizePhone(phone), code, password })
       .then(() => navigate('/login', { replace: true, state: { resetComplete: true } }))
       .catch((cause: unknown) =>
-        setError(cause instanceof ApiError ? cause.message : 'تعذر تحديث كلمة المرور.')
+        setError(apiErrorMessage(cause, 'تعذر تحديث كلمة المرور.'))
       )
       .finally(() => setPending(false));
   };

@@ -59,6 +59,12 @@ export async function register(
     throw conflict('رقم الجوال مسجّل مسبقاً / This phone number is already registered');
   }
 
+  // Dispatch the verification code BEFORE creating the account. If the SMS
+  // carrier is down, `requestOtp` now throws a clean 503 (SMS_DELIVERY_FAILED)
+  // and NO account row exists yet — so a retry is not a confusing 409, and a
+  // failed registration never orphans an unverified account.
+  const otp = await requestOtp({ phone: body.phone });
+
   const user = await prisma.user.create({
     data: {
       name: body.name,
@@ -72,10 +78,6 @@ export async function register(
       isVerified: false,
     },
   });
-
-  // Initiate the mandatory OTP verification step: generate + persist the code
-  // (hashed, with expiresAt) and dispatch it. No session is returned yet.
-  const otp = await requestOtp({ phone: body.phone });
 
   return { user: toPublicUser(user), verificationRequired: true, otp };
 }

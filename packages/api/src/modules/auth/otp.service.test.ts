@@ -195,6 +195,15 @@ describe('requestOtp — dispatch + rate limiting', () => {
     expect(h.state.otp?.requests).toBe(3);
     expect(h.gateway.send).toHaveBeenCalledTimes(1);
   });
+
+  it('surfaces an SMS carrier failure as a clean 503, never a generic 500', async () => {
+    h.gateway.send.mockRejectedValueOnce(new Error('carrier timeout'));
+
+    const promise = requestOtp({ phone: PHONE });
+
+    await expect(promise).rejects.toMatchObject({ statusCode: 503, code: 'SMS_DELIVERY_FAILED' });
+    await expect(promise).rejects.toMatchObject({ message: expect.stringContaining("Couldn't send the verification code") });
+  });
 });
 
 describe('verifyOtp — customer sign-in', () => {

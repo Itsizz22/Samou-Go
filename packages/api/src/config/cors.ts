@@ -49,6 +49,21 @@ export const LOCAL_DEV_ORIGINS: readonly string[] = [
   'http://localhost:5179',
 ];
 
+/**
+ * Capacitor origins — the Android/iOS WebView serves the bundled app from a
+ * local origin and the browser reports THAT origin (not the deployed one) in
+ * the `Origin` header of every cross-origin fetch and preflight. The scheme
+ * depends on the platform/build: `https://localhost` is Capacitor's default
+ * local server scheme, `http://localhost` is the cleartext fallback, and
+ * `capacitor://localhost` is the legacy iOS scheme. Baked in so a fresh Render
+ * service answers native clients even before `CORS_ORIGINS` is configured.
+ */
+export const MOBILE_ORIGINS: readonly string[] = [
+  'https://localhost',
+  'http://localhost',
+  'capacitor://localhost',
+];
+
 /** Vercel preview deployments (branch + per-commit URLs). */
 export const VERCEL_PREVIEW_PATTERN = /^https:\/\/[a-z0-9-]+\.vercel\.app$/;
 
@@ -83,6 +98,7 @@ export function isAllowedOrigin(origin: string): boolean {
   if (env.corsOrigins.includes('*')) return true;
   if (PRODUCTION_ORIGINS.includes(origin)) return true;
   if (LOCAL_DEV_ORIGINS.includes(origin)) return true;
+  if (MOBILE_ORIGINS.includes(origin)) return true;
   if (VERCEL_PREVIEW_PATTERN.test(origin)) return true;
   return env.corsOrigins.includes(origin);
 }
