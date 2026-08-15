@@ -15,6 +15,7 @@ vi.mock('./env', () => ({ env: h.env }));
 import {
   ALLOWED_METHODS,
   LOCAL_DEV_ORIGINS,
+  MOBILE_ORIGINS,
   PRODUCTION_ORIGINS,
   VERCEL_PREVIEW_PATTERN,
   corsOptions,
@@ -70,6 +71,19 @@ describe('local development', () => {
 
   it('still honours extra origins from CORS_ORIGINS', () => {
     expect(isAllowedOrigin('http://192.168.0.100:5173')).toBe(true);
+  });
+});
+
+describe('Capacitor mobile WebView origins', () => {
+  it('allows every local server origin the native apps report', () => {
+    for (const origin of MOBILE_ORIGINS) {
+      expect(isAllowedOrigin(origin)).toBe(true);
+    }
+  });
+
+  it('sends credentials for the native origin', () => {
+    const { allowed } = askPolicy('https://localhost');
+    expect(allowed).toBe(true);
   });
 });
 

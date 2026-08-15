@@ -25,7 +25,7 @@ import type {
 import { UserRole } from "@samou-go/shared-types";
 import { env } from "../../config/env";
 import { prisma } from "../../lib/prisma";
-import { notFound, tooMany, unauthorized, type HttpError } from "../../lib/http-error";
+import { notFound, serviceUnavailable, tooMany, unauthorized, type HttpError } from "../../lib/http-error";
 import { hashPassword } from "../../lib/password";
 import { signAccessToken } from "../../lib/jwt";
 import { getSmsGateway } from "../../lib/sms/gateway";
@@ -176,7 +176,22 @@ export async function requestOtp(
   });
 
   const gateway = getSmsGateway();
-  await gateway.send({ to: upserted.phone, body: buildSmsBody(code) });
+
+  // A delivery outage (carrier down, cloud function erroring, misconfigured
+  // provider) is retryable and must NEVER surface as the generic 500. It is a
+  // clean 503 the client can explain verbatim. The code row stays persisted so
+  // the retry does not count as a brand-new request in the rate window.
+  let dispatched = false;
+  try {
+    await gateway.send({ to: upserted.phone, body: buildSmsBody(code) });
+    dispatched = gateway.provider !== "none" && gateway.provider !== "console";
+  } catch (cause) {
+    console.error(`[sms] dispatch failed for ${upserted.phone}`, cause);
+    throw serviceUnavailable(
+      "SMS_DELIVERY_FAILED",
+      "تعذّر إرسال رمز التحقق، حاول مجدداً / Couldn't send the verification code — please try again",
+    );
+  }
 
   const windowElapsed = now.getTime() - upserted.windowStartsAt.getTime();
   return {
@@ -184,7 +199,7 @@ export async function requestOtp(
       0,
       Math.ceil((env.otp.rateWindowMs - windowElapsed) / 1_000),
     ),
-    dispatched: gateway.provider !== "none" && gateway.provider !== "console",
+    dispatched,
   };
 }
 
