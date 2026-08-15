@@ -22,6 +22,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { UserRole } from '@samou-go/shared-types';
 import {
   Heart,
   Home as HomeIcon,
@@ -32,7 +33,9 @@ import {
   Search,
   Settings,
   ShoppingCart,
+  Store,
   Sun,
+  Truck,
   UserRound,
   X,
 } from 'lucide-react';
@@ -40,6 +43,7 @@ import { LanguageToggle, useLanguage } from '@samou-go/ui';
 import { useAuth } from '@/hooks/useApi';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ACCENT_OPTIONS } from '@/theme/presets';
+import { roleHomePath } from '@/lib/roles';
 
 interface DrawerContextValue {
   open: boolean;
@@ -213,6 +217,38 @@ export function NavigationDrawer() {
                 </div>
               </Link>
             )}
+
+            {/* Staff role switcher — a captain/store manager browsing the feed
+                can jump straight to their merged dashboard. */}
+            {auth.user &&
+              (auth.user.role === UserRole.CAPTAIN || auth.user.role === UserRole.STORE_MANAGER) && (
+                <div className="border-b border-line px-5 py-4">
+                  <Link
+                    to={roleHomePath(auth.user.role)}
+                    onClick={closeDrawer}
+                    className="flex items-center gap-3 rounded-2xl bg-brand-tint px-4 py-3 transition hover:bg-brand-surface active:scale-[0.99]"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white">
+                      {auth.user.role === UserRole.CAPTAIN ? <Truck size={18} /> : <Store size={18} />}
+                    </span>
+                    <span className="flex-1 text-end">
+                      <span className="block text-sm font-extrabold text-brand-deep">
+                        {auth.user.role === UserRole.CAPTAIN
+                          ? 'واجهة الكابتن'
+                          : 'واجهة مدير المتجر'}
+                      </span>
+                      <span dir="ltr" className="block text-[10px] font-medium text-ink-muted">
+                        {auth.user.role === UserRole.CAPTAIN
+                          ? 'Captain dashboard'
+                          : 'Store manager dashboard'}
+                      </span>
+                    </span>
+                    <span className="rounded-full bg-brand px-2.5 py-1 text-[10px] font-extrabold text-white">
+                      فتح
+                    </span>
+                  </Link>
+                </div>
+              )}
 
             {/* Navigation links */}
             <nav className="flex-1 overflow-y-auto px-3 py-3" aria-label="Drawer navigation">

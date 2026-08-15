@@ -11,6 +11,7 @@ import {
   verifyOtp,
 } from '@/hooks/useApi';
 import { OtpPinInput } from '@/components/OtpPinInput';
+import { roleHomePath } from '@/lib/roles';
 
 const phoneValid = (phone: string) => /^05\d{8}$/.test(phone.replace(/[\s-]/g, ''));
 const passwordStrong = (password: string) => password.length >= 8;
@@ -90,7 +91,7 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
 
-  if (auth.ready && auth.user) return <Navigate to="/" replace />;
+  if (auth.ready && auth.user) return <Navigate to={roleHomePath(auth.user.role)} replace />;
   const valid = phoneValid(phone) && password.length > 0;
   return (
     <AuthShell>
@@ -115,7 +116,7 @@ export function LoginScreen() {
           if (!valid || auth.pending) return;
           setSessionPersistence(remember);
           void auth.signIn({ phone: phone.replace(/[\s-]/g, ''), password }).then(user => {
-            if (user) navigate('/', { replace: true });
+            if (user) navigate(roleHomePath(user.role), { replace: true });
           });
         }}
       >
@@ -197,7 +198,7 @@ export function RegisterScreen() {
     passwordStrong(password) &&
     password === confirm &&
     accepted;
-  if (auth.ready && auth.user) return <Navigate to="/" replace />;
+  if (auth.ready && auth.user) return <Navigate to={roleHomePath(auth.user.role)} replace />;
   const strength =
     password.length === 0
       ? ''
