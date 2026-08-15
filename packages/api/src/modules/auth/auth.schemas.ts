@@ -54,6 +54,23 @@ export const loginSchema = z.object({
   password: z.string().min(1, "كلمة المرور مطلوبة / Password is required"),
 });
 
+/**
+ * POST /auth/firebase-register — Firebase Phone Auth already proved the phone
+ * client-side; the ID token is the credential, so there is no password.
+ * `phone` is cross-checked against the token's `phone_number` claim.
+ */
+export const firebaseRegisterSchema = z.object({
+  idToken: z
+    .string()
+    .min(20, "رمز تحقق Firebase غير صالح / Invalid Firebase verification token"),
+  name: z
+    .string()
+    .trim()
+    .min(2, "الاسم قصير جداً / Name is too short")
+    .max(120),
+  phone: phoneSchema,
+});
+
 /** POST /auth/otp/request — the phoneSchema normalises before the service runs. */
 export const otpRequestSchema = z.object({
   phone: phoneSchema,
@@ -169,6 +186,7 @@ export const userListQuerySchema = z.object({
 });
 
 export type RegisterBody = z.infer<typeof registerSchema>;
+export type FirebaseRegisterBody = z.infer<typeof firebaseRegisterSchema>;
 export type LoginBody = z.infer<typeof loginSchema>;
 export type OtpRequestBody = z.infer<typeof otpRequestSchema>;
 export type OtpVerifyBody = z.infer<typeof otpVerifySchema>;

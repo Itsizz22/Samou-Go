@@ -41,10 +41,16 @@ export function createTwilioGateway(): SmsGateway {
       const payload = (await response.json().catch(() => ({}))) as {
         status?: string;
         sid?: string;
+        code?: number;
+        message?: string;
       };
 
       if (!response.ok) {
-        throw new Error(`Twilio rejected the message (${response.status})`);
+        // The provider's own reason (e.g. "The 'To' number is not a valid phone
+        // number") is exactly what Render logs need — surface it verbatim.
+        throw new Error(
+          `Twilio rejected the message (${response.status}): ${payload.message ?? payload.code ?? 'no detail'}`,
+        );
       }
 
       return {

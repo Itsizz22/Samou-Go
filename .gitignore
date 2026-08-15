@@ -18,6 +18,10 @@ themes/*/android/
 .env.*
 !.env.example
 
+# Firebase Admin service account (private key) — never commit
+firebase-service-account.json
+packages/api/firebase-service-account.json
+
 # prisma
 packages/api/prisma/migrations/dev.db*
 packages/api/prisma/*.db

@@ -32,7 +32,10 @@ export function createGenericGateway(): SmsGateway {
       });
 
       if (!response.ok) {
-        throw new Error(`SMS gateway rejected the message (${response.status})`);
+        const detail = await response.text().catch(() => '');
+        throw new Error(
+          `SMS gateway rejected the message (${response.status}): ${detail.slice(0, 200) || 'no detail'}`,
+        );
       }
 
       return { accepted: true };
@@ -53,6 +56,28 @@ export function createConsoleGateway(): SmsGateway {
       // Production is configured with a real carrier and never reaches here.
       console.log(
         `[SMS:console] to=${message.to}\n${message.body}`
+      );
+      return { accepted: true };
+    },
+  };
+}
+
+/**
+ * Test-only fallback for when NO live carrier is configured yet (e.g. a
+ * staging deployment before Twilio onboarding finishes). Logs the code to
+ * stdout exactly like `console`, but advertises `provider: 'mock'` so the OTP
+ * service reports `dispatched: false` — clients can then surface a "test mode"
+ * hint instead of pretending a real SMS was sent.
+ *
+ * In production this is gated behind `SMS_ALLOW_INSECURE_TEST_PROVIDERS=true`
+ * (see `config/env.ts`) so it can never be switched on by accident.
+ */
+export function createMockGateway(): SmsGateway {
+  return {
+    provider: 'mock',
+    async send(message: SmsMessage): Promise<SmsSendResult> {
+      console.log(
+        `[SMS:mock] to=${message.to}\n${message.body}\n---\nTest mode: no real SMS was sent.`
       );
       return { accepted: true };
     },
