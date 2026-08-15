@@ -40,8 +40,11 @@ jobs:
       - name: Run Typecheck
         run: npm run typecheck
 
-      - name: Build All
-        run: npm run build
+      # Builds the shared packages, the API *and* all 7 Vite SPAs. `npm run build`
+      # alone stops at shared-types/ui/api, which let broken `vite build`s reach
+      # the production deploy workflow unnoticed.
+      - name: Build All (packages + 7 SPAs)
+        run: npm run build:all
 
       - name: Run Tests
         run: npm test

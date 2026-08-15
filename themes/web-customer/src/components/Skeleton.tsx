@@ -1,12 +1,14 @@
 /**
  * Shimmering skeleton primitives — replace every spinner with a layout-stable
- * placeholder. The shimmer is a GPU-friendly background-position slide so it
- * stays cheap on mid-range Android WebViews.
+ * placeholder. The shape helpers below stay local (they encode this app's
+ * layouts); the shimmer itself comes from `@samou-go/ui` so all seven apps
+ * share one loading look.
  */
+import { Skeleton as SharedSkeleton } from '@samou-go/ui';
 import type { ReactNode } from 'react';
 
 export function Skeleton({ className = '' }: { className?: string }) {
-  return <div aria-hidden="true" className={`skeleton shimmer ${className}`} />;
+  return <SharedSkeleton className={className} />;
 }
 
 /** A store-card-shaped placeholder used while the catalogue loads. */

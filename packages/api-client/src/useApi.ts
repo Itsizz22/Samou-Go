@@ -386,7 +386,12 @@ export function useOrderEvent(
       return;
     }
 
-    const url = `${API_URL}/orders/events/${orderId}?t=${Date.now()}`;
+    // Path must match `ordersRouter.get('/:orderId/events')` on the API — the
+    // id goes in the middle, not last. `EventSource` cannot set an
+    // `Authorization` header, so this stream is anonymous by design and the
+    // server sends status transitions only (no PII); `withCredentials` is kept
+    // so the allow-list/credentials handshake stays consistent with `fetch`.
+    const url = `${API_URL}/orders/${orderId}/events?t=${Date.now()}`;
     const source = new EventSource(url, { withCredentials: true });
 
     eventSourceRef.current = source;

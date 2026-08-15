@@ -78,25 +78,13 @@ import {
 import { AdminSidebar, ADMIN_NAV_ITEMS } from '@/components/Sidebar';
 import { NotificationsDrawer, relativeTimeArabic } from '@/components/NotificationsDrawer';
 import { ProfileMenu } from '@/components/ProfileMenu';
-import { type BellNotification, ThemeToggle } from '@samou-go/ui';
+import { Badge, type BellNotification, ThemeToggle } from '@samou-go/ui';
 import { LeafletMap } from '@samou-go/ui/map';
 import { CreateCaptainDialog, CreateStoreDialog } from '@/components/CreateDialogs';
 
 /* ---------------------------------------------------------------------------
  * Shared bits
  * ------------------------------------------------------------------------- */
-
-const TONE_CLASSES: Record<string, string> = {
-  brand: 'bg-brand-tint text-brand-dark',
-  warning: 'bg-warning-tint text-warning-ink',
-  info: 'bg-info-tint text-info-ink',
-  danger: 'bg-danger-tint text-danger-ink',
-  neutral: 'bg-canvas text-ink-muted',
-};
-
-function statusBadgeClass(status: OrderStatus): string {
-  return TONE_CLASSES[ORDER_STATUS_TONES[status]] ?? TONE_CLASSES.neutral!;
-}
 
 function shortTime(iso: string): string {
   try {
@@ -671,11 +659,9 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
                 return (
                   <div key={status} className="min-h-32 rounded-xl bg-canvas p-3">
                     <div className="flex items-center justify-between">
-                      <span
-                        className={`rounded-full px-2 py-1 text-[10px] font-bold ${statusBadgeClass(status)}`}
-                      >
+                      <Badge tone={ORDER_STATUS_TONES[status]}>
                         {ORDER_STATUS_LABELS[status].ar}
-                      </span>
+                      </Badge>
                       <span className="text-[11px] font-extrabold text-ink-muted">
                         {column.length}
                       </span>
@@ -752,11 +738,9 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
                           <td className="px-3 py-4 text-ink-muted">{order.storeNameAr}</td>
                           <td className="px-3 py-4 text-ink-muted">{order.itemCount}</td>
                           <td className="px-3 py-4">
-                            <span
-                              className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${statusBadgeClass(order.status)}`}
-                            >
+                            <Badge tone={ORDER_STATUS_TONES[order.status]}>
                               {ORDER_STATUS_LABELS[order.status].ar}
-                            </span>
+                            </Badge>
                           </td>
                           <td className="px-3 py-4 text-ink-muted" dir="ltr">
                             {shortTime(order.createdAt)}
@@ -983,11 +967,9 @@ function OrdersPanel() {
                       </td>
                       <td className="px-3 py-3 text-ink-muted">{order.storeNameAr}</td>
                       <td className="px-3 py-3">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${statusBadgeClass(order.status)}`}
-                        >
+                        <Badge tone={ORDER_STATUS_TONES[order.status]}>
                           {ORDER_STATUS_LABELS[order.status].ar}
-                        </span>
+                        </Badge>
                       </td>
                       <td className="px-3 py-3">
                         {legal.length === 0 ? (

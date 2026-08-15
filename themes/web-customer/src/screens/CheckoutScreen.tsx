@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import type { ApiError } from '@samou-go/api-client';
 import { createOrder, quoteOrder } from '@/hooks/useApi';
+import { OrderSuccess, Button } from '@samou-go/ui';
 import { useCart } from '@/components/CartProvider';
 import { CustomerAuthGate } from '@/components/CustomerAuthGate';
 import { useAuth } from '@/hooks/useApi';
@@ -41,7 +42,7 @@ import {
   type SavedAddress,
 } from '@/lib/address-book';
 import { PageTransition } from '@/components/PageTransition';
-import type { DeliveryRegion } from '@samou-go/shared-types';
+import type { DeliveryRegion, OrderDetail } from '@samou-go/shared-types';
 
 /**
  * Server codes that mean "the basket you are looking at is no longer current" —
@@ -90,6 +91,8 @@ export function CheckoutScreen() {
   const [appliedVoucher, setAppliedVoucher] = useState('');
   const [placing, setPlacing] = useState(false);
   const [submitError, setSubmitError] = useState<ApiError | null>(null);
+  /** The order just created — when set, the form gives way to the success scene. */
+  const [placedOrder, setPlacedOrder] = useState<OrderDetail | null>(null);
   /** Re-fetches the live quote — bumped when a stale-basket error is caught. */
   const [quoteRevision, setQuoteRevision] = useState(0);
   /**
@@ -178,6 +181,34 @@ export function CheckoutScreen() {
 
   const useSavedAddress = saved.find((entry) => entry.id === selectedAddressId) ?? null;
 
+  // Order placed — the form hands over to the success scene: a captain rides off
+  // with the basket while a check mark draws itself.
+  if (placedOrder) {
+    return (
+      <PageTransition>
+        <main dir="rtl" className="flex min-h-screen flex-col bg-canvas text-ink">
+          <OrderSuccess
+            orderNumber={placedOrder.orderNumber}
+            eta={placedOrder.estimatedPrepMinutes ? `وصول الكابتن خلال ~${placedOrder.estimatedPrepMinutes} دقيقة` : undefined}
+            actions={
+              <>
+                <Button
+                  block
+                  onClick={() => navigate(`/orders/${placedOrder.id}`)}
+                >
+                  تتبع الطلب
+                </Button>
+                <Button variant="secondary" block onClick={() => navigate('/')}>
+                  العودة للمتاجر
+                </Button>
+              </>
+            }
+          />
+        </main>
+      </PageTransition>
+    );
+  }
+
   const handleSubmit = async () => {
     // Double-tap guard: only one placement in flight, ever.
     if (submittingRef.current) return;
@@ -220,7 +251,7 @@ export function CheckoutScreen() {
 
     setPlacing(true);
     try {
-      await createOrder({
+      const created = await createOrder({
         storeId: cart.storeId,
         items,
         customerAddressText: finalText,
@@ -231,7 +262,7 @@ export function CheckoutScreen() {
       });
       await hapticSuccess();
       cart.clear();
-      navigate('/');
+      setPlacedOrder(created);
     } catch (cause) {
       const apiError =
         cause instanceof Error && 'code' in (cause as ApiError)
@@ -592,19 +623,16 @@ export function CheckoutScreen() {
             </p>
           )}
 
-          <button
+          <Button
             type="button"
             onClick={() => void handleSubmit()}
-            disabled={placing || cart.lines.length === 0}
-            className="btn-primary w-full justify-center"
+            disabled={cart.lines.length === 0}
+            loading={placing}
+            block
+            icon={placing ? undefined : <Package size={16} />}
           >
-            {placing ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Package size={16} />
-            )}
             تأكيد الطلب — الدفع عند الاستلام
-          </button>
+          </Button>
           <p className="pb-4 text-center text-[10px] text-ink-subtle" dir="ltr">
             Samou' is a cash economy — the captain collects on delivery.
           </p>

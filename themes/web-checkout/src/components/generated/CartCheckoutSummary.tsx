@@ -12,7 +12,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
-  CheckCircle2,
   Loader2,
   LogOut,
   MapPin,
@@ -42,7 +41,7 @@ import type {
   OrderQuote,
   Product,
 } from '@samou-go/shared-types';
-import { DeliveryFee } from '@samou-go/ui';
+import { DeliveryFee, OrderSuccess } from '@samou-go/ui';
 import {
   CURRENCY,
   calculateDeliveryFee,
@@ -236,54 +235,46 @@ export const CartCheckoutSummary = () => {
     return (
       <div className="min-h-screen bg-canvas text-ink" dir="rtl">
         <HeaderNav title="Order placed / تم الطلب" showBack={false} showCart={false} />
-        <main className="mx-auto w-full max-w-lg px-4 pb-32 pt-10" aria-live="polite">
-          <div className="rounded-xl bg-surface p-7 text-center shadow-card ring-1 ring-line">
-            <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-tint text-brand-deep">
-              <CheckCircle2 size={32} />
-            </span>
-            <h1 className="mt-4 text-xl font-black">تم استلام طلبك</h1>
-            <p className="mt-1 text-sm text-ink-muted" dir="ltr">
-              Your order has been received
-            </p>
+        <main className="mx-auto w-full max-w-lg px-4 pb-32 pt-6" aria-live="polite">
+          <OrderSuccess
+            orderNumber={placed.orderNumber}
+            actions={
+              <>
+                <a
+                  href={`${TRACKING_URL}/?orderId=${encodeURIComponent(placed.id)}`}
+                  className="btn-primary w-full justify-center"
+                >
+                  <Truck size={20} />
+                  تتبّع الطلب <span dir="ltr">Track order</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    submit.reset();
+                    setQuantities({});
+                  }}
+                  className="btn-secondary w-full justify-center"
+                >
+                  طلب جديد <span dir="ltr">New order</span>
+                </button>
+              </>
+            }
+          />
 
-            <p className="mt-5 text-xs font-semibold text-ink-muted">رقم الطلب / Order number</p>
-            <p dir="ltr" className="mt-1 text-2xl font-black tracking-tight text-brand">
-              {placed.orderNumber}
-            </p>
-
-            <dl className="mt-5 space-y-2 border-t border-dashed border-line pt-5 text-sm">
-              <div className="flex items-center justify-between text-ink-muted">
-                <dt>الإجمالي / Total</dt>
-                <dd dir="ltr" className="font-black text-ink">
-                  {formatCurrency(placed.totalAmount, { unit: 'code' })}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between text-ink-muted">
-                <dt>العنوان / Address</dt>
-                <dd className="max-w-[60%] truncate font-semibold text-ink">
-                  {placed.customerAddressText}
-                </dd>
-              </div>
-            </dl>
-
-            <a
-              href={`${TRACKING_URL}/?orderId=${encodeURIComponent(placed.id)}`}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-4 text-base font-black text-white shadow-raised transition hover:bg-brand-dark focus:outline-none focus:ring-4 focus:ring-brand-tint"
-            >
-              <Truck size={20} />
-              تتبّع الطلب <span dir="ltr">Track order</span>
-            </a>
-            <button
-              type="button"
-              onClick={() => {
-                submit.reset();
-                setQuantities({});
-              }}
-              className="mt-3 w-full rounded-xl border border-line bg-surface py-3 text-sm font-bold text-ink-soft transition hover:bg-canvas"
-            >
-              طلب جديد <span dir="ltr">New order</span>
-            </button>
-          </div>
+          <dl className="mx-auto mt-4 w-full max-w-sm space-y-2 rounded-xl bg-surface p-5 text-sm shadow-card ring-1 ring-line">
+            <div className="flex items-center justify-between text-ink-muted">
+              <dt>الإجمالي / Total</dt>
+              <dd dir="ltr" className="font-black text-ink">
+                {formatCurrency(placed.totalAmount, { unit: 'code' })}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between text-ink-muted">
+              <dt>العنوان / Address</dt>
+              <dd className="max-w-[60%] truncate font-semibold text-ink">
+                {placed.customerAddressText}
+              </dd>
+            </div>
+          </dl>
         </main>
         <BottomTabs activeTab="orders" />
       </div>

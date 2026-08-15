@@ -12,6 +12,26 @@ export const ordersRouter: Router = Router();
  */
 ordersRouter.post('/quote', optionalAuthenticate, asyncHandler(controller.quoteOrderHandler));
 
+/**
+ * SSE stream: GET /api/v1/orders/:orderId/events — fires whenever the order's
+ * status changes. Paired with the `useOrderEvent` hook in `@samou-go/api-client`.
+ *
+ * Registered **above** the `authenticate` gate on purpose. A browser
+ * `EventSource` cannot set an `Authorization` header, so a hard-gated stream
+ * could never connect from any of the seven SPAs — it would 401 before the
+ * handler ran and the hook would fall back to polling forever. `optionalAuthenticate`
+ * therefore does the work: a token, when one arrives (curl, a native client),
+ * is verified and ownership is enforced in the handler; an anonymous stream is
+ * allowed and carries status transitions only — never address, phone or captain
+ * PII. Order ids are unguessable, so that is the same exposure as the tracking
+ * link itself.
+ */
+ordersRouter.get(
+  '/:orderId/events',
+  optionalAuthenticate,
+  asyncHandler(controller.orderEventSSEHandler)
+);
+
 // Everything below requires a token.
 ordersRouter.use(authenticate);
 
@@ -48,16 +68,4 @@ ordersRouter.patch(
   '/:orderId/captain',
   authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
   asyncHandler(controller.assignCaptainHandler)
-);
-
-/**
- * SSE endpoint: GET /api/v1/orders/events/:orderId
- * Returns a text/event-stream that fires whenever the order status changes.
- * Works with the `useOrderEvent` hook on any frontend.
- * Anonymous connections keep the stream alive; auth validates ownership.
- */
-ordersRouter.get(
-  '/:orderId/events',
-  optionalAuthenticate,
-  asyncHandler(controller.orderEventSSEHandler)
 );
