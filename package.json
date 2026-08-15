@@ -42,7 +42,8 @@
     "db:push": "npm run prisma:push --workspace @samou-go/api",
     "db:studio": "npm run prisma:studio --workspace @samou-go/api",
     "db:seed": "npm run prisma:seed --workspace @samou-go/api",
-    "db:admin-password": "npm run admin:password --workspace @samou-go/api",
+    "db:demo-passwords": "npm run demo:passwords --workspace @samou-go/api",
+    "db:migrate-demo-passwords": "npm run migrate:demo-passwords --workspace @samou-go/api",
     "test:e2e": "npm run test:e2e --workspace @samou-go/api",
     "test": "npm run test --workspace @samou-go/shared-types"
   },
