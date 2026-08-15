@@ -7,14 +7,30 @@
  *
  * Never run against production: the passwords below are public knowledge.
  */
+import path from 'node:path';
+import dotenv from 'dotenv';
+
+// 1. تحميل .env الخاص بالمشروع فوراً مع تجاوز أي كاش قديم
+dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true });
+
 import { OrderStatus, PaymentMethod } from '@samou-go/shared-types';
 import { calculateOrderTotals, lineTotal } from '@samou-go/shared-types';
 import { env } from '../config/env';
-import { prisma } from '../lib/prisma';
 import { hashPassword } from '../lib/password';
 import { formatOrderNumber, startOfDay } from '../lib/order-number';
 import { creditDeliveredOrder } from '../modules/platform/platform.service';
 import { DEMO_PASSWORD, DEMO_USERS } from './demo-users';
+
+// 2. استخدام PrismaClient المباشر وقراءة DATABASE_URL من البيئة مباشرة
+import { PrismaClient } from '../../generated/prisma-postgres';
+
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
+});
 
 interface SeedProduct {
   id: string;
@@ -367,12 +383,6 @@ async function seedCatalogue(): Promise<void> {
   console.log(`✓ ${STORES.length} stores, ${categoryCount} categories, ${productCount} products`);
 }
 
-interface SeedOrderLine {
-  productId: string;
-  quantity: number;
-  unitPrice: number;
-}
-
 interface SeedOrder {
   id: string;
   sequence: number;
@@ -538,7 +548,7 @@ async function seedWalletCredits(): Promise<void> {
     select: { storeId: true, captainId: true, subtotal: true, deliveryFee: true, orderNumber: true },
   });
   if (delivered) {
-    await prisma.$transaction(tx => creditDeliveredOrder(tx, delivered));
+    await prisma.$transaction(tx => creditDeliveredOrder(tx as any, delivered));
     console.log('✓ wallet credits for the delivered demo order');
   }
 }
@@ -550,7 +560,7 @@ async function main(): Promise<void> {
         'creates/grows real rows. Seed only in development or staging.'
     );
   }
-  
+
   console.log("🌱 Seeding Samou' Go — Neon PostgreSQL Database");
   await seedCleanup();
   await seedUsers();
@@ -566,6 +576,7 @@ main()
     console.error('Seed failed:', error);
     process.exitCode = 1;
   })
-  .finally(() => {
-    void prisma.$disconnect();
+  .finally(async () => {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    await prisma.$disconnect();
   });
