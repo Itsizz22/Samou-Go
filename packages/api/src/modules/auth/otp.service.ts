@@ -29,6 +29,7 @@ import { notFound, serviceUnavailable, tooMany, unauthorized, type HttpError } f
 import { hashPassword } from "../../lib/password";
 import { signAccessToken } from "../../lib/jwt";
 import { getSmsGateway } from "../../lib/sms/gateway";
+import { toE164 } from "../../lib/sms/phone";
 import { toPublicUser } from "./auth.mapper";
 import { issueRefreshToken } from "./refresh-token";
 import { revokeAllUserRefreshTokens } from "./refresh-token";
@@ -177,16 +178,26 @@ export async function requestOtp(
 
   const gateway = getSmsGateway();
 
+  // Carriers require E.164 (`+9705XXXXXXXX`), while the API stores and
+  // validates canonical local form (`05XXXXXXXX`) — convert at the edge.
+  const to = toE164(upserted.phone, env.sms.countryCode);
+
   // A delivery outage (carrier down, cloud function erroring, misconfigured
   // provider) is retryable and must NEVER surface as the generic 500. It is a
   // clean 503 the client can explain verbatim. The code row stays persisted so
   // the retry does not count as a brand-new request in the rate window.
   let dispatched = false;
   try {
-    await gateway.send({ to: upserted.phone, body: buildSmsBody(code) });
-    dispatched = gateway.provider !== "none" && gateway.provider !== "console";
+    await gateway.send({ to, body: buildSmsBody(code) });
+    dispatched =
+      gateway.provider !== "none" &&
+      gateway.provider !== "console" &&
+      gateway.provider !== "mock";
   } catch (cause) {
-    console.error(`[sms] dispatch failed for ${upserted.phone}`, cause);
+    console.error(
+      `[sms] ${env.sms.provider} dispatch failed for ${upserted.phone} (E.164 ${to})`,
+      cause,
+    );
     throw serviceUnavailable(
       "SMS_DELIVERY_FAILED",
       "تعذّر إرسال رمز التحقق، حاول مجدداً / Couldn't send the verification code — please try again",

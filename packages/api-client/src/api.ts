@@ -35,6 +35,7 @@ import type {
   CreateOrderInput,
   CreateProductInput,
   FavoriteListResult,
+  FirebaseRegisterInput,
   LoginInput,
   OrderDetail,
   OrderListQuery,
@@ -847,6 +848,25 @@ export function resetPassword(
     body: input,
     signal,
   }).then(() => undefined);
+}
+
+/**
+ * Registers with Firebase Phone Auth as the proof of ownership. The backend
+ * verifies the ID token with Firebase Admin, extracts the phone from the token
+ * claims, creates (or signs into) the account, and returns a session — the
+ * server-side OTP round-trip of `register()` is skipped entirely.
+ */
+export async function firebaseRegister(
+  input: FirebaseRegisterInput,
+  signal?: AbortSignal,
+): Promise<AuthResponse> {
+  const auth = await request<AuthResponse>("POST", "/auth/firebase-register", {
+    body: input,
+    signal,
+  });
+  setToken(auth.accessToken);
+  setRefreshToken(auth.refreshToken ?? null);
+  return auth;
 }
 
 /**

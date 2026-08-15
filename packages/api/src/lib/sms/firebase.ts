@@ -38,7 +38,10 @@ export function createFirebaseGateway(): SmsGateway {
       const payload = (await response.json().catch(() => ({}))) as { success?: boolean };
 
       if (!response.ok || payload.success !== true) {
-        throw new Error(`Firebase function rejected the message (${response.status})`);
+        const detail = await response.text().catch(() => '');
+        throw new Error(
+          `Firebase function rejected the message (${response.status}): ${detail.slice(0, 200) || 'no detail'}`,
+        );
       }
 
       return { accepted: true };

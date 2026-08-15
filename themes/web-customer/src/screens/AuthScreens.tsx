@@ -2,17 +2,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, Loader2, LockKeyhole, ShoppingCart } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  type ConfirmationResult,
+} from 'firebase/auth';
+import {
   ApiError,
-  register,
+  firebaseRegister,
   requestOtp,
   resetPassword,
   setSessionPersistence,
   useAuth,
-  verifyOtp,
 } from '@/hooks/useApi';
 import { OtpPinInput } from '@/components/OtpPinInput';
-import { normalizePhone, isValidPalestinianMobile } from '@/lib/phone';
+import { normalizePhone, isValidPalestinianMobile, toE164 } from '@/lib/phone';
 import { roleHomePath } from '@/lib/roles';
+import { auth as firebaseAuth } from '@/lib/firebase';
 
 const phoneValid = (phone: string) => isValidPalestinianMobile(phone);
 const passwordStrong = (password: string) => password.length >= 8;
@@ -26,6 +31,33 @@ function apiErrorMessage(cause: unknown, fallback: string): string {
   if (!(cause instanceof ApiError)) return fallback;
   const fieldMessages = cause.details.map(detail => detail.message).filter(Boolean);
   return fieldMessages.length > 0 ? fieldMessages.join(' · ') : cause.message;
+}
+
+/**
+ * Firebase phone-auth failures carry SDK error codes (`auth/...`) instead of
+ * HTTP envelopes — map the ones a Palestinian user can actually hit to a
+ * bilingual sentence, and fall back for anything unexpected.
+ */
+function firebaseErrorMessage(cause: unknown, fallback: string): string {
+  const code = (cause as { code?: string } | null)?.code;
+  switch (code) {
+    case 'auth/invalid-phone-number':
+      return 'رقم الجوال غير صالح / Invalid phone number';
+    case 'auth/invalid-verification-code':
+      return 'رمز التحقق غير صحيح / Invalid verification code';
+    case 'auth/code-expired':
+      return 'انتهت صلاحية الرمز — اطلب رمزاً جديداً / Code expired — request a new one';
+    case 'auth/too-many-requests':
+      return 'طلبات كثيرة جداً — انتظر قليلاً / Too many attempts — slow down';
+    case 'auth/quota-exceeded':
+      return 'تجاوز حد الرسائل اليومي — حاول لاحقاً / Daily SMS quota reached — try later';
+    case 'auth/network-request-failed':
+      return 'تعذر الاتصال بالشبكة / Network error — check your connection';
+    case 'auth/missing-recaptcha-token':
+      return 'تعذّر التحقق من أنك لست روبوتاً — أعد المحاولة / reCAPTCHA failed — try again';
+    default:
+      return fallback;
+  }
 }
 
 function AuthShell({ children }: { children: React.ReactNode }) {
@@ -192,11 +224,10 @@ export function RegisterScreen() {
   const [step, setStep] = useState<'form' | 'otp'>('form');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
   const [accepted, setAccepted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
   const [code, setCode] = useState('');
   const [resendIn, setResendIn] = useState(0);
   useEffect(() => {
@@ -204,44 +235,64 @@ export function RegisterScreen() {
     const timer = window.setTimeout(() => setResendIn(resendIn - 1), 1000);
     return () => window.clearTimeout(timer);
   }, [resendIn]);
-  const valid =
-    name.trim().length >= 2 &&
-    phoneValid(phone) &&
-    passwordStrong(password) &&
-    password === confirm &&
-    accepted;
+  // Tear the reCAPTCHA widget down with the screen — a widget left behind
+  // breaks the next visitor's `signInWithPhoneNumber` call on the same div.
+  useEffect(
+    () => () => {
+      try {
+        window.recaptchaVerifier?.clear();
+      } catch {
+        // Already cleared — nothing to do.
+      }
+    },
+    []
+  );
+  const valid = name.trim().length >= 2 && phoneValid(phone) && accepted;
   if (auth.ready && auth.user) return <Navigate to={roleHomePath(auth.user.role)} replace />;
-  const strength =
-    password.length === 0
-      ? ''
-      : password.length < 8
-        ? 'ضعيفة'
-        : password.length < 12
-          ? 'جيدة'
-          : 'قوية';
   const normalizedPhone = normalizePhone(phone);
+  const sendCode = () => {
+    if (pending) return;
+    setPending(true);
+    setError(null);
+    try {
+      window.recaptchaVerifier?.clear();
+    } catch {
+      // Fresh widget below — the old one is gone.
+    }
+    window.recaptchaVerifier = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', {
+      size: 'invisible',
+    });
+    signInWithPhoneNumber(firebaseAuth, toE164(normalizedPhone), window.recaptchaVerifier)
+      .then(result => {
+        setConfirmation(result);
+        setStep('otp');
+        setResendIn(30);
+      })
+      .catch((cause: unknown) =>
+        setError(firebaseErrorMessage(cause, 'تعذر إرسال رمز التحقق — حاول مجدداً.'))
+      )
+      .finally(() => setPending(false));
+  };
   const finish = () => {
-    if (code.length !== 6 || pending) return;
+    if (code.length !== 6 || pending || !confirmation) return;
     setPending(true);
     setError(null);
     setSessionPersistence(true);
-    void verifyOtp({ phone: normalizedPhone, code, name: name.trim() })
+    confirmation
+      .confirm(code)
+      .then(async firebaseUser => {
+        const idToken = await firebaseUser.user.getIdToken();
+        return firebaseRegister({ idToken, name: name.trim(), phone: normalizedPhone });
+      })
       .then(() => navigate('/', { replace: true }))
       .catch((cause: unknown) =>
-        setError(apiErrorMessage(cause, 'رمز التحقق غير صحيح.'))
+        setError(firebaseErrorMessage(cause, 'رمز التحقق غير صحيح.'))
       )
       .finally(() => setPending(false));
   };
   const resend = () => {
     if (pending || resendIn > 0) return;
-    setPending(true);
-    setError(null);
-    void requestOtp({ phone: normalizedPhone })
-      .then(() => setResendIn(30))
-      .catch((cause: unknown) =>
-        setError(apiErrorMessage(cause, 'تعذر إرسال الرمز.'))
-      )
-      .finally(() => setPending(false));
+    sendCode();
   };
   return (
     <AuthShell>
@@ -249,23 +300,14 @@ export function RegisterScreen() {
       <p className="mt-1 text-sm text-ink-muted" dir="ltr">
         Create your account
       </p>
+      <div id="recaptcha-container" aria-hidden="true" className="hidden" />
       {step === 'form' && (
         <form
           noValidate
           onSubmit={event => {
             event.preventDefault();
-            if (!valid || pending) return;
-            setPending(true);
-            setError(null);
-            void register({ name: name.trim(), phone: normalizedPhone, password })
-              .then(() => {
-                setStep('otp');
-                setResendIn(30);
-              })
-              .catch((cause: unknown) =>
-                setError(apiErrorMessage(cause, 'تعذر إنشاء الحساب.'))
-              )
-              .finally(() => setPending(false));
+            if (!valid) return;
+            sendCode();
           }}
         >
           <label className="mt-5 block text-sm font-bold">
@@ -289,24 +331,6 @@ export function RegisterScreen() {
               placeholder="05XXXXXXXX"
             />
           </label>
-          <PasswordInput
-            label="كلمة المرور"
-            value={password}
-            onChange={setPassword}
-            autoComplete="new-password"
-          />
-          <p className="mt-1 text-xs text-ink-muted">
-            قوة كلمة المرور: <b className="text-brand">{strength || '—'}</b> (8 أحرف على الأقل)
-          </p>
-          <PasswordInput
-            label="تأكيد كلمة المرور"
-            value={confirm}
-            onChange={setConfirm}
-            autoComplete="new-password"
-          />
-          {confirm.length > 0 && password !== confirm && (
-            <p className="mt-1 text-xs text-danger-ink">كلمتا المرور غير متطابقتين.</p>
-          )}
           <label className="mt-4 flex items-start gap-2 text-sm text-ink-muted">
             <input
               className="mt-1"

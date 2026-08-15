@@ -53,6 +53,7 @@ vi.mock('../../config/env', () => ({
   env: {
     isProduction: false,
     deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' },
+    sms: { provider: 'console', countryCode: '+970' },
     otp: { length: 6, ttlMs: 180_000, rateMax: 3, rateWindowMs: 300_000, maxAttempts: 5 },
   },
 }));
@@ -166,6 +167,8 @@ describe('requestOtp — dispatch + rate limiting', () => {
     expect(h.state.otp?.codeHash).toMatch(/^hash:\d{6}$/);
     expect(h.gateway.send).toHaveBeenCalledTimes(1);
     const [payload] = h.gateway.send.mock.calls[0];
+    // Carriers require E.164 — the local `05XXXXXXXX` must arrive as `+970…`.
+    expect((payload as { to: string }).to).toBe(`+970${PHONE.slice(1)}`);
     expect((payload as { body: string }).body).toContain('Samou');
     expect(result.dispatched).toBe(false); // console provider never counts as live
     expect(result.retryAfterSeconds).toBeGreaterThan(0);

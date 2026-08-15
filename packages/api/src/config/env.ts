@@ -26,8 +26,20 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
 
   /* ---- SMS / OTP --------------------------------------------------------- */
-  /** Which gateway dispatches OTP codes. `console` logs codes (dev only), `none` swallows them. */
-  SMS_PROVIDER: z.enum(['twilio', 'firebase', 'generic', 'console', 'none']).default('console'),
+  /** Which gateway dispatches OTP codes. `console` logs codes (dev only), `none` swallows them,
+   *  `mock` logs them but reports `dispatched: false` (test-only fallback). */
+  SMS_PROVIDER: z.enum(['twilio', 'firebase', 'generic', 'console', 'mock', 'none']).default('console'),
+  /** Country code prepended to local `05XXXXXXXX` numbers before they reach the carrier. */
+  SMS_COUNTRY_CODE: z.string().default('+970'),
+  /**
+   * Production gate for the test-only providers. `console`/`mock` never send a
+   * real SMS — booting production with them requires an explicit opt-in so a
+   * misconfigured deployment fails loudly instead of silently "verifying"
+   * nobody. Only useful while a live carrier is being wired up.
+   */
+  SMS_ALLOW_INSECURE_TEST_PROVIDERS: z
+    .enum(['true', 'false'])
+    .default('false'),
   SMS_GENERIC_ENDPOINT: z.string().url().optional(),
   SMS_GENERIC_API_KEY: z.string().optional(),
   SMS_GENERIC_SENDER: z.string().optional(),
@@ -36,6 +48,12 @@ const envSchema = z.object({
   TWILIO_FROM_NUMBER: z.string().optional(),
   FIREBASE_SMS_FUNCTION_URL: z.string().url().optional(),
   FIREBASE_SMS_API_KEY: z.string().optional(),
+  /* ---- Firebase Admin (phone-auth ID-token verification) ---------------- */
+  /** Service-account fields for `firebase-admin`. All three are required
+   *  together; absent, `/auth/firebase-register` answers a clean 503. */
+  FIREBASE_PROJECT_ID: z.string().min(1).optional(),
+  FIREBASE_CLIENT_EMAIL: z.string().min(1).optional(),
+  FIREBASE_PRIVATE_KEY: z.string().min(1).optional(),
   /** Digits in the OTP code. 6 is the default everywhere else in the stack. */
   OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
   /** OTP validity, in seconds. Requirement: 3 minutes. */
@@ -95,12 +113,15 @@ if (raw.NODE_ENV === 'production') {
         'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'base64url\'))"'
     );
   }
-  if (raw.SMS_PROVIDER === 'console') {
-    throw new Error(
-      'Invalid environment configuration:\n' +
-        '  • SMS_PROVIDER: "console" prints OTP codes to the server log — never acceptable in production. ' +
-        'Set SMS_PROVIDER=twilio|firebase|generic with real credentials.'
-    );
+  if (raw.SMS_PROVIDER === 'console' || raw.SMS_PROVIDER === 'mock') {
+    if (raw.SMS_ALLOW_INSECURE_TEST_PROVIDERS !== 'true') {
+      throw new Error(
+        'Invalid environment configuration:\n' +
+          `  • SMS_PROVIDER: "${raw.SMS_PROVIDER}" prints OTP codes to the server log — never acceptable in production. ` +
+          'Set SMS_PROVIDER=twilio|firebase|generic with real credentials, or set ' +
+          'SMS_ALLOW_INSECURE_TEST_PROVIDERS=true ONLY while testing before a carrier is live.'
+      );
+    }
   }
   if (raw.PUBLIC_API_ORIGIN.startsWith('http://')) {
     throw new Error(
@@ -159,6 +180,7 @@ export const env = {
   },
   sms: {
     provider: raw.SMS_PROVIDER,
+    countryCode: raw.SMS_COUNTRY_CODE,
     generic: {
       endpoint: raw.SMS_GENERIC_ENDPOINT,
       apiKey: raw.SMS_GENERIC_API_KEY,
@@ -173,6 +195,11 @@ export const env = {
       functionUrl: raw.FIREBASE_SMS_FUNCTION_URL,
       apiKey: raw.FIREBASE_SMS_API_KEY,
     },
+  },
+  firebaseAdmin: {
+    projectId: raw.FIREBASE_PROJECT_ID,
+    clientEmail: raw.FIREBASE_CLIENT_EMAIL,
+    privateKey: raw.FIREBASE_PRIVATE_KEY,
   },
   otp: {
     length: raw.OTP_LENGTH,

@@ -21,6 +21,11 @@ authRouter.post(
 );
 authRouter.post("/login", authLimiter, asyncHandler(controller.loginHandler));
 authRouter.post(
+  "/firebase-register",
+  authLimiter,
+  asyncHandler(controller.firebaseRegisterHandler),
+);
+authRouter.post(
   "/otp/request",
   otpIpLimiter,
   asyncHandler(controller.requestOtpHandler),

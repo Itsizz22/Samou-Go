@@ -92,6 +92,21 @@ export interface AuthResponse {
  * OTP (passwordless phone sign-in)
  * ------------------------------------------------------------------------- */
 
+/**
+ * POST /auth/firebase-register — Firebase Phone Auth proves ownership of
+ * `phone`. The backend verifies the ID token with Firebase Admin, extracts the
+ * canonical `05XXXXXXXX` number from the token claim, and returns a session
+ * immediately (no server-side OTP round-trip).
+ */
+export interface FirebaseRegisterInput {
+  /** Short-lived ID token from `confirmationResult.user.getIdToken()`. */
+  idToken: string;
+  /** Display name for the new CUSTOMER account. */
+  name: string;
+  /** `05XXXXXXXX` — Palestinian mobile, kept for cross-checks. */
+  phone: string;
+}
+
 /** POST /auth/otp/request — ask for a one-time code on a mobile number. */
 export interface OtpRequestInput {
   /** `05XXXXXXXX` — Palestinian mobile. */

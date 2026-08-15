@@ -17,3 +17,13 @@ export function normalizePhone(input: string): string {
 export function isValidPalestinianMobile(input: string): boolean {
   return /^05\d{8}$/.test(normalizePhone(input));
 }
+
+/**
+ * `05XXXXXXXX` → `+9705XXXXXXXX` — the E.164 shape Firebase's
+ * `signInWithPhoneNumber` requires (the API's SMS dispatch uses the same
+ * conversion server-side).
+ */
+export function toE164(input: string, countryCode = '+970'): string {
+  const normalized = normalizePhone(input);
+  return normalized.startsWith('05') ? `${countryCode}${normalized.slice(1)}` : `+${normalized}`;
+}

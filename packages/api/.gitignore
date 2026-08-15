@@ -1,0 +1,13 @@
+# environment — never commit real secrets
+.env
+.env.*
+!.env.example
+
+# Firebase Admin service account — contains the private key. NEVER commit.
+firebase-service-account.json
+
+# generated Prisma clients (regenerable via db:generate / db:generate:prod)
+generated/
+
+# uploaded images (local storage driver scratch + processed files)
+.uploads/
