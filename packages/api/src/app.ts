@@ -3,8 +3,8 @@ import express from 'express';
 import type { Application, Request, Response } from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import { corsOptions } from './config/cors';
 import { env } from './config/env';
-import { forbidden } from './lib/http-error';
 import { ok } from './lib/respond';
 import { errorHandler } from './middleware/error-handler';
 import { notFoundHandler } from './middleware/not-found';
@@ -22,22 +22,8 @@ export function createApp(): Application {
 
   app.use(helmet());
 
-  app.use(
-    cors({
-      origin(origin, callback) {
-        // Same-origin, curl, and native mobile clients send no Origin header.
-        if (!origin) return callback(null, true);
-        if (env.corsOrigins.includes('*') || env.corsOrigins.includes(origin)) {
-          return callback(null, true);
-        }
-        // A disallowed origin is a client mistake (4xx), never a server bug.
-        // Throwing a raw Error here would surface as a misleading 500; an
-        // HttpError flows through the standard envelope as a clean 403.
-        callback(forbidden('المصدر غير مسموح / Origin not allowed'));
-      },
-      credentials: true,
-    })
-  );
+  // Origin allow-list, methods and headers live in `config/cors.ts`.
+  app.use(cors(corsOptions));
 
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));

@@ -3,9 +3,10 @@ import { SignInGate, useAuth, useOrders } from '@/hooks/useApi';
 import { Loader2, Package, RefreshCw, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { reorderOrder } from '@samou-go/api-client';
+import { Badge } from '@samou-go/ui';
 import { ScreenShell } from '@/components/ScreenShell';
 import { useCart } from '@/components/CartProvider';
-import { ORDER_STATUS_LABELS, type OrderStatus } from '@samou-go/shared-types';
+import { ORDER_STATUS_LABELS, ORDER_STATUS_TONES, type OrderStatus } from '@samou-go/shared-types';
 
 /**
  * Samou' Go — `/orders`.
@@ -80,9 +81,9 @@ export function OrdersScreen() {
                       {order.orderNumber}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-full bg-brand-tint px-2.5 py-1 text-[10px] font-bold text-brand-dark">
+                  <Badge tone={ORDER_STATUS_TONES[order.status]} dot>
                     {status(order.status)}
-                  </span>
+                  </Badge>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <button type="button" onClick={() => navigate(`/orders/${order.id}`)} className="rounded-xl border border-line py-2 text-xs font-bold text-ink-muted">التفاصيل <span dir="ltr">Details</span></button>

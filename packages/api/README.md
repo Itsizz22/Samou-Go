@@ -60,6 +60,7 @@ customers' orders, `role: ADMIN` at registration).
 | `GET` | `/api/v1/orders/:orderId` | ✔ | Role-scoped detail |
 | `PATCH` | `/api/v1/orders/:orderId/status` | ✔ | State machine × role × ownership |
 | `PATCH` | `/api/v1/orders/:orderId/captain` | ✔ manager/admin | Assign a captain |
+| `GET` | `/api/v1/orders/:orderId/events` | optional | SSE status stream (`text/event-stream`). Anonymous streams carry status only; a token adds the ownership check. Browser `EventSource` cannot send a header, so this route sits above the auth gate |
 
 Every response uses one envelope:
 

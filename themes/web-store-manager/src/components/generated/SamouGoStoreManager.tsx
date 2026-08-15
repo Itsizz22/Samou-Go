@@ -51,10 +51,12 @@ import { playNewOrderChime } from '@samou-go/ui';
 import {
   NotificationBell,
   ThemeToggle,
+  Badge,
   type BellNotification,
 } from '@samou-go/ui';
 import {
   ORDER_STATUS_LABELS,
+  ORDER_STATUS_TONES,
   OrderStatus,
   UserRole,
   canTransitionOrderStatus,
@@ -81,20 +83,6 @@ function relativeTime(iso: string, now: number = Date.now()): { ar: string; en: 
   if (hours < 24) return { ar: `منذ ${hours} ساعة`, en: `${hours} h ago` };
   const days = Math.floor(hours / 24);
   return { ar: `منذ ${days} يوم`, en: `${days} d ago` };
-}
-
-/** Bilingual label for a status, with the tone class the design system expects. */
-function statusBadge(status: OrderStatus): { label: { ar: string; en: string }; tone: string } {
-  const toneByStatus: Record<OrderStatus, string> = {
-    [OrderStatus.PENDING]: 'bg-brand-tint text-brand-deep',
-    [OrderStatus.ACCEPTED]: 'bg-brand-tint text-brand-deep',
-    [OrderStatus.PREPARING]: 'bg-warning-tint text-warning-ink',
-    [OrderStatus.READY_FOR_PICKUP]: 'bg-info-tint text-info-ink',
-    [OrderStatus.ON_THE_WAY]: 'bg-info-tint text-info-ink',
-    [OrderStatus.DELIVERED]: 'bg-brand-tint text-brand-deep',
-    [OrderStatus.CANCELLED]: 'bg-danger-tint text-danger-ink',
-  };
-  return { label: ORDER_STATUS_LABELS[status], tone: toneByStatus[status] };
 }
 
 /* ---------------------------------------------------------------------------
@@ -866,7 +854,6 @@ interface OrderRowProps {
 }
 
 function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup, onReject }: OrderRowProps) {
-  const badge = statusBadge(order.status);
   const time = relativeTime(order.createdAt);
   const itemCount = order.itemCount;
   const itemLineAr = `${itemCount} منتج`;
@@ -910,9 +897,9 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
             <span dir="ltr">{time.en}</span>
           </p>
         </div>
-        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${badge.tone}`}>
-          {badge.label.ar}
-        </span>
+        <Badge tone={ORDER_STATUS_TONES[order.status]} dot>
+          {ORDER_STATUS_LABELS[order.status].ar}
+        </Badge>
       </div>
       <div className="py-3">
         <div className="flex items-center justify-between">

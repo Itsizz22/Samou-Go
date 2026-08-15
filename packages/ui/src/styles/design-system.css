@@ -1,0 +1,901 @@
+/* ============================================================================
+   Samou' Go — Design System (single source of truth)
+   ----------------------------------------------------------------------------
+   Imported by all seven apps:
+
+       @import '@samou-go/ui/styles';
+
+   This file REPLACED seven copy-pasted 387-line files whose header read "This
+   file is IDENTICAL across all seven projects. Change it once, then propagate."
+   They had drifted: five apps had the dark surface tokens in `:root` instead of
+   `.dark`, so light mode rendered slate-800 cards. Editing this file now
+   changes every app — there is nothing to propagate.
+
+   Tailwind v4, CSS-first: no tailwind.config.js. Every token registered in
+   `@theme` generates real utilities (bg-brand, text-ink-muted, border-line,
+   rounded-card, shadow-raised, animate-shimmer, …).
+   ========================================================================== */
+
+/* Arabic-first pairing. Readex Pro carries headings in both scripts, Cairo the
+   Arabic body, Plus Jakarta Sans the `dir="ltr"` islands (prices, codes, IDs).
+   Weights are deliberately trimmed to 400–700: the old URL pulled 800 for two
+   families and nothing used it. */
+@import url('https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&family=Cairo:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:is(.dark *));
+
+/* The shared React components (Button, Badge, …) live in ../components and use
+   plain utilities in their className strings. Those files are outside every
+   app's scan root, so tell Tailwind where to find them. */
+@source "../components";
+@source "../lib";
+
+/* NOTE on content scanning: Tailwind only emits a *utility* it can find in a
+   scanned file, and this package's sources are outside every app's scan root
+   (`@source` does not reach them from here — verified against tailwindcss
+   4.3.3). That is why the shared look is expressed as `@layer components`
+   classes built with `@apply` below: those are materialised unconditionally, so
+   `@samou-go/ui` components styled with `.btn-primary` / `.card-surface` /
+   `.badge-brand` render identically in all seven apps with no per-app config.
+   Prefer those classes over long utility strings in shared components. */
+
+/* ----------------------------------------------------------------------------
+   1. TOKENS → utility classes
+   -------------------------------------------------------------------------- */
+@theme {
+  /* -- Brand: vibrant emerald ------------------------------------------- */
+  --color-brand: #10b981; /* Primary */
+  --color-brand-dark: #059669; /* Hover / active */
+  --color-brand-deep: #047857; /* Deep surfaces, text on tint */
+  --color-brand-tint: #d1fae5; /* Light accent */
+  --color-brand-surface: #ecfdf5; /* Palest wash */
+  --color-brand-soft: #6ee7b7; /* Secondary fills, charts */
+
+  /* -- Neutrals: light mode. Dark overrides live in `.dark` only -------- */
+  --color-ink: #111827; /* Primary text */
+  --color-ink-soft: #4b5563; /* Strong secondary text */
+  --color-ink-muted: #6b7280; /* Secondary text */
+  --color-ink-subtle: #9ca3af; /* Tertiary text, hints */
+  --color-surface: #ffffff; /* Cards, sheets */
+  --color-surface-sunken: #f9fafb; /* Inset rows, table stripes */
+  --color-canvas: #f3f4f6; /* Page background */
+  --color-line: #e5e7eb; /* Borders */
+  --color-line-soft: #f3f4f6; /* Faint dividers */
+
+  /* -- Status ----------------------------------------------------------- */
+  --color-danger: #ef4444;
+  --color-danger-tint: #fee2e2;
+  --color-danger-ink: #b91c1c;
+
+  --color-warning: #f59e0b;
+  --color-warning-tint: #fef3c7;
+  --color-warning-ink: #b45309;
+
+  --color-info: #3b82f6;
+  --color-info-tint: #dbeafe;
+  --color-info-ink: #1d4ed8;
+
+  --color-success: #10b981;
+  --color-success-tint: #d1fae5;
+  --color-success-ink: #047857;
+}
+
+/* Second `@theme` block — Tailwind merges them; split for readability. */
+@theme {
+  /* -- Typography -------------------------------------------------------- */
+  /* `--font-sans` is the body default; `dir="ltr"` islands swap to English. */
+  --font-sans: 'Cairo', 'Readex Pro', system-ui, sans-serif;
+  --font-body: 'Cairo', 'Readex Pro', system-ui, sans-serif;
+  --font-heading: 'Readex Pro', 'Cairo', system-ui, sans-serif;
+  --font-english: 'Plus Jakarta Sans', system-ui, sans-serif;
+  /* Kept for compatibility: themes referenced `var(--font-arabic)` directly. */
+  --font-arabic: 'Cairo', 'Readex Pro', system-ui, sans-serif;
+
+  /* Scale — text-display … text-caption, each with its own leading. Arabic
+     needs looser leading than Latin, hence the generous line-heights. */
+  --text-display: 2.25rem;
+  --text-display--line-height: 1.15;
+  --text-display--font-weight: 700;
+  --text-title: 1.75rem;
+  --text-title--line-height: 1.25;
+  --text-title--font-weight: 700;
+  --text-heading: 1.375rem;
+  --text-heading--line-height: 1.35;
+  --text-heading--font-weight: 600;
+  --text-subheading: 1.125rem;
+  --text-subheading--line-height: 1.45;
+  --text-subheading--font-weight: 600;
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-caption: 0.875rem;
+  --text-caption--line-height: 1.5;
+  --text-caption--font-weight: 500;
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1.4;
+  --text-micro--font-weight: 700;
+
+  /* -- Radii ------------------------------------------------------------- */
+  --radius-field: 0.75rem; /* inputs, small buttons */
+  --radius-card: 1rem; /* cards, tiles */
+  --radius-panel: 1.25rem; /* sheets, modals, panels */
+  --radius-pill: 9999px;
+}
+
+@theme {
+  /* -- Elevation: neutral, never green-tinted (except the brand glow) ----- */
+  --shadow-card: 0 1px 2px 0 rgb(17 24 39 / 0.05);
+  --shadow-raised: 0 4px 12px -2px rgb(17 24 39 / 0.08);
+  --shadow-overlay: 0 24px 48px -12px rgb(17 24 39 / 0.28);
+  --shadow-nav: 0 -2px 16px -4px rgb(17 24 39 / 0.1);
+  --shadow-brand: 0 8px 20px -4px rgb(16 185 129 / 0.35);
+
+  /* -- Layout: shared containers and fixed chrome heights ---------------- */
+  --container-app: 32rem; /* phone-first app shell (customer, captain) */
+  --container-wide: 90rem; /* dashboards (admin, store-manager) */
+  --spacing-gutter: 1rem; /* horizontal page padding */
+  --spacing-section: 1.5rem; /* vertical rhythm between sections */
+  --spacing-header: 3.5rem; /* sticky header height */
+  --spacing-nav: 4rem; /* bottom nav height */
+
+  /* -- Motion ------------------------------------------------------------ */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --animate-fade-in: fade-in 0.3s var(--ease-out-soft) both;
+  --animate-rise-in: rise-in 0.35s var(--ease-out-soft) both;
+  --animate-pop-in: pop-in 0.4s var(--ease-spring) both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-pulse-ring: pulse-ring 1.8s var(--ease-in-out-soft) infinite;
+  --animate-ride: ride 1.6s var(--ease-in-out-soft) infinite;
+}
+
+/* ----------------------------------------------------------------------------
+   2. shadcn/ui semantic bridge — maps the shadcn contract onto brand tokens
+   -------------------------------------------------------------------------- */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ----------------------------------------------------------------------------
+   3. LIGHT / DARK
+   Only the shadcn bridge variables live here. The `--color-*` tokens are
+   declared once in `@theme` (light) and overridden once in `.dark` — putting a
+   dark `--color-surface` in `:root` is what made five apps render slate cards
+   in light mode.
+   -------------------------------------------------------------------------- */
+:root {
+  --radius: 1rem;
+
+  --background: #f3f4f6;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+
+  --primary: #10b981;
+  --primary-foreground: #ffffff;
+  --secondary: #047857;
+  --secondary-foreground: #ffffff;
+
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --accent: #d1fae5;
+  --accent-foreground: #047857;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #10b981;
+
+  --sidebar: #047857;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #10b981;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #059669;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.12);
+  --sidebar-ring: #6ee7b7;
+
+  --chart-1: #10b981;
+  --chart-2: #6ee7b7;
+  --chart-3: #d1fae5;
+  --chart-4: #f59e0b;
+  --chart-5: #3b82f6;
+}
+
+.dark {
+  --background: #0b0f14;
+  --foreground: #f9fafb;
+  --card: #111827;
+  --card-foreground: #f9fafb;
+  --popover: #111827;
+  --popover-foreground: #f9fafb;
+
+  --primary: #10b981;
+  --primary-foreground: #052e16;
+  --secondary: #059669;
+  --secondary-foreground: #ffffff;
+
+  --muted: #1f2937;
+  --muted-foreground: #9ca3af;
+  --accent: #064e3b;
+  --accent-foreground: #d1fae5;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --border: #374151;
+  --input: #374151;
+  --ring: #10b981;
+
+  /* THE fix: semantic surfaces flip here, so `bg-surface` / `bg-canvas` /
+     `border-line` / `text-ink` adapt with no per-card `dark:*` overrides. */
+  --color-surface: #1f2937; /* cards / panels — slate-800 */
+  --color-surface-sunken: #111827; /* inset rows — slate-900 */
+  --color-canvas: #0f172a; /* page background — slate-950-ish */
+  --color-line: #374151; /* borders — slate-700 */
+  --color-line-soft: #1f2937; /* faint dividers */
+  --color-ink: #f9fafb;
+  --color-ink-soft: #d1d5db;
+  --color-ink-muted: #9ca3af;
+  --color-ink-subtle: #6b7280;
+
+  /* Tints are washes on white; on a dark canvas they need to be deep. */
+  --color-brand-tint: #064e3b;
+  --color-brand-surface: #052e1a;
+  --color-danger-tint: #4c1d1d;
+  --color-danger-ink: #fca5a5;
+  --color-warning-tint: #4a2c07;
+  --color-warning-ink: #fcd34d;
+  --color-info-tint: #1e2a4a;
+  --color-info-ink: #93c5fd;
+  --color-success-tint: #064e3b;
+  --color-success-ink: #6ee7b7;
+
+  --sidebar: #064e3b;
+  --sidebar-foreground: #f9fafb;
+  --sidebar-primary: #10b981;
+  --sidebar-primary-foreground: #052e16;
+  --sidebar-accent: #047857;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.1);
+  --sidebar-ring: #6ee7b7;
+
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-raised: 0 4px 12px -2px rgb(0 0 0 / 0.5);
+  --shadow-overlay: 0 24px 48px -12px rgb(0 0 0 / 0.7);
+}
+
+/* ----------------------------------------------------------------------------
+   4. ACCENT THEMES
+   Applied as a class on <html> by `setBrandTheme()` (@samou-go/ui) or
+   web-customer's ThemeProvider. Each re-declares only the brand ramp and the
+   shadcn colours derived from it — neutrals and layout never change.
+   -------------------------------------------------------------------------- */
+.theme-crimson {
+  --color-brand: #ef4444;
+  --color-brand-dark: #dc2626;
+  --color-brand-deep: #991b1b;
+  --color-brand-tint: #fee2e2;
+  --color-brand-surface: #fff5f5;
+  --color-brand-soft: #fca5a5;
+  --shadow-brand: 0 8px 20px -4px rgb(239 68 68 / 0.35);
+
+  --primary: #ef4444;
+  --primary-foreground: #ffffff;
+  --secondary: #dc2626;
+  --accent: #fee2e2;
+  --accent-foreground: #991b1b;
+  --ring: #ef4444;
+  --sidebar: #991b1b;
+  --sidebar-primary: #ef4444;
+  --sidebar-accent: #dc2626;
+  --sidebar-ring: #fca5a5;
+  --chart-1: #ef4444;
+  --chart-2: #fca5a5;
+  --chart-3: #fee2e2;
+}
+
+.dark.theme-crimson {
+  --primary-foreground: #2b0808;
+  --color-brand-tint: #4c1d1d;
+  --color-brand-surface: #2b0808;
+  --accent: #62241d;
+  --accent-foreground: #fee2e2;
+  --sidebar: #62241d;
+  --sidebar-accent: #991b1b;
+}
+
+.theme-warm-yellow {
+  --color-brand: #f59e0b; /* Amber 500 */
+  --color-brand-dark: #d97706; /* Amber 600 */
+  --color-brand-deep: #b45309; /* Amber 700 */
+  --color-brand-tint: #fef3c7; /* Amber 100 */
+  --color-brand-surface: #fffbeb; /* Amber 50 */
+  --color-brand-soft: #fbbf24; /* Amber 400 */
+  --shadow-brand: 0 8px 20px -4px rgb(245 158 11 / 0.35);
+
+  --primary: #f59e0b;
+  --primary-foreground: #ffffff;
+  --secondary: #d97706;
+  --secondary-foreground: #ffffff;
+  --accent: #fef3c7;
+  --accent-foreground: #b45309;
+  --ring: #f59e0b;
+
+  --sidebar: #92400e;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #f59e0b;
+  --sidebar-primary-foreground: #451a03;
+  --sidebar-accent: #d97706;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-ring: #fbbf24;
+
+  --chart-1: #f59e0b;
+  --chart-2: #fbbf24;
+  --chart-3: #fef3c7;
+  --chart-4: #b45309;
+  --chart-5: #d97706;
+}
+
+.dark.theme-warm-yellow {
+  --primary-foreground: #451a03;
+  --color-brand-tint: #4a2c07;
+  --color-brand-surface: #2b1803;
+  --secondary: #d97706;
+  --accent: #78350f;
+  --accent-foreground: #fef3c7;
+  --sidebar: #78350f;
+  --sidebar-accent: #b45309;
+  --sidebar-primary-foreground: #fef3c7;
+}
+
+.theme-muted-red {
+  --color-brand: #e57373; /* Soft rose red */
+  --color-brand-dark: #d04747; /* Hover / active */
+  --color-brand-deep: #b03a3a; /* Text on tint, deep surfaces */
+  --color-brand-tint: #fde8e8; /* Light wash */
+  --color-brand-surface: #fef2f2; /* Palest rose */
+  --color-brand-soft: #ef9a9a; /* Secondary fills, charts */
+  --shadow-brand: 0 8px 20px -4px rgb(229 115 115 / 0.35);
+
+  --primary: #e57373;
+  --primary-foreground: #ffffff;
+  --secondary: #d04747;
+  --secondary-foreground: #ffffff;
+  --accent: #fde8e8;
+  --accent-foreground: #b03a3a;
+  --ring: #e57373;
+
+  --sidebar: #9f4030;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #e57373;
+  --sidebar-primary-foreground: #2b0808;
+  --sidebar-accent: #d04747;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-ring: #ef9a9a;
+
+  --chart-1: #e57373;
+  --chart-2: #ef9a9a;
+  --chart-3: #fde8e8;
+  --chart-4: #b03a3a;
+  --chart-5: #d04747;
+}
+
+.dark.theme-muted-red {
+  --primary-foreground: #2b0808;
+  --color-brand-tint: #62241d;
+  --color-brand-surface: #2b0808;
+  --secondary: #d04747;
+  --accent: #62241d;
+  --accent-foreground: #fde8e8;
+  --sidebar: #62241d;
+  --sidebar-accent: #b03a3a;
+  --sidebar-primary-foreground: #fde8e8;
+}
+
+/* ----------------------------------------------------------------------------
+   5. BASE — Arabic-first RTL
+   -------------------------------------------------------------------------- */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    /* dir="rtl" is set on <html> in index.html; this is the CSS fallback. */
+    direction: rtl;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+    overscroll-behavior-x: none;
+  }
+
+  body {
+    @apply bg-canvas text-ink text-body antialiased;
+    font-family: var(--font-body);
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+    box-sizing: border-box;
+  }
+
+  /* Latin islands: prices, codes, English labels, distances. */
+  [dir='ltr'] {
+    direction: ltr;
+    font-family: var(--font-english);
+    line-height: 1.5;
+  }
+
+  html[dir='ltr'] body {
+    font-family: var(--font-english);
+    line-height: 1.5;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+    @apply text-ink;
+    text-wrap: balance;
+  }
+
+  h1 {
+    @apply text-title;
+  }
+  h2 {
+    @apply text-heading;
+  }
+  h3 {
+    @apply text-subheading;
+  }
+
+  small,
+  .subtitle {
+    @apply text-caption;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font-family: inherit;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand/40;
+  }
+
+  /* Accessibility: honour the OS "reduce motion" switch globally. Framer
+     Motion is muted separately in `bootstrapApp()`. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   6. COMPONENT PRIMITIVES
+   The canonical look of every button, card, field and badge. React wrappers
+   live in `@samou-go/ui/components` (Button, Card, Input, Badge, Modal,
+   Skeleton) — the classes stay usable directly for markup that predates them.
+   -------------------------------------------------------------------------- */
+@layer components {
+  /* -- Buttons: 44px minimum touch target, press feedback, brand focus ring */
+  .btn-primary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-field
+           bg-brand px-4 py-3 text-sm font-bold text-white shadow-brand
+           transition-all duration-200 ease-out-soft
+           hover:bg-brand-dark hover:shadow-raised active:scale-[0.97]
+           focus:outline-none focus:ring-2 focus:ring-brand/40
+           disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-field
+           border border-line/80 bg-surface px-4 py-3 text-sm font-bold text-ink-soft
+           transition-all duration-200 ease-out-soft
+           hover:border-brand hover:bg-brand-surface hover:text-brand-deep
+           active:scale-[0.97]
+           focus:outline-none focus:ring-2 focus:ring-brand/40
+           disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-ghost {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-field
+           px-4 py-3 text-sm font-bold text-ink-soft
+           transition-all duration-200 ease-out-soft
+           hover:bg-canvas hover:text-ink active:scale-[0.97]
+           focus:outline-none focus:ring-2 focus:ring-brand/40
+           disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-danger {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-field
+           border border-danger/40 bg-surface px-4 py-3 text-sm font-bold text-danger
+           transition-all duration-200 ease-out-soft
+           hover:bg-danger-tint active:scale-[0.97]
+           focus:outline-none focus:ring-2 focus:ring-danger/30
+           disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-icon {
+    @apply inline-flex size-11 items-center justify-center rounded-field
+           transition-all duration-200 ease-out-soft
+           hover:bg-canvas active:scale-95
+           focus:outline-none focus:ring-2 focus:ring-brand/40;
+  }
+}
+
+@layer components {
+  /* -- Surfaces ---------------------------------------------------------- */
+  .card-surface {
+    @apply rounded-card border border-line/80 bg-surface/95 shadow-card backdrop-blur-sm;
+  }
+
+  /* Hoverable card — for tappable store/product tiles. */
+  .card-interactive {
+    @apply rounded-card border border-line/80 bg-surface/95 shadow-card backdrop-blur-sm
+           transition-all duration-200 ease-out-soft
+           hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-raised
+           active:translate-y-0 active:scale-[0.99];
+  }
+
+  .panel-surface {
+    @apply rounded-panel border border-line/80 bg-surface/95 shadow-raised backdrop-blur-sm;
+  }
+
+  .surface-sunken {
+    @apply rounded-field bg-surface-sunken;
+  }
+
+  /* -- Fields ------------------------------------------------------------ */
+  .input-field {
+    @apply h-12 w-full rounded-field border border-line/80 bg-surface px-4 text-sm text-ink
+           transition-all duration-200 ease-out-soft
+           placeholder:text-ink-subtle
+           focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30
+           disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .input-field-invalid {
+    @apply border-danger/60 focus:border-danger focus:ring-danger/30;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-caption font-semibold text-ink-soft;
+  }
+
+  .field-hint {
+    @apply mt-1.5 text-caption text-ink-muted;
+  }
+
+  .field-error {
+    @apply mt-1.5 text-caption font-semibold text-danger;
+  }
+}
+
+@layer components {
+  /* -- Badges: tinted background + matching ink. Each variant repeats the
+        base utilities because Tailwind v4 cannot @apply a custom class. ---- */
+  .badge-base {
+    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-micro;
+  }
+  .badge-brand {
+    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-micro
+           bg-brand-tint text-brand-deep;
+  }
+  .badge-warning {
+    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-micro
+           bg-warning-tint text-warning-ink;
+  }
+  .badge-info {
+    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-micro
+           bg-info-tint text-info-ink;
+  }
+  .badge-danger {
+    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-micro
+           bg-danger-tint text-danger-ink;
+  }
+  .badge-success {
+    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-micro
+           bg-success-tint text-success-ink;
+  }
+  .badge-neutral {
+    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-micro
+           bg-canvas text-ink-muted;
+  }
+
+  /* -- Overlay + modal --------------------------------------------------- */
+  .modal-overlay {
+    @apply fixed inset-0 z-40 bg-ink/50 backdrop-blur-sm;
+  }
+
+  .modal-panel {
+    @apply relative z-50 w-full max-w-md rounded-panel border border-line/80
+           bg-surface p-5 shadow-overlay;
+  }
+
+  /* Bottom sheet — the mobile default for the phone-first apps. */
+  .modal-sheet {
+    @apply relative z-50 w-full rounded-t-panel border border-line/80 border-b-0
+           bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-overlay;
+  }
+}
+
+@layer components {
+  /* -- Loading skeletons: shimmer, not a blunt pulse --------------------- */
+  .skeleton {
+    @apply relative overflow-hidden rounded-field bg-line-soft;
+  }
+
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgb(255 255 255 / 0.45),
+      transparent
+    );
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  .dark .skeleton::after {
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgb(255 255 255 / 0.08),
+      transparent
+    );
+  }
+
+  /* -- Shared layout: one grid for all seven apps ------------------------ */
+  /* Phone-first column, centred on desktop so a 4K monitor is not a 4K app. */
+  .app-shell {
+    @apply mx-auto flex min-h-dvh w-full max-w-app flex-col bg-canvas;
+  }
+
+  /* Dashboards (admin, store-manager) opt into the wide container instead. */
+  .app-shell-wide {
+    @apply mx-auto flex min-h-dvh w-full max-w-wide flex-col bg-canvas;
+  }
+
+  .app-container {
+    @apply mx-auto w-full max-w-app px-gutter;
+  }
+
+  .app-container-wide {
+    @apply mx-auto w-full max-w-wide px-gutter;
+  }
+
+  .app-section {
+    @apply space-y-3 py-section;
+  }
+}
+
+@layer components {
+  /* -- Sticky chrome: header, bottom nav, footer ------------------------- */
+  .app-header {
+    @apply sticky top-0 z-30 flex h-header items-center gap-3
+           border-b border-line/80 bg-surface/85 px-gutter backdrop-blur-md;
+  }
+
+  .app-header-title {
+    @apply truncate text-subheading font-bold text-ink;
+  }
+
+  .app-nav {
+    @apply sticky bottom-0 z-30 mt-auto flex h-nav items-stretch
+           border-t border-line/80 bg-surface/90 shadow-nav backdrop-blur-md
+           pb-[env(safe-area-inset-bottom)];
+  }
+
+  .app-nav-item {
+    @apply flex flex-1 flex-col items-center justify-center gap-0.5
+           text-micro text-ink-muted transition-colors duration-200
+           hover:text-ink active:scale-95;
+  }
+
+  .app-nav-item-active {
+    @apply text-brand;
+  }
+
+  .app-footer {
+    @apply mt-auto border-t border-line/80 bg-surface/60 px-gutter py-4
+           text-caption text-ink-muted;
+  }
+
+  /* Directional icons must mirror in RTL; `.icon-flip` marks the ones that do. */
+  .icon-flip {
+    @apply rtl:rotate-180;
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   7. UTILITIES
+   -------------------------------------------------------------------------- */
+@layer utilities {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: max(0.625rem, env(safe-area-inset-bottom));
+  }
+
+  /* Horizontal scrollers (categories, featured stores) without a visible bar. */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Tap feedback for anything that is not a .btn-* (rows, tiles, chips). */
+  .press {
+    @apply transition-transform duration-150 ease-out-soft active:scale-[0.97];
+  }
+
+  /* Numerals, prices, phone numbers, order codes: LTR island + tabular figures. */
+  .numeral {
+    direction: ltr;
+    font-family: var(--font-english);
+    font-variant-numeric: tabular-nums;
+    unicode-bidi: isolate;
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   8. KEYFRAMES — referenced by the `--animate-*` tokens above and by the
+   Framer Motion fallbacks in `@samou-go/ui/components`.
+   -------------------------------------------------------------------------- */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Kept under the old name too: themes referenced `fadeIn` directly. */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* RTL-agnostic: the sweep is a background position, so it reads correctly in
+   both directions. */
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(16 185 129 / 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 0.75rem rgb(16 185 129 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(16 185 129 / 0);
+  }
+}
+
+/* Delivery bike bob — used by OrderSuccess and any "on the way" indicator. */
+@keyframes ride {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-0.1875rem) rotate(1deg);
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   9. Broken-image fallback (attached by `bootstrapApp()`)
+   -------------------------------------------------------------------------- */
+img.broken-image-fallback {
+  position: relative;
+  display: inline-block;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  object-fit: none;
+  object-position: center;
+  animation: fade-in 0.3s ease-in-out;
+}
