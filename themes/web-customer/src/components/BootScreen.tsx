@@ -13,7 +13,6 @@ export function BootScreen() {
   const reducedMotion = useReducedMotion();
   return (
     <main
-      dir="rtl"
       className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-canvas"
       aria-label="جاري التحميل / Loading"
       aria-busy="true"

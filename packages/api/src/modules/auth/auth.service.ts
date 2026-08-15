@@ -1,13 +1,19 @@
 import { randomInt } from 'node:crypto';
 import type { Store, User } from '../../lib/prisma-types';
 import type { Prisma } from '../../lib/prisma-types';
-import type { AuthResponse, Paginated, PublicUser } from '@samou-go/shared-types';
+import type {
+  AuthResponse,
+  Paginated,
+  PublicUser,
+  RegisterPendingResponse,
+} from '@samou-go/shared-types';
 import { UserRole } from '@samou-go/shared-types';
 import { prisma, caseInsensitiveContains } from '../../lib/prisma';
 import { conflict, forbidden, notFound, unauthorized, unprocessable } from '../../lib/http-error';
 import { signAccessToken } from '../../lib/jwt';
 import { hashPassword, verifyPassword } from '../../lib/password';
 import { toPublicUser } from './auth.mapper';
+import { requestOtp } from './otp.service';
 import { issueRefreshToken, revokeAllUserRefreshTokens, rotateRefreshToken } from './refresh-token';
 import type {
   AdminCreateCaptainBody,
@@ -38,7 +44,7 @@ async function buildAuthResponse(user: User): Promise<AuthResponse> {
 export async function register(
   body: RegisterBody,
   callerRole?: UserRole
-): Promise<AuthResponse> {
+): Promise<RegisterPendingResponse> {
   const requestedRole = body.role ?? UserRole.CUSTOMER;
 
   // Only an admin may mint a STORE_MANAGER, CAPTAIN or another ADMIN.
@@ -59,10 +65,19 @@ export async function register(
       phone: body.phone,
       passwordHash: await hashPassword(body.password),
       role: requestedRole,
+      // Mandatory verification: the phone must be proven with a one-time code
+      // before any session is granted. Login stays gated on isActive only —
+      // unverified accounts may sign in with the correct password, but the
+      // /auth/otp/verify step is what flips this flag for new registrations.
+      isVerified: false,
     },
   });
 
-  return buildAuthResponse(user);
+  // Initiate the mandatory OTP verification step: generate + persist the code
+  // (hashed, with expiresAt) and dispatch it. No session is returned yet.
+  const otp = await requestOtp({ phone: body.phone });
+
+  return { user: toPublicUser(user), verificationRequired: true, otp };
 }
 
 export async function login(body: LoginBody): Promise<AuthResponse> {

@@ -40,6 +40,7 @@ import type {
   OrderListQuery,
   OrderQuote,
   OrderSummary,
+  OtpDispatchResult,
   OtpRequestInput,
   OtpVerifyInput,
   Paginated,
@@ -51,6 +52,7 @@ import type {
   PublicUser,
   QuoteOrderInput,
   RegisterInput,
+  RegisterPendingResponse,
   ResetPasswordInput,
   ReorderResult,
   SetAvailabilityInput,
@@ -820,18 +822,20 @@ export async function login(
   return auth;
 }
 
-/** Self-service registration. The server forces `CUSTOMER`; staff roles need an admin. */
+/**
+ * Self-service registration. The server forces `CUSTOMER`; staff roles need an
+ * admin. Registration never returns a session — it creates the account and
+ * dispatches a one-time code, so the caller must complete `/auth/otp/verify`
+ * before any token exists.
+ */
 export async function register(
   input: RegisterInput,
   signal?: AbortSignal,
-): Promise<AuthResponse> {
-  const auth = await request<AuthResponse>("POST", "/auth/register", {
+): Promise<RegisterPendingResponse> {
+  return request<RegisterPendingResponse>("POST", "/auth/register", {
     body: input,
     signal,
   });
-  setToken(auth.accessToken);
-  setRefreshToken(auth.refreshToken ?? null);
-  return auth;
 }
 
 /** Replaces a forgotten password after the customer proves phone ownership with an OTP. */
@@ -852,11 +856,8 @@ export function resetPassword(
 export function requestOtp(
   input: OtpRequestInput,
   signal?: AbortSignal,
-): Promise<{
-  retryAfterSeconds: number;
-  dispatched: boolean;
-}> {
-  return request("POST", "/auth/otp/request", { body: input, signal });
+): Promise<OtpDispatchResult> {
+  return request<OtpDispatchResult>("POST", "/auth/otp/request", { body: input, signal });
 }
 
 /**

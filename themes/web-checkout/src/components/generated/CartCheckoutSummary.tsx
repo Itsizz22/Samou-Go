@@ -214,7 +214,7 @@ export const CartCheckoutSummary = () => {
 
   if (!auth.ready) {
     return (
-      <div className="min-h-screen bg-canvas" dir="rtl" aria-busy="true">
+      <div className="min-h-screen bg-canvas" aria-busy="true">
         <HeaderNav title="Checkout / الدفع" showBack={false} showCart={false} />
         <div className="mx-auto w-full max-w-lg space-y-3 px-4 pt-6" aria-hidden="true">
           {[0, 1, 2].map((index) => (
@@ -233,7 +233,7 @@ export const CartCheckoutSummary = () => {
 
   if (placed) {
     return (
-      <div className="min-h-screen bg-canvas text-ink" dir="rtl">
+      <div className="min-h-screen bg-canvas text-ink">
         <HeaderNav title="Order placed / تم الطلب" showBack={false} showCart={false} />
         <main className="mx-auto w-full max-w-lg px-4 pb-32 pt-6" aria-live="polite">
           <OrderSuccess
@@ -288,7 +288,7 @@ export const CartCheckoutSummary = () => {
   const catalogueEmpty = !catalogueLoading && !catalogueError && products.length === 0;
 
   return (
-    <div className="min-h-screen bg-canvas text-ink" dir="rtl">
+    <div className="min-h-screen bg-canvas text-ink">
       <HeaderNav
         title="Checkout / الدفع"
         arabicTitle={store.data?.nameAr}

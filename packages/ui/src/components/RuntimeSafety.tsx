@@ -30,6 +30,6 @@ export class AppErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundar
 
   override render() {
     if (!this.state.failed) return this.props.children;
-    return <main dir="rtl" className="flex min-h-screen items-center justify-center bg-canvas p-5 text-ink"><section className="w-full max-w-sm rounded-2xl bg-surface p-6 text-center shadow-raised"><h1 className="text-lg font-extrabold">حدث خطأ غير متوقع</h1><p dir="ltr" className="mt-1 text-xs text-ink-muted">Something went wrong</p><button type="button" onClick={() => window.location.reload()} className="mt-5 rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-white">إعادة التحميل <span dir="ltr">/ Reload</span></button></section></main>;
+    return <main className="flex min-h-screen items-center justify-center bg-canvas p-5 text-ink"><section className="w-full max-w-sm rounded-2xl bg-surface p-6 text-center shadow-raised"><h1 className="text-lg font-extrabold">حدث خطأ غير متوقع</h1><p dir="ltr" className="mt-1 text-xs text-ink-muted">Something went wrong</p><button type="button" onClick={() => window.location.reload()} className="mt-5 rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-white">إعادة التحميل <span dir="ltr">/ Reload</span></button></section></main>;
   }
 }

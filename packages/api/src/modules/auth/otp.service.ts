@@ -204,17 +204,28 @@ export async function verifyOtp(body: OtpVerifyInput): Promise<AuthResponse> {
   // simply retry instead of being forced to request a fresh one.
   const user = await findOrCreateCustomer(phone, name);
 
+  // A proven phone is a verified phone. This must land before any session is
+  // issued, so a successful /auth/otp/verify is exactly what flips
+  // `isVerified` for new registrations (mandatory-OTP flow).
+  const verified =
+    user.isVerified === true
+      ? user
+      : await prisma.user.update({
+          where: { id: user.id },
+          data: { isVerified: true },
+        });
+
   // One-time use — consume the row now that the session is guaranteed.
   await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
 
   const { accessToken, expiresIn } = signAccessToken({
-    userId: user.id,
-    role: user.role,
-    phone: user.phone,
+    userId: verified.id,
+    role: verified.role,
+    phone: verified.phone,
   });
-  const refreshToken = await issueRefreshToken(user.id);
+  const refreshToken = await issueRefreshToken(verified.id);
 
-  return { user: toPublicUser(user), accessToken, expiresIn, refreshToken };
+  return { user: toPublicUser(verified), accessToken, expiresIn, refreshToken };
 }
 
 /** Consume a valid OTP and replace a known account's password. */
@@ -350,6 +361,8 @@ async function findOrCreateCustomer(phone: string, name?: string) {
     data: {
       name: name?.trim() || "عميل / Customer",
       phone,
+      // A brand-new phone proven via OTP is verified by definition.
+      isVerified: true,
       // OTP accounts carry a login-proof bcrypt hash of a random value; the
       // user still has a password hash so role invariants hold everywhere.
       passwordHash: await hashPassword(

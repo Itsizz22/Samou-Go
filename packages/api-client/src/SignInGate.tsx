@@ -46,7 +46,7 @@ export function SignInGate({
   };
 
   return (
-    <main dir="rtl" className="flex min-h-screen items-center justify-center bg-canvas px-5 py-10 text-ink">
+    <main className="flex min-h-screen items-center justify-center bg-canvas px-5 py-10 text-ink">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand text-white shadow-brand">

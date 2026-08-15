@@ -98,6 +98,25 @@ export interface OtpRequestInput {
   phone: string;
 }
 
+/** What the server reports after asking for (or dispatching) an OTP. */
+export interface OtpDispatchResult {
+  /** Friendly hint so a legit user does not hammer the resend button. */
+  retryAfterSeconds: number;
+  /** True when the code was dispatched to a live carrier (not the console provider). */
+  dispatched: boolean;
+}
+
+/** POST /auth/register — the account is created but awaits OTP verification. */
+export interface RegisterPendingResponse {
+  user: PublicUser;
+  /**
+   * Always `true`: registration never returns a session until the phone is
+   * proven with the one-time code it just dispatched.
+   */
+  verificationRequired: true;
+  otp: OtpDispatchResult;
+}
+
 /** POST /auth/otp/verify — exchange a code for a session. */
 export interface OtpVerifyInput {
   /** `05XXXXXXXX` — the phone the code was sent to. */

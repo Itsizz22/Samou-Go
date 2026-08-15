@@ -78,7 +78,7 @@ import {
 import { AdminSidebar, ADMIN_NAV_ITEMS } from '@/components/Sidebar';
 import { NotificationsDrawer, relativeTimeArabic } from '@/components/NotificationsDrawer';
 import { ProfileMenu } from '@/components/ProfileMenu';
-import { Badge, type BellNotification, ThemeToggle } from '@samou-go/ui';
+import { Badge, type BellNotification, LanguageToggle, ThemeToggle } from '@samou-go/ui';
 import { LeafletMap } from '@samou-go/ui/map';
 import { CreateCaptainDialog, CreateStoreDialog } from '@/components/CreateDialogs';
 
@@ -157,7 +157,7 @@ export function SamouGoAdminDashboard() {
 
   if (!auth.ready) {
     return (
-      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-canvas">
+      <main className="flex min-h-screen items-center justify-center bg-canvas">
         <Loader2 size={32} className="animate-spin text-brand" aria-label="Loading" />
       </main>
     );
@@ -177,7 +177,6 @@ export function SamouGoAdminDashboard() {
 
   return (
     <main
-      dir="rtl"
       className="min-h-screen w-full bg-canvas font-sans text-ink dark:bg-slate-900 dark:text-slate-100"
     >
       {/* Sidebar */}
@@ -233,6 +232,7 @@ export function SamouGoAdminDashboard() {
               notifications={notifications}
               onNavigate={target => setActiveNav(target)}
             />
+            <LanguageToggle />
             <ThemeToggle />
             <span className="hidden h-8 w-px bg-line md:block" />
             <ProfileMenu name={auth.user.name} phone={auth.user.phone} onSignOut={auth.signOut} />
@@ -338,9 +338,15 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
           <p dir="ltr" className="text-[11px] text-ink-muted">
             Appearance &amp; dark mode
           </p>
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-sm font-bold">الوضع الداكن</span>
-            <ThemeToggle className="border border-line" />
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold">الوضع الداكن</span>
+              <ThemeToggle className="border border-line" />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold">اللغة / Language</span>
+              <LanguageToggle className="border border-line" />
+            </div>
           </div>
         </section>
         <section className="rounded-2xl border border-line bg-surface p-4">

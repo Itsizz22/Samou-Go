@@ -111,7 +111,6 @@ export function OtpPinInput({
       )}
       <motion.div
         className="flex gap-2"
-        dir="rtl"
         variants={animationProps}
         initial={animationProps ? 'initial' : false}
         animate="animate"

@@ -256,7 +256,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
   /* ---- Render ------------------------------------------------------------ */
 
   return (
-    <div dir="rtl" className="min-h-[60vh]">
+    <div className="min-h-[60vh]">
       {/* Toolbar */}
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <input

@@ -19,7 +19,7 @@ export function ScreenShell({ title, subtitle, children }: ScreenShellProps) {
   const { openDrawer } = useDrawer();
 
   return (
-    <main dir="rtl" className="min-h-screen bg-canvas pb-24 text-ink">
+    <main className="min-h-screen bg-canvas pb-24 text-ink">
       <header className="bg-brand px-5 pb-5 pt-4 text-white">
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">
           <button

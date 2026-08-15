@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ShoppingCart } from 'lucide-react';
-import { NotificationBell, type BellNotification } from '@samou-go/ui';
+import { LanguageToggle, NotificationBell, type BellNotification } from '@samou-go/ui';
 interface HeaderNavProps {
   title: string;
   arabicTitle?: string;
@@ -49,6 +49,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                 {cartCount}
               </span>}
           </button>}
+        <LanguageToggle />
         <NotificationBell
           notifications={notifications ?? []}
           storageKey={storageKey}
