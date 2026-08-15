@@ -1,18 +1,15 @@
-import 'dotenv/config';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
 import { defineConfig } from 'prisma/config';
 
-/**
- * Prisma config file (replaces the deprecated `package.json#prisma` key).
- *
- * The default schema is the PRODUCTION PostgreSQL one — this matches the old
- * auto-discovery behaviour for commands run without `--schema` (e.g. the
- * postinstall / `prisma:generate:prod`). Every local-dev script passes
- * `--schema=prisma/schema.sqlite.prisma` explicitly and the CLI flag always
- * overrides the config-file schema.
- *
- * `import 'dotenv/config'` restores the .env loading that Prisma performs
- * automatically only when no config file exists.
- */
+// تحديد مسار المجلد الحالي بدقة لبيئة ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// تحميل ملف .env مباشرة من مجلد packages/api
+dotenv.config({ path: path.resolve(__dirname, '.env'), override: true });
+
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
