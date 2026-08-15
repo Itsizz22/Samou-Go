@@ -8,6 +8,7 @@ import {
   resetPassword,
   setSessionPersistence,
   useAuth,
+  verifyOtp,
 } from '@/hooks/useApi';
 import { OtpPinInput } from '@/components/OtpPinInput';
 
@@ -17,7 +18,6 @@ const passwordStrong = (password: string) => password.length >= 8;
 function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <main
-      dir="rtl"
       className="flex min-h-screen items-center justify-center bg-canvas px-5 py-10 text-ink"
     >
       <section className="w-full max-w-md rounded-3xl border border-line bg-surface p-6 shadow-card">
@@ -176,6 +176,7 @@ export function LoginScreen() {
 export function RegisterScreen() {
   const auth = useAuth();
   const navigate = useNavigate();
+  const [step, setStep] = useState<'form' | 'otp'>('form');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -183,6 +184,13 @@ export function RegisterScreen() {
   const [accepted, setAccepted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const [resendIn, setResendIn] = useState(0);
+  useEffect(() => {
+    if (!resendIn) return;
+    const timer = window.setTimeout(() => setResendIn(resendIn - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendIn]);
   const valid =
     name.trim().length >= 2 &&
     phoneValid(phone) &&
@@ -198,85 +206,148 @@ export function RegisterScreen() {
         : password.length < 12
           ? 'جيدة'
           : 'قوية';
+  const normalizedPhone = phone.replace(/[\s-]/g, '');
+  const finish = () => {
+    if (code.length !== 6 || pending) return;
+    setPending(true);
+    setError(null);
+    setSessionPersistence(true);
+    void verifyOtp({ phone: normalizedPhone, code, name: name.trim() })
+      .then(() => navigate('/', { replace: true }))
+      .catch((cause: unknown) =>
+        setError(cause instanceof ApiError ? cause.message : 'رمز التحقق غير صحيح.')
+      )
+      .finally(() => setPending(false));
+  };
+  const resend = () => {
+    if (pending || resendIn > 0) return;
+    setPending(true);
+    setError(null);
+    void requestOtp({ phone: normalizedPhone })
+      .then(() => setResendIn(30))
+      .catch((cause: unknown) =>
+        setError(cause instanceof ApiError ? cause.message : 'تعذر إرسال الرمز.')
+      )
+      .finally(() => setPending(false));
+  };
   return (
     <AuthShell>
       <h1 className="text-xl font-extrabold">إنشاء حساب</h1>
       <p className="mt-1 text-sm text-ink-muted" dir="ltr">
         Create your account
       </p>
-      <form
-        noValidate
-        onSubmit={event => {
-          event.preventDefault();
-          if (!valid || pending) return;
-          setPending(true);
-          setError(null);
-          setSessionPersistence(true);
-          void register({ name: name.trim(), phone: phone.replace(/[\s-]/g, ''), password })
-            .then(() => navigate('/', { replace: true }))
-            .catch((cause: unknown) =>
-              setError(cause instanceof ApiError ? cause.message : 'تعذر إنشاء الحساب.')
-            )
-            .finally(() => setPending(false));
-        }}
-      >
-        <label className="mt-5 block text-sm font-bold">
-          الاسم الكامل
-          <input
-            className="input-field mt-1.5 w-full"
-            autoComplete="name"
-            value={name}
-            onChange={event => setName(event.target.value)}
-          />
-        </label>
-        <label className="mt-4 block text-sm font-bold">
-          رقم الجوال
-          <input
-            className="input-field mt-1.5 w-full"
-            dir="ltr"
-            inputMode="tel"
-            autoComplete="tel"
-            value={phone}
-            onChange={event => setPhone(event.target.value)}
-            placeholder="05XXXXXXXX"
-          />
-        </label>
-        <PasswordInput
-          label="كلمة المرور"
-          value={password}
-          onChange={setPassword}
-          autoComplete="new-password"
-        />
-        <p className="mt-1 text-xs text-ink-muted">
-          قوة كلمة المرور: <b className="text-brand">{strength || '—'}</b> (8 أحرف على الأقل)
-        </p>
-        <PasswordInput
-          label="تأكيد كلمة المرور"
-          value={confirm}
-          onChange={setConfirm}
-          autoComplete="new-password"
-        />
-        {confirm.length > 0 && password !== confirm && (
-          <p className="mt-1 text-xs text-danger-ink">كلمتا المرور غير متطابقتين.</p>
-        )}
-        <label className="mt-4 flex items-start gap-2 text-sm text-ink-muted">
-          <input
-            className="mt-1"
-            type="checkbox"
-            checked={accepted}
-            onChange={event => setAccepted(event.target.checked)}
-          />
-          أوافق على الشروط وسياسة الخصوصية.
-        </label>
-        <ErrorBanner error={error} />
-        <button
-          type="submit"
-          disabled={!valid || pending}
-          className="btn-primary mt-5 w-full justify-center disabled:opacity-60"
+      {step === 'form' && (
+        <form
+          noValidate
+          onSubmit={event => {
+            event.preventDefault();
+            if (!valid || pending) return;
+            setPending(true);
+            setError(null);
+            void register({ name: name.trim(), phone: normalizedPhone, password })
+              .then(() => {
+                setStep('otp');
+                setResendIn(30);
+              })
+              .catch((cause: unknown) =>
+                setError(cause instanceof ApiError ? cause.message : 'تعذر إنشاء الحساب.')
+              )
+              .finally(() => setPending(false));
+          }}
         >
-          {pending && <Loader2 className="animate-spin" size={18} />} إنشاء الحساب
-        </button>
-      </form>
+          <label className="mt-5 block text-sm font-bold">
+            الاسم الكامل
+            <input
+              className="input-field mt-1.5 w-full"
+              autoComplete="name"
+              value={name}
+              onChange={event => setName(event.target.value)}
+            />
+          </label>
+          <label className="mt-4 block text-sm font-bold">
+            رقم الجوال
+            <input
+              className="input-field mt-1.5 w-full"
+              dir="ltr"
+              inputMode="tel"
+              autoComplete="tel"
+              value={phone}
+              onChange={event => setPhone(event.target.value)}
+              placeholder="05XXXXXXXX"
+            />
+          </label>
+          <PasswordInput
+            label="كلمة المرور"
+            value={password}
+            onChange={setPassword}
+            autoComplete="new-password"
+          />
+          <p className="mt-1 text-xs text-ink-muted">
+            قوة كلمة المرور: <b className="text-brand">{strength || '—'}</b> (8 أحرف على الأقل)
+          </p>
+          <PasswordInput
+            label="تأكيد كلمة المرور"
+            value={confirm}
+            onChange={setConfirm}
+            autoComplete="new-password"
+          />
+          {confirm.length > 0 && password !== confirm && (
+            <p className="mt-1 text-xs text-danger-ink">كلمتا المرور غير متطابقتين.</p>
+          )}
+          <label className="mt-4 flex items-start gap-2 text-sm text-ink-muted">
+            <input
+              className="mt-1"
+              type="checkbox"
+              checked={accepted}
+              onChange={event => setAccepted(event.target.checked)}
+            />
+            أوافق على الشروط وسياسة الخصوصية.
+          </label>
+          <ErrorBanner error={error} />
+          <button
+            type="submit"
+            disabled={!valid || pending}
+            className="btn-primary mt-5 w-full justify-center disabled:opacity-60"
+          >
+            {pending && <Loader2 className="animate-spin" size={18} />} إنشاء الحساب
+          </button>
+        </form>
+      )}
+      {step === 'otp' && (
+        <div>
+          <p className="mt-5 text-sm text-ink-muted">
+            أدخل الرمز المكوّن من 6 أرقام الذي أرسلناه إلى <span dir="ltr">{normalizedPhone}</span>{' '}
+            لتفعيل حسابك.
+          </p>
+          <div className="mt-5">
+            <OtpPinInput
+              length={6}
+              value={code}
+              onChange={setCode}
+              state="idle"
+              autoFocus
+              label="رمز التحقق"
+            />
+          </div>
+          <ErrorBanner error={error} />
+          <button
+            type="button"
+            onClick={finish}
+            disabled={code.length !== 6 || pending}
+            className="btn-primary mt-5 w-full justify-center"
+          >
+            {pending && <Loader2 className="animate-spin" size={18} />}تفعيل الحساب
+          </button>
+          <button
+            type="button"
+            onClick={resend}
+            disabled={resendIn > 0 || pending}
+            className="mt-4 w-full text-sm font-bold text-brand"
+          >
+            {resendIn ? `إعادة الإرسال خلال ${resendIn}ث` : 'إعادة إرسال الرمز'}
+          </button>
+        </div>
+      )}
       <p className="mt-5 text-center text-sm text-ink-muted">
         لديك حساب؟{' '}
         <Link to="/login" className="font-bold text-brand">

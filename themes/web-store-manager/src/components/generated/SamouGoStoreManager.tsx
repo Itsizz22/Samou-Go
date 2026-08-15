@@ -49,6 +49,7 @@ import {
 } from '@samou-go/api-client';
 import { playNewOrderChime } from '@samou-go/ui';
 import {
+  LanguageToggle,
   NotificationBell,
   ThemeToggle,
   Badge,
@@ -321,7 +322,7 @@ export function SamouGoStoreManager() {
 
   if (!auth.ready) {
     return (
-      <main dir="rtl" className="min-h-screen bg-canvas pb-24" aria-busy="true">
+      <main className="min-h-screen bg-canvas pb-24" aria-busy="true">
         <header className="bg-brand px-4 pb-4 pt-4 text-white">
           <div className="mx-auto flex max-w-md items-center justify-between" aria-hidden="true">
             <span className="h-10 w-10 rounded-xl bg-surface/15" />
@@ -353,7 +354,7 @@ export function SamouGoStoreManager() {
   /* ---- Render ------------------------------------------------------------ */
 
   return (
-    <main dir="rtl" className="min-h-screen bg-canvas pb-24 font-sans text-ink md:pe-60">
+    <main className="min-h-screen bg-canvas pb-24 font-sans text-ink md:pe-60">
       <aside className="fixed inset-y-0 end-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل مدير المتجر">
         <p className="px-3 text-lg font-extrabold">Samou' Go</p>
         <p className="px-3 text-[11px] text-white/70">مدير المتجر</p>
@@ -396,6 +397,7 @@ export function SamouGoStoreManager() {
             </p>
           </div>
           <div className="flex items-center gap-2" dir="ltr">
+            <LanguageToggle onDark />
             <ThemeToggle onDark />
             <NotificationBell
               notifications={bellNotifications}

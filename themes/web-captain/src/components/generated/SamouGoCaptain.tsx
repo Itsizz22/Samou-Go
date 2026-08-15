@@ -41,6 +41,7 @@ import {
 } from '@samou-go/api-client';
 import {
   Badge,
+  LanguageToggle,
   NotificationBell,
   ThemeToggle,
   type BellNotification,
@@ -323,7 +324,7 @@ export function SamouGoCaptain() {
 
   if (!auth.ready) {
     return (
-      <main dir="rtl" className="min-h-screen bg-canvas pb-24" aria-busy="true">
+      <main className="min-h-screen bg-canvas pb-24" aria-busy="true">
         <header className="bg-brand px-4 pb-4 pt-3 text-white">
           <div className="mx-auto flex max-w-md items-center justify-between" aria-hidden="true">
             <span className="h-10 w-10 rounded-full bg-surface/15" />
@@ -532,7 +533,7 @@ export function SamouGoCaptain() {
   /* ---- Render ------------------------------------------------------------ */
 
   return (
-    <main dir="rtl" className="min-h-screen bg-canvas pb-24 font-sans text-ink md:pe-60">
+    <main className="min-h-screen bg-canvas pb-24 font-sans text-ink md:pe-60">
       <aside className="fixed inset-y-0 end-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل الكابتن">
         <p className="px-3 text-lg font-extrabold">Samou' Go</p>
         <p className="px-3 text-[11px] text-white/70">الكابتن</p>
@@ -576,6 +577,7 @@ export function SamouGoCaptain() {
             <p dir="ltr" className="text-[11px] font-medium text-white/85">Hello, {captainName}</p>
           </div>
           <div className="flex items-center gap-2" dir="ltr">
+            <LanguageToggle onDark />
             <ThemeToggle onDark />
             <NotificationBell
               notifications={bellNotifications}
@@ -850,7 +852,7 @@ export function SamouGoCaptain() {
       </div>
 
       <nav className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface/95 px-2 pb-[max(9px,env(safe-area-inset-bottom))] pt-2 shadow-raised backdrop-blur md:hidden" aria-label="Bottom navigation">
-        <div className="mx-auto flex max-w-md items-center justify-around" dir="rtl">
+        <div className="mx-auto flex max-w-md items-center justify-around">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;

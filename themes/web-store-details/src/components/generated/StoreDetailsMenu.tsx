@@ -114,7 +114,7 @@ export const StoreDetailsMenu = () => {
   /* ---- Render ------------------------------------------------------------ */
 
   return (
-    <div dir="rtl" className="min-h-screen bg-canvas pb-36 text-ink">
+    <div className="min-h-screen bg-canvas pb-36 text-ink">
       <HeaderNav
         title="Store Details"
         arabicTitle={store.data?.nameAr ?? 'تفاصيل المتجر'}

@@ -42,7 +42,7 @@ export function StoreDetailScreen() {
   if (store.loading && !store.data) {
     return (
       <PageTransition>
-        <main dir="rtl" className="min-h-screen bg-canvas pb-24 text-ink">
+        <main className="min-h-screen bg-canvas pb-24 text-ink">
           <div className="safe-top bg-brand px-5 pb-5 pt-4 text-white">
             <div className="mx-auto max-w-md">
               <Skeleton className="h-4 w-24 bg-white/30" />
@@ -62,7 +62,7 @@ export function StoreDetailScreen() {
   if (store.error && !store.data) {
     return (
       <PageTransition>
-        <main dir="rtl" className="min-h-screen bg-canvas pb-24 text-ink">
+        <main className="min-h-screen bg-canvas pb-24 text-ink">
           <div className="mx-auto max-w-md px-5 pt-16 text-center">
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
               <AlertTriangle size={22} />
@@ -101,7 +101,7 @@ export function StoreDetailScreen() {
 
   return (
     <PageTransition>
-      <main dir="rtl" className="min-h-screen bg-canvas pb-28 text-ink">
+      <main className="min-h-screen bg-canvas pb-28 text-ink">
         <header className="safe-top bg-brand px-5 pb-4 pt-4 text-white">
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
             <button

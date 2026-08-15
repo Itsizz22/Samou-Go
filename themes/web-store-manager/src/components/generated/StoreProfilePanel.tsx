@@ -181,7 +181,7 @@ export function StoreProfilePanel({ storeId }: Props) {
   }
 
   return (
-    <div dir="rtl" className="mx-auto max-w-lg">
+    <div className="mx-auto max-w-lg">
       <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
         {/* Store ID badge */}
         <div className="border-b border-line-soft bg-canvas px-5 py-3 flex items-center gap-2">

@@ -122,7 +122,7 @@ export function CustomerAuthGate({
   const canResend = resendIn === 0;
 
   return (
-    <main dir="rtl" className="flex min-h-screen items-center justify-center bg-canvas px-5 py-10 text-ink">
+    <main className="flex min-h-screen items-center justify-center bg-canvas px-5 py-10 text-ink">
       <motion.div
         className="w-full max-w-sm"
         variants={fadeSlideUp}

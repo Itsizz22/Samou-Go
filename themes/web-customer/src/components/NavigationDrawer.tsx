@@ -36,6 +36,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
+import { LanguageToggle, useLanguage } from '@samou-go/ui';
 import { useAuth } from '@/hooks/useApi';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ACCENT_OPTIONS } from '@/theme/presets';
@@ -92,16 +93,13 @@ export function NavigationDrawer() {
   const { open, closeDrawer } = useDrawer();
   const auth = useAuth();
   const { accent, mode, setAccent, setMode } = useTheme();
+  const { dir } = useLanguage();
   const location = useLocation();
 
   // Slide direction follows the document direction: in RTL the drawer sits on
-  // the inline-start (right) edge, so it enters from the right.
-  const away = useMemo(
-    () => (document.documentElement.dir === 'rtl' ? '100%' : '-100%'),
-    // Re-evaluated whenever the drawer opens — the dir may flip via language.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [open]
-  );
+  // the inline-start (right) edge, so it enters from the right. Reactive to the
+  // language context so a flip to English re-animates from the correct edge.
+  const away = useMemo(() => (dir === 'rtl' ? '100%' : '-100%'), [dir]);
 
   // Lock body scroll + Esc handling while the drawer is open.
   useEffect(() => {
@@ -295,6 +293,7 @@ export function NavigationDrawer() {
                     {mode === 'light' ? <Moon size={13} /> : <Sun size={13} />}
                     <span dir="ltr">{mode === 'light' ? 'Dark' : 'Light'}</span>
                   </button>
+                  <LanguageToggle />
                 </div>
               </div>
             </nav>

@@ -10,6 +10,7 @@ export {
 } from './HorizontalScrollGallery';
 export { AppErrorBoundary, OfflineBanner } from './RuntimeSafety';
 export { ThemeToggle, type ThemeToggleProps } from './ThemeToggle';
+export { LanguageToggle, type LanguageToggleProps } from './LanguageToggle';
 
 /* Design-system primitives — the shared vocabulary for all seven apps. */
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button';

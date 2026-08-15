@@ -96,7 +96,10 @@ vi.mock('../../lib/prisma', () => ({
         h.state.user = { id: 'u-1', ...data };
         return h.state.user;
       }),
-      update: vi.fn(async ({ where, data }: any) => ({ id: where.id, ...data })),
+      update: vi.fn(async ({ where, data }: any) => {
+        h.state.user = { ...h.state.user, id: where.id, ...data };
+        return h.state.user;
+      }),
     },
     store: {
       create: vi.fn(async ({ data }: any) => {
@@ -231,7 +234,7 @@ describe('verifyOtp — customer sign-in', () => {
     expect(h.state.otp).not.toBeNull(); // still tryable within the budget
   });
 
-  it('signs in an existing customer and consumes the code', async () => {
+  it('signs in an existing customer, marks them verified and consumes the code', async () => {
     seedOtp();
     h.state.user = { id: 'u-1', phone: PHONE, name: 'ليلى', role: UserRole.CUSTOMER, isActive: true };
 
@@ -240,16 +243,18 @@ describe('verifyOtp — customer sign-in', () => {
     expect(result.accessToken).toBe('at-1');
     expect(result.refreshToken).toBe('rt-1');
     expect(result.user.phone).toBe(PHONE);
+    expect(h.state.user?.isVerified).toBe(true); // OTP proof flips the flag
     expect(h.state.otp).toBeNull(); // one-time use
   });
 
-  it('provisions a brand-new customer before consuming the code', async () => {
+  it('provisions a brand-new customer already verified before consuming the code', async () => {
     seedOtp();
 
     const result = await verifyOtp({ phone: PHONE, code: CODE, name: 'مجد' });
 
     expect(result.user.name).toBe('مجد');
     expect(h.state.user?.role).toBe(UserRole.CUSTOMER);
+    expect(h.state.user?.isVerified).toBe(true); // created verified by definition
     expect(h.state.otp).toBeNull();
   });
 });

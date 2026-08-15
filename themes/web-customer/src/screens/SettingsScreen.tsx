@@ -3,19 +3,20 @@
  *
  * Theme colours (accent palette + dark/light mode), notification and language
  * preferences. Theme state lives in `ThemeProvider` (persisted to localStorage);
- * the language reuses the `@samou-go/ui` bootstrap switch which flips
- * `<html lang/dir>`. Every control applies instantly — no restart, no reload.
+ * language lives in the shared reactive `useLanguage` context from `@samou-go/ui`,
+ * which flips `<html lang/dir>`, persists to `samou-go.language`, and broadcasts
+ * the `samou-go:language` CustomEvent so every Samou' Go app stays in sync.
+ * Every control applies instantly — no restart, no reload.
  */
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { Bell, Check, Globe, MapPin, Moon, Palette, Sun, type LucideIcon } from 'lucide-react';
-import { setAppLanguage } from '@samou-go/ui';
+import { useLanguage } from '@samou-go/ui';
 import { ScreenShell } from '@/components/ScreenShell';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ACCENT_OPTIONS } from '@/theme/presets';
 
 const NOTIFICATIONS_STORAGE_KEY = 'samou.settings.notifications';
-const LANGUAGE_STORAGE_KEY = 'samou-go.language';
 
 function readBoolean(key: string, fallback: boolean): boolean {
   try {
@@ -93,9 +94,7 @@ function SettingsRow({
 
 export function SettingsScreen() {
   const { accent, mode, setAccent, setMode } = useTheme();
-  const [language, setLanguage] = useState<'ar' | 'en'>(() =>
-    readStoredLanguage()
-  );
+  const { language, setLanguage } = useLanguage();
   const [notifications, setNotifications] = useState(() =>
     readBoolean(NOTIFICATIONS_STORAGE_KEY, true)
   );
@@ -111,13 +110,6 @@ export function SettingsScreen() {
       /* Private mode — preference is lost on reload, acceptable. */
     }
   }, [notifications]);
-
-  const changeLanguage = (next: 'ar' | 'en') => {
-    setLanguage(next);
-    setAppLanguage(next);
-    document.documentElement.lang = next;
-    document.documentElement.dir = next === 'en' ? 'ltr' : 'rtl';
-  };
 
   const detectLocation = () => {
     if (!navigator.geolocation) {
@@ -198,7 +190,7 @@ export function SettingsScreen() {
           <Segmented
             options={['ar', 'en'] as const}
             value={language}
-            onChange={changeLanguage}
+            onChange={setLanguage}
             getLabel={(option) => (option === 'ar' ? 'العربية' : 'English')}
           />
         </SettingsRow>
@@ -241,12 +233,4 @@ export function SettingsScreen() {
       </div>
     </ScreenShell>
   );
-}
-
-function readStoredLanguage(): 'ar' | 'en' {
-  try {
-    return window.localStorage.getItem(LANGUAGE_STORAGE_KEY) === 'en' ? 'en' : 'ar';
-  } catch {
-    return 'ar';
-  }
 }

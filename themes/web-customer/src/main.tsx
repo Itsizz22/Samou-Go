@@ -1,4 +1,4 @@
-import { AppErrorBoundary, OfflineBanner, bootstrapApp } from '@samou-go/ui';
+import { AppErrorBoundary, LanguageProvider, OfflineBanner, bootstrapApp } from '@samou-go/ui';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
@@ -26,9 +26,9 @@ bootstrapApp({ allowDarkMode: true });
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AppErrorBoundary><OfflineBanner /><BrowserRouter>
+    <AppErrorBoundary><OfflineBanner /><LanguageProvider><BrowserRouter>
       <CartProvider><FavoritesProvider><App /></FavoritesProvider></CartProvider>
-    </BrowserRouter></AppErrorBoundary>
+    </BrowserRouter></LanguageProvider></AppErrorBoundary>
     <Toaster />
   </StrictMode>
 );

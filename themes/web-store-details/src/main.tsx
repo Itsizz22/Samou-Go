@@ -1,4 +1,4 @@
-import { bootstrapApp } from '@samou-go/ui';
+import { LanguageProvider, bootstrapApp } from '@samou-go/ui';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Toaster } from 'sonner';
@@ -11,7 +11,7 @@ bootstrapApp();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <LanguageProvider><App /></LanguageProvider>
     <Toaster />
   </StrictMode>
 );

@@ -25,7 +25,7 @@ export function CartScreen() {
 
   return (
     <PageTransition>
-      <main dir="rtl" className="min-h-screen bg-canvas pb-28 text-ink">
+      <main className="min-h-screen bg-canvas pb-28 text-ink">
         <header className="safe-top bg-brand px-5 pb-4 pt-4 text-white">
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
             <button

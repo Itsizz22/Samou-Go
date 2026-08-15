@@ -209,7 +209,7 @@ export const LiveOrderTracking = () => {
 
   if (!auth.ready) {
     return (
-      <main dir="rtl" className="min-h-screen bg-canvas pb-24" aria-busy="true">
+      <main className="min-h-screen bg-canvas pb-24" aria-busy="true">
         <HeaderNav title="Track Order" arabicTitle="تتبع الطلب" showBack={false} showCart={false} />
         <div className="mx-auto w-full max-w-md space-y-4 px-4 pt-5" aria-hidden="true">
           <div className="h-[132px] animate-pulse rounded-xl bg-surface shadow-card" />
@@ -247,7 +247,7 @@ export const LiveOrderTracking = () => {
 
   if (activeTab === 'profile' && auth.user) {
     return (
-      <main dir="rtl" className="min-h-screen bg-canvas pb-24 text-ink">
+      <main className="min-h-screen bg-canvas pb-24 text-ink">
         <HeaderNav
           title="Profile"
           arabicTitle="حسابي"
@@ -272,7 +272,7 @@ export const LiveOrderTracking = () => {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-canvas pb-24 text-ink">
+    <main className="min-h-screen bg-canvas pb-24 text-ink">
       <HeaderNav
         title="Track Order"
         arabicTitle="تتبع الطلب"

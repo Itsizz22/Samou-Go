@@ -135,7 +135,7 @@ export function SamouGoHome() {
     }));
   }, [auth.user, orders.data]);
 
-  return <main dir="rtl" className="min-h-screen bg-canvas pb-24 text-ink">
+  return <main className="min-h-screen bg-canvas pb-24 text-ink">
       <header className="bg-brand px-5 pb-5 pt-4 text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Main navigation">
           <button
@@ -167,7 +167,7 @@ export function SamouGoHome() {
           </div>
         </nav>
         <section className="mx-auto mt-5 flex max-w-md items-end justify-between" aria-label="Location and greeting">
-          <div className="flex items-center gap-2 text-end" dir="rtl"><MapPin size={18} /><div><p className="text-sm font-semibold">السموع، الخليل</p><p className="text-[11px] text-white/80" dir="ltr">Al-Samou', Hebron</p></div></div>
+          <div className="flex items-center gap-2 text-end"><MapPin size={18} /><div><p className="text-sm font-semibold">السموع، الخليل</p><p className="text-[11px] text-white/80" dir="ltr">Al-Samou', Hebron</p></div></div>
           <div className="text-start"><p className="text-lg font-bold">مرحباً! 👋</p><p className="text-xs text-white/80" dir="ltr">Hello!</p></div>
         </section>
       </header>
@@ -181,7 +181,7 @@ export function SamouGoHome() {
 
       <section className="mx-auto max-w-md px-5 pt-6" aria-label="Promotions">
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-brand-dark to-brand-soft px-5 py-5 text-white shadow-card">
-          <div className="relative z-10 flex min-h-[104px] items-center justify-between" dir="rtl">
+          <div className="relative z-10 flex min-h-[104px] items-center justify-between">
             <div><p className="mb-2 text-xs font-medium text-white/85">عرض خاص لفترة محدودة</p><h2 className="max-w-[220px] text-[22px] font-extrabold leading-tight">{banner === 0 ? 'توصيل مجاني لأول طلب' : 'متاجر جديدة في السموع!'}</h2><p className="mt-2 text-xs font-medium text-white/85" dir="ltr">{banner === 0 ? 'Free delivery on your first order!' : "New stores in Al-Samou'!"}</p></div><span className="text-5xl opacity-20">{banner === 0 ? '✦' : '✚'}</span>
           </div>
           <div className="absolute -bottom-10 -start-8 h-32 w-32 rounded-full border-[18px] border-white/10" />
@@ -191,7 +191,7 @@ export function SamouGoHome() {
 
       <section className="mx-auto max-w-md px-5 pt-7" aria-labelledby="categories-title">
         <div className="mb-4 flex items-end justify-between"><div><h2 id="categories-title" className="text-lg font-extrabold">الفئات</h2><p className="text-xs text-ink-muted" dir="ltr">Categories</p></div><ChevronLeft size={18} className="text-ink-subtle" /></div>
-        <div className="flex gap-3 overflow-x-auto pb-1" dir="rtl">
+        <div className="flex gap-3 overflow-x-auto pb-1">
           {STORE_CATEGORIES.map(category => {
           const Icon = CATEGORY_ICONS[category.key];
           const active = activeCategory === category.key;
@@ -229,7 +229,7 @@ export function SamouGoHome() {
 
       {!stores.error && (stores.loading || featured.length > 0) && <section className="mx-auto max-w-md px-5 pt-8" aria-labelledby="featured-title" aria-busy={stores.loading}>
         <div className="mb-4 flex items-end justify-between"><div><h2 id="featured-title" className="text-lg font-extrabold">المتاجر المميزة</h2><p className="text-xs text-ink-muted" dir="ltr">Featured Stores</p></div><button type="button" onClick={() => document.getElementById('nearby-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="text-xs font-bold text-brand">عرض الكل <span dir="ltr">See all</span></button></div>
-        <div className="flex gap-3 overflow-x-auto pb-2" dir="rtl">
+        <div className="flex gap-3 overflow-x-auto pb-2">
           {stores.loading
             ? [0, 1, 2].map(index => <div key={index} className="min-w-[196px] animate-pulse overflow-hidden rounded-2xl bg-surface shadow-card" aria-hidden="true"><div className="h-24 bg-line-soft" /><div className="space-y-2 p-3"><div className="ms-auto h-3 w-2/3 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-1/2 rounded bg-line-soft" /><div className="h-5 w-20 rounded-full bg-line-soft" /></div></div>)
             : featured.map(({ store, category, initials, gradient }) => (
