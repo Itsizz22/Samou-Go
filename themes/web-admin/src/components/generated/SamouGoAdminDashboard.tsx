@@ -181,7 +181,7 @@ export function SamouGoAdminDashboard() {
 
   return (
     <main
-      className="min-h-screen w-full bg-canvas font-sans text-ink dark:bg-slate-900 dark:text-slate-100"
+      className="min-h-screen w-full bg-canvas font-sans text-ink"
     >
       {/* Sidebar */}
       <AdminSidebar
@@ -524,7 +524,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
                 {label}
               </button>
             ))}
-            <span className="text-[10px] text-ink-subtle">
+            <span className="text-micro text-ink-muted">
               Pipeline data refreshes every 10 seconds.
             </span>
           </div>
@@ -536,7 +536,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
           <div className="flex items-center justify-between border-b border-line-soft px-5 py-3">
             <div>
               <p className="text-xs font-extrabold text-ink">منطقة التشغيل — السموع</p>
-              <p dir="ltr" className="mt-0.5 text-[10px] text-ink-muted">
+              <p dir="ltr" className="mt-0.5 text-micro text-ink-muted">
                 Operations map · Samou', Hebron
               </p>
             </div>
@@ -578,7 +578,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
                   )}
                 </p>
                 <p className="mt-2 text-xs font-semibold text-ink-soft">{kpi.label}</p>
-                <p dir="rtl" className="mt-0.5 text-[11px] text-ink-subtle">
+                <p dir="rtl" className="mt-0.5 text-[11px] text-ink-muted">
                   {kpi.ar}
                 </p>
               </article>
@@ -680,7 +680,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
                       {column.slice(0, 5).map(order => (
                         <li
                           key={order.id}
-                          className="rounded-lg border border-line bg-surface p-2 text-[10px] shadow-card"
+                          className="rounded-lg border border-line bg-surface p-2 text-micro shadow-card"
                         >
                           <p className="font-extrabold text-brand-deep" dir="ltr">
                             {order.orderNumber}
@@ -692,7 +692,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
                         </li>
                       ))}
                       {column.length === 0 && (
-                        <li className="pt-4 text-center text-[10px] text-ink-subtle">No orders</li>
+                        <li className="pt-4 text-center text-micro text-ink-muted">No orders</li>
                       )}
                     </ul>
                   </div>
@@ -719,7 +719,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-start">
-                <thead className="bg-canvas text-[10px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+                <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
                   <tr>
                     <th className="px-5 py-3">Order ID</th>
                     <th className="px-3 py-3">Store</th>
@@ -788,7 +788,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="font-bold text-ink-soft">
                         {ORDER_STATUS_LABELS[status].ar}
-                        <span dir="ltr" className="ms-1 font-medium text-ink-subtle">
+                        <span dir="ltr" className="ms-1 font-medium text-ink-muted">
                           · {ORDER_STATUS_LABELS[status].en}
                         </span>
                       </span>
@@ -836,7 +836,7 @@ function StatusKpi({
         {count}
       </p>
       <p className="mt-1 text-xs font-bold text-ink-soft">{label}</p>
-      <p dir="ltr" className="mt-0.5 text-[10px] text-ink-subtle">
+      <p dir="ltr" className="mt-0.5 text-micro text-ink-muted">
         {en}
       </p>
       <span className={`mt-2 inline-block h-1.5 w-8 rounded-full ${tint[tone]}`} />
@@ -946,7 +946,7 @@ function OrdersPanel() {
     >
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-start">
-          <thead className="bg-canvas text-[10px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+          <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
             <tr>
               <th className="px-5 py-3">Order ID</th>
               <th className="px-3 py-3">Store</th>
@@ -983,7 +983,7 @@ function OrdersPanel() {
                       </td>
                       <td className="px-3 py-3">
                         {legal.length === 0 ? (
-                          <span className="text-[10px] text-ink-subtle">—</span>
+                          <span className="text-micro text-ink-muted">—</span>
                         ) : (
                           <select
                             value=""
@@ -1258,7 +1258,7 @@ function UsersPanel() {
       )}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-start">
-          <thead className="bg-canvas text-[10px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+          <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
             <tr>
               <th className="px-3 py-3">
                 <input
@@ -1304,7 +1304,7 @@ function UsersPanel() {
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-2.5">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-tint text-[10px] font-extrabold text-brand-deep">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-tint text-micro font-extrabold text-brand-deep">
                             {user.name.slice(0, 2)}
                           </span>
                           <span className="font-bold text-ink">{user.name}</span>
@@ -1361,7 +1361,7 @@ function UsersPanel() {
                       </td>
                       <td className="px-3 py-3">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-micro font-bold ${
                             user.isActive
                               ? 'bg-brand-tint text-brand-deep'
                               : 'bg-danger-tint text-danger-ink'
@@ -1735,7 +1735,7 @@ function StoresPanel() {
       )}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-start">
-          <thead className="bg-canvas text-[10px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+          <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
             <tr>
               <th className="px-3 py-3">
                 <input
@@ -1786,7 +1786,7 @@ function StoresPanel() {
                         </td>
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2.5">
-                            <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-tint text-[10px] font-extrabold text-brand-deep">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-tint text-micro font-extrabold text-brand-deep">
                               {store.logoUrl ? (
                                 <img
                                   src={store.logoUrl}
@@ -1799,7 +1799,7 @@ function StoresPanel() {
                             </span>
                             <span>
                               <strong className="block font-bold text-ink">{store.nameAr}</strong>
-                              <span className="block text-[10px] text-ink-subtle" dir="ltr">
+                              <span className="block text-micro text-ink-muted" dir="ltr">
                                 {store.nameEn}
                               </span>
                             </span>
@@ -1807,18 +1807,18 @@ function StoresPanel() {
                         </td>
                         <td className="px-3 py-3">
                           {store.isApproved ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-brand-tint px-2.5 py-1 text-[10px] font-bold text-brand-deep">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-brand-tint px-2.5 py-1 text-micro font-bold text-brand-deep">
                               <BadgeCheck size={12} /> موافق عليه
                             </span>
                           ) : (
-                            <span className="inline-flex rounded-full bg-warning-tint px-2.5 py-1 text-[10px] font-bold text-warning-ink">
+                            <span className="inline-flex rounded-full bg-warning-tint px-2.5 py-1 text-micro font-bold text-warning-ink">
                               بانتظار الموافقة
                             </span>
                           )}
                         </td>
                         <td className="px-3 py-3">
                           <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                            className={`inline-flex rounded-full px-2.5 py-1 text-micro font-bold ${
                               store.isActive
                                 ? 'bg-brand-tint text-brand-deep'
                                 : 'bg-canvas text-ink-muted'
@@ -2020,7 +2020,7 @@ function StoreProductImagesManager({
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-extrabold text-ink">صور المنتجات</p>
-          <p dir="ltr" className="mt-0.5 text-[10px] text-ink-muted">
+          <p dir="ltr" className="mt-0.5 text-micro text-ink-muted">
             Product images for store <span className="font-bold">{storeId}</span> —{' '}
             {products.length}
           </p>
@@ -2029,13 +2029,13 @@ function StoreProductImagesManager({
           <Loader2 size={14} className="animate-spin text-brand" aria-label="Loading products" />
         )}
         {resource.error && (
-          <span className="text-[10px] font-semibold text-danger-ink">
+          <span className="text-micro font-semibold text-danger-ink">
             {resource.error.message}
           </span>
         )}
       </div>
       {products.length === 0 && !resource.loading && !resource.error ? (
-        <p className="py-4 text-center text-[11px] text-ink-subtle">لا توجد منتجات في هذا المتجر</p>
+        <p className="py-4 text-center text-[11px] text-ink-muted">لا توجد منتجات في هذا المتجر</p>
       ) : (
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {products.map(product => {
@@ -2058,7 +2058,7 @@ function StoreProductImagesManager({
                 )}
                 <div className="min-w-0 flex-1">
                   <strong className="block truncate text-[11px] text-ink">{product.nameAr}</strong>
-                  <span className="block text-[9px] text-ink-subtle" dir="ltr">
+                  <span className="block text-micro text-ink-muted" dir="ltr">
                     {product.id}
                   </span>
                 </div>
@@ -2066,7 +2066,7 @@ function StoreProductImagesManager({
                   type="button"
                   disabled={busy}
                   onClick={() => onPick('product', product.id)}
-                  className="flex h-7 items-center gap-1 rounded-lg bg-brand px-2 text-[10px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
+                  className="flex h-7 items-center gap-1 rounded-lg bg-brand px-2 text-micro font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
                   aria-label={`Change image for ${product.nameAr}`}
                 >
                   {busy ? <Loader2 size={11} className="animate-spin" /> : <ImagePlus size={11} />}
@@ -2077,7 +2077,7 @@ function StoreProductImagesManager({
                     type="button"
                     disabled={busy}
                     onClick={() => void onRemove('product', product.id)}
-                    className="flex h-7 items-center rounded-lg border border-line px-2 text-[10px] font-bold text-ink-muted transition hover:border-danger-tint hover:bg-danger-tint hover:text-danger-ink disabled:opacity-50"
+                    className="flex h-7 items-center rounded-lg border border-line px-2 text-micro font-bold text-ink-muted transition hover:border-danger-tint hover:bg-danger-tint hover:text-danger-ink disabled:opacity-50"
                     aria-label={`Remove image for ${product.nameAr}`}
                   >
                     <X size={11} />
@@ -2226,7 +2226,7 @@ function CaptainsPanel() {
       />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[680px] text-start">
-          <thead className="bg-canvas text-[10px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+          <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
             <tr>
               <th className="px-5 py-3">Captain</th>
               <th className="px-3 py-3">Verification</th>
@@ -2252,12 +2252,12 @@ function CaptainsPanel() {
                     <tr key={captain.id} className="text-xs hover:bg-canvas">
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-2.5">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-tint text-[10px] font-extrabold text-brand-deep">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-tint text-micro font-extrabold text-brand-deep">
                             {captain.name.slice(0, 2)}
                           </span>
                           <span>
                             <strong className="block font-bold text-ink">{captain.name}</strong>
-                            <span className="block text-[10px] text-ink-subtle" dir="ltr">
+                            <span className="block text-micro text-ink-muted" dir="ltr">
                               {captain.phone}
                             </span>
                           </span>
@@ -2265,11 +2265,11 @@ function CaptainsPanel() {
                       </td>
                       <td className="px-3 py-3">
                         {captain.isVerified ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-brand-tint px-2.5 py-1 text-[10px] font-bold text-brand-deep">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-brand-tint px-2.5 py-1 text-micro font-bold text-brand-deep">
                             <BadgeCheck size={12} /> موثّق
                           </span>
                         ) : (
-                          <span className="inline-flex rounded-full bg-warning-tint px-2.5 py-1 text-[10px] font-bold text-warning-ink">
+                          <span className="inline-flex rounded-full bg-warning-tint px-2.5 py-1 text-micro font-bold text-warning-ink">
                             غير موثّق
                           </span>
                         )}
@@ -2307,7 +2307,7 @@ function CaptainsPanel() {
                       </td>
                       <td className="px-3 py-3">
                         <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-micro font-bold ${
                             captain.isActive && captain.isAvailable
                               ? 'bg-brand-tint text-brand-deep'
                               : 'bg-canvas text-ink-muted'

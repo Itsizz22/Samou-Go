@@ -43,7 +43,7 @@ export function BottomNav() {
             }
           >
             <Icon size={20} fill={to === '/' ? 'currentColor' : 'none'} />
-            <span className="text-[10px] font-semibold">{label}</span>
+            <span className="text-micro font-semibold">{label}</span>
           </NavLink>
         ))}
       </div>

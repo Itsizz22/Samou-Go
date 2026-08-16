@@ -49,7 +49,7 @@ export function ProfileMenu({ name, phone, onSignOut }: ProfileMenuProps) {
         </span>
         <span className="hidden text-end md:block">
           <strong className="block text-xs">{name}</strong>
-          <span dir="rtl" className="block text-[10px] text-ink-muted">مدير النظام</span>
+          <span dir="rtl" className="block text-micro text-ink-muted">مدير النظام</span>
         </span>
       </button>
 
@@ -60,7 +60,7 @@ export function ProfileMenu({ name, phone, onSignOut }: ProfileMenuProps) {
         >
           <div className="border-b border-line px-4 py-3">
             <p className="truncate text-xs font-extrabold">{name}</p>
-            <p dir="ltr" className="mt-0.5 truncate text-[10px] text-ink-muted">{phone}</p>
+            <p dir="ltr" className="mt-0.5 truncate text-micro text-ink-muted">{phone}</p>
           </div>
           <div className="p-1.5">
             <button

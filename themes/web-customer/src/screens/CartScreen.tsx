@@ -34,7 +34,7 @@ export function CartScreen() {
               onClick={() => navigate(-1)}
               className="rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
             >
-              <ArrowRight size={22} />
+              <ArrowRight size={22} className="rtl:rotate-180" />
             </button>
             <div className="flex-1 text-end">
               <h1 className="text-lg font-extrabold">سلة المشتريات</h1>
@@ -101,7 +101,7 @@ export function CartScreen() {
                           onChange={(event) => cart.setNote(line.productId, event.target.value.slice(0, 500))}
                           placeholder="ملاحظة للصنف / Item note"
                           aria-label={`Item note for ${line.product.nameAr}`}
-                          className="mt-2 w-full rounded-lg border border-line bg-canvas px-2 py-1.5 text-[10px] text-ink outline-none focus:border-brand"
+                          className="mt-2 w-full rounded-lg border border-line bg-canvas px-2 py-1.5 text-micro text-ink outline-none focus:border-brand"
                         />
                       </div>
                       <div className="flex shrink-0 items-center gap-2 rounded-full bg-brand px-1.5 py-1 text-white">
@@ -112,7 +112,7 @@ export function CartScreen() {
                             cart.setQuantity(line.productId, line.quantity - 1);
                             void hapticTap();
                           }}
-                          className="rounded-full p-1 transition active:scale-90"
+                          className="rounded-full p-2 transition active:scale-90"
                         >
                           <Minus size={14} />
                         </button>
@@ -126,7 +126,7 @@ export function CartScreen() {
                             cart.setQuantity(line.productId, line.quantity + 1);
                             void hapticTap();
                           }}
-                          className="rounded-full p-1 transition active:scale-90"
+                          className="rounded-full p-2 transition active:scale-90"
                         >
                           <Plus size={14} />
                         </button>
@@ -135,7 +135,7 @@ export function CartScreen() {
                         type="button"
                         aria-label="حذف / Remove"
                         onClick={() => cart.removeItem(line.productId)}
-                        className="shrink-0 rounded-full p-1.5 text-ink-subtle transition hover:bg-danger-tint hover:text-danger-ink"
+                        className="shrink-0 rounded-full p-2 text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink"
                       >
                         <Trash2 size={16} />
                       </button>

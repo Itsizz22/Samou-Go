@@ -218,7 +218,7 @@ export const CartCheckoutSummary = () => {
         <HeaderNav title="Checkout / الدفع" showBack={false} showCart={false} />
         <div className="mx-auto w-full max-w-lg space-y-3 px-4 pt-6" aria-hidden="true">
           {[0, 1, 2].map((index) => (
-            <div key={index} className="h-[86px] animate-pulse rounded-xl bg-surface shadow-card" />
+            <div key={index} className="skeleton h-[86px] rounded-xl shadow-card" />
           ))}
         </div>
       </div>
@@ -369,7 +369,7 @@ export const CartCheckoutSummary = () => {
               {[0, 1, 2].map((index) => (
                 <li
                   key={index}
-                  className="flex animate-pulse items-center gap-3 rounded-xl bg-surface p-3.5 shadow-card ring-1 ring-line"
+                  className="skeleton flex items-center gap-3 rounded-xl p-3.5 shadow-card ring-1 ring-line"
                 >
                   <div className="h-[62px] w-[62px] shrink-0 rounded-xl bg-line-soft" />
                   <div className="flex-1 space-y-2">
@@ -415,7 +415,7 @@ export const CartCheckoutSummary = () => {
                           {product.description}
                         </p>
                       )}
-                      <p className="mt-1 text-xs text-ink-subtle">
+                      <p className="mt-1 text-xs text-ink-muted">
                         <span dir="ltr" className="font-bold text-brand">
                           {formatCurrency(product.price, { unit: 'code' })}
                         </span>
@@ -429,7 +429,7 @@ export const CartCheckoutSummary = () => {
                         type="button"
                         onClick={() => setQuantity(product.id, -1)}
                         disabled={quantity === 0}
-                        className="flex h-7 w-7 items-center justify-center rounded-md bg-surface text-ink-muted shadow-card transition hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand disabled:cursor-not-allowed disabled:opacity-40"
+                        className="flex h-9 w-9 items-center justify-center rounded-md bg-surface text-ink-muted shadow-card transition hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand disabled:cursor-not-allowed disabled:opacity-40"
                         aria-label={`Decrease ${product.nameAr} quantity`}
                       >
                         <Minus size={14} strokeWidth={2.5} />
@@ -438,7 +438,7 @@ export const CartCheckoutSummary = () => {
                       <button
                         type="button"
                         onClick={() => setQuantity(product.id, 1)}
-                        className="flex h-7 w-7 items-center justify-center rounded-md bg-brand text-white shadow-card transition hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand"
+                        className="flex h-9 w-9 items-center justify-center rounded-md bg-brand text-white shadow-card transition hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand"
                         aria-label={`Increase ${product.nameAr} quantity`}
                       >
                         <Plus size={14} strokeWidth={2.5} />
@@ -456,7 +456,7 @@ export const CartCheckoutSummary = () => {
             <h2 id="address-heading" className="text-lg font-black text-ink">
               Delivery address
             </h2>
-            <span className="text-xs font-bold text-ink-subtle">مطلوب / Required</span>
+            <span className="text-xs font-bold text-ink-muted">مطلوب / Required</span>
           </div>
           <div className="rounded-xl bg-surface p-4 shadow-card ring-1 ring-line">
             <label className="flex items-start gap-3">
@@ -482,7 +482,7 @@ export const CartCheckoutSummary = () => {
             </label>
             <label className="mt-3 block">
               <span className="text-xs font-bold text-ink-soft">
-                ملاحظة للسائق <span dir="ltr" className="font-medium text-ink-subtle">/ Note for the captain (optional)</span>
+                ملاحظة للسائق <span dir="ltr" className="font-medium text-ink-muted">/ Note for the captain (optional)</span>
               </span>
               <input
                 type="text"
@@ -527,7 +527,7 @@ export const CartCheckoutSummary = () => {
           aria-busy={quoteStale}
         >
           <h2 id="summary-heading" className="mb-4 flex items-center gap-2 text-lg font-black text-ink">
-            Bill summary <span className="font-medium text-ink-subtle">/ ملخص الفاتورة</span>
+            Bill summary <span className="font-medium text-ink-muted">/ ملخص الفاتورة</span>
             {quoteStale && hasItems && (
               <Loader2 size={16} className="animate-spin text-brand" aria-label="Updating price" />
             )}
@@ -629,14 +629,14 @@ export const CartCheckoutSummary = () => {
           {submit.pending ? <Loader2 size={20} className="animate-spin" /> : <ShieldCheck size={20} />}
           <span>Place Order / اطلب الآن</span>
         </button>
-        <p className="mt-3 text-center text-xs text-ink-subtle">
+        <p className="mt-3 text-center text-xs text-ink-muted">
           Secure checkout · الدفع عند الاستلام
         </p>
 
         <button
           type="button"
           onClick={auth.signOut}
-          className="mx-auto mt-6 flex items-center gap-1.5 text-xs font-bold text-ink-subtle transition hover:text-danger-ink"
+          className="mx-auto mt-6 flex items-center gap-1.5 text-xs font-bold text-ink-muted transition hover:text-danger-ink"
         >
           <LogOut size={13} />
           {auth.user.name} — تسجيل الخروج <span dir="ltr">/ Sign out</span>

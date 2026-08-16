@@ -119,7 +119,7 @@ export function StoreDetailScreen() {
               onClick={() => navigate(-1)}
               className="rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
             >
-              <ArrowRight size={22} />
+              <ArrowRight size={22} className="rtl:rotate-180" />
             </button>
             <div className="min-w-0 flex-1 text-end">
               <h1 className="truncate text-lg font-extrabold">{current.nameAr}</h1>
@@ -153,7 +153,7 @@ export function StoreDetailScreen() {
                     initial={{ scale: 0.4 }}
                     animate={{ scale: [0.4, 1.15, 0.92, 1] }}
                     transition={{ duration: 0.45 }}
-                    className="absolute -top-0.5 -end-0.5 flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white"
+                    className="absolute -top-0.5 -end-0.5 flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-micro font-bold text-white"
                   >
                     {cart.itemCount > 99 ? '99+' : cart.itemCount}
                   </motion.span>
@@ -240,7 +240,7 @@ export function StoreDetailScreen() {
                               cart.setQuantity(product.id, line.quantity - 1);
                               void hapticTap();
                             }}
-                            className="rounded-full p-1 transition active:scale-90"
+                            className="rounded-full p-2 transition active:scale-90"
                           >
                             <Minus size={14} />
                           </button>
@@ -254,7 +254,7 @@ export function StoreDetailScreen() {
                               cart.setQuantity(product.id, line.quantity + 1);
                               void hapticTap();
                             }}
-                            className="rounded-full p-1 transition active:scale-90"
+                            className="rounded-full p-2 transition active:scale-90"
                           >
                             <Plus size={14} />
                           </button>

@@ -293,7 +293,7 @@ export function CheckoutScreen() {
               onClick={() => navigate(-1)}
               className="rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
             >
-              <ArrowRight size={22} />
+              <ArrowRight size={22} className="rtl:rotate-180" />
             </button>
             <div className="flex-1 text-end">
               <h1 className="text-lg font-extrabold">إتمام الطلب</h1>
@@ -347,7 +347,7 @@ export function CheckoutScreen() {
                       <span className="flex items-center gap-2">
                         <span className="block text-xs font-bold">{entry.label}</span>
                         {entry.tag && (
-                          <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[9px] font-bold text-brand-dark">
+                          <span className="rounded-full bg-brand-tint px-2 py-0.5 text-micro font-bold text-brand-dark">
                             {ADDRESS_TAG_META[normalizeTag(entry.tag)].ar}
                             <span dir="ltr" className="ms-1">
                               {ADDRESS_TAG_META[normalizeTag(entry.tag)].en}
@@ -431,7 +431,7 @@ export function CheckoutScreen() {
 
               {saveForNextTime && (
                 <div className="rounded-xl bg-canvas p-3" role="group" aria-label="نوع العنوان / Address tag">
-                  <p className="text-[10px] font-bold text-ink-muted">نوع العنوان <span dir="ltr">/ Tag</span></p>
+                  <p className="text-micro font-bold text-ink-muted">نوع العنوان <span dir="ltr">/ Tag</span></p>
                   <div className="mt-2 flex gap-2">
                     {ADDRESS_TAGS.map((tag) => {
                       const active = addressTag === tag;
@@ -446,7 +446,7 @@ export function CheckoutScreen() {
                           }`}
                         >
                           {ADDRESS_TAG_META[tag].ar}
-                          <span dir="ltr" className="ms-1 text-[10px] font-semibold opacity-80">
+                          <span dir="ltr" className="ms-1 text-micro font-semibold opacity-80">
                             {ADDRESS_TAG_META[tag].en}
                           </span>
                         </button>
@@ -459,7 +459,7 @@ export function CheckoutScreen() {
           </section>
 
           <section className="rounded-2xl bg-surface p-4 shadow-card">
-            <h2 className="text-sm font-extrabold">ملاحظة للطلب <span dir="ltr" className="text-[10px] font-normal text-ink-muted">/ Order note</span></h2>
+            <h2 className="text-sm font-extrabold">ملاحظة للطلب <span dir="ltr" className="text-micro font-normal text-ink-muted">/ Order note</span></h2>
             <textarea value={orderNote} onChange={(event) => setOrderNote(event.target.value)} maxLength={500} rows={2} placeholder="مثال: الاتصال قبل الوصول" className="input-field mt-3 w-full" />
           </section>
 
@@ -476,7 +476,7 @@ export function CheckoutScreen() {
                 </span>
                 <span className="flex-1">
                   <span className="block text-xs font-bold">الدفع عند الاستلام</span>
-                  <span className="block text-[10px] text-ink-muted" dir="ltr">
+                  <span className="block text-micro text-ink-muted" dir="ltr">
                     Cash on delivery
                   </span>
                 </span>
@@ -488,12 +488,12 @@ export function CheckoutScreen() {
                 className="flex w-full items-center gap-3 rounded-xl border border-line bg-canvas p-3 text-start opacity-70"
                 title="قريباً / Coming soon"
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-line-soft text-ink-subtle">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-line-soft text-ink-muted">
                   <CreditCard size={17} />
                 </span>
                 <span className="flex-1">
                   <span className="block text-xs font-bold">بطاقة / محفظة إلكترونية</span>
-                  <span className="block text-[10px] text-ink-subtle" dir="ltr">
+                  <span className="block text-micro text-ink-muted" dir="ltr">
                     Card / wallet — coming soon
                   </span>
                 </span>
@@ -505,7 +505,7 @@ export function CheckoutScreen() {
           <section className="rounded-2xl bg-surface p-4 shadow-card">
             <h2 className="flex items-center gap-2 text-sm font-extrabold">
               <Ticket size={16} className="text-brand" /> كوبون خصم
-              <span className="ms-1 text-[10px] font-semibold text-ink-subtle" dir="ltr">
+              <span className="ms-1 text-micro font-semibold text-ink-muted" dir="ltr">
                 Voucher
               </span>
             </h2>
@@ -633,7 +633,7 @@ export function CheckoutScreen() {
           >
             تأكيد الطلب — الدفع عند الاستلام
           </Button>
-          <p className="pb-4 text-center text-[10px] text-ink-subtle" dir="ltr">
+          <p className="pb-4 text-center text-micro text-ink-muted" dir="ltr">
             Samou' is a cash economy — the captain collects on delivery.
           </p>
         </div>

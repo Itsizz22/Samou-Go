@@ -59,7 +59,7 @@ export function SearchScreen() {
           [0, 1, 2].map(index => (
             <div
               key={index}
-              className="flex animate-pulse items-center gap-3 rounded-2xl bg-surface p-3 shadow-card"
+              className="skeleton flex items-center gap-3 rounded-2xl p-3 shadow-card"
             >
               <div className="h-12 w-12 shrink-0 rounded-xl bg-line-soft" />
               <div className="flex-1 space-y-2">

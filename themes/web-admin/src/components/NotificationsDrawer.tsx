@@ -127,7 +127,7 @@ export function NotificationsDrawer({ notifications, onNavigate, className }: No
         {unread.length > 0 && (
           <span
             aria-hidden="true"
-            className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-none text-white"
+            className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-micro font-bold leading-none text-white"
           >
             {unread.length > 99 ? '99+' : unread.length}
           </span>
@@ -147,7 +147,7 @@ export function NotificationsDrawer({ notifications, onNavigate, className }: No
               <div>
                 <h2 className="text-sm font-extrabold">
                   الإشعارات{' '}
-                  <span dir="ltr" className="ms-1 text-[10px] font-semibold text-ink-subtle">
+                  <span dir="ltr" className="ms-1 text-micro font-semibold text-ink-muted">
                     Notifications
                   </span>
                 </h2>
@@ -169,7 +169,7 @@ export function NotificationsDrawer({ notifications, onNavigate, className }: No
                   type="button"
                   onClick={() => setOpen(false)}
                   aria-label="Close notifications"
-                  className="rounded-lg p-1.5 text-ink-muted transition hover:bg-canvas"
+                  className="rounded-lg p-2 text-ink-muted transition hover:bg-canvas"
                 >
                   <X size={18} />
                 </button>
@@ -180,7 +180,7 @@ export function NotificationsDrawer({ notifications, onNavigate, className }: No
               <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
                 <Inbox className="text-ink-subtle" size={28} />
                 <p className="text-sm font-semibold text-ink-muted">لا إشعارات جديدة</p>
-                <p dir="ltr" className="text-[10px] text-ink-subtle">You are all caught up</p>
+                <p dir="ltr" className="text-micro text-ink-muted">You are all caught up</p>
               </div>
             ) : (
               <ul className="flex-1 overflow-y-auto" aria-label="Notifications">
@@ -204,7 +204,7 @@ export function NotificationsDrawer({ notifications, onNavigate, className }: No
                           <span className="block text-[13px] font-bold leading-snug text-ink">
                             {notification.ar}
                             {isUnread && (
-                              <span className="ms-2 rounded-full bg-brand-tint px-1.5 py-0.5 text-[9px] font-bold text-brand-deep">
+                              <span className="ms-2 rounded-full bg-brand-tint px-1.5 py-0.5 text-micro font-bold text-brand-deep">
                                 جديد
                               </span>
                             )}
@@ -215,7 +215,7 @@ export function NotificationsDrawer({ notifications, onNavigate, className }: No
                             </span>
                           )}
                           {notification.caption && (
-                            <span className="mt-0.5 block text-[10px] text-ink-subtle">
+                            <span className="mt-0.5 block text-micro text-ink-muted">
                               {notification.caption}
                             </span>
                           )}

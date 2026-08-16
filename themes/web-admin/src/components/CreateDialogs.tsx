@@ -65,7 +65,7 @@ function AdminModal({
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="rounded-lg p-1.5 text-ink-muted transition hover:bg-canvas"
+            className="rounded-lg p-2 text-ink-muted transition hover:bg-canvas"
           >
             <X size={18} />
           </button>
@@ -81,7 +81,7 @@ function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: stri
     <label className="block">
       <span className="mb-1.5 block text-[11px] font-bold text-ink-soft">{children}</span>
       {hint ? (
-        <span dir="ltr" className="mb-1.5 block text-[10px] text-ink-subtle">
+        <span dir="ltr" className="mb-1.5 block text-micro text-ink-muted">
           {hint}
         </span>
       ) : null}
@@ -110,7 +110,7 @@ function ToggleSwitch({
     >
       <span className="text-[11px] font-bold text-ink-soft">
         {labelAr}{' '}
-        <span dir="ltr" className="font-medium text-ink-subtle">
+        <span dir="ltr" className="font-medium text-ink-muted">
           · {labelEn}
         </span>
       </span>
@@ -157,7 +157,7 @@ export function ConfirmDialog({
     <AdminModal title={title} en={en} onClose={onClose}>
       <div className="p-6">
         <p className="text-sm leading-relaxed text-ink-soft">{message}</p>
-        <p dir="ltr" className="mt-2 text-[11px] leading-relaxed text-ink-subtle">
+        <p dir="ltr" className="mt-2 text-[11px] leading-relaxed text-ink-muted">
           This action cannot be undone.
         </p>
       </div>

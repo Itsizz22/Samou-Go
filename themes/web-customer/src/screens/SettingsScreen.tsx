@@ -86,7 +86,7 @@ function SettingsRow({
           </p>
         </div>
       </div>
-      {hint && <p className="mt-1 text-end text-[10px] text-ink-subtle">{hint}</p>}
+      {hint && <p className="mt-1 text-end text-micro text-ink-muted">{hint}</p>}
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -158,7 +158,7 @@ export function SettingsScreen() {
                   >
                     {option.labelAr}
                   </span>
-                  <span dir="ltr" className="text-[9px] text-ink-subtle">
+                  <span dir="ltr" className="text-micro text-ink-muted">
                     {option.labelEn}
                   </span>
                 </button>
@@ -225,7 +225,7 @@ export function SettingsScreen() {
           </button>
           <p className="mt-2 text-[11px] text-ink-muted">
             {notifications ? 'الإشعارات مفعّلة' : 'الإشعارات متوقفة'}
-            <span dir="ltr" className="ms-1 text-[10px] text-ink-subtle">
+            <span dir="ltr" className="ms-1 text-micro text-ink-muted">
               {notifications ? 'On' : 'Off'}
             </span>
           </p>

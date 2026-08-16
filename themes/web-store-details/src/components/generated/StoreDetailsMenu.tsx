@@ -250,7 +250,7 @@ export const StoreDetailsMenu = () => {
                 ? [0, 1, 2, 3].map((i) => (
                     <div
                       key={i}
-                      className="h-[66px] min-w-[78px] animate-pulse rounded-xl bg-surface shadow-card"
+                      className="skeleton h-[66px] min-w-[78px] rounded-xl shadow-card"
                       aria-hidden="true"
                     />
                   ))
@@ -421,7 +421,7 @@ export const StoreDetailsMenu = () => {
             </span>
             <span className="flex items-center gap-1 text-sm font-bold">
               <span>Go</span>
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
             </span>
           </a>
         </aside>

@@ -57,11 +57,11 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
         </span>
         <span>
           <strong className="block text-[18px] tracking-[-0.03em]">Samou' Go</strong>
-          <span className="block text-[10px] font-medium text-white/70">السموع جو · ADMIN</span>
+          <span className="block text-micro font-medium text-white/70">السموع جو · ADMIN</span>
         </span>
         <button
           type="button"
-          className="ms-auto rounded-lg p-1 text-white/80 hover:bg-surface/10 md:hidden"
+          className="ms-auto rounded-lg p-2 text-white/80 hover:bg-surface/10 md:hidden"
           onClick={onClose}
           aria-label="Close sidebar"
         >
@@ -70,7 +70,7 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
       </div>
 
       <nav className="flex-1" aria-label="Primary navigation">
-        <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">
+        <p className="mb-3 px-3 text-micro font-bold uppercase tracking-[0.18em] text-white/55">
           Workspace
         </p>
         <ul className="space-y-1">
@@ -111,7 +111,7 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
             type="button"
             onClick={onSignOut}
             aria-label="Sign out"
-            className="ms-auto rounded-lg p-1 text-white/70 transition hover:bg-surface/10 hover:text-white"
+            className="ms-auto rounded-lg p-2 text-white/70 transition hover:bg-surface/10 hover:text-white"
           >
             <LogOut size={15} />
           </button>
