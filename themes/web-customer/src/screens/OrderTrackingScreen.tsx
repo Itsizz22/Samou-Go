@@ -127,7 +127,7 @@ export function OrderTrackingScreen() {
               onClick={() => window.history.length > 1 ? window.history.back() : window.location.assign('/orders')}
               className="rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
             >
-              <ArrowRight size={22} />
+              <ArrowRight size={22} className="rtl:rotate-180" />
             </button>
             <div className="flex-1 text-end">
               <h1 className="text-lg font-extrabold">تتبع الطلب</h1>
@@ -136,7 +136,7 @@ export function OrderTrackingScreen() {
               </p>
             </div>
             {order.data && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold">
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-micro font-bold">
                 {terminal ? (
                   <>
                     <CheckCircle2 size={11} /> {order.data.status === OrderStatus.CANCELLED ? 'ملغي' : 'تم'}
@@ -212,11 +212,11 @@ export function OrderTrackingScreen() {
                       )}
                       <div className="min-w-0 flex-1 text-end">
                         <p className="truncate text-xs font-bold">{item.product.nameAr}</p>
-                        <p className="text-[10px] text-ink-muted" dir="ltr">
+                        <p className="text-micro text-ink-muted" dir="ltr">
                           {item.quantity} × {formatCurrency(item.unitPrice)}
                         </p>
                         {item.note && (
-                          <p className="mt-1 flex items-center gap-1 rounded-lg bg-brand-surface px-2 py-1 text-[10px] text-ink-soft">
+                          <p className="mt-1 flex items-center gap-1 rounded-lg bg-brand-surface px-2 py-1 text-micro text-ink-soft">
                             <StickyNote size={11} className="shrink-0 text-brand" />
                             <span className="line-clamp-2 text-start">{item.note}</span>
                           </p>
@@ -282,7 +282,7 @@ export function OrderTrackingScreen() {
                     <p className="text-xs font-extrabold">
                       {order.data.paymentMethod === PaymentMethod.COD ? 'الدفع عند الاستلام' : order.data.paymentMethod}
                     </p>
-                    <p className="text-[10px] text-ink-muted" dir="ltr">
+                    <p className="text-micro text-ink-muted" dir="ltr">
                       Cash on delivery
                     </p>
                   </div>
@@ -305,19 +305,19 @@ export function OrderTrackingScreen() {
               <section className="rounded-2xl border border-line bg-brand-surface p-4 text-center">
                 <p className="text-[11px] leading-relaxed text-ink-soft">
                   الكابتن سيتصل بك عند وصوله — السائق لا يمتلك إحداثيات GPS.
-                  <span className="mt-0.5 block text-[10px] text-ink-subtle" dir="ltr">
+                  <span className="mt-0.5 block text-micro text-ink-muted" dir="ltr">
                     The captain will call you on arrival — Samou' has no street GPS.
                   </span>
                 </p>
               </section>
 
               {terminal ? (
-                <p className="flex items-center justify-center gap-1.5 pb-4 text-[10px] text-ink-subtle">
+                <p className="flex items-center justify-center gap-1.5 pb-4 text-micro text-ink-muted">
                   <CheckCircle2 size={11} /> اكتمل الطلب — لا مزيد من التحديثات
                   <span dir="ltr">Order final — updates stopped</span>
                 </p>
               ) : (
-                <p className="flex items-center justify-center gap-1.5 pb-4 text-[10px] text-ink-subtle">
+                <p className="flex items-center justify-center gap-1.5 pb-4 text-micro text-ink-muted">
                   <RotateCw size={11} /> يتحدّث تلقائياً كل 15 ثانية
                   <span dir="ltr">Updates every 15s</span>
                 </p>

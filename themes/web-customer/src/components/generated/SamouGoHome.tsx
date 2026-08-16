@@ -190,7 +190,7 @@ export function SamouGoHome() {
           </div>
           <div className="absolute -bottom-10 -start-8 h-32 w-32 rounded-full border-[18px] border-white/10" />
         </div>
-        <div className="mt-3 flex items-center justify-center gap-1.5"><button type="button" aria-label="Promotion one" onClick={() => setBanner(0)} className={`h-1.5 rounded-full transition-all ${banner === 0 ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`} /><button type="button" aria-label="Promotion two" onClick={() => setBanner(1)} className={`h-1.5 rounded-full transition-all ${banner === 1 ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`} /></div>
+        <div className="mt-3 flex items-center justify-center gap-1.5"><button type="button" aria-label="Promotion one" onClick={() => setBanner(0)} className="-m-2.5 p-2.5"><span className={`block h-1.5 rounded-full transition-all ${banner === 0 ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`} /></button><button type="button" aria-label="Promotion two" onClick={() => setBanner(1)} className="-m-2.5 p-2.5"><span className={`block h-1.5 rounded-full transition-all ${banner === 1 ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`} /></button></div>
       </section>
 
       <section className="mx-auto max-w-md px-5 pt-7" aria-labelledby="categories-title">
@@ -204,7 +204,7 @@ export function SamouGoHome() {
             aria-expanded={!categoriesCollapsed}
             aria-controls="category-chips"
             onClick={() => setCategoriesCollapsed(collapsed => !collapsed)}
-            className="flex items-center gap-1 rounded-full bg-surface px-2.5 py-1.5 text-[10px] font-bold text-brand shadow-card transition hover:bg-brand-surface md:hidden"
+            className="flex items-center gap-1 rounded-full bg-surface px-2.5 py-1.5 text-micro font-bold text-brand shadow-card transition hover:bg-brand-surface md:hidden"
           >
             {categoriesCollapsed ? (
               <>
@@ -228,12 +228,12 @@ export function SamouGoHome() {
           {STORE_CATEGORIES.map(category => {
           const Icon = CATEGORY_ICONS[category.key];
           const active = activeCategory === category.key;
-          return <button key={category.key} type="button" aria-pressed={active} onClick={() => setActiveCategory(category.key)} className={`flex min-w-[82px] flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center transition ${active ? 'border-brand bg-brand-tint text-brand-dark' : 'border-transparent bg-surface text-ink-soft shadow-card'}`}><span className={`flex h-10 w-10 items-center justify-center rounded-xl ${active ? 'bg-brand text-white' : 'bg-brand-surface text-brand'}`}><Icon size={20} /></span><span className="text-[11px] font-bold leading-tight">{category.ar}</span><span className="text-[10px]" dir="ltr">{category.en}</span></button>;
+          return <button key={category.key} type="button" aria-pressed={active} onClick={() => setActiveCategory(category.key)} className={`flex min-w-[82px] flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center transition ${active ? 'border-brand bg-brand-tint text-brand-dark' : 'border-transparent bg-surface text-ink-soft shadow-card'}`}><span className={`flex h-10 w-10 items-center justify-center rounded-xl ${active ? 'bg-brand text-white' : 'bg-brand-surface text-brand'}`}><Icon size={20} /></span><span className="text-[11px] font-bold leading-tight">{category.ar}</span><span className="text-micro" dir="ltr">{category.en}</span></button>;
         })}
         </div>
         <div className="mt-3 flex gap-2" aria-label="Store availability filter">
           {([['all', 'الكل / All'], ['open', 'مفتوح / Open'], ['closed', 'مغلق / Closed']] as const).map(([value, label]) => (
-            <button key={value} type="button" onClick={() => setAvailabilityFilter(value)} aria-pressed={availabilityFilter === value} className={`rounded-full px-3 py-1.5 text-[10px] font-bold ${availabilityFilter === value ? 'bg-brand text-white' : 'bg-surface text-ink-muted shadow-card'}`}>{label}</button>
+            <button key={value} type="button" onClick={() => setAvailabilityFilter(value)} aria-pressed={availabilityFilter === value} className={`rounded-full px-3 py-1.5 text-micro font-bold ${availabilityFilter === value ? 'bg-brand text-white' : 'bg-surface text-ink-muted shadow-card'}`}>{label}</button>
           ))}
         </div>
       </section>
@@ -244,7 +244,7 @@ export function SamouGoHome() {
             <h2 className="mt-3 text-sm font-extrabold">تعذّر تحميل المتاجر</h2>
             <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">Could not load stores</p>
             <p className="mt-2 text-xs text-ink-soft">{stores.error.message}</p>
-            <p className="mt-2 text-[10px] break-all text-ink-subtle" dir="ltr">Failed URL: {API_URL}/stores</p>
+            <p className="mt-2 text-micro break-all text-ink-muted" dir="ltr">Failed URL: {API_URL}/stores</p>
             <button type="button" onClick={stores.refresh} disabled={stores.refreshing} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-60">
               {stores.refreshing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
               إعادة المحاولة <span dir="ltr">Retry</span>
@@ -264,20 +264,20 @@ export function SamouGoHome() {
         <div className="mb-4 flex items-end justify-between"><div><h2 id="featured-title" className="text-lg font-extrabold">المتاجر المميزة</h2><p className="text-xs text-ink-muted" dir="ltr">Featured Stores</p></div><button type="button" onClick={() => document.getElementById('nearby-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="text-xs font-bold text-brand">عرض الكل <span dir="ltr">See all</span></button></div>
         <div className="flex gap-3 overflow-x-auto pb-2">
           {stores.loading
-            ? [0, 1, 2].map(index => <div key={index} className="min-w-[196px] animate-pulse overflow-hidden rounded-2xl bg-surface shadow-card" aria-hidden="true"><div className="h-24 bg-line-soft" /><div className="space-y-2 p-3"><div className="ms-auto h-3 w-2/3 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-1/2 rounded bg-line-soft" /><div className="h-5 w-20 rounded-full bg-line-soft" /></div></div>)
+            ? [0, 1, 2].map(index => <div key={index} className="skeleton min-w-[196px] overflow-hidden rounded-2xl shadow-card" aria-hidden="true"><div className="h-24 bg-line-soft" /><div className="space-y-2 p-3"><div className="ms-auto h-3 w-2/3 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-1/2 rounded bg-line-soft" /><div className="h-5 w-20 rounded-full bg-line-soft" /></div></div>)
             : featured.map(({ store, category, initials, gradient }) => (
                 <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="min-w-[196px] overflow-hidden rounded-2xl bg-surface shadow-card transition hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={`فتح متجر ${store.nameAr}`}>
                   <article>
                     <div className={`relative flex h-24 items-center justify-center bg-gradient-to-br ${gradient}`}>
                       {store.logoUrl ? <img src={store.logoUrl} alt="" className="h-full w-full object-cover" loading="lazy" /> : <span className="text-3xl font-black text-white/40">{initials}</span>}
-                      <span className={`absolute bottom-2 start-2 rounded-full px-2 py-1 text-[10px] font-bold ${store.isActive ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{store.isActive ? <>مفتوح <span dir="ltr">Open</span></> : <>مغلق <span dir="ltr">Closed</span></>}</span>
-                      <button type="button" aria-label={`Favorite ${store.nameEn}`} aria-pressed={favorites.isFavorite(store.id)} onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggleLike(store.id); }} disabled={favorites.pending.includes(store.id)} className="absolute end-2 top-2 rounded-full bg-surface/85 p-1.5 text-brand"><Heart size={15} fill={favorites.isFavorite(store.id) ? 'currentColor' : 'none'} /></button>
+                      <span className={`absolute bottom-2 start-2 rounded-full px-2 py-1 text-micro font-bold ${store.isActive ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{store.isActive ? <>مفتوح <span dir="ltr">Open</span></> : <>مغلق <span dir="ltr">Closed</span></>}</span>
+                      <button type="button" aria-label={`Favorite ${store.nameEn}`} aria-pressed={favorites.isFavorite(store.id)} onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggleLike(store.id); }} disabled={favorites.pending.includes(store.id)} className="absolute end-2 top-2 rounded-full bg-surface/85 p-2 text-brand"><Heart size={15} fill={favorites.isFavorite(store.id) ? 'currentColor' : 'none'} /></button>
                     </div>
                     <div className="p-3 text-end">
                       <h3 className="truncate text-sm font-extrabold">{store.nameAr}</h3>
                       <p className="mt-0.5 truncate text-[11px] text-ink-muted" dir="ltr">{store.nameEn}</p>
-                      <p className="mt-2 text-[10px] text-ink-muted">{category.ar}</p>
-                      <div className="mt-2 flex items-center justify-between gap-2"><span className="flex items-center gap-1"><DeliveryFee amount={baseFee} variant="badge" showIcon /></span><span className="truncate text-[10px] text-ink-muted" dir="ltr">{category.en}</span></div>
+                      <p className="mt-2 text-micro text-ink-muted">{category.ar}</p>
+                      <div className="mt-2 flex items-center justify-between gap-2"><span className="flex items-center gap-1"><DeliveryFee amount={baseFee} variant="badge" showIcon /></span><span className="truncate text-micro text-ink-muted" dir="ltr">{category.en}</span></div>
                     </div>
                   </article>
                 </Link>
@@ -289,12 +289,12 @@ export function SamouGoHome() {
         <div className="mb-4 flex items-end justify-between"><div><h2 id="nearby-title" className="text-lg font-extrabold">كل المتاجر</h2><p className="text-xs text-ink-muted" dir="ltr">All stores in Al-Samou'</p></div>{stores.refreshing ? <Loader2 size={16} className="animate-spin text-brand" aria-label="Refreshing" /> : <ChevronLeft size={18} className="text-ink-subtle" />}</div>
         <div className="space-y-3">
           {stores.loading
-            ? [0, 1, 2].map(index => <div key={index} className="flex animate-pulse items-center gap-3 rounded-2xl bg-surface p-3 shadow-card" aria-hidden="true"><div className="h-12 w-12 shrink-0 rounded-xl bg-line-soft" /><div className="flex-1 space-y-2"><div className="ms-auto h-3 w-1/2 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-2/3 rounded bg-line-soft" /></div><div className="h-6 w-12 shrink-0 rounded-full bg-line-soft" /></div>)
+            ? [0, 1, 2].map(index => <div key={index} className="skeleton flex items-center gap-3 rounded-2xl p-3 shadow-card" aria-hidden="true"><div className="h-12 w-12 shrink-0 rounded-xl bg-line-soft" /><div className="flex-1 space-y-2"><div className="ms-auto h-3 w-1/2 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-2/3 rounded bg-line-soft" /></div><div className="h-6 w-12 shrink-0 rounded-full bg-line-soft" /></div>)
             : cards.map(({ store, category, initials, tint }) => (
                 <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card transition hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={`فتح متجر ${store.nameAr}`}>
                   <div className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-black ${tint}`}>{store.logoUrl ? <img src={store.logoUrl} alt="" className="h-full w-full object-cover" loading="lazy" /> : initials}</div>
-                  <div className="min-w-0 flex-1 text-end"><h3 className="truncate text-sm font-extrabold">{store.nameAr}</h3><p className="truncate text-[11px] text-ink-muted" dir="ltr">{store.nameEn} · {category.en}</p><p className="mt-1 flex items-center gap-2 text-[10px] font-semibold text-ink-muted"><DeliveryFee amount={baseFee} variant="inline" /></p></div>
-                  <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${store.isActive ? 'bg-brand-tint text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{store.isActive ? 'مفتوح' : 'مغلق'}</span>
+                  <div className="min-w-0 flex-1 text-end"><h3 className="truncate text-sm font-extrabold">{store.nameAr}</h3><p className="truncate text-[11px] text-ink-muted" dir="ltr">{store.nameEn} · {category.en}</p><p className="mt-1 flex items-center gap-2 text-micro font-semibold text-ink-muted"><DeliveryFee amount={baseFee} variant="inline" /></p></div>
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-micro font-bold ${store.isActive ? 'bg-brand-tint text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{store.isActive ? 'مفتوح' : 'مغلق'}</span>
                 </Link>
               ))}
         </div>

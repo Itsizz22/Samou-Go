@@ -164,7 +164,7 @@ export function NavigationDrawer() {
                 </span>
                 <div className="leading-tight">
                   <p className="text-sm font-extrabold">Samou' Go</p>
-                  <p dir="ltr" className="text-[10px] text-white/80">
+                  <p dir="ltr" className="text-micro text-white/80">
                     Menu
                   </p>
                 </div>
@@ -237,13 +237,13 @@ export function NavigationDrawer() {
                           ? 'واجهة الكابتن'
                           : 'واجهة مدير المتجر'}
                       </span>
-                      <span dir="ltr" className="block text-[10px] font-medium text-ink-muted">
+                      <span dir="ltr" className="block text-micro font-medium text-ink-muted">
                         {auth.user.role === UserRole.CAPTAIN
                           ? 'Captain dashboard'
                           : 'Store manager dashboard'}
                       </span>
                     </span>
-                    <span className="rounded-full bg-brand px-2.5 py-1 text-[10px] font-extrabold text-white">
+                    <span className="rounded-full bg-brand px-2.5 py-1 text-micro font-extrabold text-white">
                       فتح
                     </span>
                   </Link>
@@ -277,7 +277,7 @@ export function NavigationDrawer() {
                         </span>
                         <span className="flex-1 text-end">
                           <span className="block">{item.labelAr}</span>
-                          <span dir="ltr" className="block text-[10px] font-medium text-ink-subtle">
+                          <span dir="ltr" className="block text-micro font-medium text-ink-muted">
                             {item.labelEn}
                           </span>
                         </span>
@@ -292,7 +292,7 @@ export function NavigationDrawer() {
                 <p className="flex items-center gap-2 text-xs font-extrabold text-ink">
                   <Palette size={14} className="text-brand" />
                   <span>لون الواجهة</span>
-                  <span dir="ltr" className="text-[10px] font-medium text-ink-subtle">
+                  <span dir="ltr" className="text-micro font-medium text-ink-muted">
                     Theme
                   </span>
                 </p>

@@ -359,7 +359,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
       {catalogue.loading && (
         <div className="space-y-2" aria-hidden="true">
           {[0, 1, 2, 3].map(i => (
-            <div key={i} className="h-14 animate-pulse rounded-xl bg-surface shadow-card" />
+            <div key={i} className="skeleton h-14 rounded-xl shadow-card" />
           ))}
         </div>
       )}
@@ -383,7 +383,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
       {!catalogue.loading && visibleProducts.length > 0 && (
         <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
           <table className="w-full text-sm">
-            <thead className="bg-canvas text-[10px] font-bold uppercase tracking-wide text-ink-muted">
+            <thead className="bg-canvas text-micro font-bold uppercase tracking-wide text-ink-muted">
               <tr>
                 <th className="px-4 py-3 text-start">المنتج / Product</th>
                 <th className="px-3 py-3">القسم / Category</th>
@@ -410,7 +410,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                       type="button"
                       onClick={() => handleToggleAvailability(p)}
                       disabled={togglingId === p.id}
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold transition ${
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-micro font-bold transition ${
                         p.isAvailable
                           ? 'bg-brand-tint text-brand-dark hover:bg-brand-soft'
                           : 'bg-canvas text-ink-muted hover:bg-line-soft'
@@ -429,7 +429,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                       <button
                         type="button"
                         onClick={() => openEdit(p)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-line bg-surface text-ink-muted transition hover:border-brand hover:text-brand"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-ink-muted transition hover:border-brand hover:text-brand"
                         aria-label={`Edit ${p.nameAr}`}
                       >
                         <Pencil size={13} />
@@ -438,7 +438,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                         type="button"
                         onClick={() => handleDeactivate(p)}
                         disabled={deactivatingId === p.id}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-danger-tint bg-surface text-danger transition hover:bg-danger-tint disabled:opacity-60"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-danger-tint bg-surface text-danger transition hover:bg-danger-tint disabled:opacity-60"
                         aria-label={`Deactivate ${p.nameAr}`}
                       >
                         {deactivatingId === p.id

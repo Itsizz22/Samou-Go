@@ -333,8 +333,8 @@ export function SamouGoCaptain() {
           </div>
         </header>
         <div className="mx-auto max-w-md space-y-4 px-4 pt-5" aria-hidden="true">
-          <div className="h-32 animate-pulse rounded-2xl bg-surface shadow-card" />
-          <div className="h-40 animate-pulse rounded-2xl bg-surface shadow-card" />
+          <div className="skeleton h-32 rounded-2xl shadow-card" />
+          <div className="skeleton h-40 rounded-2xl shadow-card" />
         </div>
       </main>
     );
@@ -401,7 +401,7 @@ export function SamouGoCaptain() {
       <div className="space-y-3">
         {loading && availableItems.length === 0
           ? [0, 1].map((index) => (
-              <div key={index} className="h-32 animate-pulse rounded-2xl bg-surface shadow-card" aria-hidden="true" />
+              <div key={index} className="skeleton h-32 rounded-2xl shadow-card" aria-hidden="true" />
             ))
           : error && availableItems.length === 0
             ? (
@@ -441,7 +441,7 @@ export function SamouGoCaptain() {
                       <div>
                         <h3 className="text-[14px] font-extrabold">{order.storeNameAr}</h3>
                         <p className="mt-1 text-[11px] text-ink-muted">
-                          {time.ar} <span dir="ltr" className="text-ink-subtle">· {time.en}</span>
+                          {time.ar} <span dir="ltr" className="text-ink-muted">· {time.en}</span>
                         </p>
                       </div>
                       <span dir="ltr" className="rounded-lg bg-brand-tint px-2.5 py-1 text-[12px] font-black text-brand-dark">
@@ -462,7 +462,7 @@ export function SamouGoCaptain() {
                           type="button"
                           onClick={() => handleAccept(order.id)}
                           disabled={acceptMutation.pending}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand py-2 text-[11px] font-extrabold text-white transition hover:bg-brand-dark disabled:opacity-60"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand py-2.5 text-[11px] font-extrabold text-white transition hover:bg-brand-dark disabled:opacity-60"
                         >
                           {acceptMutation.pending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                           <span>قبول / Accept</span>
@@ -477,7 +477,7 @@ export function SamouGoCaptain() {
                             announcedAvailableIds.current.add(order.id);
                             void availableOrders.reload();
                           }}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2 text-[11px] font-bold text-ink-muted transition hover:bg-brand-surface"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-[11px] font-bold text-ink-muted transition hover:bg-brand-surface"
                           aria-label="Ignore order"
                         >
                           <X size={14} />
@@ -560,7 +560,7 @@ export function SamouGoCaptain() {
               onClick={auth.signOut}
               aria-label="تسجيل الخروج"
               title="تسجيل الخروج"
-              className="ms-auto rounded-lg p-1 text-white/70 transition hover:bg-surface/10 hover:text-white"
+              className="ms-auto rounded-lg p-2 text-white/70 transition hover:bg-surface/10 hover:text-white"
             >
               <LogOut size={15} />
             </button>
@@ -591,7 +591,7 @@ export function SamouGoCaptain() {
               aria-pressed={available}
               disabled={availabilityMutation.pending}
               onClick={() => void handleToggleAvailability()}
-              className={`flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[10px] font-bold transition disabled:opacity-60 ${
+              className={`flex items-center gap-1 rounded-full px-2.5 py-1.5 text-micro font-bold transition disabled:opacity-60 ${
                 available ? 'bg-surface text-brand-dark' : 'bg-black/20 text-white'
               }`}
             >
@@ -639,7 +639,7 @@ export function SamouGoCaptain() {
             {activeItems.length > 0 && (
               <section aria-labelledby="active-delivery-title" className="mt-5 rounded-2xl border border-warning-tint bg-surface p-4 shadow-card">
                 <div className="flex items-center justify-between">
-                  <span className="rounded-full bg-warning-tint px-2.5 py-1 text-[10px] font-extrabold text-warning-ink">
+                  <span className="rounded-full bg-warning-tint px-2.5 py-1 text-micro font-extrabold text-warning-ink">
                     جاري التوصيل <span dir="ltr" className="font-semibold">/ Active</span>
                   </span>
                 </div>
@@ -651,25 +651,25 @@ export function SamouGoCaptain() {
                         <div>
                           <h2 id="active-delivery-title" className="text-[15px] font-extrabold">{order.storeNameAr}</h2>
                           <p className="mt-1 text-[11px] text-ink-muted">
-                            {time.ar} <span dir="ltr" className="text-ink-subtle">· {time.en}</span>
+                            {time.ar} <span dir="ltr" className="text-ink-muted">· {time.en}</span>
                           </p>
                         </div>
                         <div className="text-start">
                           <p dir="ltr" className="text-lg font-black text-brand-dark">
                             {FREE_DELIVERY_LABEL.en}
                           </p>
-                          <p className="text-[10px] text-ink-muted">{FREE_DELIVERY_LABEL.ar}</p>
+                          <p className="text-micro text-ink-muted">{FREE_DELIVERY_LABEL.ar}</p>
                         </div>
                       </div>
                       <div className="mt-4 flex items-center gap-2" aria-label="Delivery status">
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-brand-dark">
+                        <div className="flex items-center gap-1.5 text-micro font-bold text-brand-dark">
                           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-tint">
                             <Check size={12} />
                           </span>
                           <span dir="ltr">Picked Up</span>
                         </div>
                         <div className="h-px flex-1 bg-brand-tint" />
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-brand-dark">
+                        <div className="flex items-center gap-1.5 text-micro font-bold text-brand-dark">
                           <span className="h-2 w-2 rounded-full bg-brand ring-4 ring-brand-tint" />
                           <span dir="ltr">On the Way</span>
                         </div>
@@ -707,7 +707,7 @@ export function SamouGoCaptain() {
                           rel="noreferrer"
                           aria-disabled={!activeOrderDetail.data?.store}
                           title={`${activeOrderDetail.data?.store.nameEn ?? 'Store'}: Google Maps`}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand px-3 py-2.5 text-[10px] font-bold text-brand transition hover:bg-brand-tint"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand px-3 py-2.5 text-micro font-bold text-brand transition hover:bg-brand-tint"
                         >
                           <StoreIcon size={15} />
                           <span>المتجر</span>
@@ -719,7 +719,7 @@ export function SamouGoCaptain() {
                           rel="noreferrer"
                           aria-disabled={!activeOrderDetail.data}
                           title="Google Maps"
-                          className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand px-3 py-2.5 text-[10px] font-bold text-brand transition hover:bg-brand-tint ${activeOrderDetail.data ? '' : 'pointer-events-none opacity-50'}`}
+                          className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand px-3 py-2.5 text-micro font-bold text-brand transition hover:bg-brand-tint ${activeOrderDetail.data ? '' : 'pointer-events-none opacity-50'}`}
                         >
                           <Navigation size={15} />
                           <span>العميل</span>
@@ -770,7 +770,7 @@ export function SamouGoCaptain() {
               <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
                 {activeOrderDetail.data.store.latitude !== null && activeOrderDetail.data.store.longitude !== null && <LeafletMap center={[activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude]} markers={[{ position: [activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude], label: activeOrderDetail.data.store.nameAr }]} />}
                 <div className="flex items-center justify-between">
-                  <span className="rounded-full bg-warning-tint px-2.5 py-1 text-[10px] font-extrabold text-warning-ink">
+                  <span className="rounded-full bg-warning-tint px-2.5 py-1 text-micro font-extrabold text-warning-ink">
                     توصيل جاري <span dir="ltr">/ Active route</span>
                   </span>
                   <p className="text-[11px] font-extrabold">{activeOrderDetail.data.store.nameAr}</p>
@@ -785,11 +785,11 @@ export function SamouGoCaptain() {
                       <p className="text-[11px] font-extrabold">استلام من المتجر <span dir="ltr" className="text-ink-muted">· Pickup</span></p>
                       <p className="mt-0.5 truncate text-[11px] text-ink-muted">{activeOrderDetail.data.store.nameAr} — {activeOrderDetail.data.store.nameEn}</p>
                       {activeOrderDetail.data.store.latitude !== null && activeOrderDetail.data.store.longitude !== null ? (
-                        <p dir="ltr" className="text-[10px] text-brand-deep">
+                        <p dir="ltr" className="text-micro text-brand-deep">
                           {activeOrderDetail.data.store.latitude.toFixed(5)}, {activeOrderDetail.data.store.longitude.toFixed(5)}
                         </p>
                       ) : (
-                        <p className="text-[10px] text-ink-subtle">بدون إحداثيات · no coordinates</p>
+                        <p className="text-micro text-ink-muted">بدون إحداثيات · no coordinates</p>
                       )}
                       <a
                         href={mapsDirections({
@@ -861,12 +861,12 @@ export function SamouGoCaptain() {
                 key={item.id}
                 type="button"
                 onClick={() => setActiveTab(item.id)}
-                className={`flex min-w-[52px] flex-col items-center gap-0.5 rounded-xl px-2 py-1 transition ${isActive ? 'text-brand' : 'text-ink-subtle hover:text-ink-soft'}`}
+                className={`flex min-w-[52px] flex-col items-center gap-0.5 rounded-xl px-2 py-1 transition ${isActive ? 'text-brand' : 'text-ink-muted hover:text-ink-soft'}`}
                 aria-current={isActive ? 'page' : undefined}
               >
                 <Icon size={19} strokeWidth={isActive ? 2.7 : 1.8} />
-                <span className="text-[10px] font-bold">{item.label}</span>
-                <span dir="ltr" className="text-[8px] font-normal">{item.english}</span>
+                <span className="text-micro font-bold">{item.label}</span>
+                <span dir="ltr" className="text-micro font-normal">{item.english}</span>
               </button>
             );
           })}
@@ -947,7 +947,7 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
               <p className="text-sm font-extrabold">{user.name}</p>
               <p className="text-[11px] text-ink-muted" dir="ltr">{user.phone}</p>
             </div>
-            <span className="ms-auto rounded-full bg-brand-tint px-2.5 py-1 text-[10px] font-bold text-brand-deep">
+            <span className="ms-auto rounded-full bg-brand-tint px-2.5 py-1 text-micro font-bold text-brand-deep">
               {user.isAvailable ? 'متاح · Available' : 'غير متاح · Offline'}
             </span>
           </div>

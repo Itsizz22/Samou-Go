@@ -333,8 +333,8 @@ export function SamouGoStoreManager() {
           </div>
         </header>
         <div className="mx-auto max-w-md space-y-4 px-4 pt-5" aria-hidden="true">
-          <div className="h-24 animate-pulse rounded-2xl bg-surface shadow-card" />
-          <div className="h-40 animate-pulse rounded-2xl bg-surface shadow-card" />
+          <div className="skeleton h-24 rounded-2xl shadow-card" />
+          <div className="skeleton h-40 rounded-2xl shadow-card" />
         </div>
       </main>
     );
@@ -383,7 +383,7 @@ export function SamouGoStoreManager() {
               onClick={auth.signOut}
               aria-label="تسجيل الخروج"
               title="تسجيل الخروج"
-              className="ms-auto rounded-lg p-1 text-white/70 transition hover:bg-surface/10 hover:text-white"
+              className="ms-auto rounded-lg p-2 text-white/70 transition hover:bg-surface/10 hover:text-white"
             >
               <LogOut size={15} />
             </button>
@@ -394,7 +394,7 @@ export function SamouGoStoreManager() {
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="التنقل الرئيسي">
           <div className="flex-1 text-center leading-tight">
             <h1 className="text-[15px] font-extrabold">لوحة المتجر</h1>
-            <p dir="ltr" className="text-[10px] font-medium text-white/80">
+            <p dir="ltr" className="text-micro font-medium text-white/80">
               Store Manager
             </p>
           </div>
@@ -413,7 +413,7 @@ export function SamouGoStoreManager() {
               onClick={auth.signOut}
               aria-label="تسجيل الخروج"
               title="تسجيل الخروج"
-              className="rounded-lg p-1 text-white/80 transition hover:bg-surface/10 hover:text-white"
+              className="rounded-lg p-2 text-white/80 transition hover:bg-surface/10 hover:text-white"
             >
               <LogOut size={17} />
             </button>
@@ -424,7 +424,7 @@ export function SamouGoStoreManager() {
             <span className={`h-2 w-2 rounded-full ${isOpen ? 'bg-brand-tint' : 'bg-white/40'}`} />
             <span className="text-xs font-bold">
               {isOpen ? 'متجر مفتوح' : 'متجر مغلق'}
-              <span dir="ltr" className="ms-2 text-[10px] text-white/80">
+              <span dir="ltr" className="ms-2 text-micro text-white/80">
                 {isOpen ? 'Open' : 'Closed'}
               </span>
             </span>
@@ -461,7 +461,7 @@ export function SamouGoStoreManager() {
                   <li key={captain.id} className="flex items-center justify-between rounded-xl bg-canvas px-3 py-2">
                     <div>
                       <p className="text-xs font-bold text-ink">{captain.name}</p>
-                      <p className="text-[10px] text-ink-muted" dir="ltr">{captain.phone}</p>
+                      <p className="text-micro text-ink-muted" dir="ltr">{captain.phone}</p>
                     </div>
                     <span className={captain.isAvailable && captain.isVerified ? 'badge-brand' : 'badge-neutral'}>
                       {captain.isAvailable && captain.isVerified ? 'متاح / Available' : 'غير متاح / Offline'}
@@ -580,7 +580,7 @@ export function SamouGoStoreManager() {
             ? [0, 1].map((index) => (
                 <div
                   key={index}
-                  className="h-28 animate-pulse rounded-2xl bg-surface shadow-card"
+                  className="skeleton h-28 rounded-2xl shadow-card"
                   aria-hidden="true"
                 />
               ))
@@ -626,7 +626,7 @@ export function SamouGoStoreManager() {
               </span>
               <span>
                 <strong className="block text-xs font-extrabold">{action.ar}</strong>
-                <span dir="ltr" className="mt-0.5 block text-[10px] text-ink-muted">
+                <span dir="ltr" className="mt-0.5 block text-micro text-ink-muted">
                   {action.en}
                 </span>
               </span>
@@ -659,7 +659,7 @@ export function SamouGoStoreManager() {
                 </span>
                 <span className="min-w-0">
                   <strong className="block text-xs font-bold">{entry.titleAr}</strong>
-                  <span className="mt-0.5 block text-[10px] text-ink-muted" dir="ltr">
+                  <span className="mt-0.5 block text-micro text-ink-muted" dir="ltr">
                     {entry.titleEn} · {entry.detail}
                   </span>
                 </span>
@@ -696,7 +696,7 @@ export function SamouGoStoreManager() {
 
           {loading && inbox.length === 0 ? (
             [0, 1, 2].map((index) => (
-              <div key={index} className="h-28 animate-pulse rounded-2xl bg-surface shadow-card" aria-hidden="true" />
+              <div key={index} className="skeleton h-28 rounded-2xl shadow-card" aria-hidden="true" />
             ))
           ) : inbox.length === 0 ? (
             <EmptyInbox />
@@ -811,8 +811,8 @@ export function SamouGoStoreManager() {
               }`}
             >
               <tab.icon size={19} fill={activeTab === tab.id && tab.id === 'home' ? 'currentColor' : 'none'} />
-              <span className="text-[10px] font-bold">{tab.ar}</span>
-              <span dir="ltr" className="text-[9px] font-medium">{tab.en}</span>
+              <span className="text-micro font-bold">{tab.ar}</span>
+              <span dir="ltr" className="text-micro font-medium">{tab.en}</span>
             </button>
           ))}
         </div>
@@ -840,7 +840,7 @@ function KpiTile({ icon, labelAr, labelEn, value, suffix, isLoading }: KpiTilePr
       <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-xl bg-brand-tint text-brand">
         {icon}
       </div>
-      <p dir="ltr" className="text-[10px] font-medium text-ink-muted">
+      <p dir="ltr" className="text-micro font-medium text-ink-muted">
         {labelEn}
       </p>
       <p className="mt-0.5 whitespace-nowrap text-[12px] font-bold text-ink-soft">{labelAr}</p>
@@ -903,7 +903,7 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
           <p dir="ltr" className="text-sm font-extrabold text-ink">
             طلب {order.orderNumber}
           </p>
-          <p className="mt-0.5 flex items-center gap-1 text-[10px] text-ink-muted">
+          <p className="mt-0.5 flex items-center gap-1 text-micro text-ink-muted">
             <Clock3 size={12} />
             <span>{time.ar}</span>
             <span dir="ltr" className="text-line">·</span>
@@ -965,7 +965,7 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
       {/* READY_FOR_PICKUP: informational — captain is expected to claim it */}
       {order.status === OrderStatus.READY_FOR_PICKUP && (
         <p className="mb-2 flex items-center gap-1.5 rounded-xl bg-info-tint px-3 py-2 text-[11px] font-semibold text-info-ink">
-          <ChevronRight size={14} className="shrink-0" />
+          <ChevronRight size={14} className="shrink-0 rtl:rotate-180" />
           <span>جاهز — بانتظار كابتن التوصيل</span>
           <span dir="ltr" className="font-normal text-info-ink/75">· Waiting for a captain</span>
         </p>

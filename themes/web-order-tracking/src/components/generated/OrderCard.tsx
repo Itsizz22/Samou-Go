@@ -69,7 +69,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
           <StatusIcon className="w-3.5 h-3.5" />
           <div className="flex flex-col items-start leading-none">
             <span dir="ltr">{label.en}</span>
-            <span className="text-[8px]">{label.ar}</span>
+            <span className="text-micro">{label.ar}</span>
           </div>
         </div>
       </div>
@@ -80,7 +80,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
             <Package className="w-4 h-4" />
             <span>{itemsCount} {itemsCount === 1 ? 'صنف' : 'أصناف'} <span dir="ltr">/ {itemsCount} {itemsCount === 1 ? 'item' : 'items'}</span></span>
           </div>
-          <div className="text-xs text-ink-subtle">{date}</div>
+          <div className="text-xs text-ink-muted">{date}</div>
         </div>
 
         <div className="flex flex-col items-end">

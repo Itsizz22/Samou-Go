@@ -212,8 +212,8 @@ export const LiveOrderTracking = () => {
       <main className="min-h-screen bg-canvas pb-24" aria-busy="true">
         <HeaderNav title="Track Order" arabicTitle="تتبع الطلب" showBack={false} showCart={false} />
         <div className="mx-auto w-full max-w-md space-y-4 px-4 pt-5" aria-hidden="true">
-          <div className="h-[132px] animate-pulse rounded-xl bg-surface shadow-card" />
-          <div className="h-[320px] animate-pulse rounded-xl bg-surface shadow-card" />
+          <div className="skeleton h-[132px] rounded-xl shadow-card" />
+          <div className="skeleton h-[320px] rounded-xl shadow-card" />
         </div>
       </main>
     );
@@ -349,7 +349,7 @@ export const LiveOrderTracking = () => {
           )}
 
           {loading && (
-            <div className="h-[132px] animate-pulse rounded-xl bg-surface shadow-card" aria-hidden="true" />
+            <div className="skeleton h-[132px] rounded-xl shadow-card" aria-hidden="true" />
           )}
 
           {detail && (
@@ -367,7 +367,7 @@ export const LiveOrderTracking = () => {
 
         {loading && (
           <div
-            className="mt-7 h-[320px] animate-pulse rounded-xl bg-surface shadow-raised"
+            className="mt-7 skeleton h-[320px] rounded-xl shadow-raised"
             aria-hidden="true"
           />
         )}
@@ -422,7 +422,7 @@ export const LiveOrderTracking = () => {
                             ? 'border-brand bg-brand text-white'
                             : step.state === 'active'
                               ? 'border-brand bg-surface text-brand ring-4 ring-brand-tint'
-                              : 'border-line bg-surface text-ink-subtle'
+                              : 'border-line bg-surface text-ink-muted'
                         }`}
                       >
                         {step.state === 'completed' ? (

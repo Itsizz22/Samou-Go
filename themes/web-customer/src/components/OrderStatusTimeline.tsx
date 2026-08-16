@@ -56,13 +56,13 @@ export function OrderStatusTimeline({ status, className, compact = false }: Orde
                   compact ? 'h-6 w-6' : 'h-8 w-8',
                   done
                     ? 'border-brand bg-brand text-white'
-                    : 'border-line-soft bg-surface text-ink-subtle'
+                    : 'border-line-soft bg-surface text-ink-muted'
                 )}
               >
                 {done ? (
                   <Check size={compact ? 12 : 15} strokeWidth={3} />
                 ) : (
-                  <span className="text-[10px] font-bold">{index + 1}</span>
+                  <span className="text-micro font-bold">{index + 1}</span>
                 )}
               </motion.span>
               {!isLast && (
@@ -71,11 +71,11 @@ export function OrderStatusTimeline({ status, className, compact = false }: Orde
             </div>
             {!compact && (
               <div className="mt-1.5">
-                <span className={cn('block text-[10px] font-bold', done ? 'text-brand-dark' : 'text-ink-subtle')}>
+                <span className={cn('block text-micro font-bold', done ? 'text-brand-dark' : 'text-ink-muted')}>
                   {label.ar}
                 </span>
                 <span
-                  className={cn('block text-[9px]', done ? 'text-ink-muted' : 'text-ink-subtle')}
+                  className={cn('block text-micro', done ? 'text-ink-muted' : 'text-ink-muted')}
                   dir="ltr"
                 >
                   {label.en}

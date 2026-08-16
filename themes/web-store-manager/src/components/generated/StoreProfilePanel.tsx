@@ -158,7 +158,7 @@ export function StoreProfilePanel({ storeId }: Props) {
     return (
       <div className="space-y-4" aria-hidden="true">
         {[0, 1, 2].map(i => (
-          <div key={i} className="h-14 animate-pulse rounded-xl bg-surface shadow-card" />
+          <div key={i} className="skeleton h-14 rounded-xl shadow-card" />
         ))}
       </div>
     );
@@ -292,7 +292,7 @@ export function StoreProfilePanel({ storeId }: Props) {
               dir="ltr"
               className="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
             />
-            <p className="mt-1 text-[10px] text-ink-subtle">
+            <p className="mt-1 text-micro text-ink-muted">
               هذا الرقم يظهر للعميل في تفاصيل الطلب / Shown to customers on order details
             </p>
           </label>

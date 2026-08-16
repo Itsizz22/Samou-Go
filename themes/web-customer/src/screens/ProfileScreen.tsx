@@ -198,7 +198,7 @@ export function ProfileScreen() {
             </span>
             <span className="flex-1 text-end">
               <span className="block text-xs font-extrabold">الصورة الشخصية</span>
-              <span dir="ltr" className="block text-[10px] text-ink-muted">
+              <span dir="ltr" className="block text-micro text-ink-muted">
                 Profile photo
               </span>
             </span>
@@ -287,13 +287,13 @@ export function ProfileScreen() {
           ) : (
             <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-canvas p-3 text-center">
               <div>
-                <p className="text-[10px] text-ink-muted">الحالة / Status</p>
+                <p className="text-micro text-ink-muted">الحالة / Status</p>
                 <p className="mt-0.5 text-xs font-extrabold text-ink">
-                  {user.isActive ? 'نشط' : 'موقوف'} <span dir="ltr" className="text-[10px]">{user.isActive ? 'Active' : 'Inactive'}</span>
+                  {user.isActive ? 'نشط' : 'موقوف'} <span dir="ltr" className="text-micro">{user.isActive ? 'Active' : 'Inactive'}</span>
                 </p>
               </div>
               <div>
-                <p className="text-[10px] text-ink-muted">المعرّف / ID</p>
+                <p className="text-micro text-ink-muted">المعرّف / ID</p>
                 <p className="mt-0.5 truncate text-xs font-extrabold text-ink" dir="ltr">
                   {user.id.slice(0, 12)}
                 </p>
@@ -332,7 +332,7 @@ export function ProfileScreen() {
                     <p className="flex items-center justify-end gap-1.5">
                       <span className="truncate text-xs font-extrabold text-ink">{entry.label || entry.addressText.slice(0, 24)}</span>
                       {entry.tag && (
-                        <span className="shrink-0 rounded-full bg-brand-tint px-2 py-0.5 text-[9px] font-bold text-brand-dark">
+                        <span className="shrink-0 rounded-full bg-brand-tint px-2 py-0.5 text-micro font-bold text-brand-dark">
                           {ADDRESS_TAG_META[normalizeTag(entry.tag)].ar}
                           <span dir="ltr" className="ms-1">{ADDRESS_TAG_META[normalizeTag(entry.tag)].en}</span>
                         </span>
@@ -340,14 +340,14 @@ export function ProfileScreen() {
                     </p>
                     <p className="mt-0.5 text-[11px] leading-relaxed text-ink-muted">{entry.addressText}</p>
                     {entry.addressNote && (
-                      <p className="mt-0.5 text-[10px] text-ink-subtle">{entry.addressNote}</p>
+                      <p className="mt-0.5 text-micro text-ink-muted">{entry.addressNote}</p>
                     )}
                   </div>
                   <button
                     type="button"
                     aria-label="حذف العنوان / Remove address"
                     onClick={() => removeAddress(entry.id)}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-subtle transition hover:bg-danger-tint hover:text-danger-ink"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink"
                   >
                     <Trash2 size={14} />
                   </button>

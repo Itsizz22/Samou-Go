@@ -156,7 +156,7 @@ export function CustomerAuthGate({
             <>
               <label className="mt-5 block">
                 <span className="text-xs font-bold">رقم الجوال</span>
-                <span className="ms-2 text-[10px] text-ink-muted" dir="ltr">
+                <span className="ms-2 text-micro text-ink-muted" dir="ltr">
                   Mobile number
                 </span>
                 <input
@@ -172,7 +172,7 @@ export function CustomerAuthGate({
                   autoFocus
                 />
               </label>
-              <p className="mt-2 flex items-start gap-1.5 text-[10px] leading-relaxed text-ink-muted">
+              <p className="mt-2 flex items-start gap-1.5 text-micro leading-relaxed text-ink-muted">
                 <ShieldCheck size={13} className="mt-0.5 shrink-0 text-brand" />
                 سنرسل رمز تحقق عبر رسالة نصية. الرمز صالح لثلاث دقائق.
               </p>
