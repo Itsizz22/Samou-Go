@@ -69,14 +69,23 @@ export function StoreDetailScreen() {
             </span>
             <h1 className="mt-4 text-sm font-extrabold">تعذّر تحميل المتجر <span dir="ltr">/ Failed to load store</span></h1>
             <p className="mt-1 text-xs text-ink-soft">{store.error.message}</p>
-            <button
-              type="button"
-              onClick={store.refresh}
-              disabled={store.refreshing}
-              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
-            >
-              {store.refreshing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} إعادة المحاولة
-            </button>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={store.refresh}
+                disabled={store.refreshing}
+                className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
+              >
+                {store.refreshing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} إعادة المحاولة
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="inline-flex items-center gap-2 rounded-xl border border-line bg-surface px-4 py-2 text-xs font-bold text-ink-soft transition hover:border-brand hover:bg-brand-surface hover:text-brand-deep active:scale-95"
+              >
+                <ArrowRight size={14} className="rtl:rotate-180" /> رجوع
+              </button>
+            </div>
           </div>
         </main>
       </PageTransition>

@@ -14,6 +14,14 @@ export const storesRouter: Router = Router();
 /* ---- Public read-only routes -------------------------------------------- */
 
 storesRouter.get('/', optionalAuthenticate, asyncHandler(controller.listStoresHandler));
+// Must be registered BEFORE `/:storeId` — Express matches in order and
+// `/mine` would otherwise be swallowed as a store id.
+storesRouter.get(
+  '/mine',
+  authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
+  asyncHandler(controller.listMyStoresHandler)
+);
 storesRouter.get('/:storeId', optionalAuthenticate, asyncHandler(controller.getStoreHandler));
 storesRouter.get(
   '/:storeId/full',

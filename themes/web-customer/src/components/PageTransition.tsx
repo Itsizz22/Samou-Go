@@ -2,14 +2,20 @@
  * Page transition — wraps each route in a slide/fade so navigation feels
  * native instead of a browser jump-cut. Rendered inside `AnimatePresence`,
  * keyed by the current location in App.tsx.
+ *
+ * The wrapper also hosts the mobile swipe-to-go-back gesture so every screen
+ * inherits it without per-screen wiring.
  */
 import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { pageVariants } from '@/lib/motion';
+import { useSwipeBack } from '@/hooks/useSwipeBack';
 
 export function PageTransition({ children }: { children: ReactNode }) {
+  const swipeRef = useSwipeBack<HTMLDivElement>();
   return (
     <motion.div
+      ref={swipeRef}
       variants={pageVariants}
       initial="initial"
       animate="animate"

@@ -8,7 +8,7 @@
  * with the rest of the dashboard.
  */
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Loader2, Plus, Trash2, X } from 'lucide-react';
 import { useCreateCaptain, useCreateStore, useStores, useToast } from '@/hooks/useApi';
 import type { AdminCreateCaptainInput, AdminCreateStoreInput } from '@samou-go/shared-types';
 
@@ -128,6 +128,66 @@ const buttonClass =
   'inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white shadow-brand transition hover:bg-brand-dark active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:pointer-events-none disabled:opacity-50';
 
 /* ---------------------------------------------------------------------------
+ * Shared confirmation dialog — destructive actions (delete/deactivate)
+ * ------------------------------------------------------------------------- */
+
+export function ConfirmDialog({
+  open,
+  title,
+  en,
+  message,
+  confirmLabelAr,
+  confirmLabelEn,
+  pending,
+  onConfirm,
+  onClose,
+}: {
+  open: boolean;
+  title: string;
+  en: string;
+  message: string;
+  confirmLabelAr: string;
+  confirmLabelEn: string;
+  pending: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <AdminModal title={title} en={en} onClose={onClose}>
+      <div className="p-6">
+        <p className="text-sm leading-relaxed text-ink-soft">{message}</p>
+        <p dir="ltr" className="mt-2 text-[11px] leading-relaxed text-ink-subtle">
+          This action cannot be undone.
+        </p>
+      </div>
+      <footer className="flex items-center justify-end gap-2 border-t border-line px-6 py-4">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={pending}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-3 text-sm font-bold text-ink-soft transition hover:border-brand hover:bg-brand-surface disabled:opacity-50"
+        >
+          إلغاء <span dir="ltr" className="font-medium">Cancel</span>
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={onConfirm}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-danger-ink px-4 py-3 text-sm font-bold text-white transition hover:bg-danger active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-danger/40 disabled:pointer-events-none disabled:opacity-50"
+        >
+          {pending ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+          {confirmLabelAr}{' '}
+          <span dir="ltr" className="font-medium">
+            {confirmLabelEn}
+          </span>
+        </button>
+      </footer>
+    </AdminModal>
+  );
+}
+
+/* ---------------------------------------------------------------------------
  * Add New Store
  * ------------------------------------------------------------------------- */
 
@@ -146,6 +206,7 @@ export function CreateStoreDialog({
   const [nameEn, setNameEn] = useState('');
   const [phone, setPhone] = useState('');
   const [managerName, setManagerName] = useState('');
+  const [password, setPassword] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [resetKey, setResetKey] = useState(0);
 
@@ -156,12 +217,17 @@ export function CreateStoreDialog({
       toast.error('أكمل الحقول المطلوبة', 'Please complete all required fields');
       return;
     }
+    if (password && password.length < 8) {
+      toast.error('كلمة المرور 8 أحرف على الأقل', 'Password must be at least 8 characters');
+      return;
+    }
     const input: AdminCreateStoreInput = {
       nameAr: nameAr.trim(),
       nameEn: nameEn.trim(),
       phone: phone.trim(),
       isActive,
       ...(managerName.trim() ? { managerName: managerName.trim() } : {}),
+      ...(password ? { password } : {}),
     };
     const result = await create.run(input);
     if (result) {
@@ -174,6 +240,7 @@ export function CreateStoreDialog({
       setNameEn('');
       setPhone('');
       setManagerName('');
+      setPassword('');
       setIsActive(true);
       onCreated();
       onClose();
@@ -228,6 +295,18 @@ export function CreateStoreDialog({
             aria-label="Manager name"
           />
         </FieldLabel>
+        <FieldLabel hint="Owner login password — 8+ characters (optional)">
+          <input
+            className={inputClass}
+            dir="ltr"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="كلمة مرور المدير / Owner password"
+            aria-label="Store owner password"
+          />
+        </FieldLabel>
         <ToggleSwitch
           checked={isActive}
           onChange={setIsActive}
@@ -280,6 +359,7 @@ export function CreateCaptainDialog({
   const [nameEn, setNameEn] = useState('');
   const [phone, setPhone] = useState('');
   const [assignedStoreId, setAssignedStoreId] = useState('');
+  const [password, setPassword] = useState('');
   const [isVerified, setIsVerified] = useState(false);
 
   if (!open) return null;
@@ -289,12 +369,17 @@ export function CreateCaptainDialog({
       toast.error('أكمل الحقول المطلوبة', 'Please complete all required fields');
       return;
     }
+    if (password && password.length < 8) {
+      toast.error('كلمة المرور 8 أحرف على الأقل', 'Password must be at least 8 characters');
+      return;
+    }
     const input: AdminCreateCaptainInput = {
       nameAr: nameAr.trim(),
       nameEn: nameEn.trim(),
       phone: phone.trim(),
       assignedStoreId,
       isVerified,
+      ...(password ? { password } : {}),
     };
     const result = await create.run(input);
     if (result) {
@@ -303,6 +388,7 @@ export function CreateCaptainDialog({
       setNameEn('');
       setPhone('');
       setAssignedStoreId('');
+      setPassword('');
       setIsVerified(false);
       onCreated();
       onClose();
@@ -361,6 +447,18 @@ export function CreateCaptainDialog({
               </option>
             ))}
           </select>
+        </FieldLabel>
+        <FieldLabel hint="Driver login password — 8+ characters (optional)">
+          <input
+            className={inputClass}
+            dir="ltr"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="كلمة مرور السائق / Driver password"
+            aria-label="Driver password"
+          />
         </FieldLabel>
         <ToggleSwitch
           checked={isVerified}

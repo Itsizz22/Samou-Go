@@ -14,15 +14,19 @@ import { FavoritesProvider } from './components/FavoritesProvider';
 // light-mode lock — ThemeProvider owns the `.dark` class instead.
 bootstrapApp({ allowDarkMode: true });
 
-  // Register service worker for PWA offline capability.
-  // It will serve the app shell assets from cache and fallback to network for API data.
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/service-worker.js').then((reg) => {
-      console.log('SW registered: ', reg);
-    }).catch((err) => {
-      console.error('SW registration failed: ', err);
-    });
-  }
+  // Register the PWA service worker (public/service-worker.js). Production only:
+// a stale dev-time cache fights Vite HMR. The worker is registered after load
+// so it never delays first paint, and registration failures are logged quietly
+// instead of surfacing an error overlay.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/service-worker.js', { scope: '/', updateViaCache: 'none' })
+      .catch((err: unknown) => {
+        console.warn('SW registration failed: ', err);
+      });
+  });
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

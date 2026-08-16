@@ -16,6 +16,10 @@ import {
   ApiError,
   createCaptain,
   createStore,
+  deleteDriver,
+  deleteStore,
+  deleteUser,
+  getMyStores,
   getOrder,
   getStore,
   getStoreManager,
@@ -247,9 +251,7 @@ export function useStore(
   });
 }
 
-/**
- * `GET /stores/:id/full` — full catalogue for the store manager.
- */
+/** `GET /stores/:id/full` — full catalogue for the store manager. */
 export function useStoreManager(
   storeId: string | null | undefined,
   options?: ResourceOptions<StoreWithCatalogue>
@@ -259,6 +261,15 @@ export function useStoreManager(
     (signal) => getStoreManager(storeId as string, signal),
     { ...options, enabled: Boolean(storeId) && (options?.enabled ?? true) }
   );
+}
+
+/** `GET /stores/mine` — every store the signed-in manager manages. */
+export function useMyStores(
+  options?: ResourceOptions<Store[]>
+): Resource<Store[]> {
+  // `getMyStores` sends the bearer token itself; `enabled` stays in the
+  // caller's hands so the dashboard can wait for a signed-in user.
+  return useResource('stores:mine', (signal) => getMyStores(signal), options);
 }
 
 /** `GET /orders/:id` — order tracking. */
@@ -311,6 +322,27 @@ export function useCreateStore(): Mutation<AdminCreateStoreInput, AdminCreateSto
 export function useCreateCaptain(): Mutation<AdminCreateCaptainInput, PublicUser> {
   return useMutation<AdminCreateCaptainInput, PublicUser>(
     (input, signal) => createCaptain(input, signal)
+  );
+}
+
+/** DELETE /admin/stores/:id — closes a store and its owner account. */
+export function useDeleteStore(): Mutation<string, { removed: boolean }> {
+  return useMutation<string, { removed: boolean }>((storeId, signal) =>
+    deleteStore(storeId, signal)
+  );
+}
+
+/** DELETE /admin/drivers/:id — removes a driver and their profile data. */
+export function useDeleteDriver(): Mutation<string, { removed: boolean }> {
+  return useMutation<string, { removed: boolean }>((driverId, signal) =>
+    deleteDriver(driverId, signal)
+  );
+}
+
+/** DELETE /admin/users/:userId — safely deactivates a user account. */
+export function useDeleteUser(): Mutation<string, { removed: boolean }> {
+  return useMutation<string, { removed: boolean }>((userId, signal) =>
+    deleteUser(userId, signal)
   );
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
+  ChevronDown,
   ChevronLeft,
   Coffee,
   Heart,
@@ -70,6 +71,9 @@ export function SamouGoHome() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'open' | 'closed'>('all');
+  // The category chip rail is collapsible on phones (thin screens); it stays
+  // permanently expanded on wider viewports where horizontal scroll is usable.
+  const [categoriesCollapsed, setCategoriesCollapsed] = useState(false);
 
   // Every keystroke would otherwise be a round-trip over Samou' mobile data.
   useEffect(() => {
@@ -190,8 +194,37 @@ export function SamouGoHome() {
       </section>
 
       <section className="mx-auto max-w-md px-5 pt-7" aria-labelledby="categories-title">
-        <div className="mb-4 flex items-end justify-between"><div><h2 id="categories-title" className="text-lg font-extrabold">الفئات</h2><p className="text-xs text-ink-muted" dir="ltr">Categories</p></div><ChevronLeft size={18} className="text-ink-subtle" /></div>
-        <div className="flex gap-3 overflow-x-auto pb-1">
+        <div className="mb-4 flex items-end justify-between">
+          <div>
+            <h2 id="categories-title" className="text-lg font-extrabold">الفئات</h2>
+            <p className="text-xs text-ink-muted" dir="ltr">Categories</p>
+          </div>
+          <button
+            type="button"
+            aria-expanded={!categoriesCollapsed}
+            aria-controls="category-chips"
+            onClick={() => setCategoriesCollapsed(collapsed => !collapsed)}
+            className="flex items-center gap-1 rounded-full bg-surface px-2.5 py-1.5 text-[10px] font-bold text-brand shadow-card transition hover:bg-brand-surface md:hidden"
+          >
+            {categoriesCollapsed ? (
+              <>
+                عرض الفئات <span dir="ltr" className="font-medium">Show</span>
+              </>
+            ) : (
+              <>
+                إخفاء <span dir="ltr" className="font-medium">Hide</span>
+              </>
+            )}
+            <ChevronDown
+              size={14}
+              className={`transition-transform ${categoriesCollapsed ? '' : 'rotate-180'}`}
+            />
+          </button>
+        </div>
+        <div
+          id="category-chips"
+          className={`${categoriesCollapsed ? 'hidden md:flex' : 'flex'} gap-3 overflow-x-auto pb-1`}
+        >
           {STORE_CATEGORIES.map(category => {
           const Icon = CATEGORY_ICONS[category.key];
           const active = activeCategory === category.key;

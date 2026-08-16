@@ -365,6 +365,11 @@ export interface AdminCreateStoreInput {
   phone: string;
   /** Display name for the STORE_MANAGER account; defaults to `nameAr`. */
   managerName?: string;
+  /**
+   * Login password for the store-owner account. Optional: when omitted the
+   * owner signs in via the OTP flow; when present phone+password login works.
+   */
+  password?: string;
   /** Initial availability; defaults to open. */
   isActive?: boolean;
 }
@@ -379,6 +384,8 @@ export interface AdminCreateCaptainInput {
   assignedStoreId: string;
   /** Whether the captain may take jobs immediately; defaults to false. */
   isVerified?: boolean;
+  /** Login password for the captain account; optional (falls back to OTP login). */
+  password?: string;
 }
 
 /** Response for POST /admin/stores — the new manager account + store. */

@@ -27,6 +27,9 @@ export interface SavedAddress {
   tag?: AddressTag;
   addressText: string;
   addressNote?: string;
+  /** Optional WGS84 coordinates captured by the "use my location" flow. */
+  lat?: number;
+  lng?: number;
 }
 
 const STORAGE_KEY = 'samou-go.addresses.v1';

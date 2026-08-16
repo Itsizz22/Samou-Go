@@ -41,9 +41,9 @@ import {
   updateStore,
   useAuth,
   useMutation,
+  useMyStores,
   useOrders,
   useStoreManager,
-  useStores,
   useToast,
 } from '@samou-go/api-client';
 import { playNewOrderChime } from '@samou-go/ui';
@@ -115,12 +115,15 @@ export function SamouGoStoreManager() {
   const isManager = auth.user?.role === UserRole.STORE_MANAGER;
 
   /* ---- Resolve the manager's store id ----------------------------------- */
-  const managedStores = useStores(
-    { activeOnly: false, pageSize: 1 },
-    { enabled: Boolean(auth.user) && isManager }
-  );
-  const managedStoreId: string | null =
-    managedStores.data?.items.find(s => s.managerId === auth.user?.id)?.id ?? null;
+  /* ---- Resolve the manager's store id ----------------------------------- */
+  // `GET /stores/mine` is auth-gated and returns ONLY the manager's own
+  // stores — the old trick of fetching the public catalogue with `pageSize: 1`
+  // silently failed whenever the manager's store was not the first row
+  // (alphabetical + open-first ordering), which blocked product creation.
+  const managedStores = useMyStores({
+    enabled: Boolean(auth.user) && isManager,
+  });
+  const managedStoreId: string | null = managedStores.data?.[0]?.id ?? null;
   const managedStore = useStoreManager(managedStoreId, { enabled: isManager });
 
   const [isOpen, setIsOpen] = useState(true);
@@ -402,6 +405,15 @@ export function SamouGoStoreManager() {
               onDark
               max={10}
             />
+            <button
+              type="button"
+              onClick={auth.signOut}
+              aria-label="تسجيل الخروج"
+              title="تسجيل الخروج"
+              className="rounded-lg p-1 text-white/80 transition hover:bg-surface/10 hover:text-white"
+            >
+              <LogOut size={17} />
+            </button>
           </div>
         </nav>
         <div className="mx-auto mt-3 flex max-w-md items-center justify-between rounded-xl bg-brand-dark px-3 py-2">

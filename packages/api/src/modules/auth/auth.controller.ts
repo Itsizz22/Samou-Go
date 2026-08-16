@@ -6,6 +6,7 @@ import { forbidden } from "../../lib/http-error";
 import { requireAuth } from "../../middleware/authenticate";
 import { revokeRefreshToken } from "./refresh-token";
 import {
+  adminIdParamsSchema,
   adminUpdateUserSchema,
   captainIdParamsSchema,
   firebaseRegisterSchema,
@@ -173,6 +174,41 @@ export async function verifyCaptainHandler(
   if (auth.role !== UserRole.ADMIN) throw forbidden();
   const { captainId } = parseWith(captainIdParamsSchema, req.params);
   ok(res, await authService.verifyCaptain(captainId));
+}
+
+/* ---------------------------------------------------------------------------
+ * Admin deletion
+ * ------------------------------------------------------------------------- */
+
+/** DELETE /api/v1/admin/stores/:id — closes the store and its owner account. */
+export async function adminDeleteStoreHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  if (requireAuth(req).role !== UserRole.ADMIN) throw forbidden();
+  const { id } = parseWith(adminIdParamsSchema, req.params);
+  ok(res, await authService.adminDeleteStore(id));
+}
+
+/** DELETE /api/v1/admin/drivers/:id — removes the driver and profile data. */
+export async function adminDeleteDriverHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  if (requireAuth(req).role !== UserRole.ADMIN) throw forbidden();
+  const { id } = parseWith(adminIdParamsSchema, req.params);
+  ok(res, await authService.adminDeleteDriver(id));
+}
+
+/** DELETE /api/v1/admin/users/:id — safely deactivates a user account. */
+export async function adminDeleteUserHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = requireAuth(req);
+  if (auth.role !== UserRole.ADMIN) throw forbidden();
+  const { userId } = parseWith(userIdParamsSchema, req.params);
+  ok(res, await authService.adminDeleteUser(userId, auth.sub));
 }
 
 /* ---------------------------------------------------------------------------
