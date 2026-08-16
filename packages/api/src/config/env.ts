@@ -54,6 +54,15 @@ const envSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().min(1).optional(),
   FIREBASE_CLIENT_EMAIL: z.string().min(1).optional(),
   FIREBASE_PRIVATE_KEY: z.string().min(1).optional(),
+  /**
+   * Dev/demo-only bypass for `/auth/firebase-register`: accepts the unsigned
+   * `mock-firebase-token` (sent by the web app when `VITE_USE_MOCK_AUTH=true`)
+   * and synthesises a `phone_number` claim from the submitted phone. The rest
+   * of the pipeline (canonical-phone + mismatch validation) still runs, so the
+   * mock can only ever assert the number the user typed. The production guard
+   * below refuses to boot with it, mirroring `SMS_ALLOW_INSECURE_TEST_PROVIDERS`.
+   */
+  FIREBASE_MOCK_TOKENS: z.enum(['true', 'false']).default('false'),
   /** Digits in the OTP code. 6 is the default everywhere else in the stack. */
   OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
   /** OTP validity, in seconds. Requirement: 3 minutes. */
@@ -130,6 +139,13 @@ if (raw.NODE_ENV === 'production') {
         'Set it to the HTTPS origin this API is reachable at.'
     );
   }
+  if (raw.FIREBASE_MOCK_TOKENS === 'true') {
+    throw new Error(
+      'Invalid environment configuration:\n' +
+        '  • FIREBASE_MOCK_TOKENS: refusing to accept unsigned "Firebase" ID tokens in production. ' +
+        'Registration without real Firebase verification would let anyone create accounts.'
+    );
+  }
 }
 
 /**
@@ -200,6 +216,7 @@ export const env = {
     projectId: raw.FIREBASE_PROJECT_ID,
     clientEmail: raw.FIREBASE_CLIENT_EMAIL,
     privateKey: raw.FIREBASE_PRIVATE_KEY,
+    mockTokens: raw.FIREBASE_MOCK_TOKENS === 'true',
   },
   otp: {
     length: raw.OTP_LENGTH,

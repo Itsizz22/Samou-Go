@@ -14,7 +14,7 @@ import { conflict, forbidden, notFound, unauthorized, unprocessable } from '../.
 import { signAccessToken } from '../../lib/jwt';
 import { hashPassword, verifyPassword } from '../../lib/password';
 import { verifyFirebaseIdToken } from '../../config/firebaseAdmin';
-import { fromE164 } from '../../lib/sms/phone';
+import { fromE164, toE164 } from '../../lib/sms/phone';
 import { env } from '../../config/env';
 import { toPublicUser } from './auth.mapper';
 import { requestOtp } from './otp.service';
@@ -99,7 +99,10 @@ export async function register(
 export async function firebaseRegister(body: FirebaseRegisterBody): Promise<AuthResponse> {
   let claims: DecodedIdToken;
   try {
-    claims = await verifyFirebaseIdToken(body.idToken);
+    // The expected E.164 form of the submitted phone is passed along so the
+    // dev-only mock path (FIREBASE_MOCK_TOKENS) can synthesise a matching
+    // `phone_number` claim; the real verification path ignores it.
+    claims = await verifyFirebaseIdToken(body.idToken, toE164(body.phone, env.sms.countryCode));
   } catch {
     throw unauthorized('رمز التحقق من Firebase غير صالح أو منتهي / Invalid or expired Firebase token');
   }

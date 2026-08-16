@@ -68,3 +68,19 @@ storesRouter.delete(
   authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
   asyncHandler(controller.deleteProductHandler)
 );
+
+/* ---- Category (menu section) management — STORE_MANAGER own store or ADMIN */
+
+storesRouter.post(
+  '/:storeId/categories',
+  authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
+  asyncHandler(controller.createCategoryHandler)
+);
+
+storesRouter.delete(
+  '/:storeId/categories/:categoryId',
+  authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
+  asyncHandler(controller.deleteCategoryHandler)
+);

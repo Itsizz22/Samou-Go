@@ -309,6 +309,12 @@ export interface UpdateProductInput {
   categoryId?: string;
 }
 
+/** POST /stores/:storeId/categories — `nameEn` is optional, the API derives it. */
+export interface CreateCategoryInput {
+  nameAr: string;
+  nameEn?: string;
+}
+
 export interface UpdateStoreInput {
   nameAr?: string;
   nameEn?: string;

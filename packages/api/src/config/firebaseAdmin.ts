@@ -71,7 +71,31 @@ export function firebaseAdminApp(): App {
   return app;
 }
 
-/** Verifies a Firebase ID token and returns its claims (e.g. `phone_number`). */
-export async function verifyFirebaseIdToken(idToken: string): Promise<DecodedIdToken> {
+/** The unsigned token the web app sends when `VITE_USE_MOCK_AUTH=true`. */
+export const MOCK_FIREBASE_ID_TOKEN = 'mock-firebase-token';
+
+/**
+ * Verifies a Firebase ID token and returns its claims (e.g. `phone_number`).
+ *
+ * Dev/demo bypass: when `FIREBASE_MOCK_TOKENS=true` (refused in production by
+ * `config/env.ts`) the unsigned mock token is accepted and a `phone_number`
+ * claim is synthesised from the phone the client submitted. The caller still
+ * runs the full canonical-phone + mismatch validation against that claim, so
+ * the mock can only ever assert the exact number the user typed — it cannot
+ * impersonate anyone else's phone.
+ */
+export async function verifyFirebaseIdToken(
+  idToken: string,
+  expectedE164Phone?: string
+): Promise<DecodedIdToken> {
+  if (env.firebaseAdmin?.mockTokens && idToken === MOCK_FIREBASE_ID_TOKEN) {
+    if (!expectedE164Phone) {
+      throw serviceUnavailable(
+        'FIREBASE_MOCK_INVALID',
+        'طلب تحقق وهمي بدون رقم / Mock verification missing a phone'
+      );
+    }
+    return { phone_number: expectedE164Phone } as DecodedIdToken;
+  }
   return getAuth(firebaseAdminApp()).verifyIdToken(idToken);
 }

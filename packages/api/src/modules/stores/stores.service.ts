@@ -1,10 +1,19 @@
 import type { Prisma } from '../../lib/prisma-types';
-import type { JwtPayload, Paginated, Product, Store, StoreWithCatalogue, UserRole } from '@samou-go/shared-types';
+import type {
+  Category,
+  JwtPayload,
+  Paginated,
+  Product,
+  Store,
+  StoreWithCatalogue,
+  UserRole,
+} from '@samou-go/shared-types';
 import { UserRole as UserRoleEnum } from '@samou-go/shared-types';
 import { prisma, caseInsensitiveContains } from '../../lib/prisma';
 import { forbidden, notFound } from '../../lib/http-error';
 import { toProduct, toStore, toStoreWithCatalogue } from './stores.mapper';
 import type {
+  CreateCategoryBody,
   CreateProductBody,
   ProductListQuery,
   StoreListQuery,
@@ -323,4 +332,71 @@ export async function deactivateProduct(storeId: string, productId: string): Pro
     data: { isAvailable: false },
   });
   return toProduct(updated);
+}
+
+/* ---------------------------------------------------------------------------
+ * Categories (menu sections)
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Transliterate a name into a Latin slug for the `nameEn` column, which the
+ * `@@unique([storeId, nameEn])` constraint requires to be unique per store.
+ * Arabic-only names slugify to `''` — the caller falls back to a `cat-…` id.
+ */
+function slugify(input: string): string {
+  return input
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/** POST /stores/:storeId/categories */
+export async function createCategory(storeId: string, body: CreateCategoryBody): Promise<Category> {
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true } });
+  if (!store) throw notFound('المتجر غير موجود / Store not found');
+
+  const base = body.nameEn?.trim() || slugify(body.nameAr) || `cat-${crypto.randomUUID().slice(0, 8)}`;
+  let nameEn = base;
+  // `@@unique([storeId, nameEn])` — bump the slug on collision ("مشروبات" and
+  // a second Arabic-only name both slugify to the same fallback).
+  for (let attempt = 2; attempt <= 5; attempt++) {
+    const dup = await prisma.category.findUnique({
+      where: { storeId_nameEn: { storeId, nameEn } },
+      select: { id: true },
+    });
+    if (!dup) break;
+    nameEn = `${base}-${attempt}`;
+  }
+
+  const category = await prisma.category.create({
+    data: { nameAr: body.nameAr, nameEn, storeId },
+  });
+  return { id: category.id, nameAr: category.nameAr, nameEn: category.nameEn, storeId: category.storeId };
+}
+
+/**
+ * DELETE /stores/:storeId/categories/:categoryId — products in the section are
+ * unlinked (`categoryId → null`, never deleted) and the section itself is
+ * removed.
+ */
+export async function deleteCategory(storeId: string, categoryId: string): Promise<{ removed: boolean }> {
+  const existing = await prisma.category.findUnique({
+    where: { id: categoryId },
+    select: { storeId: true },
+  });
+  if (!existing) throw notFound('القسم غير موجود / Category not found');
+  if (existing.storeId !== storeId) {
+    throw forbidden('القسم لا ينتمي لهذا المتجر / Category does not belong to this store');
+  }
+
+  await prisma.$transaction([
+    prisma.product.updateMany({
+      where: { storeId, categoryId },
+      data: { categoryId: null },
+    }),
+    prisma.category.delete({ where: { id: categoryId } }),
+  ]);
+  return { removed: true };
 }
