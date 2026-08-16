@@ -652,6 +652,14 @@ export function getStoreManager(
   );
 }
 
+/**
+ * GET /stores/mine — every store the signed-in STORE_MANAGER account manages.
+ * Auth-gated, so it sees inactive and unapproved stores too.
+ */
+export function getMyStores(signal?: AbortSignal): Promise<Store[]> {
+  return request<Store[]>("GET", "/stores/mine", { auth: true, signal });
+}
+
 /** Paginated products within a store, filterable by category or search term. */
 export function getStoreProducts(
   storeId: string,
@@ -1224,6 +1232,42 @@ export function createCaptain(
     auth: true,
     signal,
   });
+}
+
+/** DELETE /admin/stores/:id — closes the store and its owner account. */
+export function deleteStore(
+  storeId: string,
+  signal?: AbortSignal,
+): Promise<{ removed: boolean }> {
+  return request<{ removed: boolean }>(
+    "DELETE",
+    `/admin/stores/${encodeURIComponent(storeId)}`,
+    { auth: true, signal },
+  );
+}
+
+/** DELETE /admin/drivers/:id — removes the driver and their profile data. */
+export function deleteDriver(
+  driverId: string,
+  signal?: AbortSignal,
+): Promise<{ removed: boolean }> {
+  return request<{ removed: boolean }>(
+    "DELETE",
+    `/admin/drivers/${encodeURIComponent(driverId)}`,
+    { auth: true, signal },
+  );
+}
+
+/** DELETE /admin/users/:userId — safely deactivates a user account. */
+export function deleteUser(
+  userId: string,
+  signal?: AbortSignal,
+): Promise<{ removed: boolean }> {
+  return request<{ removed: boolean }>(
+    "DELETE",
+    `/admin/users/${encodeURIComponent(userId)}`,
+    { auth: true, signal },
+  );
 }
 
 /* ---------------------------------------------------------------------------

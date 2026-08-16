@@ -1,5 +1,5 @@
 import type { Prisma } from '../../lib/prisma-types';
-import type { Paginated, Product, Store, StoreWithCatalogue, UserRole } from '@samou-go/shared-types';
+import type { JwtPayload, Paginated, Product, Store, StoreWithCatalogue, UserRole } from '@samou-go/shared-types';
 import { UserRole as UserRoleEnum } from '@samou-go/shared-types';
 import { prisma, caseInsensitiveContains } from '../../lib/prisma';
 import { forbidden, notFound } from '../../lib/http-error';
@@ -22,17 +22,35 @@ function paginate<T>(items: T[], total: number, page: number, pageSize: number):
   };
 }
 
+/**
+ * Whether the caller may see shops that are closed (`isActive: false`) or
+ * unapproved. Only staff who need the operational view (admin approval
+ * workflow, store manager dashboard) get it — customers and anonymous
+ * visitors must never see a disabled store, no matter what `activeOnly` says.
+ */
+function canSeeInactiveStores(auth: JwtPayload | null): boolean {
+  return (
+    auth !== null &&
+    (auth.role === UserRoleEnum.ADMIN || auth.role === UserRoleEnum.STORE_MANAGER)
+  );
+}
+
 /* ---------------------------------------------------------------------------
  * Public reads
  * ------------------------------------------------------------------------- */
 
-export async function listStores(query: StoreListQuery): Promise<Paginated<Store>> {
+export async function listStores(
+  query: StoreListQuery,
+  auth: JwtPayload | null = null
+): Promise<Paginated<Store>> {
   const where: Prisma.StoreWhereInput = {
-    // `activeOnly` is the public catalogue: live AND approved. An admin asking
-    // for everything (`activeOnly: false`) sees unapproved stores too, so the
+    // `isApproved: true` is the public catalogue. An admin asking for
+    // everything (`activeOnly: false`) sees unapproved stores too, so the
     // approval workflow can list them.
     isApproved: true,
-    ...(query.activeOnly ? { isActive: true } : {}),
+    // `activeOnly` only relaxes the filter for staff. Customers are always
+    // pinned to live, approved shops — a disabled store is invisible to them.
+    ...(canSeeInactiveStores(auth) && !query.activeOnly ? {} : { isActive: true }),
     ...(query.search
       ? {
           OR: [
@@ -54,6 +72,20 @@ export async function listStores(query: StoreListQuery): Promise<Paginated<Store
   ]);
 
   return paginate(rows.map(toStore), total, query.page, query.pageSize);
+}
+
+/**
+ * GET /stores/mine — every store this STORE_MANAGER account manages.
+ * Auth-gated replacement for the old "list all stores and match managerId"
+ * trick, which silently failed whenever the manager's store was not the first
+ * page of the public catalogue.
+ */
+export async function listManagedStores(managerId: string): Promise<Store[]> {
+  const rows = await prisma.store.findMany({
+    where: { managerId },
+    orderBy: { nameAr: 'asc' },
+  });
+  return rows.map(toStore);
 }
 
 /** One store with its whole menu — what the Store Details screen loads. */

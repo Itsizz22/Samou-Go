@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Eye, EyeOff, Loader2, LockKeyhole, ShoppingCart } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Crosshair, Eye, EyeOff, Loader2, LockKeyhole, MapPin, ShoppingCart } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   RecaptchaVerifier,
@@ -13,11 +13,20 @@ import {
   resetPassword,
   setSessionPersistence,
   useAuth,
+  useToast,
 } from '@/hooks/useApi';
 import { OtpPinInput } from '@/components/OtpPinInput';
 import { normalizePhone, isValidPalestinianMobile, toE164 } from '@/lib/phone';
 import { roleHomePath } from '@/lib/roles';
 import { auth as firebaseAuth } from '@/lib/firebase';
+import {
+  ADDRESS_TAG_META,
+  ADDRESS_TAGS,
+  readSavedAddresses,
+  upsertAddress,
+  writeSavedAddresses,
+  type AddressTag,
+} from '@/lib/address-book';
 
 const phoneValid = (phone: string) => isValidPalestinianMobile(phone);
 const passwordStrong = (password: string) => password.length >= 8;
@@ -53,8 +62,19 @@ function firebaseErrorMessage(cause: unknown, fallback: string): string {
       return 'تجاوز حد الرسائل اليومي — حاول لاحقاً / Daily SMS quota reached — try later';
     case 'auth/network-request-failed':
       return 'تعذر الاتصال بالشبكة / Network error — check your connection';
+    case 'auth/argument-error':
+      return 'تعذّر تحميل التحقق الأمني — أعد المحاولة / Security check failed to load — retry';
+    case 'auth/captcha-check-failed':
+      return 'تعذّر التحقق من أنك لست روبوتاً — أعد المحاولة / reCAPTCHA failed — try again';
+    case 'auth/invalid-recaptcha-token':
     case 'auth/missing-recaptcha-token':
       return 'تعذّر التحقق من أنك لست روبوتاً — أعد المحاولة / reCAPTCHA failed — try again';
+    case 'auth/operation-not-allowed':
+      return 'التحقق عبر الجوال غير مفعّل — تواصل مع الدعم / Phone sign-in is not enabled';
+    case 'auth/unauthorized-domain':
+      return 'هذا النطاق غير مصرّح في Firebase — تواصل مع الدعم / Domain not authorized for Firebase — contact support';
+    case 'auth/internal-error':
+      return 'خطأ داخلي — أعد المحاولة / Internal error — try again';
     default:
       return fallback;
   }
@@ -221,7 +241,8 @@ export function LoginScreen() {
 export function RegisterScreen() {
   const auth = useAuth();
   const navigate = useNavigate();
-  const [step, setStep] = useState<'form' | 'otp'>('form');
+  const toast = useToast();
+  const [step, setStep] = useState<'form' | 'otp' | 'location'>('form');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [accepted, setAccepted] = useState(false);
@@ -230,47 +251,92 @@ export function RegisterScreen() {
   const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
   const [code, setCode] = useState('');
   const [resendIn, setResendIn] = useState(0);
+  const verifierRef = useRef<RecaptchaVerifier | null>(null);
   useEffect(() => {
     if (!resendIn) return;
     const timer = window.setTimeout(() => setResendIn(resendIn - 1), 1000);
     return () => window.clearTimeout(timer);
   }, [resendIn]);
-  // Tear the reCAPTCHA widget down with the screen — a widget left behind
-  // breaks the next visitor's `signInWithPhoneNumber` call on the same div.
-  useEffect(
-    () => () => {
-      try {
-        window.recaptchaVerifier?.clear();
-      } catch {
-        // Already cleared — nothing to do.
-      }
-    },
-    []
-  );
-  const valid = name.trim().length >= 2 && phoneValid(phone) && accepted;
-  if (auth.ready && auth.user) return <Navigate to={roleHomePath(auth.user.role)} replace />;
-  const normalizedPhone = normalizePhone(phone);
-  const sendCode = () => {
-    if (pending) return;
-    setPending(true);
-    setError(null);
-    try {
-      window.recaptchaVerifier?.clear();
-    } catch {
-      // Fresh widget below — the old one is gone.
-    }
-    window.recaptchaVerifier = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', {
+  // ONE invisible reCAPTCHA widget for the whole screen lifetime, created on
+  // mount against the hidden `#recaptcha-container`. Recreating a verifier on
+  // the same element per submit (or clearing mid-flight) races the widget
+  // render and throws `auth/argument-error` / `auth/captcha-check-failed` —
+  // reuse the same instance for every send/resend and tear it down only on
+  // unmount.
+  useEffect(() => {
+    const verifier = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', {
       size: 'invisible',
     });
-    signInWithPhoneNumber(firebaseAuth, toE164(normalizedPhone), window.recaptchaVerifier)
+    verifierRef.current = verifier;
+    window.recaptchaVerifier = verifier;
+    return () => {
+      try {
+        verifier.clear();
+      } catch {
+        // Never rendered — nothing to tear down.
+      }
+      window.recaptchaVerifier = undefined;
+      verifierRef.current = null;
+    };
+  }, []);
+  const valid = name.trim().length >= 2 && phoneValid(phone) && accepted;
+  const [locationText, setLocationText] = useState('');
+  const [locationTag, setLocationTag] = useState<AddressTag>('home');
+  const [geoPending, setGeoPending] = useState(false);
+  const [geoApplied, setGeoApplied] = useState(false);
+  const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
+  if (auth.ready && auth.user) return <Navigate to={roleHomePath(auth.user.role)} replace />;
+  const normalizedPhone = normalizePhone(phone);
+  /**
+   * Widget-init failures mean the invisible reCAPTCHA iframe never finished
+   * booting (stale widget, interrupted load, domain re-check). Tear the old
+   * verifier down and build a fresh one so the user's retry starts with a
+   * clean widget instead of a half-initialised one.
+   */
+  const rebuildVerifier = () => {
+    const old = verifierRef.current;
+    if (old) {
+      try {
+        old.clear();
+      } catch {
+        // Widget never rendered — nothing to tear down.
+      }
+    }
+    verifierRef.current = null;
+    window.recaptchaVerifier = undefined;
+    const fresh = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', {
+      size: 'invisible',
+    });
+    verifierRef.current = fresh;
+    window.recaptchaVerifier = fresh;
+  };
+  const isWidgetFailure = (code: string | undefined) =>
+    code === 'auth/argument-error' ||
+    code === 'auth/captcha-check-failed' ||
+    code === 'auth/invalid-recaptcha-token' ||
+    code === 'auth/missing-recaptcha-token' ||
+    code === 'auth/internal-error';
+  const sendCode = () => {
+    const verifier = verifierRef.current;
+    if (pending || !verifier) return;
+    setPending(true);
+    setError(null);
+    signInWithPhoneNumber(firebaseAuth, toE164(normalizedPhone), verifier)
       .then(result => {
         setConfirmation(result);
         setStep('otp');
         setResendIn(30);
+        toast.success('تم إرسال رمز التحقق', 'OTP sent — check your SMS inbox');
       })
-      .catch((cause: unknown) =>
-        setError(firebaseErrorMessage(cause, 'تعذر إرسال رمز التحقق — حاول مجدداً.'))
-      )
+      .catch((cause: unknown) => {
+        const message = firebaseErrorMessage(cause, 'تعذر إرسال رمز التحقق — حاول مجدداً.');
+        setError(message);
+        const [ar, en] = message.split(' / ');
+        toast.error(ar, en ?? 'Try again');
+        // A half-initialised widget poisons every later attempt — rebuild it
+        // so the next send/resend gets a fresh reCAPTCHA.
+        if (isWidgetFailure((cause as { code?: string } | null)?.code)) rebuildVerifier();
+      })
       .finally(() => setPending(false));
   };
   const finish = () => {
@@ -284,12 +350,67 @@ export function RegisterScreen() {
         const idToken = await firebaseUser.user.getIdToken();
         return firebaseRegister({ idToken, name: name.trim(), phone: normalizedPhone });
       })
-      .then(() => navigate('/', { replace: true }))
+      // Account is live — collect a delivery address before dropping the user
+      // into the app, so the first checkout starts with a prefilled location.
+      .then(() => {
+        toast.success('تم إنشاء حسابك — أهلاً بك!', 'Account created — welcome!');
+        setStep('location');
+      })
       .catch((cause: unknown) =>
         setError(firebaseErrorMessage(cause, 'رمز التحقق غير صحيح.'))
       )
       .finally(() => setPending(false));
   };
+
+  /* ---- Location onboarding (step 3) -------------------------------------- */
+
+  const saveLocationAndEnter = () => {
+    if (pending) return;
+    setError(null);
+    const text = locationText.trim();
+    if (!text) {
+      // Skipping is allowed — the address book is a convenience, not a wall.
+      navigate('/', { replace: true });
+      return;
+    }
+    const saved = readSavedAddresses();
+    const address = {
+      id:
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `addr-${Date.now()}`,
+      label: ADDRESS_TAG_META[locationTag].ar,
+      tag: locationTag,
+      addressText: text,
+      addressNote: geoApplied ? '📍 الموقع الحالي' : undefined,
+      ...(geoCoords ? { lat: geoCoords.lat, lng: geoCoords.lng } : {}),
+    };
+    writeSavedAddresses(upsertAddress(saved, address));
+    navigate('/', { replace: true });
+  };
+
+  const shareCurrentLocation = () => {
+    if (geoPending || !('geolocation' in navigator)) return;
+    setGeoPending(true);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        const { latitude, longitude } = position.coords;
+        setGeoCoords({ lat: latitude, lng: longitude });
+        setLocationText(prev =>
+          prev.trim() ? prev : `موقعي الحالي — ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
+        );
+        setGeoApplied(true);
+        setGeoPending(false);
+      },
+      () => {
+        setGeoPending(false);
+        setError('تعذّر تحديد موقعك — اكتب عنوانك يدوياً / Location unavailable — type your address');
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 }
+    );
+  };
+
   const resend = () => {
     if (pending || resendIn > 0) return;
     sendCode();
@@ -300,7 +421,14 @@ export function RegisterScreen() {
       <p className="mt-1 text-sm text-ink-muted" dir="ltr">
         Create your account
       </p>
-      <div id="recaptcha-container" aria-hidden="true" className="hidden" />
+      {/* Invisible reCAPTCHA host — kept in the DOM but pushed off-screen.
+          `display:none` breaks the widget render in some browsers, so hide it
+          geometrically instead. */}
+      <div
+        id="recaptcha-container"
+        aria-hidden="true"
+        className="pointer-events-none fixed -z-10 start-[-9999px] top-[-9999px] h-px w-px opacity-0"
+      />
       {step === 'form' && (
         <form
           noValidate
@@ -327,7 +455,7 @@ export function RegisterScreen() {
               inputMode="tel"
               autoComplete="tel"
               value={phone}
-              onChange={event => setPhone(event.target.value)}
+              onChange={event => setPhone(event.target.value.replace(/[^\d+]/g, ''))}
               placeholder="05XXXXXXXX"
             />
           </label>
@@ -382,6 +510,92 @@ export function RegisterScreen() {
             className="mt-4 w-full text-sm font-bold text-brand"
           >
             {resendIn ? `إعادة الإرسال خلال ${resendIn}ث` : 'إعادة إرسال الرمز'}
+          </button>
+        </div>
+      )}
+      {step === 'location' && (
+        <div>
+          <div className="mt-5 flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-tint text-brand">
+              <MapPin size={20} />
+            </span>
+            <div>
+              <h2 className="text-sm font-extrabold">أين تسكن؟</h2>
+              <p className="text-[11px] text-ink-muted" dir="ltr">
+                Where should we deliver?
+              </p>
+            </div>
+          </div>
+          <p className="mt-3 text-xs leading-relaxed text-ink-muted">
+            شارك حيّك وعنوانك لتجهيز طلباتك بشكل أسرع — يمكنك تغييره لاحقاً من الملف الشخصي.
+          </p>
+          <label className="mt-4 block text-sm font-bold">
+            العنوان
+            <textarea
+              className="input-field mt-1.5 min-h-24 w-full resize-none"
+              dir="rtl"
+              value={locationText}
+              onChange={event => setLocationText(event.target.value)}
+              placeholder="الحي / الشارع / علامة مميزة — مثل: شارع السموع الرئيسي، بجانب المسجد"
+              aria-label="Delivery address"
+            />
+          </label>
+          <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Address tag">
+            {ADDRESS_TAGS.map(tag => (
+              <button
+                key={tag}
+                type="button"
+                role="radio"
+                aria-checked={locationTag === tag}
+                onClick={() => setLocationTag(tag)}
+                className={`rounded-full px-3 py-1.5 text-[11px] font-bold transition ${
+                  locationTag === tag
+                    ? 'bg-brand text-white'
+                    : 'bg-surface text-ink-muted shadow-card'
+                }`}
+              >
+                {ADDRESS_TAG_META[tag].ar}{' '}
+                <span dir="ltr" className="font-medium">
+                  {ADDRESS_TAG_META[tag].en}
+                </span>
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={shareCurrentLocation}
+            disabled={geoPending}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-xs font-bold text-brand-deep transition hover:bg-brand-surface disabled:opacity-60"
+          >
+            {geoPending ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Crosshair size={15} />
+            )}
+            {geoApplied ? (
+              <>تم تحديد موقعك{' '}
+              <span dir="ltr" className="font-medium">Location captured</span></>
+            ) : (
+              <>
+                شارك موقعي الحالي{' '}
+                <span dir="ltr" className="font-medium">Use my location</span>
+              </>
+            )}
+          </button>
+          <ErrorBanner error={error} />
+          <button
+            type="button"
+            onClick={saveLocationAndEnter}
+            className="btn-primary mt-5 w-full justify-center"
+          >
+            حفظ والمتابعة <span dir="ltr" className="font-medium">Save &amp; continue</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/', { replace: true })}
+            className="mt-3 w-full text-sm font-bold text-ink-muted"
+          >
+            تخطي الآن <span dir="ltr" className="font-medium">Skip for now</span>
           </button>
         </div>
       )}

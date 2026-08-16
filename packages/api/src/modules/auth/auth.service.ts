@@ -363,7 +363,11 @@ export async function adminCreateStore(
     data: {
       name: body.managerName ?? body.nameAr,
       phone: body.phone,
-      passwordHash: await hashPassword(`otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`),
+      // An admin-provided password lets the owner log in with phone+password;
+      // otherwise a random hash keeps the account unguessable (OTP login only).
+      passwordHash: await hashPassword(
+        body.password ?? `otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`
+      ),
       role: UserRole.STORE_MANAGER,
       isActive: true,
       isVerified: true,
@@ -400,7 +404,9 @@ export async function adminCreateCaptain(body: AdminCreateCaptainBody): Promise<
     data: {
       name: body.nameAr,
       phone: body.phone,
-      passwordHash: await hashPassword(`otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`),
+      passwordHash: await hashPassword(
+        body.password ?? `otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`
+      ),
       role: UserRole.CAPTAIN,
       isActive: true,
       isVerified: body.isVerified,
@@ -409,4 +415,102 @@ export async function adminCreateCaptain(body: AdminCreateCaptainBody): Promise<
   });
 
   return toPublicUser(user);
+}
+
+/* ---------------------------------------------------------------------------
+ * Admin deletion — soft delete everywhere, with a hard-delete attempt for
+ * drivers whose profile data can be removed without breaking the audit trail.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * DELETE /admin/stores/:id — closes the shopfront and disables the owner.
+ * Hard-deleting a Store would cascade categories/products/favorites, but
+ * `Order.store` is `onDelete: Restrict`, so any store with orders cannot be
+ * removed anyway. Soft-delete is the only safe path, and it is the same
+ * semantic the public catalogue already honours (`isActive && isApproved`).
+ */
+export async function adminDeleteStore(storeId: string): Promise<{ removed: boolean }> {
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { id: true, managerId: true },
+  });
+  if (!store) throw notFound('المتجر غير موجود / Store not found');
+
+  await prisma.$transaction([
+    prisma.store.update({
+      where: { id: storeId },
+      data: { isActive: false, isApproved: false },
+    }),
+    prisma.user.updateMany({
+      where: { id: store.managerId, role: UserRole.STORE_MANAGER },
+      data: { isActive: false },
+    }),
+  ]);
+  await revokeAllUserRefreshTokens(store.managerId);
+
+  return { removed: true };
+}
+
+/**
+ * DELETE /admin/drivers/:id — removes the captain and their profile data.
+ * Tries a hard delete first (captain location, refresh tokens, favorites and
+ * wallets cascade). Falls back to a deactivation + profile clear when referential
+ * history (chat messages, ratings) blocks removal — the account is then
+ * unusable, offline, and unassigned.
+ */
+export async function adminDeleteDriver(userId: string): Promise<{ removed: boolean }> {
+  const driver = await prisma.user.findUnique({ where: { id: userId } });
+  if (!driver) throw notFound('السائق غير موجود / Driver not found');
+  if (driver.role !== UserRole.CAPTAIN) {
+    throw unprocessable('NOT_A_CAPTAIN', 'المستخدم ليس سائق توصيل / User is not a driver');
+  }
+
+  try {
+    await prisma.user.delete({ where: { id: userId } });
+    return { removed: true };
+  } catch (cause) {
+    // P2003 = foreign-key constraint (orders/chat/rating history that must not
+    // be destroyed). Deactivate instead of breaking the audit trail.
+    if (!(cause instanceof Error) || !('code' in cause) || (cause as { code?: string }).code !== 'P2003') {
+      throw cause;
+    }
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { isActive: false, isAvailable: false, assignedStoreId: null },
+    }),
+    prisma.captainLocation.deleteMany({ where: { captainId: userId } }),
+  ]);
+  await revokeAllUserRefreshTokens(userId);
+
+  return { removed: true };
+}
+
+/**
+ * DELETE /admin/users/:id — safe deactivation for any account.
+ * Accounts are never hard-deleted (orders, ratings and chat history reference
+ * them); `isActive: false` blocks sign-in immediately and kills live sessions.
+ */
+export async function adminDeleteUser(
+  userId: string,
+  actingAdminId: string
+): Promise<{ removed: boolean }> {
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target) throw notFound('المستخدم غير موجود / User not found');
+  if (target.role === UserRole.ADMIN) {
+    throw forbidden('لا يمكن حذف حساب مشرف / Admin accounts cannot be removed');
+  }
+  if (target.id === actingAdminId) {
+    throw forbidden('لا يمكنك حذف حسابك الخاص / You cannot remove your own account');
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { isActive: false },
+  });
+  await revokeAllUserRefreshTokens(userId);
+
+  return { removed: true };
 }

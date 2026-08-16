@@ -205,6 +205,12 @@ export const adminCreateStoreSchema = z.object({
   phone: phoneSchema,
   /** Display name for the STORE_MANAGER account; defaults to `nameAr`. */
   managerName: z.string().trim().min(2, "اسم المدير قصير جداً / Manager name too short").max(120, "اسم المدير طويل جداً / Manager name too long").optional(),
+  /**
+   * Login password for the store-owner account. Optional: when omitted the
+   * service generates an unguessable one and the owner logs in through the
+   * OTP/phone flow; when present the owner can use phone + password too.
+   */
+  password: passwordSchema.optional(),
   /** Admin sets the initial availability. */
   isActive: z.boolean().default(true),
 });
@@ -219,8 +225,15 @@ export const adminCreateCaptainSchema = z.object({
   assignedStoreId: z.string().min(1, "معرف المتجر مطلوب / Store ID is required"),
   /** Captain must be verified to claim jobs. */
   isVerified: z.boolean().default(false),
+  /** Login password for the captain account; optional (falls back to OTP login). */
+  password: passwordSchema.optional(),
 });
 export type AdminCreateCaptainBody = z.infer<typeof adminCreateCaptainSchema>;
+
+/** DELETE /api/v1/admin/stores/:id & /api/v1/admin/drivers/:id — admin route param. */
+export const adminIdParamsSchema = z.object({
+  id: z.string().min(1, "المعرف مطلوب / id is required"),
+});
 
 /** POST /api/v1/admin/stores/otp — admin OTP request for store creation. */
 export const adminStoreOtpRequestSchema = z.object({

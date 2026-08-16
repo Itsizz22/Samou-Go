@@ -22,7 +22,13 @@ import * as storesService from './stores.service';
 /** GET /api/v1/stores */
 export async function listStoresHandler(req: Request, res: Response): Promise<void> {
   const query = parseWith(storeListQuerySchema, req.query);
-  ok(res, await storesService.listStores(query));
+  ok(res, await storesService.listStores(query, req.auth ?? null));
+}
+
+/** GET /api/v1/stores/mine — the authenticated manager's own stores. */
+export async function listMyStoresHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  ok(res, await storesService.listManagedStores(auth.sub));
 }
 
 /** GET /api/v1/stores/:storeId */

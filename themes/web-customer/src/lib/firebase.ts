@@ -8,6 +8,17 @@ declare global {
 }
 
 // Firebase configuration
+//
+// Authorized domains (Firebase Console → Authentication → Settings →
+// Authorized domains) must include:
+//   - samou-go-customer.vercel.app   (production)
+//   - localhost                      (already enabled by default for local dev)
+// If the deployed origin is missing, phone sign-in fails with a 400 from
+// `identitytoolkit.googleapis.com` ("Failed to initialize reCAPTCHA Enterprise
+// config") — reCAPTCHA refuses to render on an unauthorized origin.
+//
+// `authDomain` stays the Firebase project's own domain: phone-auth reCAPTCHA
+// is validated against the *current page origin*, not this value.
 const firebaseConfig = {
   apiKey: "AIzaSyAuPfEY3F5UGYy8xvyZ2TDW2sH72VyBgL4",
   authDomain: "samougo-web.firebaseapp.com",
