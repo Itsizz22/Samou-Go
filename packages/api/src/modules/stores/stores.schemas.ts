@@ -39,6 +39,21 @@ export const productIdParamsSchema = z.object({
   productId: z.string().min(1, 'معرّف المنتج مطلوب / productId is required'),
 });
 
+export const categoryIdParamsSchema = z.object({
+  storeId: z.string().min(1),
+  categoryId: z.string().min(1, 'معرّف القسم مطلوب / categoryId is required'),
+});
+
+/**
+ * POST /stores/:storeId/categories — `nameEn` is optional at creation: the
+ * service derives a Latin slug (or a unique `cat-…` fallback for Arabic-only
+ * names) so the `@@unique([storeId, nameEn])` constraint is always satisfied.
+ */
+export const createCategorySchema = z.object({
+  nameAr: z.string().trim().min(1, 'اسم القسم مطلوب / Section name required').max(120),
+  nameEn: z.string().trim().min(1).max(120).optional(),
+});
+
 export const createProductSchema = z.object({
   nameAr: z.string().trim().min(1, 'اسم المنتج مطلوب').max(160),
   description: z.string().trim().max(1000).optional(),
@@ -77,3 +92,4 @@ export const updateStoreSchema = z
 export type CreateProductBody = z.infer<typeof createProductSchema>;
 export type UpdateProductBody = z.infer<typeof updateProductSchema>;
 export type UpdateStoreBody = z.infer<typeof updateStoreSchema>;
+export type CreateCategoryBody = z.infer<typeof createCategorySchema>;

@@ -32,6 +32,8 @@ import type {
   ApiResponse,
   ApiSuccess,
   AuthResponse,
+  Category,
+  CreateCategoryInput,
   CreateOrderInput,
   CreateProductInput,
   FavoriteListResult,
@@ -1164,6 +1166,35 @@ export function deleteProduct(
   return request<Product>(
     "DELETE",
     `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}`,
+    { auth: true, signal },
+  );
+}
+
+/** Creates a menu section (category) inside a store. */
+export function createCategory(
+  storeId: string,
+  input: CreateCategoryInput,
+  signal?: AbortSignal,
+): Promise<Category> {
+  return request<Category>(
+    "POST",
+    `/stores/${encodeURIComponent(storeId)}/categories`,
+    { body: input, auth: true, signal },
+  );
+}
+
+/**
+ * Deletes a menu section. Products inside it are unlinked (categoryId → null),
+ * never deleted. Returns `{ removed: true }` on success.
+ */
+export function deleteCategory(
+  storeId: string,
+  categoryId: string,
+  signal?: AbortSignal,
+): Promise<{ removed: boolean }> {
+  return request<{ removed: boolean }>(
+    "DELETE",
+    `/stores/${encodeURIComponent(storeId)}/categories/${encodeURIComponent(categoryId)}`,
     { auth: true, signal },
   );
 }

@@ -5,6 +5,8 @@ import { parseWith } from '../../lib/validate';
 import { forbidden } from '../../lib/http-error';
 import { requireAuth } from '../../middleware/authenticate';
 import {
+  categoryIdParamsSchema,
+  createCategorySchema,
   createProductSchema,
   productIdParamsSchema,
   productListQuerySchema,
@@ -107,4 +109,21 @@ export async function deleteProductHandler(req: Request, res: Response): Promise
   const { storeId, productId } = parseWith(productIdParamsSchema, req.params);
   await storesService.assertStoreAccess(storeId, auth.sub, auth.role);
   ok(res, await storesService.deactivateProduct(storeId, productId));
+}
+
+/** POST /api/v1/stores/:storeId/categories */
+export async function createCategoryHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const { storeId } = parseWith(storeIdParamsSchema, req.params);
+  await storesService.assertStoreAccess(storeId, auth.sub, auth.role);
+  const body = parseWith(createCategorySchema, req.body);
+  created(res, await storesService.createCategory(storeId, body));
+}
+
+/** DELETE /api/v1/stores/:storeId/categories/:categoryId */
+export async function deleteCategoryHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const { storeId, categoryId } = parseWith(categoryIdParamsSchema, req.params);
+  await storesService.assertStoreAccess(storeId, auth.sub, auth.role);
+  ok(res, await storesService.deleteCategory(storeId, categoryId));
 }

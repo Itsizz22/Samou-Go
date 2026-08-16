@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import {
+  createCategory,
   createProduct,
   deleteProduct,
   removeCurrentImage,
@@ -117,6 +118,37 @@ export function ProductCataloguePanel({ storeId }: Props) {
   const [imageBusy, setImageBusy] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
+  /* ---- Quick category creation (inside the product modal) ---------------- */
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [categoryName, setCategoryName] = useState('');
+  const [categoryBusy, setCategoryBusy] = useState(false);
+  const categoryInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (categoryOpen) setTimeout(() => categoryInputRef.current?.focus(), 60);
+  }, [categoryOpen]);
+
+  const handleCreateCategory = async () => {
+    const name = categoryName.trim();
+    if (!name || categoryBusy) return;
+    setCategoryBusy(true);
+    try {
+      const created = await createCategory(storeId, { nameAr: name });
+      toast.success('تم إنشاء القسم', `${created.nameAr} created`);
+      setCategoryName('');
+      setCategoryOpen(false);
+      // Pull the new section into the dropdown and pre-select it for the
+      // product being created/edited.
+      reload();
+      setForm(f => ({ ...f, categoryId: created.id }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error('تعذّر إنشاء القسم', msg);
+    } finally {
+      setCategoryBusy(false);
+    }
+  };
+
   useEffect(() => {
     if (modal) setTimeout(() => firstInputRef.current?.focus(), 60);
   }, [modal]);
@@ -162,6 +194,9 @@ export function ProductCataloguePanel({ storeId }: Props) {
       if (modal === 'create') {
         await createProduct(storeId, input);
         toast.success('تم إضافة المنتج', 'Product created');
+        // Drop any active category filter so the fresh item is immediately
+        // visible in the list instead of being hidden behind a stale filter.
+        setFilterCategoryId('');
       } else if (modal === 'edit' && editTarget) {
         await updateProduct(storeId, editTarget.id, input);
         toast.success('تم تحديث المنتج', 'Product updated');
@@ -545,7 +580,25 @@ export function ProductCataloguePanel({ storeId }: Props) {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-bold text-ink">القسم</span>
+                  <span className="mb-1 flex items-center justify-between text-xs font-bold text-ink">
+                    <span>القسم</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCategoryOpen(open => !open);
+                        setCategoryName('');
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg bg-brand-surface px-2 py-1 text-[11px] font-bold text-brand-deep transition hover:bg-brand-soft"
+                      aria-expanded={categoryOpen}
+                      aria-label="New category"
+                    >
+                      {categoryOpen ? <X size={12} /> : <Plus size={12} />}
+                      {categoryOpen ? 'إلغاء' : 'قسم جديد'}
+                      <span dir="ltr" className="font-medium opacity-70">
+                        {categoryOpen ? 'Cancel' : 'New'}
+                      </span>
+                    </button>
+                  </span>
                   <div className="relative">
                     <select
                       value={form.categoryId}
@@ -561,6 +614,44 @@ export function ProductCataloguePanel({ storeId }: Props) {
                   </div>
                 </label>
               </div>
+
+              {/* Quick category creation — a brand-new store has zero sections,
+                  so the product form must be able to mint one on the spot. */}
+              {categoryOpen && (
+                <div className="flex items-center gap-2 rounded-xl border border-line bg-canvas p-2">
+                  <input
+                    ref={categoryInputRef}
+                    type="text"
+                    value={categoryName}
+                    onChange={e => setCategoryName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        void handleCreateCategory();
+                      }
+                    }}
+                    placeholder="اسم القسم — مثل: ساندويشات / Section name"
+                    className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+                    aria-label="New category name"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleCreateCategory()}
+                    disabled={categoryBusy || !categoryName.trim()}
+                    className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-brand px-3 text-xs font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
+                  >
+                    {categoryBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                    حفظ
+                  </button>
+                </div>
+              )}
+              {categories.length === 0 && !categoryOpen && (
+                <p className="flex items-center gap-1.5 rounded-xl bg-brand-surface px-3 py-2 text-[11px] font-semibold text-brand-deep">
+                  <AlertTriangle size={13} className="shrink-0" />
+                  لا توجد أقسام بعد — أنشئ قسماً جديداً قبل إضافة المنتجات
+                  <span dir="ltr" className="font-medium opacity-80">/ No sections yet — create one first</span>
+                </p>
+              )}
 
               {/* Availability toggle */}
               <label className="flex cursor-pointer items-center gap-3">

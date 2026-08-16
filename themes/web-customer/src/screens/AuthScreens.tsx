@@ -5,6 +5,7 @@ import {
   RecaptchaVerifier,
   signInWithPhoneNumber,
   type ConfirmationResult,
+  type UserCredential,
 } from 'firebase/auth';
 import {
   ApiError,
@@ -18,7 +19,7 @@ import {
 import { OtpPinInput } from '@/components/OtpPinInput';
 import { normalizePhone, isValidPalestinianMobile, toE164 } from '@/lib/phone';
 import { roleHomePath } from '@/lib/roles';
-import { auth as firebaseAuth } from '@/lib/firebase';
+import { auth as firebaseAuth, isMockAuth, MOCK_FIREBASE_ID_TOKEN } from '@/lib/firebase';
 import {
   ADDRESS_TAG_META,
   ADDRESS_TAGS,
@@ -54,6 +55,8 @@ function firebaseErrorMessage(cause: unknown, fallback: string): string {
       return 'رقم الجوال غير صالح / Invalid phone number';
     case 'auth/invalid-verification-code':
       return 'رمز التحقق غير صحيح / Invalid verification code';
+    case 'auth/missing-verification-code':
+      return 'أدخل رمز التحقق المكوّن من 6 أرقام / Enter the 6-digit verification code';
     case 'auth/code-expired':
       return 'انتهت صلاحية الرمز — اطلب رمزاً جديداً / Code expired — request a new one';
     case 'auth/too-many-requests':
@@ -252,19 +255,28 @@ export function RegisterScreen() {
   const [code, setCode] = useState('');
   const [resendIn, setResendIn] = useState(0);
   const verifierRef = useRef<RecaptchaVerifier | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!resendIn) return;
     const timer = window.setTimeout(() => setResendIn(resendIn - 1), 1000);
     return () => window.clearTimeout(timer);
   }, [resendIn]);
   // ONE invisible reCAPTCHA widget for the whole screen lifetime, created on
-  // mount against the hidden `#recaptcha-container`. Recreating a verifier on
-  // the same element per submit (or clearing mid-flight) races the widget
-  // render and throws `auth/argument-error` / `auth/captcha-check-failed` —
-  // reuse the same instance for every send/resend and tear it down only on
-  // unmount.
+  // mount against the hidden container. Recreating a verifier on the same
+  // element per submit (or clearing mid-flight) races the widget render and
+  // throws `auth/argument-error` / `auth/captcha-check-failed` — reuse the
+  // same instance for every send/resend and tear it down only on unmount.
   useEffect(() => {
-    const verifier = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', {
+    if (isMockAuth) return;
+    // The widget must be constructed against a real DOM node. A ref (not a
+    // string id lookup) guarantees the node from this very render — a stale
+    // or missing `#recaptcha-container` would otherwise throw uncaught here.
+    const container = containerRef.current;
+    if (!container) {
+      console.error('[firebase] #recaptcha-container not in the DOM — reCAPTCHA disabled');
+      return;
+    }
+    const verifier = new RecaptchaVerifier(firebaseAuth, container, {
       size: 'invisible',
     });
     verifierRef.current = verifier;
@@ -304,7 +316,12 @@ export function RegisterScreen() {
     }
     verifierRef.current = null;
     window.recaptchaVerifier = undefined;
-    const fresh = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', {
+    const container = containerRef.current;
+    if (!container) {
+      console.error('[firebase] #recaptcha-container missing during verifier rebuild');
+      return;
+    }
+    const fresh = new RecaptchaVerifier(firebaseAuth, container, {
       size: 'invisible',
     });
     verifierRef.current = fresh;
@@ -317,8 +334,33 @@ export function RegisterScreen() {
     code === 'auth/missing-recaptcha-token' ||
     code === 'auth/internal-error';
   const sendCode = () => {
+    if (pending) return;
+    // Mock-auth mode (VITE_USE_MOCK_AUTH=true): skip Firebase Phone Auth and
+    // the reCAPTCHA widget entirely. Any 6-digit code is accepted; the finish
+    // step presents the API's mock ID token instead of a real Firebase one.
+    if (isMockAuth) {
+      setPending(true);
+      setError(null);
+      window.setTimeout(() => {
+        setConfirmation({
+          verificationId: `mock-${Date.now()}`,
+          confirm: async () =>
+            ({
+              user: { getIdToken: async () => MOCK_FIREBASE_ID_TOKEN },
+            }) as unknown as UserCredential,
+        });
+        setStep('otp');
+        setResendIn(30);
+        setPending(false);
+        toast.info(
+          'وضع الاختبار: أدخل أي رمز من 6 أرقام',
+          'Mock auth — any 6-digit code is accepted'
+        );
+      }, 400);
+      return;
+    }
     const verifier = verifierRef.current;
-    if (pending || !verifier) return;
+    if (!verifier) return;
     setPending(true);
     setError(null);
     signInWithPhoneNumber(firebaseAuth, toE164(normalizedPhone), verifier)
@@ -356,9 +398,17 @@ export function RegisterScreen() {
         toast.success('تم إنشاء حسابك — أهلاً بك!', 'Account created — welcome!');
         setStep('location');
       })
-      .catch((cause: unknown) =>
-        setError(firebaseErrorMessage(cause, 'رمز التحقق غير صحيح.'))
-      )
+      .catch((cause: unknown) => {
+        const message = firebaseErrorMessage(cause, 'رمز التحقق غير صحيح.');
+        setError(message);
+        // An invalid or expired code must not stick in the pin input — clear
+        // it so the retry starts from a clean field (and the submit button
+        // un-disables only once all 6 digits are re-entered).
+        const codeErr = (cause as { code?: string } | null)?.code;
+        if (codeErr === 'auth/invalid-verification-code' || codeErr === 'auth/code-expired') {
+          setCode('');
+        }
+      })
       .finally(() => setPending(false));
   };
 
@@ -426,6 +476,7 @@ export function RegisterScreen() {
           geometrically instead. */}
       <div
         id="recaptcha-container"
+        ref={containerRef}
         aria-hidden="true"
         className="pointer-events-none fixed -z-10 start-[-9999px] top-[-9999px] h-px w-px opacity-0"
       />
