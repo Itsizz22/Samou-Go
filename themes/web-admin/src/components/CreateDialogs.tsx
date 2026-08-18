@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, Plus, Trash2, X } from 'lucide-react';
 import { useCreateCaptain, useCreateStore, useStores, useToast } from '@/hooks/useApi';
 import type { AdminCreateCaptainInput, AdminCreateStoreInput } from '@samou-go/shared-types';
+import { useLanguage } from '@samou-go/ui';
 
 /* ---------------------------------------------------------------------------
  * Shared modal shell
@@ -28,6 +29,7 @@ function AdminModal({
   children: React.ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -51,16 +53,11 @@ function AdminModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={t(title, en)}
         className="relative max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-line bg-surface shadow-raised"
       >
         <header className="flex items-center justify-between gap-3 border-b border-line px-6 py-4">
-          <div>
-            <h2 className="text-sm font-extrabold">{title}</h2>
-            <p dir="ltr" className="mt-0.5 text-[11px] text-ink-muted">
-              {en}
-            </p>
-          </div>
+          <h2 className="text-sm font-extrabold">{t(title, en)}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -100,6 +97,7 @@ function ToggleSwitch({
   labelAr: string;
   labelEn: string;
 }) {
+  const { t } = useLanguage();
   return (
     <button
       type="button"
@@ -108,12 +106,7 @@ function ToggleSwitch({
       onClick={() => onChange(!checked)}
       className="flex w-full items-center justify-between gap-3 rounded-xl border border-line bg-canvas px-3 py-2.5 text-start"
     >
-      <span className="text-[11px] font-bold text-ink-soft">
-        {labelAr}{' '}
-        <span dir="ltr" className="font-medium text-ink-muted">
-          · {labelEn}
-        </span>
-      </span>
+      <span className="text-[11px] font-bold text-ink-soft">{t(labelAr, labelEn)}</span>
       <span
         className={`flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition-colors ${checked ? 'justify-end bg-brand' : 'justify-start bg-line'}`}
       >
@@ -153,6 +146,7 @@ export function ConfirmDialog({
   onClose: () => void;
 }) {
   if (!open) return null;
+  const { t } = useLanguage();
   return (
     <AdminModal title={title} en={en} onClose={onClose}>
       <div className="p-6">
@@ -168,7 +162,7 @@ export function ConfirmDialog({
           disabled={pending}
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-3 text-sm font-bold text-ink-soft transition hover:border-brand hover:bg-brand-surface disabled:opacity-50"
         >
-          إلغاء <span dir="ltr" className="font-medium">Cancel</span>
+          {t('إلغاء', 'Cancel')}
         </button>
         <button
           type="button"
@@ -177,10 +171,7 @@ export function ConfirmDialog({
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-danger-ink px-4 py-3 text-sm font-bold text-white transition hover:bg-danger active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-danger/40 disabled:pointer-events-none disabled:opacity-50"
         >
           {pending ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-          {confirmLabelAr}{' '}
-          <span dir="ltr" className="font-medium">
-            {confirmLabelEn}
-          </span>
+          {t(confirmLabelAr, confirmLabelEn)}
         </button>
       </footer>
     </AdminModal>
@@ -202,6 +193,7 @@ export function CreateStoreDialog({
 }) {
   const toast = useToast();
   const create = useCreateStore();
+  const { t } = useLanguage();
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
   const [phone, setPhone] = useState('');
@@ -281,7 +273,7 @@ export function CreateStoreDialog({
             inputMode="tel"
             value={phone}
             onChange={e => setPhone(e.target.value)}
-            placeholder="رقم الجوال / Phone"
+            placeholder={t('رقم الجوال', 'Phone')}
             aria-label="Store phone"
           />
         </FieldLabel>
@@ -303,7 +295,7 @@ export function CreateStoreDialog({
             autoComplete="new-password"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            placeholder="كلمة مرور المدير / Owner password"
+            placeholder={t('كلمة مرور المدير', 'Owner password')}
             aria-label="Store owner password"
           />
         </FieldLabel>
@@ -329,10 +321,7 @@ export function CreateStoreDialog({
           className={buttonClass}
         >
           {create.pending ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
-          إنشاء المتجر{' '}
-          <span dir="ltr" className="font-medium">
-            Create store
-          </span>
+          {t('إنشاء المتجر', 'Create store')}
         </button>
       </footer>
     </AdminModal>
@@ -354,6 +343,7 @@ export function CreateCaptainDialog({
 }) {
   const toast = useToast();
   const create = useCreateCaptain();
+  const { t } = useLanguage();
   const stores = useStores({ activeOnly: false, page: 1, pageSize: 100 });
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
@@ -429,7 +419,7 @@ export function CreateCaptainDialog({
             inputMode="tel"
             value={phone}
             onChange={e => setPhone(e.target.value)}
-            placeholder="رقم الجوال / Phone"
+            placeholder={t('رقم الجوال', 'Phone')}
             aria-label="Captain phone"
           />
         </FieldLabel>
@@ -440,7 +430,7 @@ export function CreateCaptainDialog({
             className="input-field cursor-pointer"
             aria-label="Assigned store"
           >
-            <option value="">اختر المتجر / Select a store</option>
+            <option value="">{t('اختر المتجر', 'Select a store')}</option>
             {(stores.data?.items ?? []).map(store => (
               <option key={store.id} value={store.id}>
                 {store.nameAr}
@@ -456,7 +446,7 @@ export function CreateCaptainDialog({
             autoComplete="new-password"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            placeholder="كلمة مرور السائق / Driver password"
+            placeholder={t('كلمة مرور السائق', 'Driver password')}
             aria-label="Driver password"
           />
         </FieldLabel>
@@ -482,10 +472,7 @@ export function CreateCaptainDialog({
           className={buttonClass}
         >
           {create.pending ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
-          إنشاء السائق{' '}
-          <span dir="ltr" className="font-medium">
-            Create driver
-          </span>
+          {t('إنشاء السائق', 'Create driver')}
         </button>
       </footer>
     </AdminModal>

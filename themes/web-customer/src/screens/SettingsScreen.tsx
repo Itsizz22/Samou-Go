@@ -10,8 +10,9 @@
  */
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { Bell, Check, Globe, MapPin, Moon, Palette, Sun, type LucideIcon } from 'lucide-react';
+import { Bell, Check, Globe, Loader2, MapPin, Moon, Palette, Sun, type LucideIcon } from 'lucide-react';
 import { useLanguage } from '@samou-go/ui';
+import { updateMyLocation, useAuth } from '@/hooks/useApi';
 import { ScreenShell } from '@/components/ScreenShell';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ACCENT_OPTIONS } from '@/theme/presets';
@@ -73,6 +74,7 @@ function SettingsRow({
   hint?: string;
   children: React.ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <section className="rounded-2xl border border-line bg-surface p-4 shadow-card">
       <div className="flex items-center gap-3">
@@ -80,10 +82,7 @@ function SettingsRow({
           <Icon size={18} />
         </span>
         <div className="flex-1 text-end">
-          <h2 className="text-sm font-extrabold">{titleAr}</h2>
-          <p dir="ltr" className="text-[11px] text-ink-muted">
-            {titleEn}
-          </p>
+          <h2 className="text-sm font-extrabold">{t(titleAr, titleEn)}</h2>
         </div>
       </div>
       {hint && <p className="mt-1 text-end text-micro text-ink-muted">{hint}</p>}
@@ -93,12 +92,16 @@ function SettingsRow({
 }
 
 export function SettingsScreen() {
+  const auth = useAuth();
+  const user = auth.user;
   const { accent, mode, setAccent, setMode } = useTheme();
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
+  const isArabic = language === 'ar';
   const [notifications, setNotifications] = useState(() =>
     readBoolean(NOTIFICATIONS_STORAGE_KEY, true)
   );
-  const [locationMessage, setLocationMessage] = useState<string | null>(null);
+  const [locationMessage, setLocationMessage] = useState<{ ar: string; en: string } | null>(null);
+  const [locBusy, setLocBusy] = useState(false);
 
   useEffect(() => {
     try {
@@ -111,15 +114,43 @@ export function SettingsScreen() {
     }
   }, [notifications]);
 
+  const hasLocation =
+    user?.latitude != null && user?.longitude != null;
+
   const detectLocation = () => {
     if (!navigator.geolocation) {
-      setLocationMessage('تحديد الموقع غير مدعوم في هذا المتصفح / Geolocation is unavailable');
+      setLocationMessage({ ar: 'تحديد الموقع غير مدعوم في هذا المتصفح', en: 'Geolocation is unavailable' });
       return;
     }
-    setLocationMessage('جارٍ تحديد موقعك… / Detecting your location…');
+    setLocBusy(true);
+    setLocationMessage({ ar: 'جارٍ تحديد موقعك…', en: 'Detecting your location…' });
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => setLocationMessage(`تم حفظ موقعك الحالي: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`),
-      () => setLocationMessage('تعذر تحديد الموقع. يرجى السماح بإذن الموقع / Location permission was not granted.'),
+      async ({ coords }) => {
+        try {
+          // Persist to the server profile AND update the cached session so the
+          // settings screen (and the first-login prompt) reflect the saved coords.
+          const updated = await updateMyLocation(coords.latitude, coords.longitude);
+          if (updated) auth.setUser(updated);
+          setLocationMessage({
+            ar: `تم حفظ موقعك: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
+            en: `Location saved: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
+          });
+        } catch {
+          setLocationMessage({
+            ar: 'تعذّر حفظ الموقع — حاول مجدداً',
+            en: 'Could not save your location — try again',
+          });
+        } finally {
+          setLocBusy(false);
+        }
+      },
+      () => {
+        setLocBusy(false);
+        setLocationMessage({
+          ar: 'تعذر تحديد الموقع. يرجى السماح بإذن الموقع',
+          en: 'Location permission was not granted.',
+        });
+      },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 }
     );
   };
@@ -156,10 +187,7 @@ export function SettingsScreen() {
                       active ? 'text-brand-deep' : 'text-ink-muted'
                     }`}
                   >
-                    {option.labelAr}
-                  </span>
-                  <span dir="ltr" className="text-micro text-ink-muted">
-                    {option.labelEn}
+                    {t(option.labelAr, option.labelEn)}
                   </span>
                 </button>
               );
@@ -175,11 +203,11 @@ export function SettingsScreen() {
             getLabel={(option) =>
               option === 'light' ? (
                 <>
-                  <Sun size={13} /> فاتح <span dir="ltr">· Light</span>
+                  <Sun size={13} /> {t('فاتح', 'Light')}
                 </>
               ) : (
                 <>
-                  <Moon size={13} /> داكن <span dir="ltr">· Dark</span>
+                  <Moon size={13} /> {t('داكن', 'Dark')}
                 </>
               )
             }
@@ -196,10 +224,28 @@ export function SettingsScreen() {
         </SettingsRow>
 
         <SettingsRow icon={MapPin} titleAr="العناوين والمواقع" titleEn="Saved Addresses & GPS" hint="استخدم موقع الجهاز لتسهيل كتابة عنوان التوصيل">
-          <button type="button" onClick={detectLocation} className="rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-white transition hover:bg-brand-dark">
-            تحديد موقعي الحالي <span dir="ltr">/ Detect Current Location</span>
-          </button>
-          {locationMessage && <p className="mt-2 text-[11px] text-ink-muted" dir="auto">{locationMessage}</p>}
+          <div className="rounded-xl bg-canvas p-3">
+            {hasLocation ? (
+              <p className="text-micro text-ink" dir="ltr">
+                <span className="ms-1 text-ink-muted">{t('الموقع المحفوظ:', 'Saved location:')}</span>{' '}
+                {user!.latitude!.toFixed(5)}, {user!.longitude!.toFixed(5)}
+              </p>
+            ) : (
+              <p className="text-micro text-warning-ink">
+                {t('لم يتم حفظ موقعك بعد', 'No location saved yet')}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={detectLocation}
+              disabled={locBusy}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-white transition hover:bg-brand-dark active:scale-[0.98] disabled:opacity-60"
+            >
+              {locBusy ? <Loader2 size={13} className="animate-spin" /> : <MapPin size={13} />}
+              {t(hasLocation ? 'تحديث موقعي الحالي' : 'تحديد موقعي الحالي', hasLocation ? 'Update my location' : 'Detect current location')}
+            </button>
+          </div>
+          {locationMessage && <p className="mt-2 text-[11px] text-ink-muted" dir="auto">{isArabic ? locationMessage.ar : locationMessage.en}</p>}
         </SettingsRow>
 
         <SettingsRow
@@ -224,10 +270,7 @@ export function SettingsScreen() {
             />
           </button>
           <p className="mt-2 text-[11px] text-ink-muted">
-            {notifications ? 'الإشعارات مفعّلة' : 'الإشعارات متوقفة'}
-            <span dir="ltr" className="ms-1 text-micro text-ink-muted">
-              {notifications ? 'On' : 'Off'}
-            </span>
+            {t(notifications ? 'الإشعارات مفعّلة' : 'الإشعارات متوقفة', notifications ? 'On' : 'Off')}
           </p>
         </SettingsRow>
       </div>

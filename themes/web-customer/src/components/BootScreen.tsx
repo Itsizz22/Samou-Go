@@ -7,14 +7,16 @@
  */
 import { motion, useReducedMotion } from 'framer-motion';
 import { ShoppingCart } from 'lucide-react';
+import { useLanguage } from '@samou-go/ui';
 import { bootVariants } from '@/lib/motion';
 
 export function BootScreen() {
   const reducedMotion = useReducedMotion();
+  const { t } = useLanguage();
   return (
     <main
       className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-canvas"
-      aria-label="جاري التحميل / Loading"
+      aria-label={t('جاري التحميل', 'Loading')}
       aria-busy="true"
     >
       <motion.div

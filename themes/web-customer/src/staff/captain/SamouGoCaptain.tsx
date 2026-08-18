@@ -28,13 +28,16 @@ import {
 } from 'lucide-react';
 import {
   SignInGate,
+  listActiveDeliveryZones,
   setAvailability,
+  setOrderDeliveryZone,
   updateOrderStatus,
   updateProfile,
   useAuth,
   useMutation,
   useOrder,
   useOrders,
+  useRoleRedirect,
   useToast,
   connectRealtime,
 } from '@samou-go/api-client';
@@ -43,6 +46,7 @@ import {
   LanguageToggle,
   NotificationBell,
   ThemeToggle,
+  useLanguage,
   type BellNotification,
 } from '@samou-go/ui';
 import {
@@ -52,6 +56,7 @@ import {
   UserRole,
   canRoleSetOrderStatus,
   canTransitionOrderStatus,
+  type DeliveryZone,
   type OrderDetail,
   type OrderSummary,
   type PublicUser,
@@ -118,11 +123,17 @@ function mapsDirectionsToAddress(addressText: string): string {
  * ------------------------------------------------------------------------- */
 
 export function SamouGoCaptain() {
-  const auth = useAuth();
+  const auth = useAuth({ allowedRoles: [UserRole.CAPTAIN] });
   const toast = useToast();
+  const { t, language } = useLanguage();
+  const isArabic = language === 'ar';
+
+  // Unified login: non-captain roles are sent to their own workspace.
+  useRoleRedirect('captain');
 
   const [available, setAvailable] = useState<boolean>(auth.user?.isAvailable ?? false);
   const [activeTab, setActiveTab] = useState('home');
+  const [zones, setZones] = useState<DeliveryZone[]>([]);
 
   // Availability is server state — re-sync whenever the profile reloads so the
   // header reflects the last PATCH, not the last local flip.
@@ -175,6 +186,11 @@ export function SamouGoCaptain() {
     }, () => undefined, { enableHighAccuracy: true, maximumAge: 5_000 });
     return () => { navigator.geolocation.clearWatch(watchId); socket.disconnect(); };
   }, [activeItems, isCaptain]);
+
+  // Load active delivery zones once on mount for the zone picker.
+  useEffect(() => {
+    listActiveDeliveryZones().then(setZones).catch(() => undefined);
+  }, []);
 
   const completedToday = useMemo(() => {
     const today = new Date().toDateString();
@@ -241,7 +257,7 @@ export function SamouGoCaptain() {
       if (acceptMutation.error.status === 409) {
         toast.error('سبقك كابتن آخر إلى هذا الطلب', 'Another captain just claimed this order');
       } else {
-        toast.error('تعذّر قبول الطلب', acceptMutation.error.message, { duration: 5_000 });
+        toast.error('تعذّر قبول الطلب', acceptMutation.error.localizedMessage, { duration: 5_000 });
       }
       // Refresh the pool so the claimed order disappears immediately.
       void availableOrders.reload();
@@ -253,10 +269,25 @@ export function SamouGoCaptain() {
     if (result) {
       toast.success('تم توصيل الطلب بنجاح', 'Order delivered successfully');
     } else if (deliverMutation.error) {
-      toast.error('تعذّر تأكيد التوصيل', deliverMutation.error.message, { duration: 5_000 });
+      toast.error('تعذّر تأكيد التوصيل', deliverMutation.error.localizedMessage, { duration: 5_000 });
     }
     void activeOrders.reload();
     void completedOrders.reload();
+  };
+
+  // Sets the delivery zone for one order. Returns `true` on success so the
+  // picker can clear its local selection; the fee is derived server-side from
+  // the zone row — the captain never sends an amount.
+  const handleZoneSet = async (orderId: string, zoneId: string): Promise<boolean> => {
+    try {
+      await setOrderDeliveryZone(orderId, zoneId);
+      toast.success('تم تحديد منطقة التوصيل', 'Delivery zone set');
+      void activeOrders.reload();
+      return true;
+    } catch {
+      toast.error('تعذّر تحديد المنطقة', 'Failed to set zone');
+      return false;
+    }
   };
 
   /* ---- Availability (persisted) ------------------------------------------ */
@@ -278,7 +309,7 @@ export function SamouGoCaptain() {
       );
     } else if (availabilityMutation.error) {
       setAvailable(!next);
-      toast.error('تعذّر تحديث حالتك', availabilityMutation.error.message, { duration: 5_000 });
+      toast.error('تعذّر تحديث حالتك', availabilityMutation.error.localizedMessage, { duration: 5_000 });
     }
   };
 
@@ -294,7 +325,7 @@ export function SamouGoCaptain() {
       auth.setUser(result);
       toast.success('تم تحديث الملف الشخصي', 'Profile updated');
     } else if (profileMutation.error) {
-      toast.error('تعذّر تحديث الملف', profileMutation.error.message, { duration: 5_000 });
+      toast.error('تعذّر تحديث الملف', profileMutation.error.localizedMessage, { duration: 5_000 });
     }
     return result;
   };
@@ -359,8 +390,7 @@ export function SamouGoCaptain() {
     <section aria-labelledby="earnings-title" className="-mt-1 rounded-b-[24px] bg-gradient-to-br from-brand-dark via-brand to-brand px-5 pb-5 pt-4 text-white shadow-raised">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-[12px] font-semibold text-white/85">أرباح اليوم</p>
-          <p dir="ltr" className="text-[11px] text-white/80">Today's Earnings</p>
+          <p className="text-[12px] font-semibold text-white/85">{t('أرباح اليوم', "Today's Earnings")}</p>
         </div>
         <WalletCards size={21} className="text-white/80" />
       </div>
@@ -373,7 +403,7 @@ export function SamouGoCaptain() {
       </p>
       <div className="mt-1 flex items-center gap-5 text-[11px] font-semibold text-white/85">
         <span>
-          {todayDeliveries} توصيلات <b dir="ltr" className="font-normal">/ {todayDeliveries} Deliveries</b>
+          {t(`${todayDeliveries} توصيلات`, `${todayDeliveries} Deliveries`)}
         </span>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/20 pt-3 text-[11px]">
@@ -388,9 +418,8 @@ export function SamouGoCaptain() {
       <div className="mb-3 flex items-end justify-between">
         <div>
           <h2 id="orders-title" className="text-[17px] font-extrabold">
-            طلبات متاحة <span className="me-1 text-brand">{availableItems.length}</span>
+            {t('طلبات متاحة', 'Available Orders')} <span className="me-1 text-brand">{availableItems.length}</span>
           </h2>
-          <p dir="ltr" className="text-[11px] text-ink-muted">Available Orders</p>
         </div>
       </div>
 
@@ -405,9 +434,8 @@ export function SamouGoCaptain() {
                 <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
                   <AlertTriangle size={22} />
                 </span>
-                <h3 className="mt-3 text-sm font-extrabold">تعذّر تحميل الطلبات</h3>
-                <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">Could not load orders</p>
-                <p className="mt-2 text-xs text-ink-soft">{error.message}</p>
+                <h3 className="mt-3 text-sm font-extrabold">{t('تعذّر تحميل الطلبات', 'Could not load orders')}</h3>
+                <p className="mt-2 text-xs text-ink-soft">{isArabic ? error.message : error.localizedMessage}</p>
                 <button
                   type="button"
                   onClick={() => { void availableOrders.refresh(); void activeOrders.refresh(); void completedOrders.refresh(); }}
@@ -415,7 +443,7 @@ export function SamouGoCaptain() {
                   className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
                 >
                   {availableOrders.refreshing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                  إعادة المحاولة <span dir="ltr">Retry</span>
+                  {t('إعادة المحاولة', 'Retry')}
                 </button>
               </div>
             )
@@ -425,8 +453,7 @@ export function SamouGoCaptain() {
                 <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-surface text-brand">
                   <Package size={22} />
                 </span>
-                <h3 className="mt-3 text-sm font-extrabold">لا توجد طلبات متاحة</h3>
-                <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">No available orders</p>
+                <h3 className="mt-3 text-sm font-extrabold">{t('لا توجد طلبات متاحة', 'No available orders')}</h3>
               </div>
             )
             : availableItems.map((order) => {
@@ -437,17 +464,16 @@ export function SamouGoCaptain() {
                       <div>
                         <h3 className="text-[14px] font-extrabold">{order.storeNameAr}</h3>
                         <p className="mt-1 text-[11px] text-ink-muted">
-                          {time.ar} <span dir="ltr" className="text-ink-muted">· {time.en}</span>
+                          {t(time.ar, time.en)}
                         </p>
                       </div>
-                      <span dir="ltr" className="rounded-lg bg-brand-tint px-2.5 py-1 text-[12px] font-black text-brand-dark">
-                        {FREE_DELIVERY_LABEL.en}
+                      <span className="rounded-lg bg-brand-tint px-2.5 py-1 text-[12px] font-black text-brand-dark">
+                        {t(FREE_DELIVERY_LABEL.ar, FREE_DELIVERY_LABEL.en)}
                       </span>
                     </div>
                     <div className="mt-3 flex items-center justify-between text-[11px] text-ink-muted">
                       <Badge tone={ORDER_STATUS_TONES[order.status]} dot>
-                        {ORDER_STATUS_LABELS[order.status].ar}
-                        <span dir="ltr" className="font-semibold"> / {ORDER_STATUS_LABELS[order.status].en}</span>
+                        {t(ORDER_STATUS_LABELS[order.status].ar, ORDER_STATUS_LABELS[order.status].en)}
                       </Badge>
                       <span>{order.itemCount} items</span>
                     </div>
@@ -461,7 +487,7 @@ export function SamouGoCaptain() {
                           className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand py-2.5 text-[11px] font-extrabold text-white transition hover:bg-brand-dark disabled:opacity-60"
                         >
                           {acceptMutation.pending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                          <span>قبول / Accept</span>
+                          <span>{t('قبول', 'Accept')}</span>
                         </button>
                         <button
                           type="button"
@@ -477,7 +503,7 @@ export function SamouGoCaptain() {
                           aria-label="Ignore order"
                         >
                           <X size={14} />
-                          <span>تجاهل / Ignore</span>
+                          <span>{t('تجاهل', 'Ignore')}</span>
                         </button>
                       </div>
                     )}
@@ -491,8 +517,7 @@ export function SamouGoCaptain() {
   const todaySection = (
     <section aria-labelledby="today-title" className="mt-6 mb-6">
       <div className="mb-3">
-        <h2 id="today-title" className="text-[17px] font-extrabold">توصيلات اليوم</h2>
-        <p dir="ltr" className="text-[11px] text-ink-muted">Today's Deliveries</p>
+        <h2 id="today-title" className="text-[17px] font-extrabold">{t('توصيلات اليوم', "Today's Deliveries")}</h2>
       </div>
       <div className="overflow-hidden rounded-2xl bg-surface shadow-card">
         {completedOrders.loading ? (
@@ -501,7 +526,7 @@ export function SamouGoCaptain() {
           </div>
         ) : completedOrders.error ? (
           <div className="flex items-center justify-center gap-2 px-4 py-5 text-center">
-            <p className="text-[12px] text-danger-ink">{completedOrders.error.message}</p>
+            <p className="text-[12px] text-danger-ink">{isArabic ? completedOrders.error.message : completedOrders.error.localizedMessage}</p>
             <button
               type="button"
               onClick={() => void completedOrders.refresh()}
@@ -514,12 +539,11 @@ export function SamouGoCaptain() {
           </div>
         ) : completedOrders.data?.total === 0 ? (
           <div className="px-4 py-5 text-center text-[12px] text-ink-muted">
-            لا توجد توصيلات مكتملة اليوم <span dir="ltr">/ No deliveries today</span>
+            {t('لا توجد توصيلات مكتملة اليوم', 'No deliveries today')}
           </div>
         ) : (
           <div className="px-4 py-5 text-center">
-            <p className="text-sm font-extrabold text-ink">{todayDeliveries} توصيلات مكتملة</p>
-            <p dir="ltr" className="text-xs text-ink-muted">{todayDeliveries} deliveries completed</p>
+            <p className="text-sm font-extrabold text-ink">{t(`${todayDeliveries} توصيلات مكتملة`, `${todayDeliveries} deliveries completed`)}</p>
           </div>
         )}
       </div>
@@ -569,8 +593,7 @@ export function SamouGoCaptain() {
             <UserRound size={21} />
           </button>
           <div className="text-center leading-tight">
-            <p className="text-[16px] font-extrabold">مرحباً {captainName} 👋</p>
-            <p dir="ltr" className="text-[11px] font-medium text-white/85">Hello, {captainName}</p>
+            <p className="text-[16px] font-extrabold">{t(`مرحباً ${captainName} 👋`, `Hello, ${captainName}`)}</p>
           </div>
           <div className="flex items-center gap-2" dir="ltr">
             <LanguageToggle onDark />
@@ -596,8 +619,7 @@ export function SamouGoCaptain() {
               ) : (
                 <span className={`h-2 w-2 rounded-full ${available ? 'bg-brand' : 'bg-surface/70'}`} />
               )}
-              <span dir="rtl">{available ? 'متاح' : 'غير متاح'}</span>
-              <span dir="ltr">/ {available ? 'Available' : 'Offline'}</span>
+              {t(available ? 'متاح' : 'غير متاح', available ? 'Available' : 'Offline')}
             </button>
           </div>
         </nav>
@@ -615,9 +637,8 @@ export function SamouGoCaptain() {
                   <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
                     <X size={22} />
                   </span>
-                  <h2 className="mt-3 text-sm font-extrabold">تعذّر تحميل الطلبات</h2>
-                  <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">Could not load orders</p>
-                  <p className="mt-2 text-xs text-ink-soft">{error.message}</p>
+                  <h2 className="mt-3 text-sm font-extrabold">{t('تعذّر تحميل الطلبات', 'Could not load orders')}</h2>
+                  <p className="mt-2 text-xs text-ink-soft">{isArabic ? error.message : error.localizedMessage}</p>
                   <button
                     type="button"
                     onClick={() => { void availableOrders.refresh(); void activeOrders.refresh(); void completedOrders.refresh(); }}
@@ -625,7 +646,7 @@ export function SamouGoCaptain() {
                     className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
                   >
                     {availableOrders.refreshing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                    إعادة المحاولة <span dir="ltr">Retry</span>
+                    {t('إعادة المحاولة', 'Retry')}
                   </button>
                 </div>
               </section>
@@ -636,7 +657,7 @@ export function SamouGoCaptain() {
               <section aria-labelledby="active-delivery-title" className="mt-5 rounded-2xl border border-warning-tint bg-surface p-4 shadow-card">
                 <div className="flex items-center justify-between">
                   <span className="rounded-full bg-warning-tint px-2.5 py-1 text-micro font-extrabold text-warning-ink">
-                    جاري التوصيل <span dir="ltr" className="font-semibold">/ Active</span>
+                    {t('جاري التوصيل', 'Active')}
                   </span>
                 </div>
                 {activeItems.map((order) => {
@@ -647,14 +668,13 @@ export function SamouGoCaptain() {
                         <div>
                           <h2 id="active-delivery-title" className="text-[15px] font-extrabold">{order.storeNameAr}</h2>
                           <p className="mt-1 text-[11px] text-ink-muted">
-                            {time.ar} <span dir="ltr" className="text-ink-muted">· {time.en}</span>
+                            {t(time.ar, time.en)}
                           </p>
                         </div>
                         <div className="text-start">
-                          <p dir="ltr" className="text-lg font-black text-brand-dark">
-                            {FREE_DELIVERY_LABEL.en}
+                          <p className="text-lg font-black text-brand-dark">
+                            {t(FREE_DELIVERY_LABEL.ar, FREE_DELIVERY_LABEL.en)}
                           </p>
-                          <p className="text-micro text-ink-muted">{FREE_DELIVERY_LABEL.ar}</p>
                         </div>
                       </div>
                       <div className="mt-4 flex items-center gap-2" aria-label="Delivery status">
@@ -692,6 +712,19 @@ export function SamouGoCaptain() {
                               ))}
                           </div>
                         )}
+                      {/* Delivery zone picker */}
+                      {zones.length > 0 && (
+                        <OrderZonePicker
+                          zones={zones}
+                          orderId={order.id}
+                          currentZoneId={
+                            activeOrderDetail.data?.id === order.id
+                              ? activeOrderDetail.data.deliveryZone?.id ?? null
+                              : null
+                          }
+                          onSet={handleZoneSet}
+                        />
+                      )}
                       <div className="mt-4 flex gap-2">
                         <a
                           href={activeOrderDetail.data?.store ? mapsDirections({
@@ -706,8 +739,7 @@ export function SamouGoCaptain() {
                           className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand px-3 py-2.5 text-micro font-bold text-brand transition hover:bg-brand-tint"
                         >
                           <StoreIcon size={15} />
-                          <span>المتجر</span>
-                          <span dir="ltr" className="font-semibold text-brand-dark/70">· Store</span>
+                          <span>{t('المتجر', 'Store')}</span>
                         </a>
                         <a
                           href={activeOrderDetail.data ? mapsDirectionsToAddress(activeOrderDetail.data.customerAddressText) : undefined}
@@ -718,8 +750,7 @@ export function SamouGoCaptain() {
                           className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand px-3 py-2.5 text-micro font-bold text-brand transition hover:bg-brand-tint ${activeOrderDetail.data ? '' : 'pointer-events-none opacity-50'}`}
                         >
                           <Navigation size={15} />
-                          <span>العميل</span>
-                          <span dir="ltr" className="font-semibold text-brand-dark/70">· Customer</span>
+                          <span>{t('العميل', 'Customer')}</span>
                         </a>
                         <button
                           type="button"
@@ -728,7 +759,7 @@ export function SamouGoCaptain() {
                           className="flex flex-[1.35] items-center justify-center gap-1.5 rounded-xl bg-brand py-2.5 text-[11px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
                         >
                           {deliverMutation.pending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                          <span>تم التوصيل / Delivered</span>
+                          <span>{t('تم التوصيل', 'Delivered')}</span>
                         </button>
                       </div>
                     </div>
@@ -757,8 +788,7 @@ export function SamouGoCaptain() {
           <section className="mt-6" aria-labelledby="map-title">
             <div className="mb-3 flex items-end justify-between">
               <div>
-                <h2 id="map-title" className="text-[17px] font-extrabold">التوجيه إلى المتجر والعميل</h2>
-                <p dir="ltr" className="text-[11px] text-ink-muted">Google Maps Navigation</p>
+                <h2 id="map-title" className="text-[17px] font-extrabold">{t('التوجيه إلى المتجر والعميل', 'Google Maps Navigation')}</h2>
               </div>
             </div>
 
@@ -767,7 +797,7 @@ export function SamouGoCaptain() {
                 {activeOrderDetail.data.store.latitude !== null && activeOrderDetail.data.store.longitude !== null && <LeafletMap center={[activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude]} markers={[{ position: [activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude], label: activeOrderDetail.data.store.nameAr }]} />}
                 <div className="flex items-center justify-between">
                   <span className="rounded-full bg-warning-tint px-2.5 py-1 text-micro font-extrabold text-warning-ink">
-                    توصيل جاري <span dir="ltr">/ Active route</span>
+                    {t('توصيل جاري', 'Active route')}
                   </span>
                   <p className="text-[11px] font-extrabold">{activeOrderDetail.data.store.nameAr}</p>
                 </div>
@@ -778,14 +808,14 @@ export function SamouGoCaptain() {
                       <StoreIcon size={16} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-extrabold">استلام من المتجر <span dir="ltr" className="text-ink-muted">· Pickup</span></p>
+                      <p className="text-[11px] font-extrabold">{t('استلام من المتجر', 'Pickup')}</p>
                       <p className="mt-0.5 truncate text-[11px] text-ink-muted">{activeOrderDetail.data.store.nameAr} — {activeOrderDetail.data.store.nameEn}</p>
                       {activeOrderDetail.data.store.latitude !== null && activeOrderDetail.data.store.longitude !== null ? (
                         <p dir="ltr" className="text-micro text-brand-deep">
                           {activeOrderDetail.data.store.latitude.toFixed(5)}, {activeOrderDetail.data.store.longitude.toFixed(5)}
                         </p>
                       ) : (
-                        <p className="text-micro text-ink-muted">بدون إحداثيات · no coordinates</p>
+                        <p className="text-micro text-ink-muted">{t('بدون إحداثيات', 'no coordinates')}</p>
                       )}
                       <a
                         href={mapsDirections({
@@ -797,7 +827,7 @@ export function SamouGoCaptain() {
                         rel="noreferrer"
                         className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-brand px-3 py-1.5 text-[11px] font-bold text-brand transition hover:bg-brand-tint"
                       >
-                        <Navigation size={14} /> توجيه إلى المتجر <span dir="ltr">· Navigate to store</span>
+                        <Navigation size={14} /> {t('توجيه إلى المتجر', 'Navigate to store')}
                       </a>
                     </div>
                   </div>
@@ -807,7 +837,7 @@ export function SamouGoCaptain() {
                       <MapPin size={16} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-extrabold">إيصال للعميل <span dir="ltr" className="text-ink-muted">· Dropoff</span></p>
+                      <p className="text-[11px] font-extrabold">{t('إيصال للعميل', 'Dropoff')}</p>
                       <p className="mt-0.5 text-[11px] leading-relaxed text-ink-muted">{activeOrderDetail.data.customerAddressText}</p>
                       <a
                         href={mapsDirectionsToAddress(activeOrderDetail.data.customerAddressText)}
@@ -815,7 +845,7 @@ export function SamouGoCaptain() {
                         rel="noreferrer"
                         className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-brand px-3 py-1.5 text-[11px] font-bold text-brand transition hover:bg-brand-tint"
                       >
-                        <Navigation size={14} /> توجيه إلى العميل <span dir="ltr">· Navigate to customer</span>
+                        <Navigation size={14} /> {t('توجيه إلى العميل', 'Navigate to customer')}
                       </a>
                     </div>
                   </div>
@@ -826,8 +856,7 @@ export function SamouGoCaptain() {
                 <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-surface text-brand">
                   <MapPin size={22} />
                 </span>
-                <h3 className="mt-3 text-sm font-extrabold">لا توجد رحلة جارية</h3>
-                <p dir="ltr" className="mt-1 text-[11px] text-ink-muted">No active delivery</p>
+                <h3 className="mt-3 text-sm font-extrabold">{t('لا توجد رحلة جارية', 'No active delivery')}</h3>
                 <p className="mt-3 text-xs leading-relaxed text-ink-soft">
                   عند قبول طلب سيظهر هنا المسار من المتجر إلى العميل مع أزرار فتح خرائط Google.
                 </p>
@@ -840,7 +869,7 @@ export function SamouGoCaptain() {
           <CaptainAccountPanel
             user={auth.user}
             pending={profileMutation.pending}
-            savingError={profileMutation.error?.message}
+            savingError={profileMutation.error ? (isArabic ? profileMutation.error.message : profileMutation.error.localizedMessage) : undefined}
             onSave={handleSaveProfile}
             onSignOut={auth.signOut}
           />
@@ -861,14 +890,100 @@ export function SamouGoCaptain() {
                 aria-current={isActive ? 'page' : undefined}
               >
                 <Icon size={19} strokeWidth={isActive ? 2.7 : 1.8} />
-                <span className="text-micro font-bold">{item.label}</span>
-                <span dir="ltr" className="text-micro font-normal">{item.english}</span>
+                <span className="text-micro font-bold">{t(item.label, item.english)}</span>
               </button>
             );
           })}
         </div>
       </nav>
     </main>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * OrderZonePicker — per-order delivery-zone picker. The captain picks the
+ * ZONE only; the delivery fee is recomputed server-side from the admin zone
+ * row, never sent by the client. Local state per order so two active orders
+ * never share a selection.
+ * ------------------------------------------------------------------------- */
+
+interface OrderZonePickerProps {
+  zones: DeliveryZone[];
+  orderId: string;
+  /** The zone already chosen for this order, when known (order detail loaded). */
+  currentZoneId: string | null;
+  onSet: (orderId: string, zoneId: string) => Promise<boolean>;
+}
+
+function OrderZonePicker({ zones, orderId, currentZoneId, onSet }: OrderZonePickerProps) {
+  const { t } = useLanguage();
+  const [value, setValue] = useState(currentZoneId ?? '');
+  const [busy, setBusy] = useState(false);
+  const [justSet, setJustSet] = useState(false);
+
+  // When the server detail catches up (after a reload) and reports a zone for
+  // this order, reflect it so the dropdown never drifts from the truth.
+  useEffect(() => {
+    if (currentZoneId !== null) setValue(currentZoneId);
+  }, [currentZoneId]);
+
+  const currentZone = zones.find(zone => zone.id === currentZoneId);
+  const unchanged = value !== '' && value === currentZoneId;
+
+  const submit = async () => {
+    if (!value || busy) return;
+    setBusy(true);
+    setJustSet(false);
+    const ok = await onSet(orderId, value);
+    setBusy(false);
+    if (ok) setJustSet(true);
+  };
+
+  return (
+    <div className="mt-3 rounded-xl border border-line bg-canvas p-3">
+      <p className="mb-2 text-micro font-bold text-ink">
+        <MapPin size={11} className="me-1 inline text-brand" />
+        {t('منطقة التوصيل', 'Delivery zone')}
+      </p>
+      {currentZone && !justSet && (
+        <p className="mb-2 rounded-lg bg-brand-tint px-2.5 py-1.5 text-micro font-semibold text-brand-deep">
+          {t('المنطقة الحالية:', 'Current zone:')}{' '}
+          {t(currentZone.nameAr, currentZone.nameEn)} — {currentZone.fee} ₪
+        </p>
+      )}
+      <div className="flex gap-2">
+        <select
+          value={value}
+          onChange={event => {
+            setValue(event.target.value);
+            setJustSet(false);
+          }}
+          className="flex-1 rounded-lg border border-line bg-surface px-2 py-1.5 text-xs text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+          aria-label={t('اختر منطقة التوصيل', 'Select delivery zone')}
+        >
+          <option value="">{t('اختر المنطقة…', 'Choose zone…')}</option>
+          {zones.map(zone => (
+            <option key={zone.id} value={zone.id}>
+              {t(zone.nameAr, zone.nameEn)} — {zone.fee} ₪
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          disabled={!value || unchanged || busy}
+          onClick={() => void submit()}
+          className="flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
+        >
+          {busy ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+          {t('تأكيد', 'Set')}
+        </button>
+      </div>
+      {justSet && (
+        <p className="mt-2 text-micro font-semibold text-brand-dark">
+          {t('تم تحديد المنطقة ✓', 'Zone set ✓')}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -885,6 +1000,7 @@ interface CaptainAccountPanelProps {
 }
 
 function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: CaptainAccountPanelProps) {
+  const { t } = useLanguage();
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState(user.phone);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -899,11 +1015,11 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
 
     const changed = name.trim() !== user.name || phone.trim() !== user.phone;
     if (!changed && !newPassword) {
-      setLocalError('لم تتغيّر أي بيانات / Nothing to update');
+      setLocalError(t('لم تتغيّر أي بيانات', 'Nothing to update'));
       return;
     }
     if (newPassword && newPassword !== confirmPassword) {
-      setLocalError('كلمتا المرور غير متطابقتين / Passwords do not match');
+      setLocalError(t('كلمتا المرور غير متطابقتين', 'Passwords do not match'));
       return;
     }
 
@@ -929,8 +1045,7 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
   return (
     <section className="pt-6" aria-labelledby="account-title">
       <div className="mb-4">
-        <h2 id="account-title" className="text-[17px] font-extrabold">حسابي</h2>
-        <p dir="ltr" className="text-[11px] text-ink-muted">Account &amp; Profile</p>
+        <h2 id="account-title" className="text-[17px] font-extrabold">{t('حسابي', 'Account & Profile')}</h2>
       </div>
 
       <form onSubmit={(event) => void submit(event)} className="space-y-4">
@@ -944,35 +1059,35 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
               <p className="text-[11px] text-ink-muted" dir="ltr">{user.phone}</p>
             </div>
             <span className="ms-auto rounded-full bg-brand-tint px-2.5 py-1 text-micro font-bold text-brand-deep">
-              {user.isAvailable ? 'متاح · Available' : 'غير متاح · Offline'}
+              {user.isAvailable ? t('متاح', 'Available') : t('غير متاح', 'Offline')}
             </span>
           </div>
 
           <label className="mt-4 block">
-            <span className="mb-1.5 block text-xs font-bold text-ink">الاسم الكامل / Full name</span>
+            <span className="mb-1.5 block text-xs font-bold text-ink">{t('الاسم الكامل', 'Full name')}</span>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={fieldClass} />
           </label>
 
           <label className="mt-3 block">
             <span className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-ink">
-              <Phone size={12} className="text-brand" /> رقم الجوال / Mobile
+              <Phone size={12} className="text-brand" /> {t('رقم الجوال', 'Mobile')}
             </span>
             <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} dir="ltr" className={fieldClass} />
           </label>
         </div>
 
         <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
-          <p className="text-xs font-extrabold text-ink">تغيير كلمة المرور <span dir="ltr" className="font-medium text-ink-muted">/ Change password</span></p>
+          <p className="text-xs font-extrabold text-ink">{t('تغيير كلمة المرور', 'Change password')}</p>
           <label className="mt-3 block">
-            <span className="mb-1.5 block text-xs font-bold text-ink">كلمة المرور الحالية / Current password</span>
+            <span className="mb-1.5 block text-xs font-bold text-ink">{t('كلمة المرور الحالية', 'Current password')}</span>
             <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className={fieldClass} />
           </label>
           <label className="mt-3 block">
-            <span className="mb-1.5 block text-xs font-bold text-ink">كلمة مرور جديدة / New password</span>
+            <span className="mb-1.5 block text-xs font-bold text-ink">{t('كلمة مرور جديدة', 'New password')}</span>
             <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={fieldClass} />
           </label>
           <label className="mt-3 block">
-            <span className="mb-1.5 block text-xs font-bold text-ink">تأكيد كلمة المرور / Confirm password</span>
+            <span className="mb-1.5 block text-xs font-bold text-ink">{t('تأكيد كلمة المرور', 'Confirm password')}</span>
             <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={fieldClass} />
           </label>
         </div>
@@ -990,7 +1105,7 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-3 text-sm font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
         >
           {pending && <Loader2 size={15} className="animate-spin" />}
-          {saved ? 'تم الحفظ ✓ / Saved' : 'حفظ التغييرات / Save changes'}
+          {saved ? t('تم الحفظ ✓', 'Saved') : t('حفظ التغييرات', 'Save changes')}
         </button>
       </form>
 
@@ -999,7 +1114,7 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
         onClick={onSignOut}
         className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-danger-tint py-3 text-sm font-bold text-danger transition hover:bg-danger-tint"
       >
-        تسجيل الخروج <span dir="ltr" className="font-medium text-danger/70">/ Sign out</span>
+        {t('تسجيل الخروج', 'Sign out')}
       </button>
     </section>
   );

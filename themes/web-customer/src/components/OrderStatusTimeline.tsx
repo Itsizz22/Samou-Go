@@ -10,7 +10,7 @@ import {
   OrderStatus,
 } from '@samou-go/shared-types';
 import { motion } from 'framer-motion';
-import { cn } from '@samou-go/ui';
+import { cn, useLanguage } from '@samou-go/ui';
 
 interface OrderStatusTimelineProps {
   status: OrderStatus;
@@ -19,13 +19,13 @@ interface OrderStatusTimelineProps {
 }
 
 export function OrderStatusTimeline({ status, className, compact = false }: OrderStatusTimelineProps) {
+  const { language } = useLanguage();
+  const isArabic = language === 'ar';
   if (status === OrderStatus.CANCELLED) {
     return (
       <div className={cn('flex items-center gap-2 rounded-xl bg-danger-tint p-3 text-danger-ink', className)}>
         <X size={16} className="shrink-0" />
-        <p className="text-xs font-bold">
-          تم إلغاء الطلب <span dir="ltr" className="font-semibold">Order cancelled</span>
-        </p>
+        <p className="text-xs font-bold">{isArabic ? 'تم إلغاء الطلب' : 'Order cancelled'}</p>
       </div>
     );
   }
@@ -34,7 +34,7 @@ export function OrderStatusTimeline({ status, className, compact = false }: Orde
   const reached = (index: number) => index <= currentIndex;
 
   return (
-    <ol className={cn('flex items-start', className)} aria-label="حالة الطلب / Order progress">
+<ol className={cn('flex items-start', className)} aria-label={isArabic ? 'حالة الطلب' : 'Order progress'}>
       {ORDER_STATUS_SEQUENCE.map((step, index) => {
         const done = reached(index);
         const isCurrent = index === currentIndex;
@@ -72,13 +72,7 @@ export function OrderStatusTimeline({ status, className, compact = false }: Orde
             {!compact && (
               <div className="mt-1.5">
                 <span className={cn('block text-micro font-bold', done ? 'text-brand-dark' : 'text-ink-muted')}>
-                  {label.ar}
-                </span>
-                <span
-                  className={cn('block text-micro', done ? 'text-ink-muted' : 'text-ink-muted')}
-                  dir="ltr"
-                >
-                  {label.en}
+                  {isArabic ? label.ar : label.en}
                 </span>
               </div>
             )}

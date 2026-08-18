@@ -20,7 +20,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { LoginInput, PublicUser } from "@samou-go/shared-types";
+import type { LoginInput, PublicUser, UserRole } from "@samou-go/shared-types";
 import {
   ApiError,
   clearTokens,
@@ -65,11 +65,50 @@ export interface Auth {
   setUser: (next: PublicUser | null) => void;
 }
 
-export function useAuth(): Auth {
+export interface UseAuthOptions {
+  /**
+   * Roles this app is built for. When provided, any session whose role is
+   * NOT in the list is treated as a foreign token — a user who signed in on
+   * another theme sharing this origin's localStorage (production reverse
+   * proxy), or an SSO hand-off restored from a URL. The tokens are cleared
+   * and the app stays signed out instead of rendering UI for the wrong role.
+   * Omit for apps that accept every role.
+   */
+  allowedRoles?: readonly UserRole[];
+}
+
+export function useAuth(options: UseAuthOptions = {}): Auth {
   const [user, setUserState] = useState<PublicUser | null>(null);
   const [ready, setReady] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+
+  // Roles are fixed for an app's lifetime; the ref keeps the boot effect
+  // (deps `[]`) stable while still giving it the app's allowed roles.
+  const allowedRolesRef = useRef(options.allowedRoles);
+  allowedRolesRef.current = options.allowedRoles;
+
+  const acceptsRole = useCallback((role: UserRole): boolean => {
+    const allowed = allowedRolesRef.current;
+    if (!allowed || allowed.length === 0) return true;
+    return allowed.includes(role);
+  }, []);
+
+  /**
+   * Every path that resolves a profile goes through here. A profile whose
+   * role this app does not serve is rejected: the tokens are dropped so the
+   * mismatch cannot resurface on the next mount, and the session stays
+   * signed out.
+   */
+  const applyProfile = useCallback(
+    (profile: PublicUser | null): PublicUser | null => {
+      if (!profile) return null;
+      if (acceptsRole(profile.role)) return profile;
+      clearTokens();
+      return null;
+    },
+    [acceptsRole],
+  );
 
   const mounted = useRef(true);
 
@@ -79,7 +118,7 @@ export function useAuth(): Auth {
     // Ingest any SSO hand-off token from the URL before checking storage, so a
     // staff member arriving via the unified-login redirect signs in straight
     // to their dashboard without re-entering credentials.
-    consumeSsoToken();
+    consumeSsoToken(allowedRolesRef.current);
 
     // No stored credentials means no session to restore — nothing to wait for.
     if (!getToken() && !getRefreshToken()) {
@@ -103,7 +142,7 @@ export function useAuth(): Auth {
               refresh,
               controller.signal,
             );
-            if (mounted.current) setUserState(restored.user);
+            if (mounted.current) setUserState(applyProfile(restored.user));
             return;
           } catch {
             // Offline or rejected — `me()` below surfaces the failure.
@@ -111,7 +150,7 @@ export function useAuth(): Auth {
         }
       }
       const profile = await me(controller.signal);
-      if (mounted.current) setUserState(profile);
+      if (mounted.current) setUserState(applyProfile(profile));
     };
 
     ensureAccessToken()
@@ -139,7 +178,7 @@ export function useAuth(): Auth {
         return;
       }
       void me()
-        .then(setUserState)
+        .then(applyProfile)
         .catch(() => setUserState(null));
     });
   }, []);
@@ -150,8 +189,9 @@ export function useAuth(): Auth {
       setError(null);
       try {
         const auth = await login(input);
-        if (mounted.current) setUserState(auth.user);
-        return auth.user;
+        const accepted = applyProfile(auth.user);
+        if (mounted.current) setUserState(accepted);
+        return accepted;
       } catch (cause) {
         const apiError =
           cause instanceof ApiError
@@ -183,16 +223,20 @@ export function useAuth(): Auth {
   const refresh = useCallback(async (): Promise<PublicUser | null> => {
     try {
       const profile = await me();
-      if (mounted.current) setUserState(profile);
-      return profile;
+      const accepted = applyProfile(profile);
+      if (mounted.current) setUserState(accepted);
+      return accepted;
     } catch {
       return null;
     }
-  }, []);
+  }, [applyProfile]);
 
-  const setUser = useCallback((next: PublicUser | null) => {
-    if (mounted.current) setUserState(next);
-  }, []);
+  const setUser = useCallback(
+    (next: PublicUser | null) => {
+      if (mounted.current) setUserState(applyProfile(next));
+    },
+    [applyProfile],
+  );
 
   return { user, ready, signIn, signOut, error, pending, refresh, setUser };
 }

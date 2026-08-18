@@ -3,6 +3,7 @@ import { UserRole } from '@samou-go/shared-types';
 import { asyncHandler } from '../../lib/async-handler';
 import { authenticate, authorize, optionalAuthenticate } from '../../middleware/authenticate';
 import * as controller from './stores.controller';
+import * as offersController from '../offers/offers.controller';
 
 /**
  * Public catalogue. No token required — the Customer Shop home screen must
@@ -22,6 +23,7 @@ storesRouter.get(
   authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
   asyncHandler(controller.listMyStoresHandler)
 );
+
 storesRouter.get('/:storeId', optionalAuthenticate, asyncHandler(controller.getStoreHandler));
 storesRouter.get(
   '/:storeId/full',
@@ -39,6 +41,14 @@ storesRouter.patch(
   authenticate,
   authorize(UserRole.ADMIN),
   asyncHandler(controller.approveStoreHandler)
+);
+
+/** "Recommended by us" flag — ADMIN-only, mirrors the approve gate. */
+storesRouter.patch(
+  '/:storeId/recommend',
+  authenticate,
+  authorize(UserRole.ADMIN),
+  asyncHandler(controller.updateStoreRecommendationHandler)
 );
 
 storesRouter.patch(
@@ -78,9 +88,59 @@ storesRouter.post(
   asyncHandler(controller.createCategoryHandler)
 );
 
+storesRouter.patch(
+  '/:storeId/categories/:categoryId',
+  authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
+  asyncHandler(controller.updateCategoryHandler)
+);
+
 storesRouter.delete(
   '/:storeId/categories/:categoryId',
   authenticate,
   authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
   asyncHandler(controller.deleteCategoryHandler)
+);
+
+/* ---- Offers (marketing banners) — STORE_MANAGER own store or ADMIN ------ */
+
+storesRouter.get(
+  '/:storeId/offers',
+  optionalAuthenticate,
+  asyncHandler(offersController.listStoreOffersHandler)
+);
+
+storesRouter.get(
+  '/:storeId/offers/manage',
+  authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
+  asyncHandler(offersController.listMyStoreOffersHandler)
+);
+
+storesRouter.post(
+  '/:storeId/offers',
+  authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
+  asyncHandler(offersController.createOfferHandler)
+);
+
+storesRouter.patch(
+  '/:storeId/offers/:offerId',
+  authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
+  asyncHandler(offersController.updateOfferHandler)
+);
+
+storesRouter.patch(
+  '/:storeId/offers/:offerId/toggle',
+  authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
+  asyncHandler(offersController.toggleOfferHandler)
+);
+
+storesRouter.delete(
+  '/:storeId/offers/:offerId',
+  authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
+  asyncHandler(offersController.deleteOfferHandler)
 );

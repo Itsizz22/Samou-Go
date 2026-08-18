@@ -9,7 +9,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, CheckCheck, Inbox, X } from 'lucide-react';
-import { playNewOrderChime, type BellNotification } from '@samou-go/ui';
+import { playNewOrderChime, type BellNotification, useLanguage } from '@samou-go/ui';
 import { cn } from '@samou-go/ui';
 
 const READ_KEY = 'samou-go.readNotifications.admin';
@@ -64,6 +64,7 @@ export function NotificationsDrawer({ notifications, onNavigate, className }: No
   const [open, setOpen] = useState(false);
   const [read, setRead] = useState<ReadonlySet<string>>(() => readIds());
   const chimedRef = useRef<ReadonlySet<string>>(new Set());
+  const { t } = useLanguage();
 
   const unread = useMemo(
     () => notifications.filter((notification) => !read.has(notification.id)),
@@ -115,7 +116,7 @@ export function NotificationsDrawer({ notifications, onNavigate, className }: No
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        aria-label="الإشعارات / Notifications"
+        aria-label={t('الإشعارات', 'Notifications')}
         aria-expanded={open}
         aria-haspopup="dialog"
         className={cn(
@@ -145,14 +146,9 @@ export function NotificationsDrawer({ notifications, onNavigate, className }: No
           >
             <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
               <div>
-                <h2 className="text-sm font-extrabold">
-                  الإشعارات{' '}
-                  <span dir="ltr" className="ms-1 text-micro font-semibold text-ink-muted">
-                    Notifications
-                  </span>
-                </h2>
+                <h2 className="text-sm font-extrabold">{t('الإشعارات', 'Notifications')}</h2>
                 <p className="mt-0.5 text-[11px] text-ink-muted">
-                  {unread.length} غير مقروء <span dir="ltr">· unread</span>
+                  {t(`${unread.length} غير مقروء`, `${unread.length} unread`)}
                 </p>
               </div>
               <div className="flex items-center gap-1.5">
@@ -179,8 +175,9 @@ export function NotificationsDrawer({ notifications, onNavigate, className }: No
             {notifications.length === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
                 <Inbox className="text-ink-subtle" size={28} />
-                <p className="text-sm font-semibold text-ink-muted">لا إشعارات جديدة</p>
-                <p dir="ltr" className="text-micro text-ink-muted">You are all caught up</p>
+                <p className="text-sm font-semibold text-ink-muted">
+                  {t('لا إشعارات جديدة', 'You are all caught up')}
+                </p>
               </div>
             ) : (
               <ul className="flex-1 overflow-y-auto" aria-label="Notifications">
@@ -202,18 +199,13 @@ export function NotificationsDrawer({ notifications, onNavigate, className }: No
                         />
                         <span className="min-w-0 flex-1">
                           <span className="block text-[13px] font-bold leading-snug text-ink">
-                            {notification.ar}
+                            {t(notification.ar, notification.en ?? '')}
                             {isUnread && (
                               <span className="ms-2 rounded-full bg-brand-tint px-1.5 py-0.5 text-micro font-bold text-brand-deep">
                                 جديد
                               </span>
                             )}
                           </span>
-                          {notification.en && (
-                            <span dir="ltr" className="mt-0.5 block text-[11px] text-ink-muted">
-                              {notification.en}
-                            </span>
-                          )}
                           {notification.caption && (
                             <span className="mt-0.5 block text-micro text-ink-muted">
                               {notification.caption}
@@ -237,10 +229,7 @@ export function NotificationsDrawer({ notifications, onNavigate, className }: No
                   }}
                   className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-brand px-3 py-2.5 text-xs font-bold text-white transition hover:bg-brand-dark"
                 >
-                  عرض كل الطلبات{' '}
-                  <span dir="ltr" className="font-medium text-white/80">
-                    View orders
-                  </span>
+                  {t('عرض كل الطلبات', 'View orders')}
                 </button>
               </footer>
             )}

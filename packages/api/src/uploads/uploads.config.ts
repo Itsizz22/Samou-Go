@@ -17,6 +17,9 @@ export const AVATAR_SIZE = 256;
 export const PRODUCT_SIZES = { sm: 160, md: 400, lg: 800 } as const;
 export type ProductVariant = keyof typeof PRODUCT_SIZES;
 
+/** Offer banner — wide landscape crop at 800 × 450 (16:9). */
+export const OFFER_SIZE = { width: 800, height: 450 } as const;
+
 export const WEBP_QUALITY = 82;
 
 /** Resolved against the API cwd — `packages/api/.uploads` when run via npm. */

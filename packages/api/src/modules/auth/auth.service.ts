@@ -245,6 +245,24 @@ export async function updateProfile(
 }
 
 /* ---------------------------------------------------------------------------
+ * PUT /users/me/location — the caller persists their own GPS point
+ * ------------------------------------------------------------------------- */
+
+export async function updateMyLocation(
+  userId: string,
+  body: { latitude: number; longitude: number }
+): Promise<PublicUser> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw unauthorized('الحساب غير موجود / Account no longer exists');
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { latitude: body.latitude, longitude: body.longitude },
+  });
+  return toPublicUser(updated);
+}
+
+/* ---------------------------------------------------------------------------
  * Captain self-managed availability — PATCH /auth/me/availability
  * ------------------------------------------------------------------------- */
 

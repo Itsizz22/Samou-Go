@@ -1,6 +1,7 @@
 import React from 'react';
 import { Truck } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useLanguage } from '../lib/LanguageProvider';
 import {
   CURRENCY,
   DELIVERY_FEE_LABEL,
@@ -29,9 +30,10 @@ export interface DeliveryFeeProps {
  * The only sanctioned way to render a delivery fee.
  *
  * Labels come from `src/lib/delivery.ts`, so changing the wording once changes
- * it in every screen. See /DESIGN_SYSTEM.md §8
+ * it in every screen. See /DESIGN_SYSTEM.md §8. Renders the active locale's
+ * label only — one language at a time.
  *
- *   <DeliveryFee amount={3} />                    stacked  — ar over en, then value
+ *   <DeliveryFee amount={3} />                    stacked  — label, then value
  *   <DeliveryFee amount={3} variant="inline" />   inline   — one short line
  *   <DeliveryFee amount={3} variant="badge" />    badge    — tinted pill
  *   <DeliveryFee amount={3} variant="row" />      row      — bill line, label ⋯ value
@@ -44,9 +46,16 @@ export const DeliveryFee: React.FC<DeliveryFeeProps> = ({
   className,
   currency,
 }) => {
+  const { language } = useLanguage();
+  const isArabic = language === 'ar';
+  const pick = (ar: string, en: string): string => (isArabic ? ar : en);
+
   const free = isFreeDelivery(amount);
-  const value = free ? FREE_DELIVERY_LABEL.ar : formatCurrency(amount, currency);
-  const valueEn = free ? FREE_DELIVERY_LABEL.en : formatCurrency(amount, { unit: 'code' });
+  // Language-following free-delivery label vs. a money figure that stays in a
+  // `dir="ltr"` island per DESIGN_SYSTEM.md (numbers/prices never reflow).
+  const freeLabel = pick(FREE_DELIVERY_LABEL.ar, FREE_DELIVERY_LABEL.en);
+  const price = formatCurrency(amount, currency);
+  const priceCode = formatCurrency(amount, { unit: 'code' });
 
   if (variant === 'badge') {
     return (
@@ -56,11 +65,11 @@ export const DeliveryFee: React.FC<DeliveryFeeProps> = ({
           free ? 'bg-brand text-white' : 'bg-brand-tint text-brand-deep',
           className
         )}
-        title={`${DELIVERY_FEE_LABEL.ar} / ${DELIVERY_FEE_LABEL.en}`}
+        title={pick(DELIVERY_FEE_LABEL.ar, DELIVERY_FEE_LABEL.en)}
       >
         {showIcon && <Truck className="h-3 w-3" aria-hidden="true" />}
-        <span>{DELIVERY_FEE_LABEL_SHORT.ar}</span>
-        <span dir="ltr">{value}</span>
+        <span>{pick(DELIVERY_FEE_LABEL_SHORT.ar, DELIVERY_FEE_LABEL_SHORT.en)}</span>
+        {free ? freeLabel : <span dir="ltr">{price}</span>}
       </span>
     );
   }
@@ -71,10 +80,14 @@ export const DeliveryFee: React.FC<DeliveryFeeProps> = ({
         className={cn('inline-flex items-center gap-1.5 text-[11px] text-ink-muted', className)}
       >
         {showIcon && <Truck className="h-3.5 w-3.5 text-brand" aria-hidden="true" />}
-        <span>{DELIVERY_FEE_LABEL_SHORT.ar}</span>
-        <span dir="ltr" className="font-bold text-brand-dark">
-          {value}
-        </span>
+        <span>{pick(DELIVERY_FEE_LABEL_SHORT.ar, DELIVERY_FEE_LABEL_SHORT.en)}</span>
+        {free ? (
+          <span className="font-bold text-brand-dark">{freeLabel}</span>
+        ) : (
+          <span dir="ltr" className="font-bold text-brand-dark">
+            {price}
+          </span>
+        )}
       </span>
     );
   }
@@ -85,12 +98,12 @@ export const DeliveryFee: React.FC<DeliveryFeeProps> = ({
         <dt className="text-ink-muted">
           <span className="flex items-center gap-1.5">
             {showIcon && <Truck className="h-4 w-4 text-brand" aria-hidden="true" />}
-            {DELIVERY_FEE_LABEL.ar} <span dir="ltr">/ {DELIVERY_FEE_LABEL.en}</span>
+            {pick(DELIVERY_FEE_LABEL.ar, DELIVERY_FEE_LABEL.en)}
           </span>
           {note && <span className="mt-0.5 block text-[11px] text-ink-subtle">{note}</span>}
         </dt>
-        <dd dir="ltr" className="shrink-0 font-bold text-ink">
-          {valueEn}
+        <dd className="shrink-0 font-bold text-ink">
+          {free ? freeLabel : <span dir="ltr">{priceCode}</span>}
         </dd>
       </div>
     );
@@ -100,14 +113,17 @@ export const DeliveryFee: React.FC<DeliveryFeeProps> = ({
     <div className={cn('text-end', className)}>
       <p className="flex items-center justify-end gap-1.5 text-[11px] font-semibold text-ink-muted">
         {showIcon && <Truck className="h-3.5 w-3.5 text-brand" aria-hidden="true" />}
-        {DELIVERY_FEE_LABEL.ar}
-      </p>
-      <p dir="ltr" className="text-[10px] text-ink-subtle">
-        {DELIVERY_FEE_LABEL.en}
+        {pick(DELIVERY_FEE_LABEL.ar, DELIVERY_FEE_LABEL.en)}
       </p>
       <p dir="ltr" className="mt-1 text-sm font-extrabold text-brand-dark">
-        {value}
-        {!free && <span className="ms-1 text-[10px] font-semibold">{CURRENCY.code}</span>}
+        {free ? (
+          <span dir={isArabic ? 'rtl' : 'ltr'}>{freeLabel}</span>
+        ) : (
+          <>
+            {price}
+            <span className="ms-1 text-[10px] font-semibold">{CURRENCY.code}</span>
+          </>
+        )}
       </p>
       {note && <p className="mt-0.5 text-[10px] text-ink-subtle">{note}</p>}
     </div>

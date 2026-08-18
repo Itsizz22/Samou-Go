@@ -1,5 +1,6 @@
 import React from 'react';
 import { Home, Search, ClipboardList, User } from 'lucide-react';
+import { useLanguage } from '@samou-go/ui';
 interface BottomTabsProps {
   activeTab: 'home' | 'explore' | 'orders' | 'profile';
   onTabChange?: (tab: 'home' | 'explore' | 'orders' | 'profile') => void;
@@ -8,6 +9,7 @@ export const BottomTabs: React.FC<BottomTabsProps> = ({
   activeTab,
   onTabChange
 }) => {
+  const { t } = useLanguage();
   const tabs = [{
     id: 'home',
     label: 'Home',
@@ -37,11 +39,8 @@ export const BottomTabs: React.FC<BottomTabsProps> = ({
         return <button key={tab.id} onClick={() => onTabChange?.(tab.id)} aria-current={isActive ? 'page' : undefined} className={`flex flex-col items-center justify-center w-full h-full transition-colors rounded-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand/40 ${isActive ? 'text-brand' : 'text-ink-muted hover:text-ink-soft'}`}>
               <Icon className={`w-6 h-6 mb-1 ${isActive ? 'fill-current' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
               <div className="flex flex-col items-center leading-none">
-                <span dir="ltr" className="text-micro font-bold uppercase tracking-wider">
-                  {tab.label}
-                </span>
-                <span className="text-micro font-medium">
-                  {tab.arabicLabel}
+                <span className="text-micro font-bold uppercase tracking-wider">
+                  {t(tab.arabicLabel, tab.label)}
                 </span>
               </div>
             </button>;

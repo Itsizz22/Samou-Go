@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Bell, CheckCheck } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { playNewOrderChime } from '../chime';
+import { useLanguage } from '../lib/LanguageProvider';
 
 /**
  * A single row in the bell dropdown.
@@ -98,6 +99,9 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   const [read, setRead] = useState<Set<string>>(() => readReadIds(storageKey));
   const rootRef = useRef<HTMLDivElement>(null);
   const chimedRef = useRef<Set<string>>(new Set());
+  const { language } = useLanguage();
+  const isArabic = language === 'ar';
+  const pick = (ar: string, en: string): string => (isArabic ? ar : en);
 
   const unread = useMemo(
     () => notifications.filter((n) => !read.has(n.id)),
@@ -160,7 +164,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        aria-label={`${labelAr} / ${labelEn}`}
+        aria-label={pick(labelAr, labelEn)}
         aria-expanded={open}
         aria-haspopup="true"
         className={cn(
@@ -185,9 +189,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
           className="absolute end-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-line bg-surface shadow-raised"
         >
           <div className="flex items-center justify-between gap-3 border-b border-line bg-canvas/50 px-4 py-3">
-            <p className="text-sm font-bold text-ink">
-              {labelAr} <span dir="ltr" className="text-[10px] font-semibold text-ink-subtle">{labelEn}</span>
-            </p>
+            <p className="text-sm font-bold text-ink">{pick(labelAr, labelEn)}</p>
             {unread.length > 0 && (
               <button
                 type="button"
@@ -195,18 +197,17 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                 className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold text-brand-deep transition hover:bg-brand-tint"
               >
                 <CheckCheck className="h-3.5 w-3.5" />
-                {markAllAr}
+                {pick(markAllAr, markAllEn)}
               </button>
             )}
           </div>
 
           {rows.length === 0 ? (
             <div className="px-4 py-8 text-center">
-              <p className="text-sm font-semibold text-ink-muted">{emptyAr}</p>
-              <p dir="ltr" className="text-[10px] text-ink-subtle">{emptyEn}</p>
+              <p className="text-sm font-semibold text-ink-muted">{pick(emptyAr, emptyEn)}</p>
             </div>
           ) : (
-            <ul className="max-h-80 overflow-y-auto" aria-label={labelAr}>
+            <ul className="max-h-80 overflow-y-auto" aria-label={pick(labelAr, labelEn)}>
               {rows.map((n) => {
                 const isUnread = !read.has(n.id);
                 return (
@@ -227,14 +228,13 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                       />
                       <span className="min-w-0 flex-1">
                         <span className="block text-[13px] font-bold leading-snug text-ink">
-                          {n.ar}
-                          {isUnread && <span className="ms-2 rounded-full bg-brand-tint px-1.5 py-0.5 text-[9px] font-bold text-brand-deep">جديد</span>}
+                          {isArabic ? n.ar : (n.en ?? n.ar)}
+                          {isUnread && (
+                            <span className="ms-2 rounded-full bg-brand-tint px-1.5 py-0.5 text-[9px] font-bold text-brand-deep">
+                              {pick('جديد', 'New')}
+                            </span>
+                          )}
                         </span>
-                        {n.en && (
-                          <span dir="ltr" className="mt-0.5 block text-[11px] text-ink-muted">
-                            {n.en}
-                          </span>
-                        )}
                         {n.caption && (
                           <span className="mt-0.5 block text-[10px] text-ink-subtle">{n.caption}</span>
                         )}

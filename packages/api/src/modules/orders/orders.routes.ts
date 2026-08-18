@@ -69,3 +69,14 @@ ordersRouter.patch(
   authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
   asyncHandler(controller.assignCaptainHandler)
 );
+
+/**
+ * The captain picks the delivery ZONE; the fee is derived server-side from
+ * the admin-configured zone row. Fine-grained checks (assigned captain only,
+ * live order, active zone) run in the service.
+ */
+ordersRouter.patch(
+  '/:orderId/delivery-zone',
+  authorize(UserRole.CAPTAIN, UserRole.ADMIN),
+  asyncHandler(controller.setOrderDeliveryZoneHandler)
+);

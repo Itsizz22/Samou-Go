@@ -11,6 +11,7 @@
  */
 import { useRef } from 'react';
 import { motion } from 'framer-motion';
+import { useLanguage } from '@samou-go/ui';
 import { errorShake, successPulse } from '@/lib/motion';
 
 export type PinState = 'idle' | 'error' | 'success';
@@ -35,6 +36,7 @@ export function OtpPinInput({
   label,
 }: OtpPinInputProps) {
   const refs = useRef<Array<HTMLInputElement | null>>([]);
+  const { t } = useLanguage();
 
   const focusAt = (index: number) => {
     const input = refs.current[Math.min(Math.max(index, 0), length - 1)];
@@ -114,7 +116,7 @@ export function OtpPinInput({
         variants={animationProps}
         initial={animationProps ? 'initial' : false}
         animate="animate"
-        aria-label="رمز التحقق / Verification code"
+        aria-label={t('رمز التحقق', 'Verification code')}
         aria-labelledby={label ? 'otp-label' : undefined}
       >
         {Array.from({ length }).map((_, index) => {
@@ -139,7 +141,7 @@ export function OtpPinInput({
               className={`h-12 w-11 rounded-xl border-2 bg-surface text-center text-lg font-extrabold outline-none transition-all focus:border-brand focus:ring-2 focus:ring-brand/30 ${
                 disabled ? 'opacity-60' : ''
               } ${filled ? 'border-brand/60 bg-brand-tint' : ''} ${ringClass}`}
-              aria-label={`الرقم ${index + 1} / Digit ${index + 1}`}
+              aria-label={t(`الرقم ${index + 1}`, `Digit ${index + 1}`)}
             />
           );
         })}

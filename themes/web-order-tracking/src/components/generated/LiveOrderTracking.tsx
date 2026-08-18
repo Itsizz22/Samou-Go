@@ -54,7 +54,7 @@ import {
 import { HeaderNav } from './HeaderNav';
 import { BottomTabs } from './BottomTabs';
 import { OrderCard } from './OrderCard';
-import { type BellNotification } from '@samou-go/ui';
+import { useLanguage, type BellNotification } from '@samou-go/ui';
 
 /** Fast enough to feel live on the customer's side, gentle on mobile data. */
 const POLL_MS = 5_000;
@@ -110,8 +110,9 @@ function buildTimeline(order: OrderDetail): TimelineStep[] {
 }
 
 export const LiveOrderTracking = () => {
-  const auth = useAuth();
+  const auth = useAuth({ allowedRoles: [UserRole.CUSTOMER] });
   const toast = useToast();
+  const { t, language } = useLanguage();
 
   // Bottom-tab state — "orders" is the default, "profile" swaps the whole
   // screen for the account panel; "home"/"explore" navigate to the home app.
@@ -210,7 +211,7 @@ export const LiveOrderTracking = () => {
   if (!auth.ready) {
     return (
       <main className="min-h-screen bg-canvas pb-24" aria-busy="true">
-        <HeaderNav title="Track Order" arabicTitle="تتبع الطلب" showBack={false} showCart={false} />
+        <HeaderNav title={t('تتبع الطلب', 'Track Order')} showBack={false} showCart={false} />
         <div className="mx-auto w-full max-w-md space-y-4 px-4 pt-5" aria-hidden="true">
           <div className="skeleton h-[132px] rounded-xl shadow-card" />
           <div className="skeleton h-[320px] rounded-xl shadow-card" />
@@ -249,8 +250,7 @@ export const LiveOrderTracking = () => {
     return (
       <main className="min-h-screen bg-canvas pb-24 text-ink">
         <HeaderNav
-          title="Profile"
-          arabicTitle="حسابي"
+          title={t('حسابي', 'Profile')}
           showBack
           showCart={false}
           notifications={bellNotifications}
@@ -261,7 +261,13 @@ export const LiveOrderTracking = () => {
           <CustomerProfileTab
             user={auth.user}
             pending={profileMutation.pending}
-            savingError={profileMutation.error?.message}
+            savingError={
+              profileMutation.error
+                ? language === 'ar'
+                  ? profileMutation.error.message
+                  : profileMutation.error.localizedMessage
+                : undefined
+            }
             onSave={handleSaveProfile}
             onSignOut={auth.signOut}
           />
@@ -274,8 +280,7 @@ export const LiveOrderTracking = () => {
   return (
     <main className="min-h-screen bg-canvas pb-24 text-ink">
       <HeaderNav
-        title="Track Order"
-        arabicTitle="تتبع الطلب"
+        title={t('تتبع الطلب', 'Track Order')}
         showBack
         showCart={false}
         notifications={bellNotifications}
@@ -294,7 +299,9 @@ export const LiveOrderTracking = () => {
                 )}
               </p>
               <h2 id="tracking-heading" className="text-2xl font-black tracking-tight text-ink">
-                {detail ? ORDER_STATUS_LABELS[detail.status].ar : 'تتبّع طلبك'}
+                {detail
+                  ? t(ORDER_STATUS_LABELS[detail.status].ar, ORDER_STATUS_LABELS[detail.status].en)
+                  : 'تتبّع طلبك'}
               </h2>
             </div>
             {detail && (
@@ -312,11 +319,10 @@ export const LiveOrderTracking = () => {
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
                 <AlertTriangle size={22} />
               </span>
-              <h3 className="mt-3 text-sm font-extrabold">تعذّر تحميل حالة الطلب</h3>
-              <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">
-                Could not load the order status
+              <h3 className="mt-3 text-sm font-extrabold">{t('تعذّر تحميل حالة الطلب', 'Could not load the order status')}</h3>
+              <p className="mt-2 text-xs text-ink-soft">
+                {language === 'ar' ? error.message : error.localizedMessage}
               </p>
-              <p className="mt-2 text-xs text-ink-soft">{error.message}</p>
               <button
                 type="button"
                 onClick={orderIdParam ? order.reload : recent.refresh}
@@ -328,7 +334,7 @@ export const LiveOrderTracking = () => {
                 ) : (
                   <RefreshCw size={14} />
                 )}
-                إعادة المحاولة <span dir="ltr">Retry</span>
+                {t('إعادة المحاولة', 'Retry')}
               </button>
             </div>
           )}
@@ -341,10 +347,7 @@ export const LiveOrderTracking = () => {
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-surface text-brand">
                 <Package size={22} />
               </span>
-              <h3 className="mt-3 text-sm font-extrabold">لا توجد طلبات لتتبّعها</h3>
-              <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">
-                You have no orders to track yet
-              </p>
+              <h3 className="mt-3 text-sm font-extrabold">{t('لا توجد طلبات لتتبّعها', 'You have no orders to track yet')}</h3>
             </div>
           )}
 
@@ -380,10 +383,9 @@ export const LiveOrderTracking = () => {
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
               <XCircle size={26} />
             </span>
-            <h2 className="mt-3 text-lg font-extrabold">{ORDER_STATUS_LABELS.CANCELLED.ar}</h2>
-            <p className="mt-1 text-sm text-ink-muted" dir="ltr">
-              {ORDER_STATUS_LABELS.CANCELLED.en}
-            </p>
+            <h2 className="mt-3 text-lg font-extrabold">
+              {t(ORDER_STATUS_LABELS.CANCELLED.ar, ORDER_STATUS_LABELS.CANCELLED.en)}
+            </h2>
             {detail.statusHistory[detail.statusHistory.length - 1]?.note && (
               <p className="mt-3 text-xs text-ink-soft">{detail.statusHistory[detail.statusHistory.length - 1]?.note}</p>
             )}
@@ -398,9 +400,8 @@ export const LiveOrderTracking = () => {
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <h2 id="timeline-heading" className="text-lg font-extrabold text-ink">
-                  Order progress
+                  {t('تقدم الطلب', 'Order progress')}
                 </h2>
-                <p className="mt-1 text-sm text-ink-muted">تقدم الطلب</p>
               </div>
               {live && (
                 <span className="flex items-center gap-1.5 text-xs font-bold text-brand-deep">
@@ -447,11 +448,9 @@ export const LiveOrderTracking = () => {
                       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                         <h3
                           className={`text-sm font-extrabold ${step.state === 'active' ? 'text-brand-deep' : 'text-ink'}`}
-                          dir="ltr"
                         >
-                          {label.en}
+                          {t(label.ar, label.en)}
                         </h3>
-                        <span className="text-xs font-semibold text-ink-muted">{label.ar}</span>
                       </div>
                       {step.at && (
                         <p dir="ltr" className="mt-1 text-xs text-ink-muted">
@@ -474,9 +473,8 @@ export const LiveOrderTracking = () => {
             <div className="mb-3 flex items-start justify-between">
               <div>
                 <h2 id="address-heading" className="text-lg font-extrabold text-ink">
-                  Delivery address
+                  {t('عنوان التوصيل', 'Delivery address')}
                 </h2>
-                <p className="mt-1 text-sm text-ink-muted">عنوان التوصيل</p>
               </div>
               <MapPin className="mt-1 h-5 w-5 text-brand" aria-hidden="true" />
             </div>
@@ -502,7 +500,7 @@ export const LiveOrderTracking = () => {
         {detail && (
           <section aria-labelledby="contact-heading" className="mt-5">
             <h2 id="contact-heading" className="mb-3 text-base font-extrabold text-ink">
-              Need help? <span className="font-semibold text-ink-muted">تحتاج مساعدة؟</span>
+              {t('تحتاج مساعدة؟', 'Need help?')}
             </h2>
             <div className={`grid gap-3 ${detail.captain ? 'grid-cols-2' : 'grid-cols-1'}`}>
               <button
@@ -540,10 +538,7 @@ export const LiveOrderTracking = () => {
             )}
             {confirmingCancel ? (
               <div className="rounded-xl border border-danger-tint bg-surface p-4 text-center shadow-card">
-                <p className="text-sm font-extrabold text-ink">إلغاء هذا الطلب؟</p>
-                <p className="mt-1 text-xs text-ink-muted" dir="ltr">
-                  Cancel this order? This cannot be undone.
-                </p>
+                <p className="text-sm font-extrabold text-ink">{t('إلغاء هذا الطلب؟', 'Cancel this order? This cannot be undone.')}</p>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -551,7 +546,7 @@ export const LiveOrderTracking = () => {
                     disabled={cancel.pending}
                     className="h-11 rounded-xl border border-line bg-surface text-sm font-bold text-ink-soft transition hover:bg-canvas disabled:opacity-60"
                   >
-                    تراجع <span dir="ltr">/ Keep</span>
+                    {t('تراجع', 'Keep')}
                   </button>
                   <button
                     type="button"
@@ -560,7 +555,7 @@ export const LiveOrderTracking = () => {
                     className="flex h-11 items-center justify-center gap-2 rounded-xl bg-danger text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-60"
                   >
                     {cancel.pending && <Loader2 size={14} className="animate-spin" />}
-                    تأكيد الإلغاء <span dir="ltr">/ Cancel</span>
+                    {t('تأكيد الإلغاء', 'Cancel')}
                   </button>
                 </div>
               </div>
@@ -571,7 +566,7 @@ export const LiveOrderTracking = () => {
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-danger-tint bg-surface text-sm font-extrabold text-danger-ink transition hover:bg-danger-tint"
               >
                 <XCircle className="h-4 w-4" aria-hidden="true" />
-                إلغاء الطلب <span dir="ltr">/ Cancel order</span>
+                {t('إلغاء الطلب', 'Cancel order')}
               </button>
             )}
           </section>
@@ -613,6 +608,7 @@ function CustomerProfileTab({ user, pending, savingError, onSave, onSignOut }: C
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saved, setSaved] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -620,11 +616,11 @@ function CustomerProfileTab({ user, pending, savingError, onSave, onSignOut }: C
 
     const changed = name.trim() !== user.name || phone.trim() !== user.phone;
     if (!changed && !newPassword) {
-      setLocalError('لم تتغيّر أي بيانات / Nothing to update');
+      setLocalError(t('لم تتغيّر أي بيانات', 'Nothing to update'));
       return;
     }
     if (newPassword && newPassword !== confirmPassword) {
-      setLocalError('كلمتا المرور غير متطابقتين / Passwords do not match');
+      setLocalError(t('كلمتا المرور غير متطابقتين', 'Passwords do not match'));
       return;
     }
 
@@ -650,8 +646,7 @@ function CustomerProfileTab({ user, pending, savingError, onSave, onSignOut }: C
   return (
     <section aria-labelledby="profile-tab-title" className="pt-2">
       <div className="mb-4">
-        <h2 id="profile-tab-title" className="text-lg font-extrabold">حسابي</h2>
-        <p dir="ltr" className="text-sm text-ink-muted">Profile &amp; Account</p>
+        <h2 id="profile-tab-title" className="text-lg font-extrabold">{t('حسابي', 'Profile & Account')}</h2>
       </div>
 
       <form onSubmit={(event) => void submit(event)} className="space-y-4">
@@ -670,30 +665,30 @@ function CustomerProfileTab({ user, pending, savingError, onSave, onSignOut }: C
           </div>
 
           <label className="mt-4 block">
-            <span className="mb-1.5 block text-sm font-bold text-ink">الاسم الكامل / Full name</span>
+            <span className="mb-1.5 block text-sm font-bold text-ink">{t('الاسم الكامل', 'Full name')}</span>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={fieldClass} />
           </label>
 
           <label className="mt-3 block">
             <span className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-ink">
-              <Phone size={12} className="text-brand" /> رقم الجوال / Mobile
+              <Phone size={12} className="text-brand" /> {t('رقم الجوال', 'Mobile')}
             </span>
             <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} dir="ltr" className={fieldClass} />
           </label>
         </div>
 
         <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
-          <p className="text-sm font-extrabold text-ink">تغيير كلمة المرور <span dir="ltr" className="font-medium text-ink-muted">/ Change password</span></p>
+          <p className="text-sm font-extrabold text-ink">{t('تغيير كلمة المرور', 'Change password')}</p>
           <label className="mt-3 block">
-            <span className="mb-1.5 block text-sm font-bold text-ink">كلمة المرور الحالية / Current password</span>
+            <span className="mb-1.5 block text-sm font-bold text-ink">{t('كلمة المرور الحالية', 'Current password')}</span>
             <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className={fieldClass} />
           </label>
           <label className="mt-3 block">
-            <span className="mb-1.5 block text-sm font-bold text-ink">كلمة مرور جديدة / New password</span>
+            <span className="mb-1.5 block text-sm font-bold text-ink">{t('كلمة مرور جديدة', 'New password')}</span>
             <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={fieldClass} />
           </label>
           <label className="mt-3 block">
-            <span className="mb-1.5 block text-sm font-bold text-ink">تأكيد كلمة المرور / Confirm password</span>
+            <span className="mb-1.5 block text-sm font-bold text-ink">{t('تأكيد كلمة المرور', 'Confirm password')}</span>
             <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={fieldClass} />
           </label>
         </div>
@@ -711,7 +706,7 @@ function CustomerProfileTab({ user, pending, savingError, onSave, onSignOut }: C
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-3 text-sm font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
         >
           {pending && <Loader2 size={15} className="animate-spin" />}
-          {saved ? 'تم الحفظ ✓ / Saved' : 'حفظ التغييرات / Save changes'}
+          {saved ? t('تم الحفظ ✓', 'Saved') : t('حفظ التغييرات', 'Save changes')}
         </button>
       </form>
 
@@ -721,7 +716,7 @@ function CustomerProfileTab({ user, pending, savingError, onSave, onSignOut }: C
         className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-danger-tint py-3 text-sm font-bold text-danger transition hover:bg-danger-tint"
       >
         <LogOut size={14} />
-        تسجيل الخروج <span dir="ltr" className="font-medium text-danger/70">/ Sign out</span>
+        {t('تسجيل الخروج', 'Sign out')}
       </button>
     </section>
   );

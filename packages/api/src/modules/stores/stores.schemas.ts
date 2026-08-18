@@ -52,7 +52,18 @@ export const categoryIdParamsSchema = z.object({
 export const createCategorySchema = z.object({
   nameAr: z.string().trim().min(1, 'اسم القسم مطلوب / Section name required').max(120),
   nameEn: z.string().trim().min(1).max(120).optional(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
 });
+
+export const updateCategorySchema = z
+  .object({
+    nameAr: z.string().trim().min(1).max(120).optional(),
+    nameEn: z.string().trim().min(1).max(120).optional(),
+    sortOrder: z.number().int().min(0).max(9999).optional(),
+  })
+  .refine(data => Object.keys(data).length > 0, {
+    message: 'يجب توفير حقل واحد على الأقل للتحديث / At least one field required',
+  });
 
 export const createProductSchema = z.object({
   nameAr: z.string().trim().min(1, 'اسم المنتج مطلوب').max(160),
@@ -84,12 +95,33 @@ export const updateStoreSchema = z
     isActive: z.boolean().optional(),
     /** Admin-only: approving publishes the store to the public catalogue. */
     isApproved: z.boolean().optional(),
+    /** Shopfront GPS — set by the store manager from the location flow. */
+    latitude: z
+      .number()
+      .finite('خط العرض يجب أن يكون رقماً / Latitude must be a number')
+      .min(-90, 'خط عرض غير صالح / Invalid latitude')
+      .max(90, 'خط عرض غير صالح / Invalid latitude')
+      .optional()
+      .nullable(),
+    longitude: z
+      .number()
+      .finite('خط الطول يجب أن يكون رقماً / Longitude must be a number')
+      .min(-180, 'خط طول غير صالح / Invalid longitude')
+      .max(180, 'خط طول غير صالح / Invalid longitude')
+      .optional()
+      .nullable(),
   })
   .refine(data => Object.keys(data).length > 0, {
     message: 'يجب توفير حقل واحد على الأقل للتحديث / At least one field required',
   });
 
+/** PATCH /stores/:storeId/recommend — ADMIN only, separate route on purpose. */
+export const updateStoreRecommendationSchema = z.object({
+  isRecommended: z.boolean(),
+});
+
 export type CreateProductBody = z.infer<typeof createProductSchema>;
 export type UpdateProductBody = z.infer<typeof updateProductSchema>;
 export type UpdateStoreBody = z.infer<typeof updateStoreSchema>;
 export type CreateCategoryBody = z.infer<typeof createCategorySchema>;
+export type UpdateCategoryBody = z.infer<typeof updateCategorySchema>;

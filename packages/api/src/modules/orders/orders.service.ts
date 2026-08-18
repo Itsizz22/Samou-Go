@@ -17,6 +17,7 @@ import type { OrderDetail, OrderQuote, OrderSummary, Paginated, ReorderResult } 
 import { env } from '../../config/env';
 import { prisma } from '../../lib/prisma';
 import { badState, conflict, forbidden, notFound, unprocessable } from '../../lib/http-error';
+import { decimalToNumber } from '../../lib/decimal';
 import { formatOrderNumber, startOfDay } from '../../lib/order-number';
 import { toOrderDetail, toOrderSummary } from './orders.mapper';
 import { toProduct } from '../stores/stores.mapper';
@@ -36,6 +37,7 @@ export const DETAIL_INCLUDE = {
   store: true,
   captain: true,
   voucher: true,
+  deliveryZone: true,
   statusHistory: { orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.OrderInclude;
 
@@ -726,4 +728,87 @@ export async function assignCaptain(
   });
 
   return toOrderDetail(updated);
+}
+
+/* ---------------------------------------------------------------------------
+ * Delivery fee zone — the captain picks the ZONE, the fee is looked up
+ * server-side from the admin-configured `DeliveryZone` row. The captain never
+ * sends an amount, so "client never sends money" holds for this flow too.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * PATCH /orders/:orderId/delivery-zone — sets the delivery zone for an order
+ * and derives the fee + total from the zone row. Only the assigned captain
+ * (or an admin) may do this, and only while the order is still live.
+ */
+export async function setOrderDeliveryZone(
+  actor: { sub: string; role: UserRole },
+  orderId: string,
+  zoneId: string
+): Promise<OrderDetail> {
+  const order = await loadOrderOrThrow(orderId);
+
+  if (actor.role === UserRole.CAPTAIN) {
+    if (order.captainId !== actor.sub) {
+      throw forbidden('الطلب غير مُسند إليك / This order is not assigned to you');
+    }
+  } else if (actor.role !== UserRole.ADMIN) {
+    throw forbidden();
+  }
+
+  if (isTerminalOrderStatus(order.status)) {
+    throw badState('ORDER_CLOSED', 'الطلب مُغلق / Order is closed');
+  }
+
+  const zone = await prisma.deliveryZone.findUnique({ where: { id: zoneId } });
+  if (!zone) throw notFound('منطقة التوصيل غير موجودة / Delivery zone not found');
+  if (!zone.isActive) {
+    throw unprocessable(
+      'ZONE_INACTIVE',
+      'هذه المنطقة معطّلة حالياً — اختر منطقة أخرى / This zone is inactive — pick another one'
+    );
+  }
+
+  // Money math stays server-side: the fee comes from the zone row and the
+  // total is recomputed from the persisted subtotal/discount, never from the
+  // request body.
+  const deliveryFee = roundMoney(decimalToNumber(zone.fee));
+  const totalAmount = roundMoney(
+    decimalToNumber(order.subtotal) - decimalToNumber(order.discount) + deliveryFee
+  );
+
+  try {
+    const updated = await prisma.order.update({
+      // Optimistic lock on the status we validated against — a concurrent
+      // status change (e.g. the order got delivered) makes this match zero
+      // rows and surface a 409 instead of silently writing a fee on a closed order.
+      where: { id: orderId, status: order.status },
+      data: {
+        deliveryZoneId: zone.id,
+        deliveryFee,
+        totalAmount,
+        statusHistory: {
+          create: {
+            status: order.status,
+            changedByUserId: actor.sub,
+            note: `تم تحديد منطقة التوصيل: ${zone.nameAr} / Delivery zone: ${zone.nameEn}`,
+          },
+        },
+      },
+      include: DETAIL_INCLUDE,
+    });
+
+    return toOrderDetail(updated);
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      'code' in err &&
+      (err as { code?: string }).code === 'P2025'
+    ) {
+      throw conflict(
+        'تغيّرت حالة الطلب في هذه الأثناء — حدّث الصفحة وحاول مجدداً / Order status changed concurrently — refresh and retry'
+      );
+    }
+    throw err;
+  }
 }

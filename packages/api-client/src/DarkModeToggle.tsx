@@ -10,6 +10,7 @@
 
 import { Moon, Sun } from 'lucide-react';
 import { useDarkMode } from './useDarkMode';
+import { useAppLanguage } from './language';
 
 export interface DarkModeToggleProps {
   /** localStorage key the preference is persisted under. */
@@ -21,13 +22,22 @@ export interface DarkModeToggleProps {
 
 export function DarkModeToggle({ storageKey, onDark = false, className }: DarkModeToggleProps) {
   const { dark, toggle } = useDarkMode(storageKey);
+  const isArabic = useAppLanguage() === 'ar';
 
   return (
     <button
       type="button"
       onClick={toggle}
       aria-pressed={dark}
-      aria-label={dark ? 'الوضع الفاتح / Light mode' : 'الوضع الداكن / Dark mode'}
+      aria-label={
+        isArabic
+          ? dark
+            ? 'الوضع الفاتح'
+            : 'الوضع الداكن'
+          : dark
+            ? 'Light mode'
+            : 'Dark mode'
+      }
       className={
         `flex h-10 w-10 items-center justify-center rounded-full transition active:scale-95 ` +
         (onDark ? 'text-white/90 hover:bg-surface/15' : 'text-ink-soft hover:bg-canvas') +

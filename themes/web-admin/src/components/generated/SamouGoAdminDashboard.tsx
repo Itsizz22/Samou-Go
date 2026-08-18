@@ -27,11 +27,14 @@ import {
   ImagePlus,
   Loader2,
   LogOut,
+  MapPin,
+  Megaphone,
   Menu,
   Package,
   Plus,
   RefreshCw,
   Search,
+  Star,
   Trash2,
   Truck,
   Users,
@@ -41,13 +44,19 @@ import {
 import {
   SignInGate,
   approveStore,
+  createDeliveryZone,
+  deleteDeliveryZone,
   getStoreProducts,
+  listAllDeliveryZones,
   removeCurrentImage,
+  setStoreRecommended,
+  updateDeliveryZone,
   updateOrderStatus,
   updateProfile,
   updateStore,
   updateUser,
   useAdminStats,
+  useAllOffers,
   useAuth,
   useDeleteDriver,
   useDeleteStore,
@@ -70,19 +79,23 @@ import {
   USER_ROLE_LABELS,
   OrderStatus,
   UserRole,
+  type CreateDeliveryZoneInput,
+  type DeliveryZone,
+  type Offer,
   type OrderDetail,
   type OrderSummary,
   type Paginated,
   type Product,
   type PublicUser,
   type Store as StoreModel,
+  type UpdateDeliveryZoneInput,
   type UpdateOrderStatusInput,
   type UpdateUserInput,
 } from '@samou-go/shared-types';
 import { AdminSidebar, ADMIN_NAV_ITEMS } from '@/components/Sidebar';
 import { NotificationsDrawer, relativeTimeArabic } from '@/components/NotificationsDrawer';
 import { ProfileMenu } from '@/components/ProfileMenu';
-import { Badge, type BellNotification, LanguageToggle, ThemeToggle } from '@samou-go/ui';
+import { Badge, type BellNotification, LanguageToggle, ThemeToggle, useLanguage } from '@samou-go/ui';
 import { LeafletMap } from '@samou-go/ui/map';
 import { CreateCaptainDialog, ConfirmDialog, CreateStoreDialog } from '@/components/CreateDialogs';
 
@@ -107,8 +120,9 @@ function formatILS(amount: number): string {
  * ------------------------------------------------------------------------- */
 
 export function SamouGoAdminDashboard() {
-  const auth = useAuth();
+  const auth = useAuth({ allowedRoles: [UserRole.ADMIN] });
   const toast = useToast();
+  const { t } = useLanguage();
   const [activeNav, setActiveNav] = useState<string>('Dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -210,10 +224,10 @@ export function SamouGoAdminDashboard() {
             </button>
             <div>
               <h1 className="text-[18px] font-extrabold tracking-[-0.02em] md:text-[21px]">
-                {activeNav}{' '}
-                <span className="font-semibold text-ink-muted">
-                  / {ADMIN_NAV_ITEMS.find(n => n.id === activeNav)?.ar}
-                </span>
+                {t(
+                  ADMIN_NAV_ITEMS.find(n => n.id === activeNav)?.ar ?? activeNav,
+                  activeNav
+                )}
               </h1>
             </div>
           </div>
@@ -230,7 +244,7 @@ export function SamouGoAdminDashboard() {
               ) : (
                 <RefreshCw size={14} />
               )}
-              <span className="hidden sm:inline">تحديث / Refresh</span>
+              <span className="hidden sm:inline">{t('تحديث', 'Refresh')}</span>
             </button>
             <NotificationsDrawer
               notifications={notifications}
@@ -256,6 +270,8 @@ export function SamouGoAdminDashboard() {
           {activeNav === 'Users' && <UsersPanel />}
           {activeNav === 'Stores' && <StoresPanel />}
           {activeNav === 'Captains' && <CaptainsPanel />}
+          {activeNav === 'Zones' && <ZonesPanel />}
+          {activeNav === 'Offers' && <OffersPanel />}
           {activeNav === 'Settings' && <AdminSettingsPanel auth={auth} />}
         </div>
       </section>
@@ -265,6 +281,7 @@ export function SamouGoAdminDashboard() {
 
 function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const toast = useToast();
+  const { t } = useLanguage();
   const [autoAssign, setAutoAssign] = useState(
     () => window.localStorage.getItem('samou-go.admin.auto-assign') !== '0'
   );
@@ -320,10 +337,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
     >
       <div className="grid gap-4 p-5 lg:grid-cols-2">
         <section className="rounded-2xl border border-line bg-surface p-4">
-          <h2 className="text-sm font-extrabold">إعدادات النظام</h2>
-          <p dir="ltr" className="text-[11px] text-ink-muted">
-            System controls
-          </p>
+          <h2 className="text-sm font-extrabold">{t('إعدادات النظام', 'System controls')}</h2>
           <label className="mt-3 flex items-center justify-between gap-3 text-sm font-bold">
             <span>التوزيع التلقائي للسائقين</span>
             <button
@@ -338,26 +352,20 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
           </label>
         </section>
         <section className="rounded-2xl border border-line bg-surface p-4">
-          <h2 className="text-sm font-extrabold">المظهر والنسق</h2>
-          <p dir="ltr" className="text-[11px] text-ink-muted">
-            Appearance &amp; dark mode
-          </p>
+          <h2 className="text-sm font-extrabold">{t('المظهر والنسق', 'Appearance & dark mode')}</h2>
           <div className="mt-3 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold">الوضع الداكن</span>
               <ThemeToggle className="border border-line" />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-bold">اللغة / Language</span>
+              <span className="text-sm font-bold">{t('اللغة', 'Language')}</span>
               <LanguageToggle className="border border-line" />
             </div>
           </div>
         </section>
         <section className="rounded-2xl border border-line bg-surface p-4">
-          <h2 className="text-sm font-extrabold">الحساب والأمان</h2>
-          <p dir="ltr" className="text-[11px] text-ink-muted">
-            Account &amp; security
-          </p>
+          <h2 className="text-sm font-extrabold">{t('الحساب والأمان', 'Account & security')}</h2>
           <div className="mt-3 space-y-2">
             <input
               value={name}
@@ -393,10 +401,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
           </div>
         </section>
         <section className="rounded-2xl border border-line bg-surface p-4">
-          <h2 className="text-sm font-extrabold">رسوم التوصيل الافتراضية</h2>
-          <p dir="ltr" className="text-[11px] text-ink-muted">
-            Default delivery fees
-          </p>
+          <h2 className="text-sm font-extrabold">{t('رسوم التوصيل الافتراضية', 'Default delivery fees')}</h2>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <label className="text-[11px] font-bold">
               حصة المتجر
@@ -447,6 +452,7 @@ interface DashboardTabProps {
 
 function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
   const [range, setRange] = useState<'today' | 'week' | 'month'>('today');
+  const { t, language } = useLanguage();
   const pipeline = useOrders({ page: 1, pageSize: 100 }, { pollMs: 10_000 });
   const rangeStart = useMemo(() => {
     const now = new Date();
@@ -497,10 +503,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
         <div className="mb-5">
           <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-brand">Overview</p>
           <h2 id="overview-title" className="mt-1 text-[20px] font-extrabold tracking-[-0.025em]">
-            نظرة عامة{' '}
-            <span dir="ltr" className="font-semibold text-ink-muted">
-              / Overview
-            </span>
+            {t('نظرة عامة', 'Overview')}
           </h2>
           <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Dashboard date range">
             <CalendarDays size={15} className="text-brand" />
@@ -531,15 +534,12 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
         </div>
         <section
           className="mb-8 overflow-hidden rounded-2xl border border-line bg-surface shadow-card"
-          aria-label="خريطة التشغيل / Operations map"
+          aria-label={t('خريطة التشغيل', 'Operations map')}
         >
           <div className="flex items-center justify-between border-b border-line-soft px-5 py-3">
-            <div>
-              <p className="text-xs font-extrabold text-ink">منطقة التشغيل — السموع</p>
-              <p dir="ltr" className="mt-0.5 text-micro text-ink-muted">
-                Operations map · Samou', Hebron
-              </p>
-            </div>
+            <p className="text-xs font-extrabold text-ink">
+              {t('منطقة التشغيل — السموع', "Operations map · Samou', Hebron")}
+            </p>
           </div>
           <div className="h-80">
             <LeafletMap
@@ -577,10 +577,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
                     kpi.display
                   )}
                 </p>
-                <p className="mt-2 text-xs font-semibold text-ink-soft">{kpi.label}</p>
-                <p dir="rtl" className="mt-0.5 text-[11px] text-ink-muted">
-                  {kpi.ar}
-                </p>
+                <p className="mt-2 text-xs font-semibold text-ink-soft">{t(kpi.ar, kpi.label)}</p>
               </article>
             );
           })}
@@ -624,7 +621,9 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
         <section className="mt-6" aria-live="assertive">
           <div className="rounded-xl border border-danger-tint bg-surface p-5 text-center shadow-card">
             <AlertTriangle className="mx-auto text-danger" size={22} />
-            <p className="mt-2 text-xs font-semibold text-danger-ink">{error.message}</p>
+            <p className="mt-2 text-xs font-semibold text-danger-ink">
+              {language === 'ar' ? error.message : error.localizedMessage}
+            </p>
             <button
               type="button"
               onClick={onRetry}
@@ -642,11 +641,8 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
             <div className="flex items-center justify-between">
               <div>
                 <h2 id="pipeline-title" className="text-[15px] font-extrabold">
-                  لوحة سير الطلبات
+                  {t('لوحة سير الطلبات', `Live order pipeline · ${pipelineOrders.length} orders in selected range`)}
                 </h2>
-                <p dir="ltr" className="mt-1 text-[11px] text-ink-muted">
-                  Live order pipeline · {pipelineOrders.length} orders in selected range
-                </p>
               </div>
               {pipeline.refreshing && (
                 <Loader2
@@ -670,7 +666,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
                   <div key={status} className="min-h-32 rounded-xl bg-canvas p-3">
                     <div className="flex items-center justify-between">
                       <Badge tone={ORDER_STATUS_TONES[status]}>
-                        {ORDER_STATUS_LABELS[status].ar}
+                        {t(ORDER_STATUS_LABELS[status].ar, ORDER_STATUS_LABELS[status].en)}
                       </Badge>
                       <span className="text-[11px] font-extrabold text-ink-muted">
                         {column.length}
@@ -711,10 +707,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
           <article className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
             <div className="flex items-center justify-between border-b border-line-soft px-5 py-5">
               <div>
-                <h2 className="text-[15px] font-extrabold">أحدث الطلبات</h2>
-                <p dir="ltr" className="mt-1 text-[11px] text-ink-muted">
-                  Recent Orders
-                </p>
+                <h2 className="text-[15px] font-extrabold">{t('أحدث الطلبات', 'Recent Orders')}</h2>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -749,7 +742,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
                           <td className="px-3 py-4 text-ink-muted">{order.itemCount}</td>
                           <td className="px-3 py-4">
                             <Badge tone={ORDER_STATUS_TONES[order.status]}>
-                              {ORDER_STATUS_LABELS[order.status].ar}
+                              {t(ORDER_STATUS_LABELS[order.status].ar, ORDER_STATUS_LABELS[order.status].en)}
                             </Badge>
                           </td>
                           <td className="px-3 py-4 text-ink-muted" dir="ltr">
@@ -773,10 +766,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
 
           <article className="rounded-xl border border-line bg-surface p-5 shadow-card">
             <div>
-              <h2 className="text-[15px] font-extrabold">الطلبات حسب الحالة</h2>
-              <p dir="ltr" className="mt-1 text-[11px] text-ink-muted">
-                Orders by status
-              </p>
+              <h2 className="text-[15px] font-extrabold">{t('الطلبات حسب الحالة', 'Orders by status')}</h2>
             </div>
             <ul className="mt-5 space-y-3">
               {Object.values(OrderStatus).map(status => {
@@ -787,10 +777,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
                   <li key={status}>
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="font-bold text-ink-soft">
-                        {ORDER_STATUS_LABELS[status].ar}
-                        <span dir="ltr" className="ms-1 font-medium text-ink-muted">
-                          · {ORDER_STATUS_LABELS[status].en}
-                        </span>
+                        {t(ORDER_STATUS_LABELS[status].ar, ORDER_STATUS_LABELS[status].en)}
                       </span>
                       <span className="font-extrabold text-ink" dir="ltr">
                         {count} ({pct}%)
@@ -830,15 +817,13 @@ function StatusKpi({
     info: 'bg-info-tint text-info-ink',
     danger: 'bg-danger-tint text-danger-ink',
   };
+  const { t } = useLanguage();
   return (
     <article className="rounded-xl border border-line bg-surface p-4 shadow-card">
       <p className="text-[20px] font-extrabold text-ink" dir="ltr">
         {count}
       </p>
-      <p className="mt-1 text-xs font-bold text-ink-soft">{label}</p>
-      <p dir="ltr" className="mt-0.5 text-micro text-ink-muted">
-        {en}
-      </p>
+      <p className="mt-1 text-xs font-bold text-ink-soft">{t(label, en)}</p>
       <span className={`mt-2 inline-block h-1.5 w-8 rounded-full ${tint[tone]}`} />
     </article>
   );
@@ -850,6 +835,7 @@ function StatusKpi({
 
 function OrdersPanel() {
   const toast = useToast();
+  const { t } = useLanguage();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatus>('ALL');
   const [search, setSearch] = useState('');
@@ -978,7 +964,7 @@ function OrdersPanel() {
                       <td className="px-3 py-3 text-ink-muted">{order.storeNameAr}</td>
                       <td className="px-3 py-3">
                         <Badge tone={ORDER_STATUS_TONES[order.status]}>
-                          {ORDER_STATUS_LABELS[order.status].ar}
+                          {t(ORDER_STATUS_LABELS[order.status].ar, ORDER_STATUS_LABELS[order.status].en)}
                         </Badge>
                       </td>
                       <td className="px-3 py-3">
@@ -996,11 +982,11 @@ function OrdersPanel() {
                             aria-label={`Override status for ${order.orderNumber}`}
                           >
                             <option value="" disabled>
-                              {busy ? '…' : 'تحويل إلى / Move to…'}
+                              {busy ? '…' : t('تحويل إلى', 'Move to…')}
                             </option>
                             {legal.map(status => (
                               <option key={status} value={status}>
-                                {ORDER_STATUS_LABELS[status].ar} / {ORDER_STATUS_LABELS[status].en}
+                                {t(ORDER_STATUS_LABELS[status].ar, ORDER_STATUS_LABELS[status].en)}
                               </option>
                             ))}
                           </select>
@@ -1038,6 +1024,7 @@ function OrdersPanel() {
 
 function UsersPanel() {
   const toast = useToast();
+  const { t } = useLanguage();
   const [roleFilter, setRoleFilter] = useState<'ALL' | UserRole>('ALL');
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -1189,7 +1176,7 @@ function UsersPanel() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full bg-transparent text-xs outline-none placeholder:text-ink-subtle"
-              placeholder="ابحث بالاسم أو الجوال / Search name or phone…"
+              placeholder={t('ابحث بالاسم أو الجوال', 'Search name or phone…')}
               aria-label="Search users"
             />
           </label>
@@ -1199,10 +1186,10 @@ function UsersPanel() {
             className="h-9 rounded-xl border border-line bg-canvas px-2 text-xs font-semibold text-ink outline-none focus:border-brand"
             aria-label="Filter by role"
           >
-            <option value="ALL">كل الأدوار / All roles</option>
+            <option value="ALL">{t('كل الأدوار', 'All roles')}</option>
             {(Object.keys(UserRole) as UserRole[]).map(role => (
               <option key={role} value={role}>
-                {USER_ROLE_LABELS[role].ar} / {USER_ROLE_LABELS[role].en}
+                {t(USER_ROLE_LABELS[role].ar, USER_ROLE_LABELS[role].en)}
               </option>
             ))}
           </select>
@@ -1212,10 +1199,7 @@ function UsersPanel() {
       {selectedIds.size > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft bg-brand-surface/60 px-5 py-2.5">
           <span className="text-[11px] font-bold text-brand-deep">
-            {selectedIds.size} محدد{' '}
-            <span dir="ltr" className="font-medium">
-              / selected
-            </span>
+            {t(`${selectedIds.size} محدد`, `${selectedIds.size} selected`)}
           </span>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -1225,10 +1209,7 @@ function UsersPanel() {
               className="flex items-center gap-1.5 rounded-lg bg-brand px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
             >
               {bulkBusy ? <Loader2 size={12} className="animate-spin" /> : null}
-              تفعيل{' '}
-              <span dir="ltr" className="font-medium">
-                Activate
-              </span>
+              {t('تفعيل', 'Activate')}
             </button>
             <button
               type="button"
@@ -1237,10 +1218,7 @@ function UsersPanel() {
               className="flex items-center gap-1.5 rounded-lg border border-danger-tint bg-danger-tint px-2.5 py-1.5 text-[11px] font-bold text-danger-ink transition hover:bg-danger-ink hover:text-white disabled:opacity-60"
             >
               {bulkBusy ? <Loader2 size={12} className="animate-spin" /> : null}
-              تعطيل{' '}
-              <span dir="ltr" className="font-medium">
-                Deactivate
-              </span>
+              {t('تعطيل', 'Deactivate')}
             </button>
             <button
               type="button"
@@ -1248,10 +1226,7 @@ function UsersPanel() {
               onClick={() => setSelectedIds(new Set())}
               className="rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:bg-canvas disabled:opacity-60"
             >
-              إلغاء{' '}
-              <span dir="ltr" className="font-medium">
-                Clear
-              </span>
+              {t('إلغاء', 'Clear')}
             </button>
           </div>
         </div>
@@ -1348,7 +1323,7 @@ function UsersPanel() {
                             className="max-w-44 rounded-lg border border-line bg-canvas px-2 py-1.5 text-[11px] font-semibold text-ink outline-none focus:border-brand disabled:opacity-60"
                             aria-label={`Dedicated store for ${user.name}`}
                           >
-                            <option value="">المجموعة المشتركة / Shared pool</option>
+                            <option value="">{t('المجموعة المشتركة', 'Shared pool')}</option>
                             {(stores.data?.items ?? []).map(store => (
                               <option key={store.id} value={store.id}>
                                 {store.nameAr}
@@ -1444,6 +1419,7 @@ function UsersPanel() {
 
 function StoresPanel() {
   const toast = useToast();
+  const { t } = useLanguage();
   const [page, setPage] = useState(1);
   const stores = useStores({ activeOnly: false, page, pageSize: 50 });
   const captains = useUsers({ role: UserRole.CAPTAIN, pageSize: 100 });
@@ -1457,6 +1433,9 @@ function StoresPanel() {
   );
   const toggleMutation = useMutation<{ isActive: boolean }, StoreModel>((input, signal) =>
     updateStore(pendingIdRef.current as string, input, signal)
+  );
+  const recommendMutation = useMutation<{ isRecommended: boolean }, StoreModel>((input, signal) =>
+    setStoreRecommended(pendingIdRef.current as string, input.isRecommended, signal)
   );
   const captainIdRef = useRef<string | null>(null);
   const assignCaptainMutation = useMutation<UpdateUserInput, PublicUser>((input, signal) =>
@@ -1553,8 +1532,11 @@ function StoresPanel() {
     if (result) {
       toast.success(successAr, successEn);
       void stores.reload();
-    } else if (approveMutation.error || toggleMutation.error) {
-      const message = approveMutation.error?.message ?? toggleMutation.error?.message;
+    } else if (approveMutation.error || toggleMutation.error || recommendMutation.error) {
+      const message =
+        approveMutation.error?.message ??
+        toggleMutation.error?.message ??
+        recommendMutation.error?.message;
       toast.error('تعذّر تحديث المتجر', message ?? 'Unknown error', { duration: 5_000 });
     }
   };
@@ -1638,10 +1620,7 @@ function StoresPanel() {
             onClick={() => setCreateOpen(true)}
             className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-3.5 py-2 text-xs font-bold text-white shadow-brand transition hover:bg-brand-dark active:scale-[0.98]"
           >
-            <Plus size={14} /> <span>إضافة متجر</span>
-            <span dir="ltr" className="font-medium text-white/85">
-              Add store
-            </span>
+            <Plus size={14} /> {t('إضافة متجر', 'Add store')}
           </button>
           <input
             ref={fileInputRef}
@@ -1677,10 +1656,7 @@ function StoresPanel() {
       {selectedStores.size > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft bg-brand-surface/60 px-5 py-2.5">
           <span className="text-[11px] font-bold text-brand-deep">
-            {selectedStores.size} محدد{' '}
-            <span dir="ltr" className="font-medium">
-              / selected
-            </span>
+            {t(`${selectedStores.size} محدد`, `${selectedStores.size} selected`)}
           </span>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -1690,10 +1666,7 @@ function StoresPanel() {
               className="flex items-center gap-1.5 rounded-lg bg-brand px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
             >
               {bulkBusy ? <Loader2 size={12} className="animate-spin" /> : null}
-              موافقة{' '}
-              <span dir="ltr" className="font-medium">
-                Approve
-              </span>
+              {t('موافقة', 'Approve')}
             </button>
             <button
               type="button"
@@ -1702,10 +1675,7 @@ function StoresPanel() {
               className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:border-brand hover:bg-brand-surface hover:text-brand-deep disabled:opacity-60"
             >
               {bulkBusy ? <Loader2 size={12} className="animate-spin" /> : null}
-              فتح{' '}
-              <span dir="ltr" className="font-medium">
-                Open
-              </span>
+              {t('فتح', 'Open')}
             </button>
             <button
               type="button"
@@ -1714,10 +1684,7 @@ function StoresPanel() {
               className="flex items-center gap-1.5 rounded-lg border border-danger-tint bg-danger-tint px-2.5 py-1.5 text-[11px] font-bold text-danger-ink transition hover:bg-danger-ink hover:text-white disabled:opacity-60"
             >
               {bulkBusy ? <Loader2 size={12} className="animate-spin" /> : null}
-              إغلاق{' '}
-              <span dir="ltr" className="font-medium">
-                Close
-              </span>
+              {t('إغلاق', 'Close')}
             </button>
             <button
               type="button"
@@ -1725,10 +1692,7 @@ function StoresPanel() {
               onClick={() => setSelectedStores(new Set())}
               className="rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:bg-canvas disabled:opacity-60"
             >
-              إلغاء{' '}
-              <span dir="ltr" className="font-medium">
-                Clear
-              </span>
+              {t('إلغاء', 'Clear')}
             </button>
           </div>
         </div>
@@ -1798,7 +1762,15 @@ function StoresPanel() {
                               )}
                             </span>
                             <span>
-                              <strong className="block font-bold text-ink">{store.nameAr}</strong>
+                              <strong className="block font-bold text-ink">
+                                {store.nameAr}
+                                {store.isRecommended && (
+                                  <span className="ms-1.5 inline-flex translate-y-[-1px] items-center gap-0.5 rounded-full bg-brand-tint px-1.5 py-0.5 text-micro font-bold text-brand-deep">
+                                    <Star size={9} fill="currentColor" />
+                                    موصى به
+                                  </span>
+                                )}
+                              </strong>
                               <span className="block text-micro text-ink-muted" dir="ltr">
                                 {store.nameEn}
                               </span>
@@ -1850,6 +1822,40 @@ function StoresPanel() {
                                 )}
                               </button>
                             )}
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() =>
+                                void runAction(
+                                  store.id,
+                                  () =>
+                                    recommendMutation.run({ isRecommended: !store.isRecommended }),
+                                  store.isRecommended
+                                    ? 'أُزيلت توصية المتجر'
+                                    : 'تمت التوصية بالمتجر',
+                                  store.isRecommended
+                                    ? 'Recommendation removed'
+                                    : 'Store recommended'
+                                )
+                              }
+                              className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition disabled:opacity-50 ${
+                                store.isRecommended
+                                  ? 'border-brand bg-brand-tint text-brand-deep hover:bg-brand-soft'
+                                  : 'border-line text-ink-soft hover:border-brand hover:bg-brand-surface hover:text-brand-deep'
+                              }`}
+                              aria-pressed={store.isRecommended}
+                            >
+                              {busy && recommendMutation.pending ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <Star
+                                  size={12}
+                                  className="me-1 inline -translate-y-px"
+                                  fill={store.isRecommended ? 'currentColor' : 'none'}
+                                />
+                              )}
+                              {store.isRecommended ? 'إلغاء التوصية' : 'توصية'}
+                            </button>
                             <button
                               type="button"
                               disabled={busy}
@@ -2015,22 +2021,19 @@ function StoreProductImagesManager({
   onRemove: (kind: 'product', id: string) => void;
 }) {
   const products = resource.data?.items ?? [];
+  const { t, language } = useLanguage();
   return (
     <div>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-extrabold text-ink">صور المنتجات</p>
-          <p dir="ltr" className="mt-0.5 text-micro text-ink-muted">
-            Product images for store <span className="font-bold">{storeId}</span> —{' '}
-            {products.length}
-          </p>
-        </div>
+        <p className="text-xs font-extrabold text-ink">
+          {t('صور المنتجات', `Product images for store ${storeId} — ${products.length}`)}
+        </p>
         {resource.loading && products.length === 0 && (
           <Loader2 size={14} className="animate-spin text-brand" aria-label="Loading products" />
         )}
         {resource.error && (
           <span className="text-micro font-semibold text-danger-ink">
-            {resource.error.message}
+            {language === 'ar' ? resource.error.message : resource.error.localizedMessage}
           </span>
         )}
       </div>
@@ -2098,6 +2101,7 @@ function StoreProductImagesManager({
 
 function CaptainsPanel() {
   const toast = useToast();
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [availability, setAvailability] = useState<'ALL' | 'ONLINE' | 'OFFLINE'>('ALL');
   const [createOpen, setCreateOpen] = useState(false);
@@ -2191,10 +2195,7 @@ function CaptainsPanel() {
             onClick={() => setCreateOpen(true)}
             className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-3.5 py-2 text-xs font-bold text-white shadow-brand transition hover:bg-brand-dark active:scale-[0.98]"
           >
-            <Plus size={14} /> <span>إضافة سائق</span>
-            <span dir="ltr" className="font-medium text-white/85">
-              Add driver
-            </span>
+            <Plus size={14} /> {t('إضافة سائق', 'Add driver')}
           </button>
           <label className="flex h-9 w-full items-center gap-2 rounded-xl border border-line bg-canvas px-3 text-ink-muted sm:w-[200px]">
             <Search size={15} />
@@ -2297,7 +2298,7 @@ function CaptainsPanel() {
                           }
                           className="max-w-[180px] rounded-lg border border-line bg-surface px-2 py-1.5 text-[11px] font-semibold text-ink-soft outline-none focus:border-brand disabled:opacity-60"
                         >
-                          <option value="">سائق عام / General driver</option>
+                          <option value="">{t('سائق عام', 'General driver')}</option>
                           {(stores.data?.items ?? []).map(store => (
                             <option key={store.id} value={store.id}>
                               {store.nameAr}
@@ -2407,6 +2408,408 @@ function CaptainsPanel() {
 }
 
 /* ---------------------------------------------------------------------------
+ * ZonesPanel — delivery-zone CRUD for admins
+ * ------------------------------------------------------------------------- */
+
+function ZoneFormModal({
+  initial,
+  onClose,
+  onSaved,
+}: {
+  initial: DeliveryZone | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { t } = useLanguage();
+  const toast = useToast();
+  const isEdit = initial !== null;
+  const [nameAr, setNameAr] = useState(initial?.nameAr ?? '');
+  const [nameEn, setNameEn] = useState(initial?.nameEn ?? '');
+  const [fee, setFee] = useState(initial?.fee?.toString() ?? '0');
+  const [isActive, setIsActive] = useState(initial?.isActive ?? true);
+  const [sortOrder, setSortOrder] = useState(initial?.sortOrder?.toString() ?? '0');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    if (!nameAr.trim()) { setError(t('الاسم بالعربية مطلوب', 'Arabic name is required')); return; }
+    const feeNum = parseFloat(fee);
+    if (isNaN(feeNum) || feeNum < 0 || feeNum > 10_000) {
+      setError(t('الرسوم يجب أن تكون بين 0 و 10000', 'Fee must be between 0 and 10,000'));
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      if (isEdit && initial) {
+        await updateDeliveryZone(initial.id, {
+          nameAr: nameAr.trim(),
+          nameEn: nameEn.trim() || undefined,
+          fee: feeNum,
+          isActive,
+          sortOrder: parseInt(sortOrder, 10) || 0,
+        } satisfies UpdateDeliveryZoneInput);
+        toast.success('تم تحديث المنطقة', 'Zone updated');
+      } else {
+        await createDeliveryZone({
+          nameAr: nameAr.trim(),
+          nameEn: nameEn.trim() ?? '',
+          fee: feeNum,
+          isActive,
+          sortOrder: parseInt(sortOrder, 10) || 0,
+        } satisfies CreateDeliveryZoneInput);
+        toast.success('تمت إضافة المنطقة', 'Zone created');
+      }
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+      <div className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-raised">
+        <h2 className="mb-4 text-base font-extrabold text-ink">
+          {isEdit ? t('تعديل المنطقة', 'Edit zone') : t('منطقة توصيل جديدة', 'New delivery zone')}
+        </h2>
+        <div className="space-y-3">
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-bold text-ink">{t('الاسم بالعربية *', 'Arabic name *')}</span>
+            <input
+              type="text"
+              value={nameAr}
+              onChange={e => setNameAr(e.target.value)}
+              className="h-10 w-full rounded-xl border border-line bg-canvas px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+              placeholder="مثال: مركز السموع"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-bold text-ink">
+              {t('الاسم بالإنجليزية', 'English name')}
+              <span className="ms-1 font-normal text-ink-muted">({t('اختياري', 'optional')})</span>
+            </span>
+            <input
+              type="text"
+              value={nameEn}
+              onChange={e => setNameEn(e.target.value)}
+              dir="ltr"
+              className="h-10 w-full rounded-xl border border-line bg-canvas px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+              placeholder="e.g. Al-Samou' Centre"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-bold text-ink">{t('رسوم التوصيل (₪) *', 'Delivery fee (₪) *')}</span>
+            <input
+              type="number"
+              min="0"
+              max="10000"
+              step="0.5"
+              value={fee}
+              onChange={e => setFee(e.target.value)}
+              dir="ltr"
+              className="h-10 w-full rounded-xl border border-line bg-canvas px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-bold text-ink">{t('ترتيب العرض', 'Display order')}</span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={sortOrder}
+              onChange={e => setSortOrder(e.target.value)}
+              dir="ltr"
+              className="h-10 w-full rounded-xl border border-line bg-canvas px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+            />
+          </label>
+          <div className="flex items-center justify-between rounded-xl border border-line bg-canvas px-4 py-3">
+            <span className="text-xs font-bold text-ink">{t('نشطة', 'Active')}</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isActive}
+              onClick={() => setIsActive(v => !v)}
+              className={`flex h-6 w-11 items-center rounded-full p-0.5 transition-colors ${isActive ? 'justify-end bg-brand' : 'justify-start bg-line'}`}
+            >
+              <span className="h-5 w-5 rounded-full bg-surface shadow-card" />
+            </button>
+          </div>
+          {error && (
+            <p className="flex items-center gap-1.5 rounded-xl bg-danger-tint px-3 py-2 text-xs font-semibold text-danger-ink">
+              <AlertTriangle size={13} className="shrink-0" /> {error}
+            </p>
+          )}
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-9 rounded-xl border border-line px-4 text-xs font-bold text-ink-soft transition hover:bg-canvas"
+          >
+            {t('إلغاء', 'Cancel')}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={saving}
+            className="flex h-9 items-center gap-2 rounded-xl bg-brand px-5 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
+          >
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            {isEdit ? t('حفظ التعديلات', 'Save') : t('إضافة', 'Create')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ZonesPanel() {
+  const { t } = useLanguage();
+  const toast = useToast();
+  const zones = useResource('delivery-zones', (signal) => listAllDeliveryZones(signal));
+  const [modalTarget, setModalTarget] = useState<DeliveryZone | null | 'new'>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeliveryZone | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const runDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteDeliveryZone(deleteTarget.id);
+      toast.success(
+        `تم حذف المنطقة «${deleteTarget.nameAr}»`,
+        `Zone "${deleteTarget.nameEn || deleteTarget.nameAr}" deleted`,
+      );
+      setDeleteTarget(null);
+      void zones.reload();
+    } catch (err) {
+      toast.error(
+        'تعذّر حذف المنطقة',
+        err instanceof Error ? err.message : 'Unknown error',
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const rows = zones.data ?? [];
+
+  return (
+    <PanelShell
+      title="مناطق التوصيل"
+      en="Delivery Zones"
+      loading={zones.loading && rows.length === 0}
+      error={zones.error}
+      refreshing={zones.loading && rows.length > 0}
+      onRefresh={() => void zones.reload()}
+      headerActions={
+        <button
+          type="button"
+          onClick={() => setModalTarget('new')}
+          className="flex h-9 items-center gap-2 rounded-xl bg-brand px-4 text-xs font-bold text-white shadow-brand transition hover:bg-brand-dark active:scale-[0.98]"
+        >
+          <Plus size={15} />
+          {t('إضافة منطقة', 'Add zone')}
+        </button>
+      }
+    >
+      {rows.length === 0 && !zones.loading ? (
+        <div className="rounded-xl border border-line bg-brand-surface p-8 text-center shadow-card">
+          <MapPin size={28} className="mx-auto mb-3 text-brand" />
+          <p className="text-sm font-bold text-ink">{t('لا توجد مناطق توصيل بعد', 'No delivery zones yet')}</p>
+          <p className="mt-1 text-xs text-ink-muted">{t('أضف منطقة ليتمكن الكابتن من تحديد رسوم التوصيل', 'Add a zone so captains can set delivery fees')}</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-line bg-canvas text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+                <th className="px-4 py-3 text-start">{t('المنطقة', 'Zone')}</th>
+                <th className="px-4 py-3 text-start" dir="ltr">{t('الرسوم (₪)', 'Fee (₪)')}</th>
+                <th className="px-4 py-3 text-start">{t('الحالة', 'Status')}</th>
+                <th className="px-4 py-3 text-start">{t('الترتيب', 'Order')}</th>
+                <th className="px-4 py-3 text-end">{t('إجراءات', 'Actions')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line-soft">
+              {rows.map(zone => (
+                <tr key={zone.id} className="transition hover:bg-canvas">
+                  <td className="px-4 py-3">
+                    <p className="font-bold text-ink">{zone.nameAr}</p>
+                    {zone.nameEn && (
+                      <p className="text-[11px] text-ink-muted" dir="ltr">{zone.nameEn}</p>
+                    )}
+                  </td>
+                  <td className="px-4 py-3" dir="ltr">
+                    <span className="font-bold text-brand-dark">{zone.fee} ₪</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                      zone.isActive ? 'bg-brand-tint text-brand-deep' : 'bg-canvas text-ink-muted'
+                    }`}>
+                      {zone.isActive ? t('نشطة', 'Active') : t('معطّلة', 'Inactive')}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-ink-muted" dir="ltr">{zone.sortOrder}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setModalTarget(zone)}
+                        className="rounded-lg border border-line px-3 py-1.5 text-[11px] font-bold text-ink-soft transition hover:bg-canvas"
+                        aria-label={`Edit zone ${zone.nameAr}`}
+                      >
+                        {t('تعديل', 'Edit')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(zone)}
+                        className="rounded-lg border border-danger/30 px-3 py-1.5 text-[11px] font-bold text-danger transition hover:bg-danger-tint"
+                        aria-label={`Delete zone ${zone.nameAr}`}
+                      >
+                        {t('حذف', 'Delete')}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="حذف المنطقة"
+        en="Delete zone"
+        message={deleteTarget
+          ? t(
+              `هل تريد حذف منطقة «${deleteTarget.nameAr}»؟ لن يؤثر ذلك على الطلبات السابقة.`,
+              `Delete zone "${deleteTarget.nameEn || deleteTarget.nameAr}"? Past orders will not be affected.`,
+            )
+          : ''}
+        confirmLabelAr="حذف"
+        confirmLabelEn="Delete"
+        pending={deleting}
+        onConfirm={() => void runDelete()}
+        onClose={() => setDeleteTarget(null)}
+      />
+
+      {modalTarget !== null && (
+        <ZoneFormModal
+          initial={modalTarget === 'new' ? null : modalTarget}
+          onClose={() => setModalTarget(null)}
+          onSaved={() => void zones.reload()}
+        />
+      )}
+    </PanelShell>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * OffersPanel — admin visibility of the live offers feed. Stores own their
+ * offers; this read-only panel lists every active offer with its store, window
+ * and targeted products so admins can audit what is being promoted.
+ * ------------------------------------------------------------------------- */
+
+function OffersPanel() {
+  const { t, language } = useLanguage();
+  const offers = useAllOffers({ pollMs: 30_000 });
+  const stores = useStores({ pageSize: 100 });
+
+  const storeNames = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const store of stores.data?.items ?? []) {
+      map.set(store.id, language === 'ar' ? store.nameAr : store.nameEn);
+    }
+    return map;
+  }, [stores.data, language]);
+
+  const rows = offers.data?.items ?? [];
+
+  const formatDate = (iso: string | null): string => {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString(language === 'ar' ? 'ar' : 'en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  return (
+    <PanelShell
+      title="العروض"
+      en="Offers"
+      loading={offers.loading && rows.length === 0}
+      error={offers.error}
+      refreshing={offers.loading && rows.length > 0}
+      onRefresh={() => void offers.reload()}
+    >
+      {rows.length === 0 && !offers.loading ? (
+        <div className="rounded-xl border border-line bg-brand-surface p-8 text-center shadow-card">
+          <Megaphone size={28} className="mx-auto mb-3 text-brand" />
+          <p className="text-sm font-bold text-ink">{t('لا توجد عروض نشطة حالياً', 'No active offers right now')}</p>
+          <p className="mt-1 text-xs text-ink-muted">
+            {t('تُدار العروض من لوحة كل متجر وتظهر هنا تلقائياً', 'Offers are managed from each store dashboard and appear here automatically')}
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[620px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-line bg-canvas text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+                <th className="px-4 py-3 text-start">{t('العرض', 'Offer')}</th>
+                <th className="px-4 py-3 text-start">{t('المتجر', 'Store')}</th>
+                <th className="px-4 py-3 text-start">{t('المنتجات', 'Products')}</th>
+                <th className="px-4 py-3 text-start">{t('الفترة', 'Window')}</th>
+                <th className="px-4 py-3 text-start">{t('الحالة', 'Status')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line-soft">
+              {rows.map(offer => (
+                <tr key={offer.id} className="transition hover:bg-canvas">
+                  <td className="px-4 py-3">
+                    <p className="font-bold text-ink">{language === 'ar' ? offer.titleAr : offer.titleEn}</p>
+                    {offer.descriptionAr && (
+                      <p className="mt-0.5 line-clamp-1 text-[11px] text-ink-muted">
+                        {language === 'ar' ? offer.descriptionAr : offer.descriptionEn}
+                      </p>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-xs font-semibold text-ink-soft">
+                    {storeNames.get(offer.storeId) ?? offer.storeId}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-ink-muted" dir="ltr">
+                    {offer.productIds.length === 0
+                      ? t('كل المنتجات', 'All products')
+                      : `${offer.productIds.length} ${t('منتج', 'item(s)')}`}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-ink-muted">
+                    {offer.startsAt === null && offer.expiresAt === null
+                      ? t('دائم', 'Always')
+                      : `${formatDate(offer.startsAt)}${offer.expiresAt ? ` — ${formatDate(offer.expiresAt)}` : ''}`}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                      offer.isActive ? 'bg-brand-tint text-brand-deep' : 'bg-canvas text-ink-muted'
+                    }`}>
+                      {offer.isActive ? t('نشط', 'Active') : t('موقوف', 'Inactive')}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </PanelShell>
+  );
+}
+
+/* ---------------------------------------------------------------------------
  * Shared panel shell — title, refresh, error state
  * ------------------------------------------------------------------------- */
 
@@ -2437,10 +2840,11 @@ function PaginationBar({
   onNext: () => void;
 }) {
   const last = Math.max(totalPages, 1);
+  const { t } = useLanguage();
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft px-5 py-3">
       <p className="text-[11px] font-semibold text-ink-muted">
-        {total !== undefined ? `${total} نتيجة · ` : ''}
+        {total !== undefined ? `${t(`${total} نتيجة`, `${total} results`)} · ` : ''}
         <span dir="ltr">
           Page {page} / {last}
         </span>
@@ -2453,10 +2857,7 @@ function PaginationBar({
           className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:bg-canvas active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ChevronRight size={13} />
-          السابق{' '}
-          <span dir="ltr" className="font-medium">
-            Prev
-          </span>
+          {t('السابق', 'Prev')}
         </button>
         <button
           type="button"
@@ -2464,10 +2865,7 @@ function PaginationBar({
           disabled={disabled || page >= last}
           className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:bg-canvas active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <span dir="ltr" className="font-medium">
-            Next
-          </span>{' '}
-          التالي
+          {t('التالي', 'Next')}
           <ChevronLeft size={13} />
         </button>
       </div>
@@ -2485,13 +2883,16 @@ function PanelShell({
   headerActions,
   children,
 }: PanelShellProps) {
+  const { t, language } = useLanguage();
   if (error) {
     return (
       <div className="rounded-xl border border-danger-tint bg-surface p-6 text-center shadow-card">
         <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
           <AlertTriangle size={18} />
         </span>
-        <p className="mt-2 text-xs font-semibold text-danger-ink">{error.message}</p>
+        <p className="mt-2 text-xs font-semibold text-danger-ink">
+          {language === 'ar' ? error.message : error.localizedMessage}
+        </p>
         <button
           type="button"
           onClick={onRefresh}
@@ -2507,10 +2908,7 @@ function PanelShell({
     <article className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft px-5 py-5">
         <div>
-          <h2 className="text-[15px] font-extrabold">{title}</h2>
-          <p dir="ltr" className="mt-1 text-[11px] text-ink-muted">
-            {en}
-          </p>
+          <h2 className="text-[15px] font-extrabold">{t(title, en)}</h2>
         </div>
         <div className="flex items-center gap-3">
           {headerActions}

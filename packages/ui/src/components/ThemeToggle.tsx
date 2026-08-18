@@ -12,6 +12,7 @@
 
 import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '../lib/useTheme';
+import { useLanguage } from '../lib/LanguageProvider';
 
 export interface ThemeToggleProps {
   /** Rendered on a dark brand header instead of the page canvas. */
@@ -21,13 +22,23 @@ export interface ThemeToggleProps {
 
 export function ThemeToggle({ onDark = false, className }: ThemeToggleProps) {
   const { dark, toggle } = useTheme();
+  const { language } = useLanguage();
+  const isArabic = language === 'ar';
 
   return (
     <button
       type="button"
       onClick={toggle}
       aria-pressed={dark}
-      aria-label={dark ? 'الوضع الفاتح / Light mode' : 'الوضع الداكن / Dark mode'}
+      aria-label={
+        isArabic
+          ? dark
+            ? 'الوضع الفاتح'
+            : 'الوضع الداكن'
+          : dark
+            ? 'Light mode'
+            : 'Dark mode'
+      }
       className={
         `flex h-10 w-10 items-center justify-center rounded-full transition active:scale-95 ` +
         (onDark ? 'text-white/90 hover:bg-surface/15' : 'text-ink-soft hover:bg-canvas') +

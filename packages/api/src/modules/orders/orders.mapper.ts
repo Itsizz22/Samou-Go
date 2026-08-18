@@ -6,6 +6,7 @@ import type {
   Store as PrismaStore,
   User as PrismaUser,
   Voucher as PrismaVoucher,
+  DeliveryZone as PrismaDeliveryZone,
 } from '../../lib/prisma-types';
 import type {
   Order,
@@ -23,6 +24,7 @@ export type OrderWithRelations = PrismaOrder & {
   store: PrismaStore;
   captain: PrismaUser | null;
   voucher: PrismaVoucher | null;
+  deliveryZone: PrismaDeliveryZone | null;
   statusHistory: PrismaStatusHistory[];
 };
 
@@ -49,6 +51,7 @@ export function toOrder(order: PrismaOrder): Order {
     deliveryFee: decimalToNumber(order.deliveryFee),
     discount: decimalToNumber(order.discount),
     voucherId: order.voucherId,
+    deliveryZoneId: order.deliveryZoneId,
     totalAmount: decimalToNumber(order.totalAmount),
     paymentMethod: order.paymentMethod,
     createdAt: order.createdAt.toISOString(),
@@ -107,6 +110,16 @@ export function toOrderDetail(order: OrderWithRelations): OrderDetail {
           code: order.voucher.code,
           labelAr: order.voucher.labelAr,
           labelEn: order.voucher.labelEn,
+        }
+      : null,
+    deliveryZone: order.deliveryZone
+      ? {
+          id: order.deliveryZone.id,
+          nameAr: order.deliveryZone.nameAr,
+          nameEn: order.deliveryZone.nameEn,
+          fee: decimalToNumber(order.deliveryZone.fee),
+          isActive: order.deliveryZone.isActive,
+          sortOrder: order.deliveryZone.sortOrder,
         }
       : null,
     statusHistory: order.statusHistory.map(toStatusHistoryEntry),

@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowLeft, Loader2, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ApiError, requestOtp, verifyOtp } from '@/hooks/useApi';
+import { useLanguage } from '@samou-go/ui';
 import { hapticConfirm, hapticError, hapticSuccess } from '@/lib/haptics';
 import { isValidPalestinianMobile } from '@/lib/phone';
 import { fadeSlideUp } from '@/lib/motion';
@@ -44,6 +45,8 @@ export function CustomerAuthGate({
   const [error, setError] = useState<ApiError | null>(null);
   const [resendIn, setResendIn] = useState(0);
   const timerRef = useRef<number | null>(null);
+  const { t, language } = useLanguage();
+  const isArabic = language === 'ar';
 
   useEffect(() => {
     return () => {
@@ -147,18 +150,12 @@ export function CustomerAuthGate({
           className="card-surface p-6 text-end"
           noValidate
         >
-          <h1 className="text-base font-extrabold">{reasonAr}</h1>
-          <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">
-            {reasonEn}
-          </p>
+          <h1 className="text-base font-extrabold">{t(reasonAr, reasonEn)}</h1>
 
           {step === 'phone' ? (
             <>
               <label className="mt-5 block">
-                <span className="text-xs font-bold">رقم الجوال</span>
-                <span className="ms-2 text-micro text-ink-muted" dir="ltr">
-                  Mobile number
-                </span>
+                <span className="text-xs font-bold">{t('رقم الجوال', 'Mobile number')}</span>
                 <input
                   type="tel"
                   inputMode="tel"
@@ -174,7 +171,10 @@ export function CustomerAuthGate({
               </label>
               <p className="mt-2 flex items-start gap-1.5 text-micro leading-relaxed text-ink-muted">
                 <ShieldCheck size={13} className="mt-0.5 shrink-0 text-brand" />
-                سنرسل رمز تحقق عبر رسالة نصية. الرمز صالح لثلاث دقائق.
+                {t(
+                  'سنرسل رمز تحقق عبر رسالة نصية. الرمز صالح لثلاث دقائق.',
+                  'We will text you a verification code. It is valid for three minutes.'
+                )}
               </p>
             </>
           ) : (
@@ -209,12 +209,12 @@ export function CustomerAuthGate({
                   state={pinState}
                   disabled={verifying}
                   autoFocus
-                  label="أدخل الرمز المكوّن من 6 أرقام / Enter the 6-digit code"
+                  label={t('أدخل الرمز المكوّن من 6 أرقام', 'Enter the 6-digit code')}
                 />
               </div>
 
               <div className="mt-4 flex items-center justify-center gap-1 text-[11px] text-ink-muted">
-                <span>لم يصلك الرمز؟</span>
+                <span>{t('لم يصلك الرمز؟', "Didn't get the code?")}</span>
                 {canResend ? (
                   <button
                     type="button"
@@ -222,7 +222,7 @@ export function CustomerAuthGate({
                     disabled={sending}
                     className="font-bold text-brand transition active:scale-95 disabled:opacity-60"
                   >
-                    إعادة الإرسال <span dir="ltr">Resend</span>
+                    {t('إعادة الإرسال', 'Resend')}
                   </button>
                 ) : (
                   <span className="font-semibold" dir="ltr">
@@ -239,7 +239,7 @@ export function CustomerAuthGate({
               aria-live="assertive"
             >
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>{error.message}</span>
+              <span>{isArabic ? error.message : error.localizedMessage}</span>
             </p>
           )}
 
@@ -250,7 +250,7 @@ export function CustomerAuthGate({
               className="btn-primary mt-5 w-full justify-center"
             >
               {sending ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-              إرسال رمز التحقق <span dir="ltr">Send code</span>
+              {t('إرسال رمز التحقق', 'Send code')}
             </button>
           )}
           {step === 'code' && (

@@ -18,6 +18,7 @@ import {
   resetPasswordSchema,
   registerSchema,
   setAvailabilitySchema,
+  updateMyLocationSchema,
   updateProfileSchema,
   userIdParamsSchema,
   userListQuerySchema,
@@ -119,6 +120,16 @@ export async function setAvailabilityHandler(
   const auth = requireAuth(req);
   const body = parseWith(setAvailabilitySchema, req.body);
   ok(res, await authService.setAvailability(auth.sub, body));
+}
+
+/** PUT /api/v1/users/me/location — the caller persists their own GPS point. */
+export async function updateMyLocationHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const auth = requireAuth(req);
+  const body = parseWith(updateMyLocationSchema, req.body);
+  ok(res, await authService.updateMyLocation(auth.sub, body));
 }
 
 /**

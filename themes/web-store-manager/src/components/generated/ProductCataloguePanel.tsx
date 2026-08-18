@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import {
+  ApiError,
   createCategory,
   createProduct,
   deleteProduct,
@@ -32,6 +33,7 @@ import {
 } from '@samou-go/api-client';
 import type { Product } from '@samou-go/shared-types';
 import { formatCurrency } from '@/lib/delivery';
+import { useLanguage } from '@samou-go/ui';
 
 interface Props {
   /** The UUID of the store this manager owns. */
@@ -75,6 +77,7 @@ function formFromProduct(p: Product): ProductFormState {
 export function ProductCataloguePanel({ storeId }: Props) {
   const toast = useToast();
   const upload = useUploadImage();
+  const { t, language } = useLanguage();
 
   // Full catalogue including unavailable products — the manager view.
   // Uses GET /stores/:id/full (auth-gated) so unavailable products are returned.
@@ -176,8 +179,8 @@ export function ProductCataloguePanel({ storeId }: Props) {
   /* ---- Save (create / update) ------------------------------------------- */
   const handleSave = async () => {
     const priceNum = parseFloat(form.price);
-    if (!form.nameAr.trim()) { setFormError('اسم المنتج مطلوب / Product name required'); return; }
-    if (isNaN(priceNum) || priceNum <= 0) { setFormError('السعر غير صالح / Price must be a positive number'); return; }
+    if (!form.nameAr.trim()) { setFormError(t('اسم المنتج مطلوب', 'Product name required')); return; }
+    if (isNaN(priceNum) || priceNum <= 0) { setFormError(t('السعر غير صالح', 'Price must be a positive number')); return; }
 
     setSaving(true);
     setFormError(null);
@@ -204,7 +207,9 @@ export function ProductCataloguePanel({ storeId }: Props) {
       closeModal();
       reload();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = err instanceof ApiError
+        ? language === 'ar' ? err.message : err.localizedMessage
+        : err instanceof Error ? err.message : String(err);
       setFormError(msg);
     } finally {
       setSaving(false);
@@ -296,7 +301,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <input
           type="text"
-          placeholder="بحث / Search…"
+          placeholder={t('بحث', 'Search…')}
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="h-9 min-w-0 flex-1 rounded-xl border border-line bg-canvas px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
@@ -309,7 +314,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
             className="h-9 appearance-none rounded-xl border border-line bg-canvas pe-8 ps-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
             aria-label="Filter by category"
           >
-            <option value="">كل الأقسام / All</option>
+            <option value="">{t('كل الأقسام', 'All')}</option>
             {categories.map(c => (
               <option key={c.id} value={c.id}>{c.nameAr}</option>
             ))}
@@ -331,7 +336,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
           className="flex h-9 items-center gap-1.5 rounded-xl bg-brand px-4 text-xs font-bold text-white transition hover:bg-brand-dark"
         >
           <Plus size={15} />
-          منتج جديد <span dir="ltr" className="font-medium opacity-80">New Product</span>
+          {t('منتج جديد', 'New Product')}
         </button>
       </div>
 
@@ -342,7 +347,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
           className="mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-danger-tint px-4 py-3 text-xs font-semibold text-danger-ink"
         >
           <AlertTriangle size={14} className="shrink-0" />
-          <span className="flex-1">{catalogue.error.message}</span>
+          <span className="flex-1">{language === 'ar' ? catalogue.error.message : catalogue.error.localizedMessage}</span>
           <button
             type="button"
             onClick={reload}
@@ -371,11 +376,11 @@ export function ProductCataloguePanel({ storeId }: Props) {
             <Package size={22} />
           </span>
           <h3 className="mt-3 text-sm font-extrabold">
-            {allProducts.length === 0 ? 'لا توجد منتجات في هذا المتجر' : 'لا توجد نتائج مطابقة'}
+            {t(
+              allProducts.length === 0 ? 'لا توجد منتجات في هذا المتجر' : 'لا توجد نتائج مطابقة',
+              allProducts.length === 0 ? 'Add your first product using the button above' : 'Try a different search or category'
+            )}
           </h3>
-          <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">
-            {allProducts.length === 0 ? 'Add your first product using the button above' : 'Try a different search or category'}
-          </p>
         </div>
       )}
 
@@ -385,11 +390,11 @@ export function ProductCataloguePanel({ storeId }: Props) {
           <table className="w-full text-sm">
             <thead className="bg-canvas text-micro font-bold uppercase tracking-wide text-ink-muted">
               <tr>
-                <th className="px-4 py-3 text-start">المنتج / Product</th>
-                <th className="px-3 py-3">القسم / Category</th>
-                <th className="px-3 py-3">السعر / Price</th>
-                <th className="px-3 py-3">الحالة / Status</th>
-                <th className="px-4 py-3 text-end">إجراءات / Actions</th>
+                <th className="px-4 py-3 text-start">{t('المنتج', 'Product')}</th>
+                <th className="px-3 py-3">{t('القسم', 'Category')}</th>
+                <th className="px-3 py-3">{t('السعر', 'Price')}</th>
+                <th className="px-3 py-3">{t('الحالة', 'Status')}</th>
+                <th className="px-4 py-3 text-end">{t('إجراءات', 'Actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line-soft">
@@ -466,10 +471,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
           <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-raised">
             <div className="mb-5 flex items-center justify-between">
               <h2 id="product-modal-title" className="text-base font-extrabold text-ink">
-                {modal === 'create' ? 'إضافة منتج جديد' : 'تعديل المنتج'}
-                <span className="ms-2 text-xs font-semibold text-ink-muted" dir="ltr">
-                  {modal === 'create' ? '/ New Product' : '/ Edit Product'}
-                </span>
+                {t(modal === 'create' ? 'إضافة منتج جديد' : 'تعديل المنتج', modal === 'create' ? 'New Product' : 'Edit Product')}
               </h2>
               <button
                 type="button"
@@ -490,7 +492,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                   type="text"
                   value={form.nameAr}
                   onChange={e => setForm(f => ({ ...f, nameAr: e.target.value }))}
-                  placeholder="مثال: شاورما دجاج / Chicken Shawarma"
+                  placeholder={t('مثال: شاورما دجاج', 'Chicken Shawarma')}
                   className="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
                 />
               </label>
@@ -513,8 +515,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
               {modal === 'edit' && editTarget && (
                 <div className="rounded-xl border border-line bg-canvas p-3">
                   <span className="mb-2 block text-xs font-bold text-ink">
-                    صورة المنتج
-                    <span className="ms-1 font-normal text-ink-muted" dir="ltr">/ Product image</span>
+                    {t('صورة المنتج', 'Product image')}
                   </span>
                   <div className="flex items-center gap-3">
                     {editTarget.imageUrl ? (
@@ -545,7 +546,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                         aria-label="Change product image"
                       >
                         {imageBusy ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
-                        {editTarget.imageUrl ? 'تغيير / Change' : 'إضافة / Add'}
+                        {editTarget.imageUrl ? t('تغيير', 'Change') : t('إضافة', 'Add')}
                       </button>
                       {editTarget.imageUrl && (
                         <button
@@ -556,7 +557,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                           aria-label="Remove product image"
                         >
                           <X size={12} />
-                          إزالة <span dir="ltr">Remove</span>
+                          {t('إزالة', 'Remove')}
                         </button>
                       )}
                     </div>
@@ -593,10 +594,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                       aria-label="New category"
                     >
                       {categoryOpen ? <X size={12} /> : <Plus size={12} />}
-                      {categoryOpen ? 'إلغاء' : 'قسم جديد'}
-                      <span dir="ltr" className="font-medium opacity-70">
-                        {categoryOpen ? 'Cancel' : 'New'}
-                      </span>
+                      {t(categoryOpen ? 'إلغاء' : 'قسم جديد', categoryOpen ? 'Cancel' : 'New')}
                     </button>
                   </span>
                   <div className="relative">
@@ -630,7 +628,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                         void handleCreateCategory();
                       }
                     }}
-                    placeholder="اسم القسم — مثل: ساندويشات / Section name"
+                    placeholder={t('اسم القسم — مثل: ساندويشات', 'Section name')}
                     className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
                     aria-label="New category name"
                   />
@@ -648,16 +646,14 @@ export function ProductCataloguePanel({ storeId }: Props) {
               {categories.length === 0 && !categoryOpen && (
                 <p className="flex items-center gap-1.5 rounded-xl bg-brand-surface px-3 py-2 text-[11px] font-semibold text-brand-deep">
                   <AlertTriangle size={13} className="shrink-0" />
-                  لا توجد أقسام بعد — أنشئ قسماً جديداً قبل إضافة المنتجات
-                  <span dir="ltr" className="font-medium opacity-80">/ No sections yet — create one first</span>
+                  {t('لا توجد أقسام بعد — أنشئ قسماً جديداً قبل إضافة المنتجات', 'No sections yet — create one first')}
                 </p>
               )}
 
               {/* Availability toggle */}
               <label className="flex cursor-pointer items-center gap-3">
                 <span className="flex-1 text-xs font-bold text-ink">
-                  متاح للطلب
-                  <span className="ms-1 font-normal text-ink-muted" dir="ltr">/ Available for orders</span>
+                  {t('متاح للطلب', 'Available for orders')}
                 </span>
                 <button
                   type="button"
@@ -687,7 +683,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                 disabled={saving}
                 className="h-10 rounded-xl border border-line bg-surface text-sm font-bold text-ink-soft transition hover:bg-canvas disabled:opacity-60"
               >
-                إلغاء <span dir="ltr" className="font-normal text-ink-muted">/ Cancel</span>
+                {t('إلغاء', 'Cancel')}
               </button>
               <button
                 type="button"
@@ -696,10 +692,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                 className="flex h-10 items-center justify-center gap-2 rounded-xl bg-brand text-sm font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
               >
                 {saving && <Loader2 size={15} className="animate-spin" />}
-                {modal === 'create' ? 'إضافة' : 'حفظ'}
-                <span dir="ltr" className="font-medium opacity-80">
-                  {modal === 'create' ? '/ Add' : '/ Save'}
-                </span>
+                {t(modal === 'create' ? 'إضافة' : 'حفظ', modal === 'create' ? 'Add' : 'Save')}
               </button>
             </div>
           </div>

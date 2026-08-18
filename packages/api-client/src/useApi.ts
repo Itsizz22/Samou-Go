@@ -24,7 +24,10 @@ import {
   getStore,
   getStoreManager,
   getStores,
+  listActiveOffers,
+  listAllOffers,
   listOrders,
+  listStoreOffers,
   listUsers,
   uploadImage,
   type ApiMeta,
@@ -37,6 +40,7 @@ import type {
   AdminCreateStoreResult,
   AdminStats,
   FinalizeUploadResult,
+  Offer,
   OrderDetail,
   OrderListQuery,
   OrderSummary,
@@ -272,6 +276,35 @@ export function useMyStores(
   return useResource('stores:mine', (signal) => getMyStores(signal), options);
 }
 
+/** `GET /stores/:storeId/offers/manage` — all offers (incl. inactive) for the manager panel. */
+export function useStoreOffers(
+  storeId: string | null | undefined,
+  options?: ResourceOptions<Paginated<Offer>>
+): Resource<Paginated<Offer>> {
+  return useResource(
+    `store-offers:${storeId ?? ''}`,
+    (signal) => listStoreOffers(storeId as string, signal),
+    { ...options, enabled: Boolean(storeId) && (options?.enabled ?? true) }
+  );
+}
+
+/** `GET /stores/:storeId/offers` — active offers for the customer store detail. */
+export function useOffersForStore(
+  storeId: string | null | undefined,
+  options?: ResourceOptions<Paginated<Offer>>
+): Resource<Paginated<Offer>> {
+  return useResource(
+    `offers-for-store:${storeId ?? ''}`,
+    (signal) => listActiveOffers(storeId as string, signal),
+    { ...options, enabled: Boolean(storeId) && (options?.enabled ?? true) }
+  );
+}
+
+/** `GET /offers` — the home-screen feed of active offers across all approved stores. */
+export function useAllOffers(options?: ResourceOptions<Paginated<Offer>>): Resource<Paginated<Offer>> {
+  return useResource('offers:all', (signal) => listAllOffers(signal), options);
+}
+
 /** `GET /orders/:id` — order tracking. */
 export function useOrder(
   orderId: string | null | undefined,
@@ -353,13 +386,15 @@ export function useDeleteUser(): Mutation<string, { removed: boolean }> {
 export interface UploadImageInput {
   kind: UploadKind;
   resourceId?: string;
+  /** `store` kind only — which image slot the upload targets. */
+  purpose?: 'logo' | 'cover';
   file: Blob;
 }
 
 export function useUploadImage(): Mutation<UploadImageInput, FinalizeUploadResult> {
   return useMutation<UploadImageInput, FinalizeUploadResult>(
-    ({ kind, resourceId, file }, signal) =>
-      uploadImage({ kind, resourceId }, file, signal)
+    ({ kind, resourceId, purpose, file }, signal) =>
+      uploadImage({ kind, resourceId, purpose }, file, signal)
   );
 }
 

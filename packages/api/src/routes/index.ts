@@ -16,6 +16,10 @@ import { adminRouter } from '../modules/admin/admin.routes';
 import { favoritesRouter } from '../modules/favorites/favorites.routes';
 import { uploadsRouter } from '../uploads/uploads.routes';
 import { platformRouter } from '../modules/platform/platform.routes';
+import { deliveryZonesRouter } from '../modules/zones/zones.routes';
+import { optionalAuthenticate } from '../middleware/authenticate';
+import { asyncHandler } from '../lib/async-handler';
+import { listAllOffersHandler } from '../modules/offers/offers.controller';
 
 export const apiRouter: Router = Router();
 
@@ -37,6 +41,10 @@ apiRouter.get('/meta', (_req, res) => {
 
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/stores', storesRouter);
+
+/* ---- Home-screen offers feed (across all approved stores) --------------- */
+apiRouter.get('/offers', optionalAuthenticate, asyncHandler(listAllOffersHandler));
+
 apiRouter.use('/orders', ordersRouter);
 apiRouter.use('/users', usersRouter);
 apiRouter.use('/captains', captainsRouter);
@@ -44,3 +52,4 @@ apiRouter.use('/admin', adminRouter);
 apiRouter.use('/favorites', favoritesRouter);
 apiRouter.use('/uploads', uploadsRouter);
 apiRouter.use('/platform', platformRouter);
+apiRouter.use('/delivery-zones', deliveryZonesRouter);
