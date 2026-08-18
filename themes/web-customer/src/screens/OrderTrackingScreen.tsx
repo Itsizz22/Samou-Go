@@ -26,6 +26,7 @@ import { OrderStatusTimeline } from '@/components/OrderStatusTimeline';
 import { PageTransition } from '@/components/PageTransition';
 import { Skeleton } from '@/components/Skeleton';
 import { formatCurrency, FREE_DELIVERY_LABEL, deliveryFeeLabel } from '@/lib/delivery';
+import { useLanguage } from '@samou-go/ui';
 
 const POLL_MS = 15_000;
 
@@ -46,6 +47,8 @@ export function OrderTrackingScreen() {
   const { orderId = '' } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const auth = useAuth();
+  const { t, language } = useLanguage();
+  const isArabic = language === 'ar';
   // Terminal orders have nothing left to follow — `stopWhen` halts the polling.
   const order = useOrder(orderId, {
     pollMs: POLL_MS,
@@ -123,17 +126,14 @@ export function OrderTrackingScreen() {
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
             <button
               type="button"
-              aria-label="رجوع / Back"
+              aria-label={t('رجوع', 'Back')}
               onClick={() => window.history.length > 1 ? window.history.back() : window.location.assign('/orders')}
               className="rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
             >
               <ArrowRight size={22} className="rtl:rotate-180" />
             </button>
             <div className="flex-1 text-end">
-              <h1 className="text-lg font-extrabold">تتبع الطلب</h1>
-              <p className="text-[11px] text-white/80" dir="ltr">
-                {order.data?.orderNumber ?? 'Order tracking'}
-              </p>
+              <h1 className="text-lg font-extrabold">{t('تتبع الطلب', 'Order tracking')}</h1>
             </div>
             {order.data && (
               <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-micro font-bold">
@@ -163,8 +163,8 @@ export function OrderTrackingScreen() {
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
                 <AlertTriangle size={22} />
               </span>
-              <h1 className="mt-4 text-sm font-extrabold">تعذّر تحميل الطلب</h1>
-              <p className="mt-1 text-xs text-ink-soft">{order.error.message}</p>
+              <h1 className="mt-4 text-sm font-extrabold">{t('تعذّر تحميل الطلب', 'Could not load the order')}</h1>
+              <p className="mt-1 text-xs text-ink-soft">{isArabic ? order.error.message : order.error.localizedMessage}</p>
               <button
                 type="button"
                 onClick={order.refresh}
@@ -186,11 +186,11 @@ export function OrderTrackingScreen() {
                   <MapPin size={18} />
                 </span>
                 <div className="min-w-0 flex-1 text-end">
-                  <h2 className="truncate text-sm font-extrabold">{order.data.store.nameAr}</h2>
+                  <h2 className="truncate text-sm font-extrabold">{t(order.data.store.nameAr, order.data.store.nameEn)}</h2>
                   <p className="text-[11px] text-ink-muted">{order.data.customerAddressText}</p>
                 </div>
               </section>
-              {order.data.store.latitude !== null && order.data.store.longitude !== null && <section className="rounded-2xl bg-surface p-2 shadow-card"><LeafletMap center={captainLocation ? [captainLocation.lat, captainLocation.lng] : [order.data.store.latitude, order.data.store.longitude]} markers={[{ position: [order.data.store.latitude, order.data.store.longitude], label: order.data.store.nameAr }, ...(captainLocation ? [{ position: [captainLocation.lat, captainLocation.lng] as [number, number], label: 'السائق / Captain' }] : [])]} /></section>}
+              {order.data.store.latitude !== null && order.data.store.longitude !== null && <section className="rounded-2xl bg-surface p-2 shadow-card"><LeafletMap center={captainLocation ? [captainLocation.lat, captainLocation.lng] : [order.data.store.latitude, order.data.store.longitude]} markers={[{ position: [order.data.store.latitude, order.data.store.longitude], label: t(order.data.store.nameAr, order.data.store.nameEn) }, ...(captainLocation ? [{ position: [captainLocation.lat, captainLocation.lng] as [number, number], label: t('السائق', 'Captain') }] : [])]} /></section>}
 
               {/* Items */}
               <section className="rounded-2xl bg-surface p-4 shadow-card">
@@ -235,16 +235,16 @@ export function OrderTrackingScreen() {
                     <dd dir="ltr" className="font-bold text-ink">{formatCurrency(order.data.subtotal)}</dd>
                   </div>
                   <div className="flex justify-between text-ink-muted">
-                    <dt>{deliveryFeeLabel('both')}</dt>
+                    <dt>{deliveryFeeLabel(language)}</dt>
                     <dd dir="ltr" className="font-bold text-brand-dark">
                       {order.data.deliveryFee <= 0
-                        ? `${FREE_DELIVERY_LABEL.ar} / ${FREE_DELIVERY_LABEL.en}`
+                        ? (isArabic ? FREE_DELIVERY_LABEL.ar : FREE_DELIVERY_LABEL.en)
                         : formatCurrency(order.data.deliveryFee)}
                     </dd>
                   </div>
                   {order.data.discount > 0 && (
                     <div className="flex justify-between text-brand-dark">
-                      <dt>{order.data.voucher?.labelAr ?? 'خصم الكوبون'}</dt>
+                      <dt>{isArabic ? order.data.voucher?.labelAr ?? 'خصم الكوبون' : order.data.voucher?.labelEn ?? 'Voucher discount'}</dt>
                       <dd dir="ltr" className="font-bold">− {formatCurrency(order.data.discount)}</dd>
                     </div>
                   )}
@@ -268,7 +268,7 @@ export function OrderTrackingScreen() {
                   ) : (
                     <ShoppingCart size={16} />
                   )}
-                  إعادة الطلب <span dir="ltr">Reorder</span>
+                  {t('إعادة الطلب', 'Reorder')}
                 </button>
               </section>
 
@@ -280,10 +280,7 @@ export function OrderTrackingScreen() {
                   </span>
                   <div className="flex-1 text-end">
                     <p className="text-xs font-extrabold">
-                      {order.data.paymentMethod === PaymentMethod.COD ? 'الدفع عند الاستلام' : order.data.paymentMethod}
-                    </p>
-                    <p className="text-micro text-ink-muted" dir="ltr">
-                      Cash on delivery
+                      {order.data.paymentMethod === PaymentMethod.COD ? t('الدفع عند الاستلام', 'Cash on delivery') : order.data.paymentMethod}
                     </p>
                   </div>
                 </div>
@@ -304,22 +301,20 @@ export function OrderTrackingScreen() {
               {/* Captain note */}
               <section className="rounded-2xl border border-line bg-brand-surface p-4 text-center">
                 <p className="text-[11px] leading-relaxed text-ink-soft">
-                  الكابتن سيتصل بك عند وصوله — السائق لا يمتلك إحداثيات GPS.
-                  <span className="mt-0.5 block text-micro text-ink-muted" dir="ltr">
-                    The captain will call you on arrival — Samou' has no street GPS.
-                  </span>
+                  {t(
+                    'الكابتن سيتصل بك عند وصوله — السائق لا يمتلك إحداثيات GPS.',
+                    "The captain will call you on arrival — Samou' has no street GPS."
+                  )}
                 </p>
               </section>
 
               {terminal ? (
                 <p className="flex items-center justify-center gap-1.5 pb-4 text-micro text-ink-muted">
-                  <CheckCircle2 size={11} /> اكتمل الطلب — لا مزيد من التحديثات
-                  <span dir="ltr">Order final — updates stopped</span>
+                  <CheckCircle2 size={11} /> {t('اكتمل الطلب — لا مزيد من التحديثات', 'Order final — updates stopped')}
                 </p>
               ) : (
                 <p className="flex items-center justify-center gap-1.5 pb-4 text-micro text-ink-muted">
-                  <RotateCw size={11} /> يتحدّث تلقائياً كل 15 ثانية
-                  <span dir="ltr">Updates every 15s</span>
+                  <RotateCw size={11} /> {t('يتحدّث تلقائياً كل 15 ثانية', 'Updates every 15s')}
                 </p>
               )}
             </>

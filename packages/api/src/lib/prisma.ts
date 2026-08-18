@@ -18,10 +18,13 @@ const globalForPrisma = globalThis as unknown as { prisma?: SqlitePrismaClient }
  * The two generated clients are structurally identical for the models; their
  * constructor types only differ in Prisma's internal generics, so the
  * environment-selected constructor is cast to the SQLite constructor here.
+ * The `unknown` bridge is deliberate: a direct cast forces TypeScript to
+ * compare both constructors' full generics graphs, which exceeds its
+ * recursion limit once the schemas grow enough relations (TS2321).
  * `new PrismaClientCtor(...)` constructs the runtime client of the active
  * datasource (SQLite in dev/test, PostgreSQL in production).
  */
-const PrismaClientCtor = PrismaClient as typeof SqlitePrismaClient;
+const PrismaClientCtor = PrismaClient as unknown as typeof SqlitePrismaClient;
 
 export const prisma: SqlitePrismaClient =
   globalForPrisma.prisma ??

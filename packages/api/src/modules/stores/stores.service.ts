@@ -10,13 +10,14 @@ import type {
 } from '@samou-go/shared-types';
 import { UserRole as UserRoleEnum } from '@samou-go/shared-types';
 import { prisma, caseInsensitiveContains } from '../../lib/prisma';
-import { forbidden, notFound } from '../../lib/http-error';
+import { conflict, forbidden, notFound } from '../../lib/http-error';
 import { toProduct, toStore, toStoreWithCatalogue } from './stores.mapper';
 import type {
   CreateCategoryBody,
   CreateProductBody,
   ProductListQuery,
   StoreListQuery,
+  UpdateCategoryBody,
   UpdateProductBody,
   UpdateStoreBody,
 } from './stores.schemas';
@@ -224,6 +225,8 @@ export async function updateStore(storeId: string, body: UpdateStoreBody): Promi
       ...(body.logoUrl !== undefined ? { logoUrl: body.logoUrl } : {}),
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
       ...(body.isApproved !== undefined ? { isApproved: body.isApproved } : {}),
+      ...(body.latitude !== undefined ? { latitude: body.latitude } : {}),
+      ...(body.longitude !== undefined ? { longitude: body.longitude } : {}),
     },
   });
   return toStore(updated);
@@ -237,6 +240,18 @@ export async function approveStore(storeId: string): Promise<Store> {
   const updated = await prisma.store.update({
     where: { id: storeId },
     data: { isApproved: true },
+  });
+  return toStore(updated);
+}
+
+/** PATCH /stores/:storeId/recommend — admin flags a store for the badge. */
+export async function setStoreRecommended(storeId: string, isRecommended: boolean): Promise<Store> {
+  const existing = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true } });
+  if (!existing) throw notFound('المتجر غير موجود / Store not found');
+
+  const updated = await prisma.store.update({
+    where: { id: storeId },
+    data: { isRecommended },
   });
   return toStore(updated);
 }
@@ -371,9 +386,63 @@ export async function createCategory(storeId: string, body: CreateCategoryBody):
   }
 
   const category = await prisma.category.create({
-    data: { nameAr: body.nameAr, nameEn, storeId },
+    data: { nameAr: body.nameAr, nameEn, storeId, sortOrder: body.sortOrder ?? 0 },
   });
-  return { id: category.id, nameAr: category.nameAr, nameEn: category.nameEn, storeId: category.storeId };
+  return {
+    id: category.id,
+    nameAr: category.nameAr,
+    nameEn: category.nameEn,
+    storeId: category.storeId,
+    sortOrder: category.sortOrder,
+  };
+}
+
+/**
+ * PATCH /stores/:storeId/categories/:categoryId — rename (Arabic and/or the
+ * Latin slug) and/or reorder (`sortOrder`). Colliding `nameEn` values are
+ * rejected with a 409 before Prisma's P2002 can fire.
+ */
+export async function updateCategory(
+  storeId: string,
+  categoryId: string,
+  body: UpdateCategoryBody
+): Promise<Category> {
+  const existing = await prisma.category.findUnique({
+    where: { id: categoryId },
+    select: { storeId: true, nameAr: true, nameEn: true },
+  });
+  if (!existing) throw notFound('القسم غير موجود / Category not found');
+  if (existing.storeId !== storeId) {
+    throw forbidden('القسم لا ينتمي لهذا المتجر / Category does not belong to this store');
+  }
+
+  const data: Prisma.CategoryUpdateInput = {};
+  if (body.nameAr !== undefined) data.nameAr = body.nameAr;
+  if (body.sortOrder !== undefined) data.sortOrder = body.sortOrder;
+  let nextNameEn: string | undefined;
+  if (body.nameEn !== undefined) {
+    nextNameEn = body.nameEn.trim() || slugify(body.nameAr ?? existing.nameAr) || existing.nameEn;
+    data.nameEn = nextNameEn;
+  }
+
+  if (nextNameEn !== undefined && nextNameEn !== existing.nameEn) {
+    const dup = await prisma.category.findUnique({
+      where: { storeId_nameEn: { storeId, nameEn: nextNameEn } },
+      select: { id: true },
+    });
+    if (dup) {
+      throw conflict('اسم القسم مستخدم مسبقاً / This section name is already in use');
+    }
+  }
+
+  const category = await prisma.category.update({ where: { id: categoryId }, data });
+  return {
+    id: category.id,
+    nameAr: category.nameAr,
+    nameEn: category.nameEn,
+    storeId: category.storeId,
+    sortOrder: category.sortOrder,
+  };
 }
 
 /**

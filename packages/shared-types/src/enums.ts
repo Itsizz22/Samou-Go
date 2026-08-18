@@ -48,6 +48,25 @@ export const VoucherDiscountType = {
 export type VoucherDiscountType =
   (typeof VoucherDiscountType)[keyof typeof VoucherDiscountType];
 
+/**
+ * Lifecycle of a customer's custom request (طلب مخصص): the customer asks a
+ * store for something that isn't in the catalogue, the store replies with a
+ * price, and the customer accepts or rejects it.
+ */
+export const CustomRequestStatus = {
+  /** Awaiting a store manager to review and quote a price. */
+  PENDING: 'PENDING',
+  /** The store quoted a price; the customer may accept or reject. */
+  PRICE_OFFERED: 'PRICE_OFFERED',
+  /** The customer accepted the quote — fulfilment is manual. */
+  ACCEPTED: 'ACCEPTED',
+  /** The customer rejected the quote. */
+  REJECTED: 'REJECTED',
+  /** Closed before fulfilment, by either side. */
+  CANCELLED: 'CANCELLED',
+} as const;
+export type CustomRequestStatus = (typeof CustomRequestStatus)[keyof typeof CustomRequestStatus];
+
 /** Lifecycle of a customer support ticket. */
 export const TicketStatus = {
   OPEN: 'OPEN',
@@ -123,6 +142,25 @@ export const ORDER_STATUS_TONES: Record<OrderStatus, StatusTone> = {
   [OrderStatus.CANCELLED]: 'danger',
 };
 
+export const CUSTOM_REQUEST_STATUS_LABELS: Record<
+  CustomRequestStatus,
+  { ar: string; en: string }
+> = {
+  [CustomRequestStatus.PENDING]: { ar: 'بانتظار رد المتجر', en: 'Awaiting store reply' },
+  [CustomRequestStatus.PRICE_OFFERED]: { ar: 'تم عرض السعر', en: 'Price offered' },
+  [CustomRequestStatus.ACCEPTED]: { ar: 'تم القبول', en: 'Accepted' },
+  [CustomRequestStatus.REJECTED]: { ar: 'مرفوض', en: 'Rejected' },
+  [CustomRequestStatus.CANCELLED]: { ar: 'ملغي', en: 'Cancelled' },
+};
+
+export const CUSTOM_REQUEST_STATUS_TONES: Record<CustomRequestStatus, StatusTone> = {
+  [CustomRequestStatus.PENDING]: 'warning',
+  [CustomRequestStatus.PRICE_OFFERED]: 'brand',
+  [CustomRequestStatus.ACCEPTED]: 'brand',
+  [CustomRequestStatus.REJECTED]: 'danger',
+  [CustomRequestStatus.CANCELLED]: 'neutral',
+};
+
 /* ---------------------------------------------------------------------------
  * State machine
  * ------------------------------------------------------------------------- */
@@ -176,4 +214,48 @@ export function canTransitionOrderStatus(from: OrderStatus, to: OrderStatus): bo
 /** `true` when `role` is allowed to drive an order into `status`. */
 export function canRoleSetOrderStatus(role: UserRole, status: OrderStatus): boolean {
   return ORDER_STATUS_ACTORS[status].includes(role);
+}
+
+/* ---------------------------------------------------------------------------
+ * Custom request state machine
+ * ------------------------------------------------------------------------- */
+
+export const TERMINAL_CUSTOM_REQUEST_STATUSES: readonly CustomRequestStatus[] = [
+  CustomRequestStatus.ACCEPTED,
+  CustomRequestStatus.REJECTED,
+  CustomRequestStatus.CANCELLED,
+];
+
+/**
+ * Every legal `from → to` edge. The store owns the PENDING → PRICE_OFFERED
+ * edge; the customer owns PRICE_OFFERED → ACCEPTED | REJECTED; a customer may
+ * cancel while open, and a store may withdraw an offer by cancelling.
+ */
+export const CUSTOM_REQUEST_STATUS_TRANSITIONS: Record<
+  CustomRequestStatus,
+  readonly CustomRequestStatus[]
+> = {
+  [CustomRequestStatus.PENDING]: [
+    CustomRequestStatus.PRICE_OFFERED,
+    CustomRequestStatus.CANCELLED,
+  ],
+  [CustomRequestStatus.PRICE_OFFERED]: [
+    CustomRequestStatus.ACCEPTED,
+    CustomRequestStatus.REJECTED,
+    CustomRequestStatus.CANCELLED,
+  ],
+  [CustomRequestStatus.ACCEPTED]: [],
+  [CustomRequestStatus.REJECTED]: [],
+  [CustomRequestStatus.CANCELLED]: [],
+};
+
+export function canTransitionCustomRequestStatus(
+  from: CustomRequestStatus,
+  to: CustomRequestStatus
+): boolean {
+  return CUSTOM_REQUEST_STATUS_TRANSITIONS[from].includes(to);
+}
+
+export function isTerminalCustomRequestStatus(status: CustomRequestStatus): boolean {
+  return TERMINAL_CUSTOM_REQUEST_STATUSES.includes(status);
 }

@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import type { ApiError } from '@samou-go/api-client';
 import { createOrder, quoteOrder } from '@/hooks/useApi';
-import { OrderSuccess, Button } from '@samou-go/ui';
+import { OrderSuccess, Button, useLanguage } from '@samou-go/ui';
 import { useCart } from '@/components/CartProvider';
 import { CustomerAuthGate } from '@/components/CustomerAuthGate';
 import { useAuth } from '@/hooks/useApi';
@@ -67,6 +67,8 @@ export function CheckoutScreen() {
   const auth = useAuth();
   const cart = useCart();
   const navigate = useNavigate();
+  const { t, language } = useLanguage();
+  const isArabic = language === 'ar';
 
   const [saved, setSaved] = useState<SavedAddress[]>(() => readSavedAddresses());
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
@@ -82,7 +84,8 @@ export function CheckoutScreen() {
     subtotal: number;
     deliveryFee: number;
     discount: number;
-    voucherLabel: string;
+    voucherLabelAr: string;
+    voucherLabelEn: string;
     totalAmount: number;
   } | null>(null);
   const [quoteError, setQuoteError] = useState<ApiError | null>(null);
@@ -142,7 +145,8 @@ export function CheckoutScreen() {
           subtotal: result.subtotal,
           deliveryFee: result.deliveryFee,
           discount: result.discount,
-          voucherLabel: result.voucher?.labelAr ?? '',
+          voucherLabelAr: result.voucher?.labelAr ?? '',
+          voucherLabelEn: result.voucher?.labelEn ?? '',
           totalAmount: result.totalAmount,
         });
         setQuoteError(null);
@@ -219,14 +223,14 @@ export function CheckoutScreen() {
 
     const finalText = (useSavedAddress?.addressText ?? addressText).trim();
     if (!finalText) {
-      setFieldError('يرجى إدخال عنوان التوصيل / Please enter a delivery address');
+      setFieldError(t('يرجى إدخال عنوان التوصيل', 'Please enter a delivery address'));
       await hapticError();
       return;
     }
     if (!cart.storeId || items.length === 0) {
       setSubmitError(
-        Object.assign(new Error('سلتك فارغة / Your cart is empty'), {
-          message: 'سلتك فارغة / Your cart is empty',
+        Object.assign(new Error(t('سلتك فارغة', 'Your cart is empty')), {
+          message: t('سلتك فارغة', 'Your cart is empty'),
         }) as ApiError
       );
       await hapticError();
@@ -289,17 +293,14 @@ export function CheckoutScreen() {
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
             <button
               type="button"
-              aria-label="رجوع / Back"
+              aria-label={t('رجوع', 'Back')}
               onClick={() => navigate(-1)}
               className="rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
             >
               <ArrowRight size={22} className="rtl:rotate-180" />
             </button>
             <div className="flex-1 text-end">
-              <h1 className="text-lg font-extrabold">إتمام الطلب</h1>
-              <p className="text-[11px] text-white/80" dir="ltr">
-                Checkout
-              </p>
+              <h1 className="text-lg font-extrabold">{t('إتمام الطلب', 'Checkout')}</h1>
             </div>
             <span className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold">
               {cart.itemCount}
@@ -315,8 +316,8 @@ export function CheckoutScreen() {
                 <StoreIcon size={18} />
               </span>
               <div className="flex-1 text-end">
-                <h2 className="text-sm font-extrabold">{cart.storeNameAr || 'المتجر'}</h2>
-                <p className="text-[11px] text-ink-muted">{cart.itemCount} صنف</p>
+                <h2 className="text-sm font-extrabold">{t(cart.storeNameAr || 'المتجر', 'Store')}</h2>
+                <p className="text-[11px] text-ink-muted">{cart.itemCount} {t('صنف', 'items')}</p>
               </div>
             </div>
           </section>
@@ -348,10 +349,7 @@ export function CheckoutScreen() {
                         <span className="block text-xs font-bold">{entry.label}</span>
                         {entry.tag && (
                           <span className="rounded-full bg-brand-tint px-2 py-0.5 text-micro font-bold text-brand-dark">
-                            {ADDRESS_TAG_META[normalizeTag(entry.tag)].ar}
-                            <span dir="ltr" className="ms-1">
-                              {ADDRESS_TAG_META[normalizeTag(entry.tag)].en}
-                            </span>
+                            {t(ADDRESS_TAG_META[normalizeTag(entry.tag)].ar, ADDRESS_TAG_META[normalizeTag(entry.tag)].en)}
                           </span>
                         )}
                       </span>
@@ -381,16 +379,16 @@ export function CheckoutScreen() {
                 />
               </label>
               <label className="block">
-                <span className="text-[11px] font-bold text-ink-muted">منطقة التوصيل / Delivery region</span>
+                <span className="text-[11px] font-bold text-ink-muted">{t('منطقة التوصيل', 'Delivery region')}</span>
                 <select
                   value={deliveryRegion}
                   onChange={(event) => setDeliveryRegion(event.target.value as DeliveryRegion)}
                   className="input-field mt-1.5 w-full"
                   aria-label="Delivery region"
                 >
-                  <option value="central">داخل السموع / Central</option>
-                  <option value="outer">الأطراف / Outer area</option>
-                  <option value="remote">منطقة بعيدة / Remote area</option>
+                  <option value="central">{t('داخل السموع', 'Central')}</option>
+                  <option value="outer">{t('الأطراف', 'Outer area')}</option>
+                  <option value="remote">{t('منطقة بعيدة', 'Remote area')}</option>
                 </select>
               </label>
               <label className="block">
@@ -430,8 +428,8 @@ export function CheckoutScreen() {
               </label>
 
               {saveForNextTime && (
-                <div className="rounded-xl bg-canvas p-3" role="group" aria-label="نوع العنوان / Address tag">
-                  <p className="text-micro font-bold text-ink-muted">نوع العنوان <span dir="ltr">/ Tag</span></p>
+                <div className="rounded-xl bg-canvas p-3" role="group" aria-label={t('نوع العنوان', 'Address tag')}>
+                  <p className="text-micro font-bold text-ink-muted">{t('نوع العنوان', 'Tag')}</p>
                   <div className="mt-2 flex gap-2">
                     {ADDRESS_TAGS.map((tag) => {
                       const active = addressTag === tag;
@@ -445,10 +443,7 @@ export function CheckoutScreen() {
                             active ? 'border-brand bg-brand-tint text-brand-dark' : 'border-line bg-surface text-ink-muted'
                           }`}
                         >
-                          {ADDRESS_TAG_META[tag].ar}
-                          <span dir="ltr" className="ms-1 text-micro font-semibold opacity-80">
-                            {ADDRESS_TAG_META[tag].en}
-                          </span>
+                          {t(ADDRESS_TAG_META[tag].ar, ADDRESS_TAG_META[tag].en)}
                         </button>
                       );
                     })}
@@ -459,7 +454,7 @@ export function CheckoutScreen() {
           </section>
 
           <section className="rounded-2xl bg-surface p-4 shadow-card">
-            <h2 className="text-sm font-extrabold">ملاحظة للطلب <span dir="ltr" className="text-micro font-normal text-ink-muted">/ Order note</span></h2>
+            <h2 className="text-sm font-extrabold">{t('ملاحظة للطلب', 'Order note')}</h2>
             <textarea value={orderNote} onChange={(event) => setOrderNote(event.target.value)} maxLength={500} rows={2} placeholder="مثال: الاتصال قبل الوصول" className="input-field mt-3 w-full" />
           </section>
 
@@ -475,10 +470,7 @@ export function CheckoutScreen() {
                   <Banknote size={17} />
                 </span>
                 <span className="flex-1">
-                  <span className="block text-xs font-bold">الدفع عند الاستلام</span>
-                  <span className="block text-micro text-ink-muted" dir="ltr">
-                    Cash on delivery
-                  </span>
+                  <span className="block text-xs font-bold">{t('الدفع عند الاستلام', 'Cash on delivery')}</span>
                 </span>
                 <Check size={16} className="text-brand-dark" />
               </button>
@@ -486,16 +478,13 @@ export function CheckoutScreen() {
                 type="button"
                 disabled
                 className="flex w-full items-center gap-3 rounded-xl border border-line bg-canvas p-3 text-start opacity-70"
-                title="قريباً / Coming soon"
+                title={t('قريباً', 'Coming soon')}
               >
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-line-soft text-ink-muted">
                   <CreditCard size={17} />
                 </span>
                 <span className="flex-1">
-                  <span className="block text-xs font-bold">بطاقة / محفظة إلكترونية</span>
-                  <span className="block text-micro text-ink-muted" dir="ltr">
-                    Card / wallet — coming soon
-                  </span>
+                  <span className="block text-xs font-bold">{t('بطاقة / محفظة إلكترونية', 'Card / wallet')}</span>
                 </span>
               </button>
             </div>
@@ -504,10 +493,7 @@ export function CheckoutScreen() {
           {/* Voucher */}
           <section className="rounded-2xl bg-surface p-4 shadow-card">
             <h2 className="flex items-center gap-2 text-sm font-extrabold">
-              <Ticket size={16} className="text-brand" /> كوبون خصم
-              <span className="ms-1 text-micro font-semibold text-ink-muted" dir="ltr">
-                Voucher
-              </span>
+              <Ticket size={16} className="text-brand" /> {t('كوبون خصم', 'Voucher')}
             </h2>
             {appliedVoucher && !quoteError ? (
               <div className="mt-3 flex items-center justify-between rounded-xl border border-brand bg-brand-tint p-3">
@@ -555,7 +541,7 @@ export function CheckoutScreen() {
                 {quoteError && (
                   <p className="mt-2 flex items-start gap-1.5 text-[11px] font-semibold text-danger-ink">
                     <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-                    {quoteError.message}
+                    {isArabic ? quoteError.message : quoteError.localizedMessage}
                   </p>
                 )}
               </>
@@ -577,16 +563,16 @@ export function CheckoutScreen() {
                     <span dir="ltr" className="font-bold text-ink">{formatCurrency(quote.subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-ink-muted">
-                    <span>{deliveryFeeLabel('both')}</span>
+                    <span>{deliveryFeeLabel(language)}</span>
                     <span dir="ltr" className="font-bold text-brand-dark">
                       {quote.deliveryFee <= 0
-                        ? `${FREE_DELIVERY_LABEL.ar} / ${FREE_DELIVERY_LABEL.en}`
+                        ? (isArabic ? FREE_DELIVERY_LABEL.ar : FREE_DELIVERY_LABEL.en)
                         : formatCurrency(quote.deliveryFee)}
                     </span>
                   </div>
                   {quote.discount > 0 && (
                     <div className="flex justify-between text-brand-dark">
-                      <span>{quote.voucherLabel || 'خصم الكوبون'}</span>
+                      <span>{isArabic ? quote.voucherLabelAr : quote.voucherLabelEn || t('خصم الكوبون', 'Voucher discount')}</span>
                       <span dir="ltr" className="font-bold">− {formatCurrency(quote.discount)}</span>
                     </div>
                   )}
@@ -598,7 +584,7 @@ export function CheckoutScreen() {
               </>
             ) : quoteError ? (
               <div className="mt-3 flex items-center justify-between gap-2 text-xs text-danger-ink">
-                <span>{quoteError.message}</span>
+                <span>{isArabic ? quoteError.message : quoteError.localizedMessage}</span>
                 <button
                   type="button"
                   onClick={() => window.location.reload()}
@@ -619,7 +605,7 @@ export function CheckoutScreen() {
           )}
           {submitError && (
             <p className="flex items-start gap-2 rounded-xl bg-danger-tint p-3 text-[11px] font-semibold text-danger-ink" role="alert">
-              <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {submitError.message}
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {isArabic ? submitError.message : submitError.localizedMessage}
             </p>
           )}
 
@@ -631,7 +617,7 @@ export function CheckoutScreen() {
             block
             icon={placing ? undefined : <Package size={16} />}
           >
-            تأكيد الطلب — الدفع عند الاستلام
+            {t('تأكيد الطلب — الدفع عند الاستلام', 'Confirm order — cash on delivery')}
           </Button>
           <p className="pb-4 text-center text-micro text-ink-muted" dir="ltr">
             Samou' is a cash economy — the captain collects on delivery.

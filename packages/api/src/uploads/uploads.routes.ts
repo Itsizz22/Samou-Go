@@ -15,18 +15,20 @@ function callerOf(req: Request): UploadCaller {
 
 const presignSchema = z.object({
   contentType: z.string().min(1),
-  kind: z.enum(['user', 'product', 'store']),
+  kind: z.enum(['user', 'product', 'store', 'offer']),
   resourceId: z.string().optional(),
+  purpose: z.enum(['logo', 'cover']).optional(),
 });
 
 const finalizeSchema = z.object({
   key: z.string().min(1),
-  kind: z.enum(['user', 'product', 'store']),
+  kind: z.enum(['user', 'product', 'store', 'offer']),
 });
 
 const removeCurrentSchema = z.object({
-  kind: z.enum(['user', 'product', 'store']),
+  kind: z.enum(['user', 'product', 'store', 'offer']),
   resourceId: z.string().optional(),
+  purpose: z.enum(['logo', 'cover']).optional(),
 });
 
 export const uploadsRouter: Router = Router();
@@ -68,7 +70,7 @@ uploadsRouter.delete(
   '/current',
   asyncHandler(async (req, res) => {
     const body = removeCurrentSchema.parse(req.body);
-    await removeCurrentImage(callerOf(req), body.kind, body.resourceId);
+    await removeCurrentImage(callerOf(req), body.kind, body.resourceId, body.purpose);
     noContent(res);
   })
 );

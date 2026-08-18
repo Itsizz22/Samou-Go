@@ -8,11 +8,11 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, ArrowRight, Heart, Loader2, Minus, Plus, RefreshCw, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Heart, Loader2, Minus, Plus, RefreshCw, ShoppingCart, Star } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
 import { useFavorites } from '@/components/FavoritesProvider';
-import { useStore } from '@/hooks/useApi';
-import { HorizontalScrollGallery } from '@samou-go/ui';
+import { useStore, useOffersForStore } from '@/hooks/useApi';
+import { HorizontalScrollGallery, useLanguage } from '@samou-go/ui';
 import { ProductRowSkeleton, Skeleton } from '@/components/Skeleton';
 import { formatCurrency } from '@/lib/delivery';
 import { hapticConfirm, hapticTap } from '@/hooks/useApi';
@@ -24,6 +24,8 @@ export function StoreDetailScreen() {
   const store = useStore(storeId);
   const cart = useCart();
   const favorites = useFavorites();
+  const { t, language } = useLanguage();
+  const isArabic = language === 'ar';
 
   const handleToggleFavorite = async () => {
     const toggled = await favorites.toggle(storeId);
@@ -38,6 +40,15 @@ export function StoreDetailScreen() {
     () => activeCategoryId ?? categories[0]?.id ?? null,
     [activeCategoryId, categories]
   );
+
+  const offers = useOffersForStore(storeId);
+  const offerProductIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const o of offers.data?.items ?? []) {
+      for (const pid of o.productIds) ids.add(pid);
+    }
+    return ids;
+  }, [offers.data]);
 
   if (store.loading && !store.data) {
     return (
@@ -115,22 +126,28 @@ export function StoreDetailScreen() {
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
             <button
               type="button"
-              aria-label="رجوع / Back"
+              aria-label={t('رجوع', 'Back')}
               onClick={() => navigate(-1)}
               className="rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
             >
               <ArrowRight size={22} className="rtl:rotate-180" />
             </button>
             <div className="min-w-0 flex-1 text-end">
-              <h1 className="truncate text-lg font-extrabold">{current.nameAr}</h1>
+              <h1 className="truncate text-lg font-extrabold">{t(current.nameAr, current.nameEn)}</h1>
+              {current.isRecommended && (
+                <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-micro font-bold text-white">
+                  <Star size={10} fill="currentColor" />
+                  {t('موصى به لدينا', 'Recommended by us')}
+                </span>
+              )}
               <p className="truncate text-[11px] text-white/80" dir="ltr">
-                {current.nameEn} · {current.phone}
+                {current.phone}
               </p>
             </div>
             <button
               type="button"
               aria-label={
-                favorites.isFavorite(storeId) ? 'إزالة من المفضلة / Remove from favorites' : 'إضافة إلى المفضلة / Add to favorites'
+                favorites.isFavorite(storeId) ? t('إزالة من المفضلة', 'Remove from favorites') : t('إضافة إلى المفضلة', 'Add to favorites')
               }
               aria-pressed={favorites.isFavorite(storeId)}
               onClick={() => void handleToggleFavorite()}
@@ -163,11 +180,28 @@ export function StoreDetailScreen() {
           </div>
         </header>
 
-        {/* Quick-browse rail — horizontal scrollable categories */}
+        {/* Cover banner — uploaded by the store manager (uploads pipeline,
+            `store` kind with `cover` purpose); falls back to no banner. */}
+        {current.coverUrl && (
+          <div className="mx-auto max-w-md px-5 pt-4">
+            <img
+              src={current.coverUrl}
+              alt={t(current.nameAr, current.nameEn)}
+              loading="lazy"
+              className="h-32 w-full rounded-2xl object-cover shadow-card"
+            />
+          </div>
+        )}
+
+        {/* Quick-browse rail — horizontal scrollable categories.
+            Constrained to the app's standard `max-w-md` column like every
+            other section on the page, so the title, chips and arrows stay
+            visually connected at any viewport width. */}
         <HorizontalScrollGallery
-          titleAr="فئات المتجر"
-          titleEn="Categories"
-          ariaLabel="فئات المتجر"
+          titleAr={t('فئات المتجر', 'Categories')}
+          titleEn={t('فئات المتجر', 'Categories')}
+          ariaLabel={t('فئات المتجر', 'Categories')}
+          className="mx-auto w-full max-w-md px-5 pt-5"
           trackClassName="gap-2"
           showArrows={categories.length > 1}
         >
@@ -184,10 +218,35 @@ export function StoreDetailScreen() {
                 category.id === active ? 'bg-brand text-white' : 'bg-canvas text-ink-muted'
               }`}
             >
-              {category.nameAr}
+              {t(category.nameAr, category.nameEn)}
             </button>
           ))}
         </HorizontalScrollGallery>
+
+        {/* Active offers banner */}
+        {(() => {
+          const activeOffers = (offers.data?.items ?? []).filter(o => o.imageUrl);
+          if (activeOffers.length === 0) return null;
+          return (
+            <div className="mx-auto w-full max-w-md px-5 pt-4">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {activeOffers.slice(0, 3).map(o => (
+                  <div
+                    key={o.id}
+                    className="shrink-0 overflow-hidden rounded-xl border border-line bg-surface shadow-card"
+                  >
+                    <img
+                      src={o.imageUrl!}
+                      alt={t(o.titleAr, o.titleEn)}
+                      className="h-20 w-36 object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="mx-auto max-w-md px-5 pt-5">
           {products.length === 0 ? (
@@ -206,8 +265,14 @@ export function StoreDetailScreen() {
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: Math.min(index * 0.04, 0.4) }}
-                      className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card"
+                      className="relative flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card"
                     >
+                      {/* Offer badge */}
+                      {offerProductIds.has(product.id) && (
+                        <span className="absolute -top-1.5 -end-1.5 z-10 rounded-full bg-brand px-2 py-0.5 text-micro font-bold text-white shadow-sm">
+                          {t('عرض', 'Offer')}
+                        </span>
+                      )}
                       {product.imageUrl ? (
                         <img
                           src={product.imageUrl}
@@ -235,7 +300,7 @@ export function StoreDetailScreen() {
                         <div className="flex shrink-0 items-center gap-2 rounded-full bg-brand px-1.5 py-1 text-white">
                           <button
                             type="button"
-                            aria-label="إنقاص / Decrease"
+                            aria-label={t('إنقاص', 'Decrease')}
                             onClick={() => {
                               cart.setQuantity(product.id, line.quantity - 1);
                               void hapticTap();
@@ -249,7 +314,7 @@ export function StoreDetailScreen() {
                           </span>
                           <button
                             type="button"
-                            aria-label="زيادة / Increase"
+                            aria-label={t('زيادة', 'Increase')}
                             onClick={() => {
                               cart.setQuantity(product.id, line.quantity + 1);
                               void hapticTap();
@@ -290,7 +355,7 @@ export function StoreDetailScreen() {
                 className="mx-auto flex w-full max-w-md items-center justify-between rounded-2xl bg-brand px-5 py-3.5 text-white shadow-brand transition active:scale-[0.98]"
               >
                 <span className="flex items-center gap-2 text-sm font-extrabold">
-                  <ShoppingCart size={17} /> عرض السلة
+                  <ShoppingCart size={17} /> {t('عرض السلة', 'View cart')}
                 </span>
                 <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold">
                   {cart.itemCount} · {formatCurrency(cart.subtotal)}

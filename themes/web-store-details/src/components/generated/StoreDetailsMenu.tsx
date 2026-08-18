@@ -19,13 +19,15 @@ import {
   Package,
   Plus,
   RefreshCw,
+  Star,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useStore, useStores } from '@/hooks/useApi';
+import { useStore, useStores, useOffersForStore } from '@/hooks/useApi';
 import { formatCurrency } from '@/lib/delivery';
 import { HeaderNav } from './HeaderNav';
 import { BottomTabs } from './BottomTabs';
 import type { CategoryWithProducts } from '@samou-go/shared-types';
+import { useLanguage } from '@samou-go/ui';
 
 /** Where the checkout app is served. Override with VITE_CHECKOUT_URL in .env (same-origin relative in production). */
 const CHECKOUT_URL: string = (
@@ -33,6 +35,8 @@ const CHECKOUT_URL: string = (
 ).replace(/\/+$/, '');
 
 export const StoreDetailsMenu = () => {
+  const { t, language } = useLanguage();
+
   /* ---- Which store? ------------------------------------------------------ */
 
   const storeIdParam = useMemo(
@@ -48,6 +52,15 @@ export const StoreDetailsMenu = () => {
   const storeId = storeIdParam ?? storeList.data?.items[0]?.id ?? null;
 
   const store = useStore(storeId);
+
+  const offers = useOffersForStore(storeId);
+  const offerProductIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const o of offers.data?.items ?? []) {
+      for (const pid of o.productIds) ids.add(pid);
+    }
+    return ids;
+  }, [offers.data]);
 
   /* ---- Category filter --------------------------------------------------- */
 
@@ -97,9 +110,9 @@ export const StoreDetailsMenu = () => {
       const allProducts = store.data?.categories.flatMap((c) => c.products) ?? [];
       const product = allProducts.find((p) => p.id === productId);
       if (product) {
-        toast.success(`تمت إضافة ${product.nameAr} إلى السلة`, {
-          description: `${product.nameAr} added to cart`,
-        });
+        toast.success(
+          t(`تمت إضافة ${product.nameAr} إلى السلة`, `${product.nameAr} added to cart`)
+        );
       }
     }
   };
@@ -129,19 +142,15 @@ export const StoreDetailsMenu = () => {
         <section aria-labelledby="store-heading" className="bg-surface pb-5">
           {loading ? (
             <div className="h-48 animate-pulse bg-line-soft sm:h-56" aria-hidden="true" />
-          ) : store.data?.logoUrl ? (
+          ) : store.data?.coverUrl || store.data?.logoUrl ? (
             <figure className="relative h-48 w-full overflow-hidden sm:h-56">
               <img
                 className="h-full w-full object-cover"
-                src={store.data.logoUrl}
+                src={store.data.coverUrl ?? store.data.logoUrl ?? ''}
                 alt={store.data.nameEn}
               />
               <figcaption className="absolute bottom-3 end-4 rounded-full bg-surface/95 px-3 py-1 text-xs font-semibold text-brand-deep shadow-card">
-                {store.data.isActive ? (
-                  <>مفتوح <span dir="ltr">Open</span></>
-                ) : (
-                  <>مغلق <span dir="ltr">Closed</span></>
-                )}
+                {store.data.isActive ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}
               </figcaption>
             </figure>
           ) : (
@@ -150,11 +159,7 @@ export const StoreDetailsMenu = () => {
                 {store.data?.nameAr.slice(0, 1) ?? ''}
               </span>
               <span className="absolute bottom-3 end-4 rounded-full bg-surface/95 px-3 py-1 text-xs font-semibold text-brand-deep shadow-card">
-                {store.data?.isActive ? (
-                  <>مفتوح <span dir="ltr">Open</span></>
-                ) : (
-                  <>مغلق <span dir="ltr">Closed</span></>
-                )}
+                {store.data?.isActive ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}
               </span>
             </div>
           )}
@@ -169,12 +174,15 @@ export const StoreDetailsMenu = () => {
               <>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 id="store-heading" className="text-xl font-extrabold tracking-[-0.02em] text-ink">
-                      {store.data?.nameAr ?? ''}
+                    <h2 id="store-heading" className="flex items-center gap-2 text-xl font-extrabold tracking-[-0.02em] text-ink">
+                      {store.data ? t(store.data.nameAr, store.data.nameEn) : ''}
+                      {store.data?.isRecommended && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-brand-tint px-2 py-0.5 text-micro font-bold text-brand-deep">
+                          <Star size={10} fill="currentColor" />
+                          {t('موصى به', 'Recommended')}
+                        </span>
+                      )}
                     </h2>
-                    <p className="mt-1 text-sm font-medium text-ink-muted" dir="ltr">
-                      {store.data?.nameEn ?? ''}
-                    </p>
                   </div>
                 </div>
                 {store.data && (
@@ -206,11 +214,12 @@ export const StoreDetailsMenu = () => {
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
                 <AlertTriangle size={22} />
               </span>
-              <h3 className="mt-3 text-sm font-extrabold">تعذّر تحميل قائمة المتجر</h3>
-              <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">
-                Could not load the store menu
+              <h3 className="mt-3 text-sm font-extrabold">
+                {t('تعذّر تحميل قائمة المتجر', 'Could not load the store menu')}
+              </h3>
+              <p className="mt-2 text-xs text-ink-soft">
+                {language === 'ar' ? error.message : error.localizedMessage}
               </p>
-              <p className="mt-2 text-xs text-ink-soft">{error.message}</p>
               <button
                 type="button"
                 onClick={storeIdParam ? store.refresh : storeList.refresh}
@@ -222,7 +231,7 @@ export const StoreDetailsMenu = () => {
                 ) : (
                   <RefreshCw size={14} />
                 )}
-                إعادة المحاولة <span dir="ltr">Retry</span>
+                {t('إعادة المحاولة', 'Retry')}
               </button>
             </div>
           </section>
@@ -237,7 +246,7 @@ export const StoreDetailsMenu = () => {
                   Shop by aisle
                 </p>
                 <h2 id="categories-heading" className="text-lg font-extrabold text-ink">
-                  Categories <span className="font-medium text-ink-muted">/ الأقسام</span>
+                  {t('الأقسام', 'Categories')}
                 </h2>
               </div>
               <ChevronRight className="h-5 w-5 text-ink-subtle rtl:rotate-180" aria-hidden="true" />
@@ -268,12 +277,7 @@ export const StoreDetailsMenu = () => {
                         }`}
                         aria-pressed={isActive}
                       >
-                        <span className="block text-xs font-bold">{cat.en}</span>
-                        <span
-                          className={`mt-0.5 block text-[11px] ${isActive ? 'text-white/85' : 'text-ink-muted'}`}
-                        >
-                          {cat.ar}
-                        </span>
+                        <span className="block text-xs font-bold">{t(cat.ar, cat.en)}</span>
                       </button>
                     );
                   })}
@@ -281,12 +285,36 @@ export const StoreDetailsMenu = () => {
           </section>
         )}
 
+        {/* Active offers banner */}
+        {(() => {
+          const activeOffers = (offers.data?.items ?? []).filter(o => o.imageUrl);
+          if (activeOffers.length === 0) return null;
+          return (
+            <section className="px-5 pt-5">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {activeOffers.slice(0, 3).map(o => (
+                  <div
+                    key={o.id}
+                    className="shrink-0 overflow-hidden rounded-xl border border-line bg-surface shadow-card"
+                  >
+                    <img
+                      src={o.imageUrl!}
+                      alt={t(o.titleAr, o.titleEn)}
+                      className="h-20 w-36 object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          );
+        })()}
+
         {/* Product grid */}
         <section aria-labelledby="products-heading" className="px-5 pt-8">
           <div className="mb-4 flex items-center justify-between">
             <h2 id="products-heading" className="text-lg font-extrabold text-ink">
-              Popular products{' '}
-              <span className="font-medium text-ink-muted">/ الأكثر طلباً</span>
+              {t('الأكثر طلباً', 'Popular products')}
             </h2>
             {!loading && (
               <span className="text-xs font-semibold text-ink-muted">
@@ -316,10 +344,9 @@ export const StoreDetailsMenu = () => {
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-surface text-brand">
                 <Package size={22} />
               </span>
-              <h3 className="mt-3 text-sm font-extrabold">لا توجد منتجات في هذا القسم</h3>
-              <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">
-                No products in this category
-              </p>
+              <h3 className="mt-3 text-sm font-extrabold">
+                {t('لا توجد منتجات في هذا القسم', 'No products in this category')}
+              </h3>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
@@ -328,8 +355,14 @@ export const StoreDetailsMenu = () => {
                 return (
                   <article
                     key={product.id}
-                    className="overflow-hidden rounded-xl border border-line bg-surface shadow-card"
+                    className="relative overflow-hidden rounded-xl border border-line bg-surface shadow-card"
                   >
+                    {/* Offer badge */}
+                    {offerProductIds.has(product.id) && (
+                      <span className="absolute top-2 end-2 z-10 rounded-full bg-brand px-2 py-0.5 text-micro font-bold text-white shadow-sm">
+                        {t('عرض', 'Offer')}
+                      </span>
+                    )}
                     <div className="h-32 bg-brand-surface p-3">
                       {product.imageUrl ? (
                         <img
@@ -415,9 +448,11 @@ export const StoreDetailsMenu = () => {
           >
             <span className="flex flex-col items-start">
               <strong className="text-sm">
-                View Cart ({itemCount} {itemCount === 1 ? 'item' : 'items'})
+                {t(
+                  'عرض السلة',
+                  `View Cart (${itemCount} ${itemCount === 1 ? 'item' : 'items'})`
+                )}
               </strong>
-              <span className="mt-0.5 text-xs text-white/75">عرض السلة</span>
             </span>
             <span className="flex items-center gap-1 text-sm font-bold">
               <span>Go</span>

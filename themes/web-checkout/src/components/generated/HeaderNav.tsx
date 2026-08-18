@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ShoppingCart } from 'lucide-react';
-import { LanguageToggle, NotificationBell, type BellNotification } from '@samou-go/ui';
+import { LanguageToggle, NotificationBell, useLanguage, type BellNotification } from '@samou-go/ui';
 interface HeaderNavProps {
   title: string;
   arabicTitle?: string;
@@ -27,6 +27,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   storageKey = 'customer',
   onNotificationNavigate
 }) => {
+  const { t } = useLanguage();
   return <header className="sticky top-0 z-50 flex items-center justify-between w-full h-16 px-4 bg-surface border-b border-line shadow-card">
       <div className="flex items-center gap-3">
         {showBack && <button onClick={onBack} className="p-2 transition-colors rounded-full hover:bg-canvas active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label="Go back">
@@ -34,11 +35,8 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
           </button>}
         <div className="flex flex-col">
           <h1 className="text-lg font-bold text-ink leading-tight">
-            {title}
+            {t(arabicTitle ?? title, title)}
           </h1>
-          {arabicTitle && <span className="text-sm font-medium text-ink-muted">
-              {arabicTitle}
-            </span>}
         </div>
       </div>
 

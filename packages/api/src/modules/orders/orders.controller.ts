@@ -12,6 +12,7 @@ import {
   quoteOrderSchema,
   updateOrderStatusSchema,
 } from './orders.schemas';
+import { setOrderDeliveryZoneSchema } from '../zones/zones.schemas';
 import * as ordersService from './orders.service';
 import { emitOrderStatus, emitPlatformEvent } from '../../realtime';
 
@@ -138,5 +139,17 @@ export async function assignCaptainHandler(req: Request, res: Response): Promise
   const body = parseWith(assignCaptainSchema, req.body);
   const result = await ordersService.assignCaptain(auth, orderId, body);
   emitPlatformEvent('order:assigned', { orderId: result.id, captainId: result.captainId, storeId: result.storeId });
+  ok(res, result);
+}
+
+/** PATCH /api/v1/orders/:orderId/delivery-zone — captain picks the zone, server derives the fee. */
+export async function setOrderDeliveryZoneHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const { orderId } = parseWith(orderIdParamsSchema, req.params);
+  const body = parseWith(setOrderDeliveryZoneSchema, req.body);
+  const result = await ordersService.setOrderDeliveryZone(auth, orderId, body.zoneId);
+  // Push a refresh to the order's room so the customer's tracking screen shows
+  // the new fee without waiting for its polling interval.
+  emitOrderStatus(orderId, { status: result.status, orderId, timestamp: new Date().toISOString() });
   ok(res, result);
 }

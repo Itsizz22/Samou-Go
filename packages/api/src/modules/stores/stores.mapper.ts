@@ -18,6 +18,8 @@ export function toStore(store: PrismaStore): Store {
     nameAr: store.nameAr,
     nameEn: store.nameEn,
     logoUrl: store.logoUrl,
+    coverUrl: store.coverUrl,
+    isRecommended: store.isRecommended,
     phone: store.phone,
     isActive: store.isActive,
     isApproved: store.isApproved,
@@ -34,6 +36,7 @@ export function toCategory(category: PrismaCategory): Category {
     nameAr: category.nameAr,
     nameEn: category.nameEn,
     storeId: category.storeId,
+    sortOrder: category.sortOrder,
   };
 }
 

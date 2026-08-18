@@ -11,13 +11,15 @@ import {
   Check,
   ImagePlus,
   Loader2,
+  MapPin,
   Phone,
   RefreshCw,
   Store,
   X,
 } from 'lucide-react';
-import { removeCurrentImage, updateStore, useStore, useToast, useUploadImage } from '@samou-go/api-client';
+import { ApiError, removeCurrentImage, updateStore, useStore, useToast, useUploadImage } from '@samou-go/api-client';
 import type { Store as StoreType } from '@samou-go/shared-types';
+import { useLanguage } from '@samou-go/ui';
 
 interface Props {
   storeId: string;
@@ -42,6 +44,8 @@ function formFromStore(s: StoreType): FormState {
 export function StoreProfilePanel({ storeId }: Props) {
   const toast = useToast();
   const upload = useUploadImage();
+  const { t, language } = useLanguage();
+  const isArabic = language === 'ar';
 
   // Load just this store's header data for the form.
   // useStore hits GET /stores/:id (public) which includes phone, nameAr, nameEn, isActive.
@@ -84,7 +88,7 @@ export function StoreProfilePanel({ storeId }: Props) {
   };
 
   const handleSave = async () => {
-    if (!form.nameAr.trim()) { setSaveError('اسم المتجر مطلوب / Store name required'); return; }
+    if (!form.nameAr.trim()) { setSaveError(t('اسم المتجر مطلوب', 'Store name required')); return; }
     setSaving(true);
     setSaveError(null);
     try {
@@ -102,7 +106,9 @@ export function StoreProfilePanel({ storeId }: Props) {
       toast.success('تم حفظ بيانات المتجر', 'Store profile saved');
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = err instanceof ApiError
+        ? isArabic ? err.message : err.localizedMessage
+        : err instanceof Error ? err.message : String(err);
       setSaveError(msg);
     } finally {
       setSaving(false);
@@ -114,6 +120,43 @@ export function StoreProfilePanel({ storeId }: Props) {
     setForm(formFromStore(storeData));
     setDirty(false);
     setSaveError(null);
+  };
+
+  const [locBusy, setLocBusy] = useState(false);
+  const [locMessage, setLocMessage] = useState<{ ar: string; en: string } | null>(null);
+
+  const captureStoreLocation = () => {
+    if (locBusy || !('geolocation' in navigator)) {
+      setLocMessage({ ar: 'تحديد الموقع غير مدعوم', en: 'Geolocation is unavailable' });
+      return;
+    }
+    setLocBusy(true);
+    setLocMessage({ ar: 'جارٍ تحديد الموقع…', en: 'Detecting location…' });
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          await updateStore(storeId, {
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+          });
+          setLocMessage({
+            ar: `تم حفظ الموقع: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
+            en: `Location saved: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
+          });
+          void storeResource.reload();
+          toast.success('تم تحديث موقع المتجر', 'Store location updated');
+        } catch {
+          setLocMessage({ ar: 'تعذّر حفظ الموقع — حاول مجدداً', en: 'Failed to save location — try again' });
+        } finally {
+          setLocBusy(false);
+        }
+      },
+      () => {
+        setLocBusy(false);
+        setLocMessage({ ar: 'تعذّر تحديد الموقع — تحقق من إذن الموقع', en: 'Location permission was not granted' });
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
   };
 
   /* ---- Store logo (attach / change / remove) ------------------------------ */
@@ -128,7 +171,7 @@ export function StoreProfilePanel({ storeId }: Props) {
     try {
       const result = await upload.run({ kind: 'store', resourceId: storeId, file });
       if (!result) {
-        toast.error(upload.error?.message ?? 'تعذّر رفع الشعار', 'Upload failed');
+        toast.error(upload.error?.localizedMessage ?? 'تعذّر رفع الشعار', 'Upload failed');
         return;
       }
       setLogoSrc(result.url);
@@ -147,7 +190,7 @@ export function StoreProfilePanel({ storeId }: Props) {
       toast.info('تمت إزالة الشعار', 'Store logo removed');
       void storeResource.reload();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = err instanceof ApiError ? err.localizedMessage : err instanceof Error ? err.message : String(err);
       toast.error('تعذّر إزالة الشعار', msg);
     } finally {
       setLogoBusy(false);
@@ -168,7 +211,7 @@ export function StoreProfilePanel({ storeId }: Props) {
     return (
       <div className="rounded-xl border border-danger-tint bg-surface p-5 text-center shadow-card">
         <AlertTriangle className="mx-auto text-danger" size={22} />
-        <p className="mt-2 text-sm font-bold text-danger-ink">{storeResource.error.message}</p>
+        <p className="mt-2 text-sm font-bold text-danger-ink">{isArabic ? storeResource.error.message : storeResource.error.localizedMessage}</p>
         <button
           type="button"
           onClick={() => void storeResource.refresh()}
@@ -179,6 +222,11 @@ export function StoreProfilePanel({ storeId }: Props) {
       </div>
     );
   }
+
+  const coords =
+    storeData && storeData.latitude !== null && storeData.longitude !== null
+      ? { lat: storeData.latitude, lng: storeData.longitude }
+      : null;
 
   return (
     <div className="mx-auto max-w-lg">
@@ -195,8 +243,7 @@ export function StoreProfilePanel({ storeId }: Props) {
         <div className="p-5 pb-0">
           <div className="rounded-xl border border-line bg-canvas p-3">
             <span className="mb-2 block text-xs font-bold text-ink">
-              شعار المتجر
-              <span className="ms-1 font-normal text-ink-muted" dir="ltr">/ Store logo</span>
+              {t('شعار المتجر', 'Store logo')}
             </span>
             <div className="flex items-center gap-3">
               {logoSrc ? (
@@ -227,7 +274,7 @@ export function StoreProfilePanel({ storeId }: Props) {
                   aria-label="Change store logo"
                 >
                   {logoBusy ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
-                  {logoSrc ? 'تغيير / Change' : 'إضافة / Add'}
+                  {logoSrc ? t('تغيير', 'Change') : t('إضافة', 'Add')}
                 </button>
                 {logoSrc && (
                   <button
@@ -238,7 +285,7 @@ export function StoreProfilePanel({ storeId }: Props) {
                     aria-label="Remove store logo"
                   >
                     <X size={12} />
-                    إزالة <span dir="ltr">Remove</span>
+                    {t('إزالة', 'Remove')}
                   </button>
                 )}
               </div>
@@ -281,8 +328,7 @@ export function StoreProfilePanel({ storeId }: Props) {
           <label className="block">
             <span className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-ink">
               <Phone size={12} className="text-brand" />
-              رقم التواصل
-              <span className="font-normal text-ink-muted" dir="ltr">/ Contact phone</span>
+              {t('رقم التواصل', 'Contact phone')}
             </span>
             <input
               type="tel"
@@ -293,7 +339,7 @@ export function StoreProfilePanel({ storeId }: Props) {
               className="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
             />
             <p className="mt-1 text-micro text-ink-muted">
-              هذا الرقم يظهر للعميل في تفاصيل الطلب / Shown to customers on order details
+              {t('هذا الرقم يظهر للعميل في تفاصيل الطلب', 'Shown to customers on order details')}
             </p>
           </label>
 
@@ -301,12 +347,10 @@ export function StoreProfilePanel({ storeId }: Props) {
           <div className="flex items-center justify-between rounded-xl border border-line bg-canvas px-4 py-3">
             <div>
               <p className="text-sm font-bold text-ink">
-                {form.isActive ? 'المتجر مفتوح' : 'المتجر مغلق'}
-              </p>
-              <p className="text-[11px] text-ink-muted" dir="ltr">
-                {form.isActive
-                  ? 'Accepting orders — tap to close'
-                  : 'Not accepting orders — tap to open'}
+                {t(
+                  form.isActive ? 'المتجر مفتوح' : 'المتجر مغلق',
+                  form.isActive ? 'Accepting orders — tap to close' : 'Not accepting orders — tap to open'
+                )}
               </p>
             </div>
             <button
@@ -322,6 +366,47 @@ export function StoreProfilePanel({ storeId }: Props) {
             </button>
           </div>
 
+          {/* Store location */}
+          <div className="rounded-xl border border-line bg-canvas p-3">
+            <span className="mb-2 flex items-center gap-1.5 text-xs font-bold text-ink">
+              <MapPin size={13} className="text-brand" />
+              {t('موقع المتجر (GPS)', 'Store location (GPS)')}
+            </span>
+            <p className="mb-2 text-micro text-ink-muted">
+              {t(
+                'يستخدمه الكابتن للملاحة إلى المتجر',
+                'Used by captains to navigate to your store',
+              )}
+            </p>
+            {coords ? (
+              <p className="mb-2 rounded-lg bg-brand-tint px-2.5 py-1.5 text-micro font-semibold text-brand-deep" dir="ltr">
+                {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+              </p>
+            ) : (
+              <p className="mb-2 text-micro text-warning-ink">
+                {t('لم يتم تحديد موقع المتجر بعد', 'Store location not set yet')}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => void captureStoreLocation()}
+              disabled={locBusy}
+              className="flex h-8 items-center gap-1.5 rounded-lg bg-brand px-3 text-[11px] font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
+            >
+              {locBusy ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <MapPin size={13} />
+              )}
+              {t('تحديث موقع المتجر', 'Update store location')}
+            </button>
+            {locMessage && (
+              <p className="mt-2 text-[11px] text-ink-muted" dir="auto">
+                {isArabic ? locMessage.ar : locMessage.en}
+              </p>
+            )}
+          </div>
+
           {/* Error */}
           {saveError && (
             <p className="flex items-center gap-1.5 rounded-xl bg-danger-tint px-3 py-2 text-xs font-semibold text-danger-ink">
@@ -334,7 +419,7 @@ export function StoreProfilePanel({ storeId }: Props) {
         <div className="border-t border-line-soft bg-canvas px-5 py-4 flex items-center justify-end gap-3">
           {saved && (
             <span className="flex items-center gap-1.5 text-xs font-bold text-brand">
-              <Check size={13} /> تم الحفظ / Saved
+              <Check size={13} /> {t('تم الحفظ', 'Saved')}
             </span>
           )}
           <button
@@ -343,7 +428,7 @@ export function StoreProfilePanel({ storeId }: Props) {
             disabled={!dirty || saving}
             className="h-9 rounded-xl border border-line bg-surface px-4 text-xs font-bold text-ink-soft transition hover:bg-canvas disabled:opacity-40"
           >
-            تراجع / Reset
+            {t('تراجع', 'Reset')}
           </button>
           <button
             type="button"
@@ -352,7 +437,7 @@ export function StoreProfilePanel({ storeId }: Props) {
             className="flex h-9 items-center gap-2 rounded-xl bg-brand px-5 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
-            حفظ التغييرات <span dir="ltr" className="font-medium opacity-80">/ Save</span>
+            {t('حفظ التغييرات', 'Save')}
           </button>
         </div>
       </div>

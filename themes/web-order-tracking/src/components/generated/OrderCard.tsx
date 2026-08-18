@@ -7,6 +7,7 @@ import {
   type StatusTone,
 } from '@samou-go/shared-types';
 import { formatCurrency } from '@/lib/delivery';
+import { useLanguage } from '@samou-go/ui';
 
 interface OrderCardProps {
   id: string;
@@ -57,19 +58,16 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   const label = ORDER_STATUS_LABELS[status];
   const StatusIcon = STATUS_ICONS[status];
   const toneClass = TONE_CLASSES[ORDER_STATUS_TONES[status]];
+  const { t } = useLanguage();
   return <div onClick={() => onDetailsClick?.(id)} className="p-4 transition-all bg-surface border border-line rounded-xl shadow-card hover:shadow-raised active:scale-[0.98] cursor-pointer">
       <div className="flex items-center justify-between mb-3">
         <div className="flex flex-col">
-          <h3 className="font-bold text-ink">{storeName}</h3>
-          {arabicStoreName && <span className="text-sm font-medium text-ink-muted">
-              {arabicStoreName}
-            </span>}
+          <h3 className="font-bold text-ink">{arabicStoreName ? t(arabicStoreName, storeName) : storeName}</h3>
         </div>
         <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${toneClass}`}>
           <StatusIcon className="w-3.5 h-3.5" />
           <div className="flex flex-col items-start leading-none">
-            <span dir="ltr">{label.en}</span>
-            <span className="text-micro">{label.ar}</span>
+            <span>{t(label.ar, label.en)}</span>
           </div>
         </div>
       </div>
@@ -78,7 +76,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-1.5 text-sm text-ink-muted">
             <Package className="w-4 h-4" />
-            <span>{itemsCount} {itemsCount === 1 ? 'صنف' : 'أصناف'} <span dir="ltr">/ {itemsCount} {itemsCount === 1 ? 'item' : 'items'}</span></span>
+            <span>{t(`${itemsCount} ${itemsCount === 1 ? 'صنف' : 'أصناف'}`, `${itemsCount} ${itemsCount === 1 ? 'item' : 'items'}`)}</span>
           </div>
           <div className="text-xs text-ink-muted">{date}</div>
         </div>
@@ -91,7 +89,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
           })}
           </div>
           <div className="flex items-center gap-1 text-xs font-medium text-brand">
-            <span>التفاصيل <span dir="ltr">/ Details</span></span>
+            <span>{t('التفاصيل', 'Details')}</span>
             <ChevronRight className="w-3 h-3 rtl:rotate-180" />
           </div>
         </div>

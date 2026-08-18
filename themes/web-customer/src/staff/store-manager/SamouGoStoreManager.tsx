@@ -24,6 +24,8 @@ import {
   Home,
   Loader2,
   LogOut,
+  MapPin,
+  Megaphone,
   Package,
   PackageCheck,
   RefreshCw,
@@ -36,6 +38,7 @@ import {
   X,
 } from 'lucide-react';
 import {
+  ApiError,
   SignInGate,
   updateOrderStatus,
   updateStore,
@@ -43,6 +46,7 @@ import {
   useMutation,
   useMyStores,
   useOrders,
+  useRoleRedirect,
   useStoreManager,
   useToast,
 } from '@samou-go/api-client';
@@ -52,6 +56,7 @@ import {
   NotificationBell,
   ThemeToggle,
   Badge,
+  useLanguage,
   type BellNotification,
 } from '@samou-go/ui';
 import {
@@ -62,8 +67,11 @@ import {
   canTransitionOrderStatus,
   type OrderDetail,
   type OrderSummary,
+  type Store as StoreType,
   type UpdateOrderStatusInput,
 } from '@samou-go/shared-types';
+import { CategoriesPanel } from './CategoriesPanel';
+import { OffersPanel } from './OffersPanel';
 import { ProductCataloguePanel } from './ProductCataloguePanel';
 import { StoreProfilePanel } from './StoreProfilePanel';
 
@@ -91,6 +99,7 @@ function relativeTime(iso: string, now: number = Date.now()): { ar: string; en: 
 
 const QUICK_ACTIONS = [
   { icon: ClipboardList, ar: 'إدارة القائمة', en: 'Manage Menu', tab: 'products' },
+  { icon: Megaphone, ar: 'إدارة العروض', en: 'Manage Offers', tab: 'offers' },
   { icon: Settings, ar: 'إعدادات المتجر', en: 'Store Settings', tab: 'settings' },
   { icon: Package, ar: 'الطلبات النشطة', en: 'Active Orders', tab: 'orders' },
   { icon: BarChart3, ar: 'لوحة التحكم', en: 'Dashboard', tab: 'home' },
@@ -100,6 +109,7 @@ const BOTTOM_TABS = [
   { id: 'home', icon: Home, ar: 'الرئيسية', en: 'Home' },
   { id: 'orders', icon: Package, ar: 'الطلبات', en: 'Orders' },
   { id: 'products', icon: ShoppingBag, ar: 'المنتجات', en: 'Products' },
+  { id: 'offers', icon: Megaphone, ar: 'العروض', en: 'Offers' },
   { id: 'settings', icon: Settings, ar: 'إعدادات المتجر', en: 'Settings' },
 ] as const;
 
@@ -108,8 +118,13 @@ const BOTTOM_TABS = [
  * ------------------------------------------------------------------------- */
 
 export function SamouGoStoreManager() {
-  const auth = useAuth();
+  const auth = useAuth({ allowedRoles: [UserRole.STORE_MANAGER] });
   const toast = useToast();
+  const { t, language } = useLanguage();
+  const isArabic = language === 'ar';
+
+  // Unified login: non-store-manager roles are sent to their own workspace.
+  useRoleRedirect('store-manager');
 
   /* -- Role gate --------------------------------------------------------- */
   const isManager = auth.user?.role === UserRole.STORE_MANAGER;
@@ -130,6 +145,7 @@ export function SamouGoStoreManager() {
   const [prepMinutes, setPrepMinutes] = useState(25);
   const [storeTogglePending, setStoreTogglePending] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('home');
+  const [menuView, setMenuView] = useState<'products' | 'sections'>('products');
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
   /* -- /Role gate --------------------------------------------------------- */
@@ -144,7 +160,7 @@ export function SamouGoStoreManager() {
       toast.success(next ? 'تم فتح المتجر ✅' : 'تم إغلاق المتجر', next ? 'Store is now open' : 'Store is now closed');
     } catch (err) {
       setIsOpen(!next);
-      toast.error('تعذّر تحديث حالة المتجر', err instanceof Error ? err.message : String(err));
+      toast.error('تعذّر تحديث حالة المتجر', err instanceof ApiError ? err.localizedMessage : err instanceof Error ? err.message : String(err));
     } finally {
       setStoreTogglePending(false);
     }
@@ -272,7 +288,7 @@ export function SamouGoStoreManager() {
     } else if (transition.error) {
       toast.error(
         'تعذّر تحديث حالة الطلب',
-        transition.error.message,
+        transition.error.localizedMessage,
         { duration: 5_000 }
       );
     }
@@ -299,7 +315,8 @@ export function SamouGoStoreManager() {
       tone: string;
       titleAr: string;
       titleEn: string;
-      detail: string;
+      timeAr: string;
+      timeEn: string;
     }> = [];
 
     for (const summary of [...incomingItems, ...acceptedItems, ...preparingItems, ...readyItems]) {
@@ -310,7 +327,8 @@ export function SamouGoStoreManager() {
         tone: 'bg-brand-surface text-brand-dark',
         titleAr: `طلب جديد ${summary.orderNumber}`,
         titleEn: `New order ${summary.orderNumber}`,
-        detail: `${when.ar} · ${when.en}`,
+        timeAr: when.ar,
+        timeEn: when.en,
       });
     }
 
@@ -390,10 +408,7 @@ export function SamouGoStoreManager() {
       <header className="bg-brand px-4 pb-4 pt-4 text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="التنقل الرئيسي">
           <div className="flex-1 text-center leading-tight">
-            <h1 className="text-[15px] font-extrabold">لوحة المتجر</h1>
-            <p dir="ltr" className="text-micro font-medium text-white/80">
-              Store Manager
-            </p>
+            <h1 className="text-[15px] font-extrabold">{t('لوحة المتجر', 'Store Manager')}</h1>
           </div>
           <div className="flex items-center gap-2" dir="ltr">
             <LanguageToggle onDark />
@@ -420,10 +435,7 @@ export function SamouGoStoreManager() {
           <div className="flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full ${isOpen ? 'bg-brand-tint' : 'bg-white/40'}`} />
             <span className="text-xs font-bold">
-              {isOpen ? 'متجر مفتوح' : 'متجر مغلق'}
-              <span dir="ltr" className="ms-2 text-micro text-white/80">
-                {isOpen ? 'Open' : 'Closed'}
-              </span>
+              {t(isOpen ? 'متجر مفتوح' : 'متجر مغلق', isOpen ? 'Open' : 'Closed')}
             </span>
           </div>
           <button
@@ -442,13 +454,20 @@ export function SamouGoStoreManager() {
         </div>
       </header>
 
+      {managedStore.data && (
+        <StoreLocationPrompt
+          store={managedStore.data}
+          storeId={managedStoreId}
+          onSaved={() => void managedStore.reload()}
+        />
+      )}
+
       {managedStore.data?.dedicatedCaptains && (
         <section className="mx-auto max-w-md px-4 pt-5" aria-label="Dedicated captains">
           <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-extrabold">كباتن المتجر</h2>
-                <p className="text-[11px] text-ink-muted" dir="ltr">Dedicated captains</p>
+                <h2 className="text-sm font-extrabold">{t('كباتن المتجر', 'Dedicated captains')}</h2>
               </div>
               <span className="badge-neutral">{managedStore.data.dedicatedCaptains.length}</span>
             </div>
@@ -461,13 +480,13 @@ export function SamouGoStoreManager() {
                       <p className="text-micro text-ink-muted" dir="ltr">{captain.phone}</p>
                     </div>
                     <span className={captain.isAvailable && captain.isVerified ? 'badge-brand' : 'badge-neutral'}>
-                      {captain.isAvailable && captain.isVerified ? 'متاح / Available' : 'غير متاح / Offline'}
+                      {t(captain.isAvailable && captain.isVerified ? 'متاح' : 'غير متاح', captain.isAvailable && captain.isVerified ? 'Available' : 'Offline')}
                     </span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="mt-3 text-xs text-ink-muted">لا يوجد كابتن مخصص لهذا المتجر / No dedicated captain assigned.</p>
+              <p className="mt-3 text-xs text-ink-muted">{t('لا يوجد كابتن مخصص لهذا المتجر', 'No dedicated captain assigned.')}</p>
             )}
           </div>
         </section>
@@ -512,11 +531,8 @@ export function SamouGoStoreManager() {
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
               <AlertTriangle size={22} />
             </span>
-            <h2 className="mt-3 text-sm font-extrabold">تعذّر تحميل الطلبات</h2>
-            <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">
-              Could not load orders
-            </p>
-            <p className="mt-2 text-xs text-ink-soft">{apiError.message}</p>
+            <h2 className="mt-3 text-sm font-extrabold">{t('تعذّر تحميل الطلبات', 'Could not load orders')}</h2>
+            <p className="mt-2 text-xs text-ink-soft">{isArabic ? apiError.message : apiError.localizedMessage}</p>
             <button
               type="button"
               onClick={() => {
@@ -534,7 +550,7 @@ export function SamouGoStoreManager() {
               ) : (
                 <RefreshCw size={14} />
               )}
-              إعادة المحاولة <span dir="ltr">Retry</span>
+              {t('إعادة المحاولة', 'Retry')}
             </button>
           </div>
         </section>
@@ -545,11 +561,8 @@ export function SamouGoStoreManager() {
         <div className="mb-4 flex items-end justify-between">
           <div>
             <h2 id="incoming-title" className="text-lg font-extrabold">
-              الطلبات الواردة
+              {t('الطلبات الواردة', 'Incoming Orders')}
             </h2>
-            <p dir="ltr" className="text-[11px] text-ink-muted">
-              Incoming Orders
-            </p>
           </div>
           <span className="rounded-full bg-brand-tint px-2.5 py-1 text-xs font-extrabold text-brand-dark">
             {activeCount}
@@ -562,12 +575,12 @@ export function SamouGoStoreManager() {
             aria-live="assertive"
           >
             <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-            <span>{transition.error.message}</span>
+            <span>{isArabic ? transition.error.message : transition.error.localizedMessage}</span>
           </p>
         )}
 
         <label className="mb-3 flex items-center justify-between rounded-xl bg-brand-surface px-3 py-2 text-xs font-bold text-brand-deep">
-          <span>وقت التحضير عند القبول <span dir="ltr" className="font-normal">/ Prep time</span></span>
+          <span>{t('وقت التحضير عند القبول', 'Prep time')}</span>
           <select value={prepMinutes} onChange={(event) => setPrepMinutes(Number(event.target.value))} className="rounded-lg border border-brand bg-surface px-2 py-1 text-xs text-ink outline-none">
             {[15, 20, 25, 30, 40, 50, 60].map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
           </select>
@@ -602,11 +615,8 @@ export function SamouGoStoreManager() {
         <div className="mb-4 flex items-end justify-between">
           <div>
             <h2 id="quick-title" className="text-lg font-extrabold">
-              إجراءات سريعة
+              {t('إجراءات سريعة', 'Quick Actions')}
             </h2>
-            <p dir="ltr" className="text-[11px] text-ink-muted">
-              Quick Actions
-            </p>
           </div>
           <SlidersHorizontal size={17} className="text-ink-muted" />
         </div>
@@ -622,10 +632,7 @@ export function SamouGoStoreManager() {
                 <action.icon size={18} />
               </span>
               <span>
-                <strong className="block text-xs font-extrabold">{action.ar}</strong>
-                <span dir="ltr" className="mt-0.5 block text-micro text-ink-muted">
-                  {action.en}
-                </span>
+                <strong className="block text-xs font-extrabold">{t(action.ar, action.en)}</strong>
               </span>
             </button>
           ))}
@@ -634,16 +641,12 @@ export function SamouGoStoreManager() {
       <section className="mx-auto max-w-md px-4 pb-5 pt-7" aria-labelledby="activity-title">
         <div className="mb-4">
           <h2 id="activity-title" className="text-lg font-extrabold">
-            النشاط الأخير
+            {t('النشاط الأخير', 'Recent Activity')}
           </h2>
-          <p dir="ltr" className="text-[11px] text-ink-muted">
-            Recent Activity
-          </p>
         </div>
         {recentActivity.length === 0 ? (
           <p className="rounded-2xl border border-line bg-surface p-4 text-center text-xs text-ink-muted">
-            لا يوجد نشاط حديث
-            <span dir="ltr" className="ms-1">No recent activity</span>
+            {t('لا يوجد نشاط حديث', 'No recent activity')}
           </p>
         ) : (
           <ol className="space-y-4">
@@ -655,9 +658,9 @@ export function SamouGoStoreManager() {
                   <entry.icon size={16} />
                 </span>
                 <span className="min-w-0">
-                  <strong className="block text-xs font-bold">{entry.titleAr}</strong>
-                  <span className="mt-0.5 block text-micro text-ink-muted" dir="ltr">
-                    {entry.titleEn} · {entry.detail}
+                  <strong className="block text-xs font-bold">{t(entry.titleAr, entry.titleEn)}</strong>
+                  <span className="mt-0.5 block text-micro text-ink-muted">
+                    {t(entry.timeAr, entry.timeEn)}
                   </span>
                 </span>
               </li>
@@ -673,8 +676,7 @@ export function SamouGoStoreManager() {
         <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="orders-tab-title">
           <div className="mb-4 flex items-end justify-between">
             <div>
-              <h2 id="orders-tab-title" className="text-lg font-extrabold">الطلبات</h2>
-              <p dir="ltr" className="text-[11px] text-ink-muted">All active orders</p>
+              <h2 id="orders-tab-title" className="text-lg font-extrabold">{t('الطلبات', 'All active orders')}</h2>
             </div>
             <span className="rounded-full bg-brand-tint px-2.5 py-1 text-xs font-extrabold text-brand-dark">
               {activeCount}
@@ -687,7 +689,7 @@ export function SamouGoStoreManager() {
               aria-live="assertive"
             >
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>{transition.error.message}</span>
+              <span>{isArabic ? transition.error.message : transition.error.localizedMessage}</span>
             </p>
           )}
 
@@ -719,19 +721,43 @@ export function SamouGoStoreManager() {
       {activeTab === 'products' && (
         <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="products-tab-title">
           <div className="mb-5">
-            <h2 id="products-tab-title" className="text-lg font-extrabold">المنتجات</h2>
-            <p dir="ltr" className="text-[11px] text-ink-muted">Product Catalogue Management</p>
+            <h2 id="products-tab-title" className="text-lg font-extrabold">{t('إدارة القائمة', 'Menu Management')}</h2>
+            {/* Products ↔ Sections sub-toggle */}
+            <div className="mt-3 inline-flex items-center gap-1 rounded-xl border border-line bg-canvas p-1">
+              <button
+                type="button"
+                onClick={() => setMenuView('products')}
+                aria-pressed={menuView === 'products'}
+                className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition ${
+                  menuView === 'products' ? 'bg-brand text-white' : 'text-ink-muted hover:text-ink-soft'
+                }`}
+              >
+                <ShoppingBag size={13} />
+                {t('المنتجات', 'Products')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMenuView('sections')}
+                aria-pressed={menuView === 'sections'}
+                className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition ${
+                  menuView === 'sections' ? 'bg-brand text-white' : 'text-ink-muted hover:text-ink-soft'
+                }`}
+              >
+                <SlidersHorizontal size={13} />
+                {t('الأقسام', 'Sections')}
+              </button>
+            </div>
           </div>
           {managedStores.loading && !managedStores.data ? (
             <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card" aria-busy="true">
               <Loader2 size={22} className="mx-auto animate-spin text-brand" />
-              <p className="mt-3 text-sm text-ink-muted">جاري تحميل بيانات المتجر… / Loading store…</p>
+              <p className="mt-3 text-sm text-ink-muted">{t('جاري تحميل بيانات المتجر…', 'Loading store…')}</p>
             </div>
           ) : managedStores.error && !managedStores.data ? (
             <div className="rounded-2xl border border-danger-tint bg-surface p-6 text-center shadow-card" role="alert">
               <AlertTriangle size={22} className="mx-auto text-danger-ink" />
               <h3 className="mt-3 text-sm font-extrabold">تعذّر تحميل المتجر</h3>
-              <p className="mt-1 text-xs text-ink-muted">{managedStores.error.message}</p>
+              <p className="mt-1 text-xs text-ink-muted">{isArabic ? managedStores.error.message : managedStores.error.localizedMessage}</p>
               <button
                 type="button"
                 onClick={() => managedStores.refresh()}
@@ -739,15 +765,57 @@ export function SamouGoStoreManager() {
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition active:scale-95 disabled:opacity-60"
               >
                 <RefreshCw size={14} className={managedStores.refreshing ? 'animate-spin' : ''} />
-                إعادة المحاولة / Retry
+                {t('إعادة المحاولة', 'Retry')}
               </button>
             </div>
           ) : managedStoreId ? (
-            <ProductCataloguePanel storeId={managedStoreId} />
+            menuView === 'sections' ? (
+              <CategoriesPanel storeId={managedStoreId} />
+            ) : (
+              <ProductCataloguePanel storeId={managedStoreId} />
+            )
           ) : (
             <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card">
               <p className="text-sm text-ink-muted">
-                لا يوجد متجر مرتبط بحسابك — تواصل مع المشرف / No store linked to your account
+                {t('لا يوجد متجر مرتبط بحسابك — تواصل مع المشرف', 'No store linked to your account')}
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Offers tab */}
+      {activeTab === 'offers' && (
+        <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="offers-tab-title">
+          <div className="mb-5">
+            <h2 id="offers-tab-title" className="text-lg font-extrabold">{t('العروض الترويجية', 'Promotional Offers')}</h2>
+          </div>
+          {managedStores.loading && !managedStores.data ? (
+            <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card" aria-busy="true">
+              <Loader2 size={22} className="mx-auto animate-spin text-brand" />
+              <p className="mt-3 text-sm text-ink-muted">{t('جاري تحميل بيانات المتجر…', 'Loading store…')}</p>
+            </div>
+          ) : managedStores.error && !managedStores.data ? (
+            <div className="rounded-2xl border border-danger-tint bg-surface p-6 text-center shadow-card" role="alert">
+              <AlertTriangle size={22} className="mx-auto text-danger-ink" />
+              <h3 className="mt-3 text-sm font-extrabold">{t('تعذّر تحميل المتجر', 'Failed to load store')}</h3>
+              <p className="mt-1 text-xs text-ink-muted">{isArabic ? managedStores.error.message : managedStores.error.localizedMessage}</p>
+              <button
+                type="button"
+                onClick={() => managedStores.refresh()}
+                disabled={managedStores.refreshing}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition active:scale-95 disabled:opacity-60"
+              >
+                <RefreshCw size={14} className={managedStores.refreshing ? 'animate-spin' : ''} />
+                {t('إعادة المحاولة', 'Retry')}
+              </button>
+            </div>
+          ) : managedStoreId ? (
+            <OffersPanel storeId={managedStoreId} />
+          ) : (
+            <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card">
+              <p className="text-sm text-ink-muted">
+                {t('لا يوجد متجر مرتبط بحسابك — تواصل مع المشرف', 'No store linked to your account')}
               </p>
             </div>
           )}
@@ -758,19 +826,18 @@ export function SamouGoStoreManager() {
       {activeTab === 'settings' && (
         <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="profile-tab-title">
           <div className="mb-5">
-            <h2 id="profile-tab-title" className="text-lg font-extrabold">إعدادات المتجر</h2>
-            <p dir="ltr" className="text-[11px] text-ink-muted">Store Profile &amp; Settings</p>
+            <h2 id="profile-tab-title" className="text-lg font-extrabold">{t('إعدادات المتجر', 'Store Profile & Settings')}</h2>
           </div>
           {managedStores.loading && !managedStores.data ? (
             <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card" aria-busy="true">
               <Loader2 size={22} className="mx-auto animate-spin text-brand" />
-              <p className="mt-3 text-sm text-ink-muted">جاري تحميل بيانات المتجر… / Loading store…</p>
+              <p className="mt-3 text-sm text-ink-muted">{t('جاري تحميل بيانات المتجر…', 'Loading store…')}</p>
             </div>
           ) : managedStores.error && !managedStores.data ? (
             <div className="rounded-2xl border border-danger-tint bg-surface p-6 text-center shadow-card" role="alert">
               <AlertTriangle size={22} className="mx-auto text-danger-ink" />
               <h3 className="mt-3 text-sm font-extrabold">تعذّر تحميل المتجر</h3>
-              <p className="mt-1 text-xs text-ink-muted">{managedStores.error.message}</p>
+              <p className="mt-1 text-xs text-ink-muted">{isArabic ? managedStores.error.message : managedStores.error.localizedMessage}</p>
               <button
                 type="button"
                 onClick={() => managedStores.refresh()}
@@ -778,7 +845,7 @@ export function SamouGoStoreManager() {
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition active:scale-95 disabled:opacity-60"
               >
                 <RefreshCw size={14} className={managedStores.refreshing ? 'animate-spin' : ''} />
-                إعادة المحاولة / Retry
+                {t('إعادة المحاولة', 'Retry')}
               </button>
             </div>
           ) : managedStoreId ? (
@@ -786,7 +853,7 @@ export function SamouGoStoreManager() {
           ) : (
             <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card">
               <p className="text-sm text-ink-muted">
-                لا يوجد متجر مرتبط بحسابك — تواصل مع المشرف / No store linked to your account
+                {t('لا يوجد متجر مرتبط بحسابك — تواصل مع المشرف', 'No store linked to your account')}
               </p>
             </div>
           )}
@@ -808,8 +875,7 @@ export function SamouGoStoreManager() {
               }`}
             >
               <tab.icon size={19} fill={activeTab === tab.id && tab.id === 'home' ? 'currentColor' : 'none'} />
-              <span className="text-micro font-bold">{tab.ar}</span>
-              <span dir="ltr" className="text-micro font-medium">{tab.en}</span>
+              <span className="text-micro font-bold">{t(tab.ar, tab.en)}</span>
             </button>
           ))}
         </div>
@@ -832,15 +898,13 @@ interface KpiTileProps {
 }
 
 function KpiTile({ icon, labelAr, labelEn, value, suffix, isLoading }: KpiTileProps) {
+  const { t } = useLanguage();
   return (
     <article className="min-w-[126px] flex-1 rounded-2xl border border-line bg-surface p-3 shadow-card">
       <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-xl bg-brand-tint text-brand">
         {icon}
       </div>
-      <p dir="ltr" className="text-micro font-medium text-ink-muted">
-        {labelEn}
-      </p>
-      <p className="mt-0.5 whitespace-nowrap text-[12px] font-bold text-ink-soft">{labelAr}</p>
+      <p className="mt-0.5 whitespace-nowrap text-[12px] font-bold text-ink-soft">{t(labelAr, labelEn)}</p>
       <p dir="ltr" className="mt-1 text-xl font-extrabold tracking-tight text-ink">
         {isLoading ? (
           <span className="inline-block h-6 w-12 animate-pulse rounded bg-line-soft" aria-hidden="true" />
@@ -864,6 +928,7 @@ interface OrderRowProps {
 }
 
 function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup, onReject }: OrderRowProps) {
+  const { t } = useLanguage();
   const time = relativeTime(order.createdAt);
   const itemCount = order.itemCount;
   const itemLineAr = `${itemCount} منتج`;
@@ -902,13 +967,11 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
           </p>
           <p className="mt-0.5 flex items-center gap-1 text-micro text-ink-muted">
             <Clock3 size={12} />
-            <span>{time.ar}</span>
-            <span dir="ltr" className="text-line">·</span>
-            <span dir="ltr">{time.en}</span>
+            <span>{t(time.ar, time.en)}</span>
           </p>
         </div>
         <Badge tone={ORDER_STATUS_TONES[order.status]} dot>
-          {ORDER_STATUS_LABELS[order.status].ar}
+          {t(ORDER_STATUS_LABELS[order.status].ar, ORDER_STATUS_LABELS[order.status].en)}
         </Badge>
       </div>
       <div className="py-3">
@@ -916,9 +979,7 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
           <div>
             <p className="text-sm font-bold">{order.storeNameAr}</p>
             <p className="mt-1 text-[11px] text-ink-muted">
-              {itemLineAr}
-              <span className="mx-1 text-line">·</span>
-              <span dir="ltr">{itemLineEn}</span>
+              {t(itemLineAr, itemLineEn)}
             </p>
           </div>
           <p dir="ltr" className="text-base font-extrabold text-ink">
@@ -926,10 +987,9 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
           </p>
         </div>
         {order.estimatedPrepMinutes !== null && order.estimatedPrepMinutes !== undefined && (
-          <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-brand-dark" dir="ltr">
+          <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-brand-dark">
             <Clock3 size={13} />
-            Estimated prep: {order.estimatedPrepMinutes} min
-            <span dir="rtl" className="font-medium text-ink-muted">· مدة التحضير المقدّرة</span>
+            {t(`مدة التحضير المقدّرة: ${order.estimatedPrepMinutes} دقيقة`, `Estimated prep: ${order.estimatedPrepMinutes} min`)}
           </p>
         )}
         {(order.orderNote || order.itemNotes.length > 0) && (
@@ -963,8 +1023,7 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
       {order.status === OrderStatus.READY_FOR_PICKUP && (
         <p className="mb-2 flex items-center gap-1.5 rounded-xl bg-info-tint px-3 py-2 text-[11px] font-semibold text-info-ink">
           <ChevronRight size={14} className="shrink-0 rtl:rotate-180" />
-          <span>جاهز — بانتظار كابتن التوصيل</span>
-          <span dir="ltr" className="font-normal text-info-ink/75">· Waiting for a captain</span>
+          <span>{t('جاهز — بانتظار كابتن التوصيل', 'Waiting for a captain')}</span>
         </p>
       )}
 
@@ -978,8 +1037,7 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
               className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition focus:outline-none focus:ring-2 disabled:opacity-60 ${primaryAction.color}`}
             >
               {pending ? <Loader2 size={15} className="animate-spin" /> : <primaryAction.icon size={15} />}
-              {primaryAction.labelAr}
-              <span dir="ltr" className="font-medium opacity-80">{primaryAction.labelEn}</span>
+              {t(primaryAction.labelAr, primaryAction.labelEn)}
             </button>
           )}
           {canCancel && (
@@ -990,7 +1048,7 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
               className="flex items-center justify-center gap-1.5 rounded-xl border border-danger-tint py-2.5 text-xs font-bold text-danger transition hover:bg-danger-tint focus:outline-none focus:ring-2 focus:ring-danger/40 disabled:opacity-60"
             >
               {pending ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />}
-              رفض <span dir="ltr" className="font-medium text-danger/70">Cancel</span>
+              {t('رفض', 'Cancel')}
             </button>
           )}
         </div>
@@ -1000,15 +1058,147 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
 }
 
 function EmptyInbox() {
+  const { t } = useLanguage();
   return (
     <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card">
       <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-surface text-brand">
         <Store size={22} />
       </span>
-      <h3 className="mt-3 text-sm font-extrabold">لا توجد طلبات واردة</h3>
-      <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">
-        No incoming orders
-      </p>
+      <h3 className="mt-3 text-sm font-extrabold">{t('لا توجد طلبات واردة', 'No incoming orders')}</h3>
     </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * StoreLocationPrompt — first-login banner asking the manager to set the
+ * store's GPS coordinates (navigator.geolocation → PATCH /stores/:storeId).
+ * Shows only while the store has no lat/lng; the captain navigates using
+ * these coordinates, so an address-less store is half the road story.
+ * ------------------------------------------------------------------------- */
+
+function storeLocationDismissKey(storeId: string): string {
+  return `samou.store-location.dismissed.${storeId}`;
+}
+
+function readDismissed(storeId: string): boolean {
+  try {
+    return window.localStorage.getItem(storeLocationDismissKey(storeId)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markDismissed(storeId: string): void {
+  try {
+    window.localStorage.setItem(storeLocationDismissKey(storeId), '1');
+  } catch {
+    /* Private mode — the banner may reappear next load, acceptable. */
+  }
+}
+
+function StoreLocationPrompt({
+  store,
+  storeId,
+  onSaved,
+}: {
+  store: StoreType;
+  storeId: string | null;
+  onSaved: () => void;
+}) {
+  const { t } = useLanguage();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [dismissed, setDismissed] = useState(() => readDismissed(storeId ?? ''));
+
+  const hasLocation =
+    store.latitude !== null && store.latitude !== undefined &&
+    store.longitude !== null && store.longitude !== undefined;
+
+  if (!storeId || hasLocation || dismissed) return null;
+
+  const capture = () => {
+    if (busy || !('geolocation' in navigator)) {
+      toast.error(
+        t('تحديد الموقع غير مدعوم في هذا المتصفح', 'Geolocation is unavailable'),
+        t('تحديد الموقع غير مدعوم في هذا المتصفح', 'Geolocation is unavailable'),
+      );
+      return;
+    }
+    setBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          await updateStore(storeId, {
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+          });
+          markDismissed(storeId);
+          setDismissed(true);
+          toast.success('تم حفظ موقع المتجر', 'Store location saved');
+          onSaved();
+        } catch {
+          toast.error('تعذّر حفظ الموقع — حاول مجدداً', 'Could not save location — try again');
+        } finally {
+          setBusy(false);
+        }
+      },
+      () => {
+        setBusy(false);
+        toast.error(
+          'تعذّر تحديد الموقع — تحقق من إذن الموقع',
+          'Location permission was not granted',
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  };
+
+  const skip = () => {
+    if (!storeId) return;
+    markDismissed(storeId);
+    setDismissed(true);
+  };
+
+  return (
+    <section className="mx-auto max-w-md px-4 pt-5" aria-label="Store location prompt">
+      <div className="rounded-2xl border border-warning-tint bg-surface p-4 shadow-card">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
+            <MapPin size={18} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-extrabold text-ink">
+              {t('حدّد موقع المتجر على الخريطة', 'Set your store location')}
+            </h2>
+            <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
+              {t(
+                'لن يتمكن الكابتن من الوصول إلى متجرك حتى تحدد موقعه على الخريطة. شارك موقعك الحالي الآن.',
+                'Captains cannot navigate to your store until its location is set. Share your current location now.',
+              )}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void capture()}
+                disabled={busy}
+                className="flex h-9 items-center gap-1.5 rounded-xl bg-brand px-4 text-xs font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
+              >
+                {busy ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} />}
+                {t('استخدام موقعي الحالي', 'Use my current location')}
+              </button>
+              <button
+                type="button"
+                onClick={skip}
+                disabled={busy}
+                className="flex h-9 items-center gap-1.5 rounded-xl border border-line px-3 text-xs font-bold text-ink-muted transition hover:bg-canvas active:scale-95 disabled:opacity-60"
+              >
+                <X size={13} />
+                {t('لاحقاً', 'Later')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

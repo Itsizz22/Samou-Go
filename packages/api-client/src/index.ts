@@ -9,6 +9,7 @@
  */
 
 export * from './api';
+export * from './language';
 export * from './useApi';
 export * from './useAuth';
 export * from './useDarkMode';

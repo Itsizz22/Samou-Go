@@ -1,6 +1,9 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Loader2, MapPin, X } from 'lucide-react';
 import { UserRole, type UserRole as UserRoleValue } from '@samou-go/shared-types';
+import { useLanguage } from '@samou-go/ui';
+import { updateMyLocation } from '@samou-go/api-client';
 import { SamouGoHome } from './components/generated/SamouGoHome';
 import { OrdersScreen } from './screens/OrdersScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
@@ -92,7 +95,13 @@ function useAndroidBackButton() {
 
 function App() {
   useAndroidBackButton();
-  const auth = useAuth();
+  // The merged app serves the customer storefront plus the Captain and Store
+  // Manager dashboards, so those three roles are allowed at the session level.
+  // An ADMIN (or any other role) token on this origin is a foreign session and
+  // is signed out by the gate instead of rendering a wrong-role UI.
+  const auth = useAuth({
+    allowedRoles: [UserRole.CUSTOMER, UserRole.CAPTAIN, UserRole.STORE_MANAGER],
+  });
   const [splashElapsed, setSplashElapsed] = useState(false);
 
   useEffect(() => {
@@ -107,6 +116,7 @@ function App() {
       <NavigationDrawerProvider>
         <StartupRoutes auth={auth} />
         <NavigationDrawer />
+        <CustomerLocationPrompt auth={auth} />
       </NavigationDrawerProvider>
     </ThemeProvider>
   );
@@ -114,7 +124,15 @@ function App() {
 
 function ProtectedRoute({ auth, children }: { auth: Auth; children: React.ReactNode }) {
   if (!auth.ready) return <BootScreen />;
-  return auth.user ? <>{children}</> : <Navigate to="/login" replace />;
+  if (!auth.user) return <Navigate to="/login" replace />;
+  // The shopping screens are customer-only. A staff session that reaches a
+  // customer route is sent to its own merged dashboard instead of the feed;
+  // a role the app does not serve at all was already signed out by the
+  // `useAuth` role gate on boot.
+  if (auth.user.role !== UserRole.CUSTOMER) {
+    return <Navigate to={roleHomePath(auth.user.role)} replace />;
+  }
+  return <>{children}</>;
 }
 
 function AuthRoute({ auth, children }: { auth: Auth; children: React.ReactNode }) {
@@ -228,6 +246,136 @@ function StartupRoutes({ auth }: { auth: Auth }) {
 
       <Route path="*" element={<Navigate to={auth.user ? roleHomePath(auth.user.role) : '/login'} replace />} />
     </Routes>
+  );
+}
+
+/**
+ * CustomerLocationPrompt — first-login nudge: when a CUSTOMER has no GPS
+ * coords on their profile yet, offer to persist them via PUT /users/me/location.
+ * Rendered app-wide (any route) because the saved location is profile state,
+ * not a screen's concern. Dismissal is remembered per user so it never nags
+ * again after the first skip; a successful save also clears it.
+ */
+function customerLocationDismissKey(userId: string): string {
+  return `samou.user-location.dismissed.${userId}`;
+}
+
+function readLocationDismissed(key: string): boolean {
+  try {
+    return window.localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markLocationDismissed(key: string): void {
+  try {
+    window.localStorage.setItem(key, '1');
+  } catch {
+    /* Private mode — the banner may reappear next load, acceptable. */
+  }
+}
+
+function CustomerLocationPrompt({ auth }: { auth: Auth }) {
+  const { t, language } = useLanguage();
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<{ ar: string; en: string } | null>(null);
+  const user = auth.user;
+
+  const dismissKey = user ? customerLocationDismissKey(user.id) : '';
+  const [dismissed, setDismissed] = useState(() => (dismissKey ? readLocationDismissed(dismissKey) : true));
+
+  // Re-read on user change (e.g. a fresh login on another account).
+  useEffect(() => {
+    if (dismissKey) setDismissed(readLocationDismissed(dismissKey));
+    else setDismissed(true);
+  }, [dismissKey]);
+
+  const needsLocation =
+    user?.role === UserRole.CUSTOMER &&
+    (user.latitude === null || user.longitude === null) &&
+    !dismissed;
+
+  if (!needsLocation) return null;
+
+  const capture = () => {
+    if (busy) return;
+    if (!navigator.geolocation) {
+      setStatus({ ar: 'تحديد الموقع غير مدعوم في هذا المتصفح', en: 'Geolocation is unavailable' });
+      return;
+    }
+    setBusy(true);
+    setStatus({ ar: 'جارٍ تحديد موقعك…', en: 'Detecting your location…' });
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const updated = await updateMyLocation(coords.latitude, coords.longitude);
+          if (updated) auth.setUser(updated);
+          if (dismissKey) markLocationDismissed(dismissKey);
+          setDismissed(true);
+        } catch {
+          setStatus({ ar: 'تعذّر حفظ الموقع — حاول مجدداً', en: 'Could not save your location — try again' });
+        } finally {
+          setBusy(false);
+        }
+      },
+      () => {
+        setBusy(false);
+        setStatus({ ar: 'تعذّر تحديد الموقع — تحقق من إذن الموقع', en: 'Location permission was not granted' });
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 }
+    );
+  };
+
+  const skip = () => {
+    if (dismissKey) markLocationDismissed(dismissKey);
+    setDismissed(true);
+  };
+
+  return (
+    <div className="fixed inset-x-4 top-3 z-50" role="dialog" aria-label={t('تحديد موقعك', 'Set your location')}>
+      <div className="mx-auto max-w-md rounded-2xl border border-warning-tint bg-surface p-4 shadow-raised">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
+            <MapPin size={18} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-extrabold text-ink">
+              {t('حدّد موقعك لتحسين خدمة التوصيل', 'Set your location for better delivery')}
+            </h2>
+            <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
+              {t(
+                'يُستخدم موقعك لمساعدتك على كتابة عنوان التوصيل بشكل أسرع.',
+                'Your location is used to speed up entering your delivery address.',
+              )}
+            </p>
+            {status && (
+              <p className="mt-1 text-micro font-semibold text-ink-muted">{language === 'ar' ? status.ar : status.en}</p>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void capture()}
+                disabled={busy}
+                className="flex h-9 items-center gap-1.5 rounded-xl bg-brand px-4 text-xs font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
+              >
+                {busy ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} />}
+                {t('مشاركة موقعي', 'Share my location')}
+              </button>
+              <button
+                type="button"
+                onClick={skip}
+                disabled={busy}
+                className="flex h-9 items-center gap-1.5 rounded-xl border border-line px-3 text-xs font-bold text-ink-muted transition hover:bg-canvas active:scale-95 disabled:opacity-60"
+              >
+                <X size={13} />
+                {t('لاحقاً', 'Later')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

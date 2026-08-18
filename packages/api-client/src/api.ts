@@ -23,6 +23,7 @@
  *      the server prices it. See DESIGN_SYSTEM.md §8.
  */
 
+import { localizeMessage, readAppLanguage } from './language';
 import type {
   AdminCreateCaptainInput,
   AdminCreateStoreInput,
@@ -34,11 +35,13 @@ import type {
   AuthResponse,
   Category,
   CreateCategoryInput,
+  CreateOfferInput,
   CreateOrderInput,
   CreateProductInput,
   FavoriteListResult,
   FirebaseRegisterInput,
   LoginInput,
+  Offer,
   OrderDetail,
   OrderListQuery,
   OrderQuote,
@@ -62,6 +65,8 @@ import type {
   Store,
   StoreListQuery,
   StoreWithCatalogue,
+  UpdateCategoryInput,
+  UpdateOfferInput,
   UpdateOrderStatusInput,
   UpdateProductInput,
   UpdateProfileInput,
@@ -69,6 +74,9 @@ import type {
   UploadKind,
   UserListQuery,
   UpdateUserInput,
+  CreateDeliveryZoneInput,
+  UpdateDeliveryZoneInput,
+  DeliveryZone,
 } from "@samou-go/shared-types";
 import type {
   DeliveryFeeConfig,
@@ -223,6 +231,21 @@ export class ApiError extends Error {
   /** Field-level validation feedback, keyed by dotted path. */
   fieldError(path: string): string | undefined {
     return this.details.find((detail) => detail.path === path)?.message;
+  }
+
+  /**
+   * The message collapsed to the active locale. Server messages are the
+   * canonical bilingual `"العربية / English"` source of truth; only the
+   * rendered text collapses to one language.
+   */
+  get localizedMessage(): string {
+    return localizeMessage(this.message, readAppLanguage());
+  }
+
+  /** {@link fieldError} collapsed to the active locale. */
+  localizedFieldError(path: string): string | undefined {
+    const message = this.fieldError(path);
+    return message === undefined ? undefined : localizeMessage(message, readAppLanguage());
   }
 }
 
@@ -1065,17 +1088,19 @@ export function finalizeUpload(
 
 /**
  * DELETE /uploads/current — removes the image currently attached to the
- * caller's avatar (`kind: 'user'`) or to a managed product (`kind: 'product'`
- * with `resourceId`). No opaque key needed: the server resolves it from the
- * profile/product record.
+ * caller's avatar (`kind: 'user'`), a managed product (`kind: 'product'` with
+ * `resourceId`), or a managed store (`kind: 'store'` with `resourceId` and
+ * `purpose` picking the logo/cover slot). No opaque key needed: the server
+ * resolves it from the profile/product/store record.
  */
 export async function removeCurrentImage(
   kind: UploadKind,
   resourceId?: string,
+  purpose?: 'logo' | 'cover',
   signal?: AbortSignal,
 ): Promise<void> {
   await request<unknown>("DELETE", "/uploads/current", {
-    body: { kind, resourceId },
+    body: { kind, resourceId, purpose },
     auth: true,
     signal,
   });
@@ -1089,7 +1114,7 @@ export async function removeCurrentImage(
  * is not JPEG/PNG/WebP.
  */
 export async function uploadImage(
-  input: { kind: UploadKind; resourceId?: string; contentType?: string },
+  input: { kind: UploadKind; resourceId?: string; purpose?: 'logo' | 'cover'; contentType?: string },
   file: Blob,
   signal?: AbortSignal,
 ): Promise<FinalizeUploadResult> {
@@ -1097,6 +1122,7 @@ export async function uploadImage(
     {
       kind: input.kind,
       resourceId: input.resourceId,
+      purpose: input.purpose,
       contentType: input.contentType ?? (file.type || "application/octet-stream"),
     },
     signal,
@@ -1179,6 +1205,20 @@ export function createCategory(
   return request<Category>(
     "POST",
     `/stores/${encodeURIComponent(storeId)}/categories`,
+    { body: input, auth: true, signal },
+  );
+}
+
+/** Renames and/or reorders a menu section. */
+export function updateCategory(
+  storeId: string,
+  categoryId: string,
+  input: UpdateCategoryInput,
+  signal?: AbortSignal,
+): Promise<Category> {
+  return request<Category>(
+    "PATCH",
+    `/stores/${encodeURIComponent(storeId)}/categories/${encodeURIComponent(categoryId)}`,
     { body: input, auth: true, signal },
   );
 }
@@ -1320,6 +1360,23 @@ export function approveStore(
   );
 }
 
+/** Flags a store with the "Recommended by us" badge. Requires ADMIN. */
+export function setStoreRecommended(
+  storeId: string,
+  isRecommended: boolean,
+  signal?: AbortSignal,
+): Promise<Store> {
+  return request<Store>(
+    "PATCH",
+    `/stores/${encodeURIComponent(storeId)}/recommend`,
+    {
+      body: { isRecommended },
+      auth: true,
+      signal,
+    },
+  );
+}
+
 /* ---------------------------------------------------------------------------
  * /api/v1/captains — verification
  * ------------------------------------------------------------------------- */
@@ -1336,5 +1393,204 @@ export function verifyCaptain(
       auth: true,
       signal,
     },
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/users — location
+ * ------------------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/delivery-zones
+ * ------------------------------------------------------------------------- */
+
+/** Lists active delivery zones. Public — no auth required. */
+export function listActiveDeliveryZones(
+  signal?: AbortSignal,
+): Promise<DeliveryZone[]> {
+  return request<DeliveryZone[]>("GET", "/delivery-zones", { signal });
+}
+
+/** Lists ALL delivery zones (including inactive). Requires ADMIN. */
+export function listAllDeliveryZones(
+  signal?: AbortSignal,
+): Promise<DeliveryZone[]> {
+  return request<DeliveryZone[]>("GET", "/delivery-zones/manage", {
+    auth: true,
+    signal,
+  });
+}
+
+/** Creates a delivery zone. Requires ADMIN. */
+export function createDeliveryZone(
+  input: CreateDeliveryZoneInput,
+  signal?: AbortSignal,
+): Promise<DeliveryZone> {
+  return request<DeliveryZone>("POST", "/delivery-zones", {
+    body: input,
+    auth: true,
+    signal,
+  });
+}
+
+/** Updates a delivery zone. Requires ADMIN. */
+export function updateDeliveryZone(
+  zoneId: string,
+  input: UpdateDeliveryZoneInput,
+  signal?: AbortSignal,
+): Promise<DeliveryZone> {
+  return request<DeliveryZone>(
+    "PATCH",
+    `/delivery-zones/${encodeURIComponent(zoneId)}`,
+    {
+      body: input,
+      auth: true,
+      signal,
+    },
+  );
+}
+
+/** Deletes a delivery zone. Requires ADMIN. */
+export function deleteDeliveryZone(
+  zoneId: string,
+  signal?: AbortSignal,
+): Promise<null> {
+  return request<null>(
+    "DELETE",
+    `/delivery-zones/${encodeURIComponent(zoneId)}`,
+    {
+      auth: true,
+      signal,
+    },
+  );
+}
+
+/** Assigns a delivery zone to an order (sets the fee). Requires CAPTAIN or ADMIN. */
+export function setOrderDeliveryZone(
+  orderId: string,
+  zoneId: string,
+  signal?: AbortSignal,
+): Promise<OrderDetail> {
+  return request<OrderDetail>(
+    "PATCH",
+    `/orders/${encodeURIComponent(orderId)}/delivery-zone`,
+    {
+      body: { zoneId },
+      auth: true,
+      signal,
+    },
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/users — location
+ * ------------------------------------------------------------------------- */
+
+/** Persists the user's GPS coordinates to their profile. Any role. */
+export function updateMyLocation(
+  latitude: number,
+  longitude: number,
+  signal?: AbortSignal,
+): Promise<PublicUser> {
+  return request<PublicUser>(
+    "PUT",
+    "/users/me/location",
+    {
+      body: { latitude, longitude },
+      auth: true,
+      signal,
+    },
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/stores/:storeId/offers
+ * ------------------------------------------------------------------------- */
+
+/** Returns currently active offers for a store (public, no auth required). */
+export function listActiveOffers(
+  storeId: string,
+  signal?: AbortSignal,
+): Promise<Paginated<Offer>> {
+  return request<Paginated<Offer>>(
+    "GET",
+    `/stores/${encodeURIComponent(storeId)}/offers`,
+    { signal },
+  );
+}
+
+/** Returns all offers for a store (STORE_MANAGER own store or ADMIN). */
+export function listStoreOffers(
+  storeId: string,
+  signal?: AbortSignal,
+): Promise<Paginated<Offer>> {
+  return request<Paginated<Offer>>(
+    "GET",
+    `/stores/${encodeURIComponent(storeId)}/offers/manage`,
+    { auth: true, signal },
+  );
+}
+
+/** Home-screen feed — active offers across all approved stores. */
+export function listAllOffers(
+  signal?: AbortSignal,
+): Promise<Paginated<Offer>> {
+  return request<Paginated<Offer>>(
+    "GET",
+    `/offers`,
+    { signal },
+  );
+}
+
+/** Creates a new offer for a store (STORE_MANAGER own store or ADMIN). */
+export function createOffer(
+  storeId: string,
+  input: CreateOfferInput,
+  signal?: AbortSignal,
+): Promise<Offer> {
+  return request<Offer>(
+    "POST",
+    `/stores/${encodeURIComponent(storeId)}/offers`,
+    { body: input, auth: true, signal },
+  );
+}
+
+/** Updates an existing offer (STORE_MANAGER own store or ADMIN). */
+export function updateOffer(
+  storeId: string,
+  offerId: string,
+  input: UpdateOfferInput,
+  signal?: AbortSignal,
+): Promise<Offer> {
+  return request<Offer>(
+    "PATCH",
+    `/stores/${encodeURIComponent(storeId)}/offers/${encodeURIComponent(offerId)}`,
+    { body: input, auth: true, signal },
+  );
+}
+
+/** Deletes an offer (STORE_MANAGER own store or ADMIN). */
+export function deleteOffer(
+  storeId: string,
+  offerId: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  return request<void>(
+    "DELETE",
+    `/stores/${encodeURIComponent(storeId)}/offers/${encodeURIComponent(offerId)}`,
+    { auth: true, signal },
+  );
+}
+
+/** Quick toggle — flips the offer's isActive flag. */
+export function toggleOffer(
+  storeId: string,
+  offerId: string,
+  signal?: AbortSignal,
+): Promise<Offer> {
+  return request<Offer>(
+    "PATCH",
+    `/stores/${encodeURIComponent(storeId)}/offers/${encodeURIComponent(offerId)}/toggle`,
+    { auth: true, signal },
   );
 }

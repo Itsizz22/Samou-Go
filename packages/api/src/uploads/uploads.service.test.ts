@@ -33,6 +33,7 @@ const h = vi.hoisted(() => {
       id: 's1',
       managerId: 'u-manager' as string | null,
       logoUrl: null as string | null,
+      coverUrl: null as string | null,
     },
     currentUser: null as null | { id: string; profileImageUrl: string | null; profileImageKey: string | null },
     userUpdated: null as null | { profileImageUrl: string; profileImageKey: string },
@@ -69,10 +70,15 @@ const h = vi.hoisted(() => {
     },
     store: {
       findUnique: vi.fn(async () => state.store),
-      update: vi.fn(async ({ data }: { data: { logoUrl: string | null } }) => {
-        if (state.store) state.store.logoUrl = data.logoUrl;
-        return state.store;
-      }),
+      update: vi.fn(
+        async ({ data }: { data: { logoUrl?: string | null; coverUrl?: string | null } }) => {
+          if (state.store) {
+            if (data.logoUrl !== undefined) state.store.logoUrl = data.logoUrl;
+            if (data.coverUrl !== undefined) state.store.coverUrl = data.coverUrl;
+          }
+          return state.store;
+        }
+      ),
     },
   };
 
@@ -88,10 +94,10 @@ vi.mock('../../config/env', () => ({
 let sniffImageType: (buffer: Buffer) => import('./image').ImageMime | null;
 let storage: import('./storage').StorageAdapter;
 let finalizeUpload: (caller: import('./uploads.service').UploadCaller, key: string, kind: import('@samou-go/shared-types').UploadKind) => Promise<{ url: string; width: number; height: number }>;
-let presign: (caller: import('./uploads.service').UploadCaller, input: { contentType: string; kind: import('@samou-go/shared-types').UploadKind; resourceId?: string }) => Promise<{ uploadUrl: string; key: string; contentType: string; maxBytes: number }>;
+let presign: (caller: import('./uploads.service').UploadCaller, input: { contentType: string; kind: import('@samou-go/shared-types').UploadKind; resourceId?: string; purpose?: 'logo' | 'cover' }) => Promise<{ uploadUrl: string; key: string; contentType: string; maxBytes: number }>;
 let storeRaw: (key: string, body: Readable, caller: import('./uploads.service').UploadCaller) => Promise<void>;
 let removeUpload: (key: string, caller: import('./uploads.service').UploadCaller) => Promise<void>;
-let removeCurrentImage: (caller: import('./uploads.service').UploadCaller, kind: import('@samou-go/shared-types').UploadKind, resourceId?: string) => Promise<void>;
+let removeCurrentImage: (caller: import('./uploads.service').UploadCaller, kind: import('@samou-go/shared-types').UploadKind, resourceId?: string, purpose?: 'logo' | 'cover') => Promise<void>;
 
 const CUSTOMER = { userId: 'u-customer', role: UserRole.CUSTOMER } as const;
 const ADMIN = { userId: 'u-admin', role: UserRole.ADMIN } as const;
@@ -141,7 +147,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await rm(process.env.UPLOAD_DIR as string, { recursive: true, force: true });
   h.state.product = { id: 'p1', storeId: 's1', imageUrl: null };
-  h.state.store = { id: 's1', managerId: 'u-manager', logoUrl: null };
+  h.state.store = { id: 's1', managerId: 'u-manager', logoUrl: null, coverUrl: null };
   h.state.currentUser = { id: 'u-customer', profileImageUrl: null, profileImageKey: null };
   h.state.userUpdated = null;
   h.state.userRemoved = false;
@@ -498,5 +504,73 @@ describe('store logos', () => {
         )
       )
     ).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+});
+
+describe('store covers', () => {
+  it('presigns a cover key with a cover- marker', async () => {
+    const { key } = await presign(MANAGER, {
+      contentType: 'image/png',
+      kind: 'store',
+      resourceId: 's1',
+      purpose: 'cover',
+    });
+    expect(key).toMatch(/^store\/s1\/cover-[^/]+\.png$/);
+  });
+
+  it('finalizes a cover and attaches the URL to coverUrl (logo untouched)', async () => {
+    const { key } = await presign(MANAGER, {
+      contentType: 'image/png',
+      kind: 'store',
+      resourceId: 's1',
+      purpose: 'cover',
+    });
+    await storeRaw(key, ReadableFrom(await makePng()), MANAGER);
+
+    const result = await finalizeUpload(MANAGER, key, 'store');
+
+    expect(result.url).toMatch(/^http:\/\/localhost:4000\/uploads\/store\/s1\/cover-[^/]+\.webp$/);
+    expect(h.state.store?.coverUrl).toBe(result.url);
+    expect(h.state.store?.logoUrl).toBeNull();
+  });
+
+  it('detaches the cover via removeCurrentImage with purpose cover', async () => {
+    const { key } = await presign(MANAGER, {
+      contentType: 'image/png',
+      kind: 'store',
+      resourceId: 's1',
+      purpose: 'cover',
+    });
+    await storeRaw(key, ReadableFrom(await makePng()), MANAGER);
+    const { url } = await finalizeUpload(MANAGER, key, 'store');
+
+    await removeCurrentImage(MANAGER, 'store', 's1', 'cover');
+
+    expect(h.state.store?.coverUrl).toBeNull();
+    await expect(
+      readFile(
+        path.join(
+          process.env.UPLOAD_DIR as string,
+          'final',
+          url.split('/uploads/')[1] as string
+        )
+      )
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('removing the logo leaves the cover intact', async () => {
+    const cover = await presign(MANAGER, {
+      contentType: 'image/png',
+      kind: 'store',
+      resourceId: 's1',
+      purpose: 'cover',
+    });
+    await storeRaw(cover.key, ReadableFrom(await makePng()), MANAGER);
+    const coverResult = await finalizeUpload(MANAGER, cover.key, 'store');
+
+    await removeCurrentImage(MANAGER, 'store', 's1');
+
+    expect(h.state.store?.logoUrl).toBeNull();
+    expect(h.state.store?.coverUrl).toBe(coverResult.url);
   });
 });

@@ -16,9 +16,22 @@ import { env } from '../config/env';
  *   dev/test  → SQLite    (schema.sqlite.prisma → generated/prisma-sqlite)
  *   production → PostgreSQL (schema.prisma → generated/prisma-postgres)
  */
+/** Prisma namespace matching the active datasource. */
 export const Prisma = env.isProduction ? PostgresGenerated.Prisma : SqliteGenerated.Prisma;
 
+/**
+ * The two generated `PrismaClient` classes are structurally identical code,
+ * but asking TypeScript to compare them directly (the ternary below) blows
+ * past its recursion limits once both schemas grow many relations. The type
+ * is pinned to the SQLite shape — the SQLite and Postgres clients accept the
+ * same options and expose the same methods.
+ */
+type PrismaClientConstructor = typeof SqliteGenerated.PrismaClient;
+
 /** PrismaClient constructor matching the active datasource. */
-export const PrismaClient = env.isProduction
-  ? PostgresGenerated.PrismaClient
-  : SqliteGenerated.PrismaClient;
+const resolvePrismaClient = (): PrismaClientConstructor =>
+  env.isProduction
+    ? (PostgresGenerated.PrismaClient as unknown as PrismaClientConstructor)
+    : SqliteGenerated.PrismaClient;
+
+export const PrismaClient: PrismaClientConstructor = resolvePrismaClient();

@@ -12,7 +12,7 @@ import { processImage, sniffImageType } from './image';
 import { storage } from './storage';
 import { ALLOWED_IMAGE_MIMES, MIME_TO_EXT, uploadConfig } from './uploads.config';
 
-const KEY_PATTERN = /^(user|product|store)\/([^/]+)\/([^/]+)\.(jpg|png|webp)$/;
+const KEY_PATTERN = /^(user|product|store|offer)\/([^/]+)\/([^/]+)\.(jpg|png|webp)$/;
 
 export interface UploadCaller {
   userId: string;
@@ -22,12 +22,23 @@ export interface UploadCaller {
 interface ParsedKey {
   kind: UploadKind;
   ownerId: string;
+  /**
+   * `store` keys only — which store image slot the upload targets. Cover keys
+   * carry a `cover-` filename marker (`store/<id>/cover-<uuid>.jpg`); logo keys
+   * keep the plain shape so pre-cover uploads and tests stay valid.
+   */
+  purpose: 'logo' | 'cover';
 }
 
 function parseKey(key: string): ParsedKey | null {
   const match = KEY_PATTERN.exec(key);
   if (!match) return null;
-  return { kind: match[1] as UploadKind, ownerId: match[2] as string };
+  const filename = match[3] as string;
+  return {
+    kind: match[1] as UploadKind,
+    ownerId: match[2] as string,
+    purpose: filename.startsWith('cover-') ? 'cover' : 'logo',
+  };
 }
 
 function baseKeyOf(rawKey: string): string {
@@ -68,10 +79,10 @@ async function resolveProduct(
 async function resolveStore(
   ownerId: string,
   caller: UploadCaller
-): Promise<{ id: string; managerId: string; logoUrl: string | null }> {
+): Promise<{ id: string; managerId: string; logoUrl: string | null; coverUrl: string | null }> {
   const store = await prisma.store.findUnique({
     where: { id: ownerId },
-    select: { id: true, managerId: true, logoUrl: true },
+    select: { id: true, managerId: true, logoUrl: true, coverUrl: true },
   });
   if (!store) throw notFound('المتجر غير موجود / Store not found');
   if (caller.role === UserRole.ADMIN) return store;
@@ -79,9 +90,33 @@ async function resolveStore(
   return store;
 }
 
+/**
+ * An offer key is only usable by the offer's store manager (or an admin) —
+ * the same ownership rule as products and stores. Resolves the offer so
+ * callers can act on the loaded row instead of re-querying.
+ */
+async function resolveOffer(
+  ownerId: string,
+  caller: UploadCaller
+): Promise<{ id: string; storeId: string; imageUrl: string | null; imageKey: string | null }> {
+  const offer = await prisma.offer.findUnique({
+    where: { id: ownerId },
+    select: { id: true, storeId: true, imageUrl: true, imageKey: true },
+  });
+  if (!offer) throw notFound('العرض غير موجود / Offer not found');
+  if (caller.role === UserRole.ADMIN) return offer;
+
+  const store = await prisma.store.findUnique({
+    where: { id: offer.storeId },
+    select: { managerId: true },
+  });
+  if (!store || store.managerId !== caller.userId) throw forbidden();
+  return offer;
+}
+
 export async function presign(
   caller: UploadCaller,
-  input: { contentType: string; kind: UploadKind; resourceId?: string }
+  input: { contentType: string; kind: UploadKind; resourceId?: string; purpose?: 'logo' | 'cover' }
 ): Promise<PresignUploadResult> {
   const mime = ALLOWED_IMAGE_MIMES.find(entry => entry === input.contentType);
   if (!mime) {
@@ -106,11 +141,23 @@ export async function presign(
   } else if (input.kind === 'store') {
     if (!input.resourceId) {
       throw badRequest(
-        'resourceId مطلوب لشعار المتجر / resourceId is required for store logos'
+        'resourceId مطلوب لصور المتجر / resourceId is required for store images'
       );
     }
     await resolveStore(input.resourceId, caller);
-    key = `store/${input.resourceId}/${randomUUID()}.${ext}`;
+    // Cover uploads get a `cover-` filename marker so every later step
+    // (raw PUT, finalize, remove) can tell which store slot the key targets
+    // without trusting a caller-supplied field.
+    const marker = input.purpose === 'cover' ? 'cover-' : '';
+    key = `store/${input.resourceId}/${marker}${randomUUID()}.${ext}`;
+  } else if (input.kind === 'offer') {
+    if (!input.resourceId) {
+      throw badRequest(
+        'resourceId مطلوب لصور العروض / resourceId is required for offer images'
+      );
+    }
+    await resolveOffer(input.resourceId, caller);
+    key = `offer/${input.resourceId}/${randomUUID()}.${ext}`;
   } else {
     throw badRequest('نوع رفع غير معروف / Unknown upload kind');
   }
@@ -132,6 +179,8 @@ export async function storeRaw(key: string, body: Readable, caller: UploadCaller
     assertUserKey(key, caller);
   } else if (parsed.kind === 'product') {
     await resolveProduct(parsed.ownerId, caller);
+  } else if (parsed.kind === 'offer') {
+    await resolveOffer(parsed.ownerId, caller);
   } else {
     await resolveStore(parsed.ownerId, caller);
   }
@@ -152,6 +201,7 @@ export async function finalizeUpload(
 
   const product = parsed.kind === 'product' ? await resolveProduct(parsed.ownerId, caller) : null;
   const store = parsed.kind === 'store' ? await resolveStore(parsed.ownerId, caller) : null;
+  const offer = parsed.kind === 'offer' ? await resolveOffer(parsed.ownerId, caller) : null;
   if (parsed.kind === 'user') assertUserKey(key, caller);
 
   const raw = await storage.readRaw(key);
@@ -168,7 +218,7 @@ export async function finalizeUpload(
   const base = baseKeyOf(key);
   const processed = await processImage({ buffer: raw, kind });
 
-  if (parsed.kind === 'user' || parsed.kind === 'store') {
+  if (parsed.kind === 'user' || parsed.kind === 'store' || parsed.kind === 'offer') {
     const variant = processed.variants[0]!;
     const finalKey = `${base}.webp`;
     const url = storage.finalUrl(finalKey);
@@ -179,6 +229,16 @@ export async function finalizeUpload(
         await prisma.user.update({
           where: { id: caller.userId },
           data: { profileImageUrl: url, profileImageKey: key },
+        });
+      } else if (parsed.kind === 'offer') {
+        await prisma.offer.update({
+          where: { id: offer!.id },
+          data: { imageUrl: url, imageKey: key },
+        });
+      } else if (parsed.purpose === 'cover') {
+        await prisma.store.update({
+          where: { id: store!.id },
+          data: { coverUrl: url },
         });
       } else {
         await prisma.store.update({
@@ -239,14 +299,16 @@ function keyFromPublicUrl(url: string | null): string | null {
 
 /**
  * DELETE /uploads/current — removes the image currently attached to the
- * caller's own avatar, or (with `resourceId`) to a product they manage.
- * The client never has to remember an opaque key for this; the URL it already
- * holds is enough to locate the processed files.
+ * caller's own avatar, or (with `resourceId`) to a product or store they
+ * manage. `purpose` picks the store slot ('logo' | 'cover'); product/user
+ * calls ignore it. The client never has to remember an opaque key for this;
+ * the URL it already holds is enough to locate the processed files.
  */
 export async function removeCurrentImage(
   caller: UploadCaller,
   kind: UploadKind,
-  resourceId?: string
+  resourceId?: string,
+  purpose?: 'logo' | 'cover'
 ): Promise<void> {
   if (kind === 'user') {
     const user = await prisma.user.findUnique({
@@ -270,16 +332,40 @@ export async function removeCurrentImage(
   if (kind === 'store') {
     if (!resourceId) {
       throw badRequest(
-        'resourceId مطلوب لشعار المتجر / resourceId is required for store logos'
+        'resourceId مطلوب لصور المتجر / resourceId is required for store images'
       );
     }
     const store = await resolveStore(resourceId, caller);
-    if (!store.logoUrl) return;
+    const field = purpose === 'cover' ? store.coverUrl : store.logoUrl;
+    if (!field) return;
 
-    const finalKey = keyFromPublicUrl(store.logoUrl);
+    const finalKey = keyFromPublicUrl(field);
     if (finalKey) await storage.removeFinal(finalKey).catch(() => undefined);
 
-    await prisma.store.update({ where: { id: store.id }, data: { logoUrl: null } });
+    await prisma.store.update({
+      where: { id: store.id },
+      data: purpose === 'cover' ? { coverUrl: null } : { logoUrl: null },
+    });
+    return;
+  }
+
+  if (kind === 'offer') {
+    if (!resourceId) {
+      throw badRequest(
+        'resourceId مطلوب لصور العروض / resourceId is required for offer images'
+      );
+    }
+    const offer = await resolveOffer(resourceId, caller);
+    if (!offer.imageUrl) return;
+
+    const finalKey = keyFromPublicUrl(offer.imageUrl);
+    if (finalKey) await storage.removeFinal(finalKey).catch(() => undefined);
+    if (offer.imageKey) await storage.removeRaw(offer.imageKey).catch(() => undefined);
+
+    await prisma.offer.update({
+      where: { id: offer.id },
+      data: { imageUrl: null, imageKey: null },
+    });
     return;
   }
 
@@ -320,8 +406,26 @@ export async function removeUpload(key: string, caller: UploadCaller): Promise<v
   if (parsed.kind === 'store') {
     const store = await resolveStore(parsed.ownerId, caller);
     const url = storage.finalUrl(`${base}.webp`);
-    if (store.logoUrl === url) {
+    if (parsed.purpose === 'cover') {
+      if (store.coverUrl === url) {
+        await prisma.store.update({ where: { id: store.id }, data: { coverUrl: null } });
+      }
+    } else if (store.logoUrl === url) {
       await prisma.store.update({ where: { id: store.id }, data: { logoUrl: null } });
+    }
+    await storage.removeRaw(key).catch(() => undefined);
+    await storage.removeFinal(`${base}.webp`).catch(() => undefined);
+    return;
+  }
+
+  if (parsed.kind === 'offer') {
+    const offer = await resolveOffer(parsed.ownerId, caller);
+    const url = storage.finalUrl(`${base}.webp`);
+    if (offer.imageUrl === url) {
+      await prisma.offer.update({
+        where: { id: offer.id },
+        data: { imageUrl: null, imageKey: null },
+      });
     }
     await storage.removeRaw(key).catch(() => undefined);
     await storage.removeFinal(`${base}.webp`).catch(() => undefined);

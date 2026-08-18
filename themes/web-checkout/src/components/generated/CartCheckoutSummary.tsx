@@ -34,17 +34,19 @@ import {
   useStores,
   useToast,
 } from '@samou-go/api-client';
-import type {
-  CreateOrderInput,
-  CreateOrderItemInput,
-  OrderDetail,
-  OrderQuote,
-  Product,
+import {
+  UserRole,
+  type CreateOrderInput,
+  type CreateOrderItemInput,
+  type OrderDetail,
+  type OrderQuote,
+  type Product,
 } from '@samou-go/shared-types';
-import { DeliveryFee, OrderSuccess } from '@samou-go/ui';
+import { DeliveryFee, OrderSuccess, useLanguage } from '@samou-go/ui';
 import {
   CURRENCY,
   calculateDeliveryFee,
+  deliveryFeeLabel,
   formatCurrency,
 } from '@/lib/delivery';
 import { HeaderNav } from './HeaderNav';
@@ -81,7 +83,8 @@ function tileTone(index: number): string {
 }
 
 export const CartCheckoutSummary = () => {
-  const auth = useAuth();
+  const { t, language } = useLanguage();
+  const auth = useAuth({ allowedRoles: [UserRole.CUSTOMER] });
   const toast = useToast();
 
   /* ---- Which store are we ordering from? ------------------------------- */
@@ -215,7 +218,7 @@ export const CartCheckoutSummary = () => {
   if (!auth.ready) {
     return (
       <div className="min-h-screen bg-canvas" aria-busy="true">
-        <HeaderNav title="Checkout / الدفع" showBack={false} showCart={false} />
+        <HeaderNav title={t('الدفع', 'Checkout')} showBack={false} showCart={false} />
         <div className="mx-auto w-full max-w-lg space-y-3 px-4 pt-6" aria-hidden="true">
           {[0, 1, 2].map((index) => (
             <div key={index} className="skeleton h-[86px] rounded-xl shadow-card" />
@@ -234,7 +237,7 @@ export const CartCheckoutSummary = () => {
   if (placed) {
     return (
       <div className="min-h-screen bg-canvas text-ink">
-        <HeaderNav title="Order placed / تم الطلب" showBack={false} showCart={false} />
+        <HeaderNav title={t('تم الطلب', 'Order placed')} showBack={false} showCart={false} />
         <main className="mx-auto w-full max-w-lg px-4 pb-32 pt-6" aria-live="polite">
           <OrderSuccess
             orderNumber={placed.orderNumber}
@@ -245,7 +248,7 @@ export const CartCheckoutSummary = () => {
                   className="btn-primary w-full justify-center"
                 >
                   <Truck size={20} />
-                  تتبّع الطلب <span dir="ltr">Track order</span>
+                  {t('تتبّع الطلب', 'Track order')}
                 </a>
                 <button
                   type="button"
@@ -255,7 +258,7 @@ export const CartCheckoutSummary = () => {
                   }}
                   className="btn-secondary w-full justify-center"
                 >
-                  طلب جديد <span dir="ltr">New order</span>
+                  {t('طلب جديد', 'New order')}
                 </button>
               </>
             }
@@ -263,13 +266,13 @@ export const CartCheckoutSummary = () => {
 
           <dl className="mx-auto mt-4 w-full max-w-sm space-y-2 rounded-xl bg-surface p-5 text-sm shadow-card ring-1 ring-line">
             <div className="flex items-center justify-between text-ink-muted">
-              <dt>الإجمالي / Total</dt>
+              <dt>{t('الإجمالي', 'Total')}</dt>
               <dd dir="ltr" className="font-black text-ink">
                 {formatCurrency(placed.totalAmount, { unit: 'code' })}
               </dd>
             </div>
             <div className="flex items-center justify-between text-ink-muted">
-              <dt>العنوان / Address</dt>
+              <dt>{t('العنوان', 'Address')}</dt>
               <dd className="max-w-[60%] truncate font-semibold text-ink">
                 {placed.customerAddressText}
               </dd>
@@ -290,7 +293,7 @@ export const CartCheckoutSummary = () => {
   return (
     <div className="min-h-screen bg-canvas text-ink">
       <HeaderNav
-        title="Checkout / الدفع"
+        title={t('الدفع', 'Checkout')}
         arabicTitle={store.data?.nameAr}
         showBack
         showCart
@@ -311,12 +314,11 @@ export const CartCheckoutSummary = () => {
                 Your basket
               </p>
               <h2 id="cart-heading" className="text-[25px] font-black tracking-[-0.04em] text-ink">
-                Review your order
+                {t('راجع طلبك قبل التأكيد', 'Review your order')}
               </h2>
-              <p className="mt-1 text-sm text-ink-muted">راجع طلبك قبل التأكيد</p>
             </div>
             <span className="rounded-full bg-surface px-3 py-1.5 text-xs font-bold text-ink-muted shadow-card ring-1 ring-line">
-              {itemCount} items / أصناف
+              {itemCount} {t('أصناف', 'items')}
             </span>
           </div>
 
@@ -328,11 +330,8 @@ export const CartCheckoutSummary = () => {
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
                 <AlertTriangle size={22} />
               </span>
-              <h3 className="mt-3 text-sm font-extrabold">تعذّر تحميل قائمة المتجر</h3>
-              <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">
-                Could not load the store menu
-              </p>
-              <p className="mt-2 text-xs text-ink-soft">{catalogueError.message}</p>
+              <h3 className="mt-3 text-sm font-extrabold">{t('تعذّر تحميل قائمة المتجر', 'Could not load the store menu')}</h3>
+              <p className="mt-2 text-xs text-ink-soft">{language === 'ar' ? catalogueError.message : catalogueError.localizedMessage}</p>
               <button
                 type="button"
                 onClick={storeIdParam ? store.refresh : storeList.refresh}
@@ -344,7 +343,7 @@ export const CartCheckoutSummary = () => {
                 ) : (
                   <RefreshCw size={14} />
                 )}
-                إعادة المحاولة <span dir="ltr">Retry</span>
+                {t('إعادة المحاولة', 'Retry')}
               </button>
             </div>
           )}
@@ -357,10 +356,7 @@ export const CartCheckoutSummary = () => {
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-surface text-brand">
                 <Package size={22} />
               </span>
-              <h3 className="mt-3 text-sm font-extrabold">لا توجد منتجات متاحة في هذا المتجر</h3>
-              <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">
-                This store has no available products
-              </p>
+              <h3 className="mt-3 text-sm font-extrabold">{t('لا توجد منتجات متاحة في هذا المتجر', 'This store has no available products')}</h3>
             </div>
           )}
 
@@ -456,7 +452,7 @@ export const CartCheckoutSummary = () => {
             <h2 id="address-heading" className="text-lg font-black text-ink">
               Delivery address
             </h2>
-            <span className="text-xs font-bold text-ink-muted">مطلوب / Required</span>
+            <span className="text-xs font-bold text-ink-muted">{t('مطلوب', 'Required')}</span>
           </div>
           <div className="rounded-xl bg-surface p-4 shadow-card ring-1 ring-line">
             <label className="flex items-start gap-3">
@@ -465,10 +461,7 @@ export const CartCheckoutSummary = () => {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-extrabold text-ink">
-                  الحي والشارع وأقرب معلم
-                </span>
-                <span className="mt-0.5 block text-xs text-ink-muted" dir="ltr">
-                  Neighbourhood, street and nearest landmark
+                  {t('الحي والشارع وأقرب معلم', 'Neighbourhood, street and nearest landmark')}
                 </span>
                 <input
                   type="text"
@@ -482,7 +475,7 @@ export const CartCheckoutSummary = () => {
             </label>
             <label className="mt-3 block">
               <span className="text-xs font-bold text-ink-soft">
-                ملاحظة للسائق <span dir="ltr" className="font-medium text-ink-muted">/ Note for the captain (optional)</span>
+                {t('ملاحظة للسائق', 'Note for the captain (optional)')}
               </span>
               <input
                 type="text"
@@ -494,7 +487,7 @@ export const CartCheckoutSummary = () => {
             </label>
             {address.length > 0 && !addressValid && (
               <p className="mt-2 text-[11px] font-semibold text-danger-ink">
-                العنوان قصير جداً <span dir="ltr">/ Address is too short</span>
+                {t('العنوان قصير جداً', 'Address is too short')}
               </p>
             )}
           </div>
@@ -509,8 +502,7 @@ export const CartCheckoutSummary = () => {
               <WalletCards size={20} />
             </span>
             <span className="flex-1">
-              <strong className="block text-sm font-extrabold text-ink">Cash on Delivery (COD)</strong>
-              <span className="block text-sm text-ink-soft">الدفع عند الاستلام</span>
+              <strong className="block text-sm font-extrabold text-ink">{t('الدفع عند الاستلام', 'Cash on Delivery (COD)')}</strong>
             </span>
             <span
               className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-brand bg-brand"
@@ -527,7 +519,7 @@ export const CartCheckoutSummary = () => {
           aria-busy={quoteStale}
         >
           <h2 id="summary-heading" className="mb-4 flex items-center gap-2 text-lg font-black text-ink">
-            Bill summary <span className="font-medium text-ink-muted">/ ملخص الفاتورة</span>
+            {t('ملخص الفاتورة', 'Bill summary')}
             {quoteStale && hasItems && (
               <Loader2 size={16} className="animate-spin text-brand" aria-label="Updating price" />
             )}
@@ -535,19 +527,19 @@ export const CartCheckoutSummary = () => {
 
           {!hasItems && (
             <p className="py-2 text-sm text-ink-muted">
-              أضف منتجات لعرض الفاتورة <span dir="ltr">/ Add items to see your bill</span>
+              {t('أضف منتجات لعرض الفاتورة', 'Add items to see your bill')}
             </p>
           )}
 
           {hasItems && quote.error && (
             <div className="rounded-lg bg-danger-tint p-3 text-center" aria-live="assertive">
-              <p className="text-xs font-bold text-danger-ink">{quote.error.message}</p>
+              <p className="text-xs font-bold text-danger-ink">{language === 'ar' ? quote.error.message : quote.error.localizedMessage}</p>
               <button
                 type="button"
                 onClick={quote.reload}
                 className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-danger-ink underline"
               >
-                <RefreshCw size={12} /> إعادة حساب السعر <span dir="ltr">/ Recalculate</span>
+                <RefreshCw size={12} /> {t('إعادة حساب السعر', 'Recalculate')}
               </button>
             </div>
           )}
@@ -565,14 +557,14 @@ export const CartCheckoutSummary = () => {
               exact rule the server prices with (free delivery — 0 ₪). */}
           {hasItems && (quoteStale || !bill) && (
             <dl className="space-y-3 border-t border-dashed border-line pt-3 text-sm" aria-label="Delivery fee preview">
-              <DeliveryFee amount={previewDeliveryFee} variant="row" showIcon note="تقدير فوري · Instant estimate" />
+              <DeliveryFee amount={previewDeliveryFee} variant="row" showIcon note={t('تقدير فوري', 'Instant estimate')} />
             </dl>
           )}
 
           {hasItems && bill && (
             <dl className={`space-y-3 text-sm transition-opacity ${quoteStale ? 'opacity-50' : ''}`}>
               <div className="flex items-center justify-between text-ink-muted">
-                <dt>Subtotal / المجموع الفرعي</dt>
+                <dt>{t('المجموع الفرعي', 'Subtotal')}</dt>
                 <dd dir="ltr" className="font-bold text-ink">
                   {formatCurrency(bill.subtotal, { unit: 'code' })}
                 </dd>
@@ -581,11 +573,11 @@ export const CartCheckoutSummary = () => {
                 amount={bill.deliveryFee}
                 variant="row"
                 showIcon
-                note={bill.deliveryFeeLabel}
+                note={deliveryFeeLabel(language)}
               />
               <div className="my-4 border-t border-dashed border-line" />
               <div className="flex items-end justify-between">
-                <dt className="text-base font-black text-ink">Total / الإجمالي</dt>
+                <dt className="text-base font-black text-ink">{t('الإجمالي', 'Total')}</dt>
                 <dd dir="ltr" className="text-2xl font-black tracking-tight text-brand">
                   {bill.totalAmount} <span className="text-sm font-bold">{CURRENCY.code}</span>
                 </dd>
@@ -601,7 +593,7 @@ export const CartCheckoutSummary = () => {
           >
             <AlertTriangle size={16} className="mt-0.5 shrink-0" />
             <span>
-              {submit.error.message}
+              {language === 'ar' ? submit.error.message : submit.error.localizedMessage}
               {submit.error.details.length > 0 && (
                 <ul className="mt-2 space-y-1 text-xs font-medium" aria-label="Validation details">
                   {submit.error.details.map((detail) => (
@@ -613,7 +605,7 @@ export const CartCheckoutSummary = () => {
               )}
               {submit.error.isAuthError && (
                 <span className="mt-1 block text-xs font-medium">
-                  انتهت الجلسة، سجّل الدخول من جديد <span dir="ltr">/ Session expired, sign in again</span>
+                  {t('انتهت الجلسة، سجّل الدخول من جديد', 'Session expired, sign in again')}
                 </span>
               )}
             </span>
@@ -627,10 +619,10 @@ export const CartCheckoutSummary = () => {
           className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-4 text-base font-black text-white shadow-raised transition hover:bg-brand-dark focus:outline-none focus:ring-4 focus:ring-brand-tint active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submit.pending ? <Loader2 size={20} className="animate-spin" /> : <ShieldCheck size={20} />}
-          <span>Place Order / اطلب الآن</span>
+          <span>{t('اطلب الآن', 'Place Order')}</span>
         </button>
         <p className="mt-3 text-center text-xs text-ink-muted">
-          Secure checkout · الدفع عند الاستلام
+          {t('الدفع عند الاستلام', 'Secure checkout')}
         </p>
 
         <button
@@ -639,7 +631,7 @@ export const CartCheckoutSummary = () => {
           className="mx-auto mt-6 flex items-center gap-1.5 text-xs font-bold text-ink-muted transition hover:text-danger-ink"
         >
           <LogOut size={13} />
-          {auth.user.name} — تسجيل الخروج <span dir="ltr">/ Sign out</span>
+          {auth.user.name} — {t('تسجيل الخروج', 'Sign out')}
         </button>
       </main>
 

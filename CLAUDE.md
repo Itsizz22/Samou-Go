@@ -70,15 +70,25 @@ Android (Capacitor, `android/` at root, `appId com.samougo.customer`): `npm run 
 
 **Contract flows one way.** `shared-types` sits at the bottom of the graph and imports nothing from the API or a front-end. The API builds responses from its DTOs; `api-client` types its functions from the same DTOs, so a contract break surfaces at compile time.
 
-**API layering** — `src/routes/index.ts` mounts one router per domain module (`auth`, `stores`, `orders`, `users`, `captains`, `admin`, `favorites`, `uploads`, `platform`), plus a public `GET /api/v1/meta` that serves the live tariff and status/role label vocabulary so no front-end hardcodes them. Each module is `*.routes.ts` (auth + `authorize(...)` + `asyncHandler`) → `*.controller.ts` (`parseWith(zodSchema, …)`, then `ok`/`created`) → `*.service.ts` (Prisma, business rules) → `*.mapper.ts` (Prisma row → DTO). `createApp()` in `src/app.ts` wires helmet/CORS/static uploads/`/health`, then `notFoundHandler` then `errorHandler` — order matters.
+**API layering** — `src/routes/index.ts` mounts one router per domain module (`auth`, `stores`, `orders`, `users`, `captains`, `admin`, `favorites`, `uploads`, `platform`), plus a public `GET /api/v1/meta` that serves the live tariff and status/role label vocabulary so no front-end hardcodes them. Each module is `*.routes.ts` (auth + `authorize(...)` + `asyncHandler`) → `*.controller.ts` (`parseWith(zodSchema, …)`, then `ok`/`created`/`noContent`) → `*.service.ts` (Prisma, business rules) → `*.mapper.ts` (Prisma row → DTO). `createApp()` in `src/app.ts` wires helmet/CORS/static uploads/`/health`, then `notFoundHandler` then `errorHandler` — order matters.
 
-**Response envelope.** Every success goes out as `{ success: true, data }` via `ok`/`created` in `src/lib/respond.ts`; failures become the error envelope through `HttpError` + `errorHandler`. `api-client` unwraps the envelope and converts every failure — HTTP, network, timeout, malformed body — into an `ApiError` with a machine-readable `code` and a renderable Arabic message.
+**Auth middleware pattern.** Routes use `authenticate` (hard JWT gate) → `authorize(...roles)` (role gate), or `optionalAuthenticate` (soft gate) where `EventSource` cannot send `Authorization` headers (e.g. the SSE order-events route). Inside controllers, `requireAuth(req)` narrows the type. Every route handler must be wrapped in `asyncHandler` (`src/lib/async-handler.ts`) or async throws silently vanish instead of reaching the error middleware.
+
+**Response envelope.** Every success goes out as `{ success: true, data }` via `ok`/`created`/`noContent` in `src/lib/respond.ts`; failures become the error envelope through `HttpError` + `errorHandler`. `api-client` unwraps the envelope and converts every failure — HTTP, network, timeout, malformed body — into an `ApiError` with a machine-readable `code` and a renderable Arabic message.
+
+**HTTP error helpers.** Services throw typed errors via factory helpers in `src/lib/http-error.ts`: `badRequest()`, `notFound()`, `forbidden()`, `conflict()`, `unprocessable()`, `badState()`, `tooMany()`, `serviceUnavailable()`. Any non-`HttpError` throw becomes a generic 500. Error messages must be bilingual (`"العربية / English"`) since they surface directly in the UI.
 
 **Money.** Postgres `Decimal(10,2)`; convert at the API edge with `decimalToNumber()` (`src/lib/decimal.ts`) so DTOs carry plain `number`. **The client never sends money**: `POST /orders` carries only `storeId`, items and address, and the server prices the basket from DB rows.
+
+**Delivery fees are hard-zeroed.** `src/config/env.ts` ignores `DELIVERY_*` env vars and zeros `baseFee`, `bulkFee`, and all region surcharges in `deliveryFeeConfig`. The vars are dormant plumbing — do not expect fee config to be env-driven.
+
+**Image upload pipeline.** Flow: presign → PUT raw bytes → finalize, all wrapped by `uploadImage()` in api-client. `UploadKind` (`user`, `product`, `store`) + `purpose` (`logo`/`cover`) gate which slot is updated. Products with order history must never be hard-deleted — soft-deactivate only.
 
 **Order lifecycle** is data, not scattered `if`s: `ORDER_STATUS_SEQUENCE`, `ORDER_STATUS_TRANSITIONS`, `ORDER_STATUS_ACTORS`, `TERMINAL_ORDER_STATUSES` and `canTransitionOrderStatus()` in `packages/shared-types/src/enums.ts` are shared by server enforcement and client rendering.
 
 **Realtime** — Socket.IO attached in `src/realtime.ts`, JWT-authenticated in the handshake, room per order (`order:<id>`); handlers (`order:join`, `captain:location`, `chat:send`) are split into `src/realtime-handlers.ts` and unit-tested there. Services emit through `emitOrderStatus` / `emitPlatformEvent`.
+
+**`@samou-go/api-client` hook primitives.** The client exposes `useResource` (string key, not a dep array), `useMutation`, and `useOrderEvent` (SSE + 15s polling fallback — SSE uses `optionalAuthenticate` on the server because `EventSource` cannot send `Authorization` headers). No react-query or SWR. Key convention: `JSON.stringify` or a template string of inputs.
 
 **Dual Prisma schemas.** `prisma/schema.prisma` is the production PostgreSQL schema (native `@db.*` types, `env("DATABASE_URL")`) — the only one CI validates and `migrate deploy` applies. `prisma/schema.sqlite.prisma` is the local-dev variant (`file:./dev.db`, native types stripped). Keep both in sync on any model change, and keep enums byte-for-byte identical to `packages/shared-types/src/enums.ts`. Prisma CLI config: `packages/api/prisma.config.ts`.
 
@@ -86,9 +96,13 @@ Because of the two providers, **never write `{ contains, mode: 'insensitive' }` 
 
 **Env separation is binding.** Local dev/test run on SQLite and never touch Neon/Postgres. `DATABASE_URL` is required only in production, injected as a deployment secret; the placeholder in `packages/api/.env` exists purely so Prisma's postinstall and prod-schema `validate`/`generate` succeed. `src/config/env.ts` validates everything with Zod at boot and refuses to start production without `DATABASE_URL`, with a placeholder `JWT_SECRET` (≥32 chars), or with `SMS_PROVIDER=console` (which logs OTP codes). `seed.ts` refuses to run under `NODE_ENV=production` and bumps `DailyOrderSequence` past its demo orders — keep that upsert in sync if you change them.
 
-**Front-end shape.** `web-customer` is a consolidated SPA on React Router (`/stores/:storeId`, `/cart`, `/checkout`, `/orders/:orderId`, …) and maps the Android hardware back button to `navigate(-1)` in `App.tsx`. The other six have no router and pass state via URL params (`?storeId=`, `?orderId=`). Every `main.tsx` calls `bootstrapApp()` from `@samou-go/ui` (light-mode lock, Framer Motion skip in preview mode, broken-image fallback); web-customer passes `allowDarkMode: true` because it owns a theme toggle.
+**Front-end shape.** `web-customer` is a consolidated SPA on React Router (`/stores/:storeId`, `/cart`, `/checkout`, `/orders/:orderId`, …) and maps the Android hardware back button to `navigate(-1)` in `App.tsx`. It also hosts lazy-loaded Captain (`/captain/*`) and Store Manager (`/store-manager/*`) dashboards — the standalone `themes/web-captain` and `themes/web-store-manager` apps are separate deployments targeting the same routes. The other five themes have no router and pass state via URL params (`?storeId=`, `?orderId=`). Every `main.tsx` calls `bootstrapApp()` from `@samou-go/ui` (light-mode lock, Framer Motion skip in preview mode, broken-image fallback); web-customer passes `allowDarkMode: true` because it owns a theme toggle.
 
 Adding an app: create `themes/<kebab>`, add it to root `workspaces`, add a root `dev:web-<kebab>` script, add its origin to `CORS_ORIGINS` in `packages/api/.env`, and register a `VERCEL_PROJECT_ID_WEB_<UPPER>` secret plus its entry in `.github/workflows/deploy.yml`.
+
+## Local setup
+
+Copy `packages/api/.env.example` → `packages/api/.env` before first run. `CORS_ORIGINS` in that file is for extras only (LAN IPs, ngrok, Capacitor's `https://localhost`) — `src/config/cors.ts` already allows all 7 Vite dev ports, all 7 Vercel production SPAs, and `*.vercel.app` preview deployments without any config.
 
 ## UI / style rules (binding)
 

@@ -8,6 +8,8 @@
 import {
   ClipboardList,
   LogOut,
+  MapPin,
+  Megaphone,
   Package,
   ShoppingBag,
   Store,
@@ -17,6 +19,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
+import { useLanguage } from '@samou-go/ui';
 
 export interface AdminNavItem {
   id: string;
@@ -30,6 +33,8 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
   { id: 'Captains', ar: 'السائقين', icon: Truck },
   { id: 'Users', ar: 'العملاء', icon: Users },
   { id: 'Orders', ar: 'الطلبات', icon: Package },
+  { id: 'Zones', ar: 'مناطق التوصيل', icon: MapPin },
+  { id: 'Offers', ar: 'العروض', icon: Megaphone },
   { id: 'Settings', ar: 'الإعدادات', icon: Settings },
 ] as const;
 
@@ -44,10 +49,11 @@ interface AdminSidebarProps {
 }
 
 export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, onSignOut }: AdminSidebarProps) {
+  const { t } = useLanguage();
   return (
     <aside
       className={`fixed inset-y-0 start-0 z-30 w-[244px] flex-col bg-brand-deep px-4 py-6 text-white transition-transform duration-200 ${
-        open ? 'flex translate-x-0' : 'hidden -translate-x-full md:flex md:translate-x-0'
+        open ? 'flex translate-x-0' : 'hidden translate-x-full md:flex md:translate-x-0'
       }`}
       aria-label="Admin sidebar"
     >
@@ -87,10 +93,7 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
                   }`}
                 >
                   <Icon size={18} strokeWidth={active ? 2.5 : 2} />
-                  <span className="flex-1 text-[13px] font-semibold">{item.id}</span>
-                  <span dir="rtl" className={`text-[12px] ${active ? 'text-white/85' : 'text-white/65'}`}>
-                    {item.ar}
-                  </span>
+                  <span className="flex-1 text-[13px] font-semibold">{t(item.ar, item.id)}</span>
                 </button>
               </li>
             );

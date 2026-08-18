@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import {
+  ApiError,
   SignInGate,
   useAuth,
   useToast,
@@ -29,6 +30,7 @@ import {
   type SavedAddress,
 } from '@/lib/address-book';
 import { ADDRESS_TAG_META, normalizeTag } from '@/lib/address-book';
+import { useLanguage } from '@samou-go/ui';
 
 const ROLE_LABELS: Record<string, string> = {
   CUSTOMER: 'عميل',
@@ -49,6 +51,8 @@ export function ProfileScreen() {
   const navigate = useNavigate();
   const toast = useToast();
   const upload = useUploadImage();
+  const { t, language } = useLanguage();
+  const isArabic = language === 'ar';
 
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(auth.user?.name ?? '');
@@ -91,11 +95,11 @@ export function ProfileScreen() {
     const nextName = name.trim();
     const nextPhone = normalizePhone(phone);
     if (!nextName) {
-      setFieldError('الاسم مطلوب / Name is required');
+      setFieldError(t('الاسم مطلوب', 'Name is required'));
       return;
     }
     if (!nextPhone || !isValidPalestinianMobile(nextPhone)) {
-      setFieldError('رقم جوال فلسطيني غير صالح / Enter a valid 05X mobile');
+      setFieldError(t('رقم جوال فلسطيني غير صالح', 'Enter a valid 05X mobile'));
       return;
     }
     setSaving(true);
@@ -108,7 +112,14 @@ export function ProfileScreen() {
       setEditing(false);
       toast.success('تم حفظ التغييرات', 'Profile updated');
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : String(cause);
+      const message =
+        cause instanceof ApiError
+          ? isArabic
+            ? cause.message
+            : cause.localizedMessage
+          : cause instanceof Error
+            ? cause.message
+            : String(cause);
       setFieldError(message);
       toast.error('تعذّر حفظ التغييرات', 'Could not save changes');
     } finally {
@@ -184,7 +195,7 @@ export function ProfileScreen() {
               type="button"
               onClick={() => (editing ? handleSave() : startEdit())}
               disabled={saving}
-              aria-label={editing ? 'حفظ / Save' : 'تعديل / Edit'}
+              aria-label={editing ? t('حفظ', 'Save') : t('تعديل', 'Edit')}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : editing ? <Save size={16} /> : <Pencil size={16} />}
@@ -197,17 +208,14 @@ export function ProfileScreen() {
               <Camera size={16} />
             </span>
             <span className="flex-1 text-end">
-              <span className="block text-xs font-extrabold">الصورة الشخصية</span>
-              <span dir="ltr" className="block text-micro text-ink-muted">
-                Profile photo
-              </span>
+              <span className="block text-xs font-extrabold">{t('الصورة الشخصية', 'Profile photo')}</span>
             </span>
             <input
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
               className="sr-only"
-              aria-label="اختر صورة شخصية / Choose a profile photo"
+              aria-label={t('اختر صورة شخصية', 'Choose a profile photo')}
               onChange={(event) => void handleAvatarPicked(event.target.files?.[0])}
             />
             {avatarBusy ? (
@@ -218,22 +226,22 @@ export function ProfileScreen() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                aria-label="تغيير الصورة / Change photo"
+                aria-label={t('تغيير الصورة', 'Change photo')}
                 className="flex h-9 items-center gap-1.5 rounded-xl bg-brand px-3 text-[11px] font-extrabold text-white transition hover:bg-brand-dark active:scale-95"
               >
                 <ImagePlus size={14} />
-                تغيير <span dir="ltr">Change</span>
+                {t('تغيير', 'Change')}
               </button>
             )}
             {user.profileImageUrl && !avatarBusy && (
               <button
                 type="button"
                 onClick={() => void handleAvatarRemove()}
-                aria-label="حذف الصورة / Remove photo"
+                aria-label={t('حذف الصورة', 'Remove photo')}
                 className="flex h-9 items-center gap-1.5 rounded-xl border border-line px-3 text-[11px] font-bold text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink active:scale-95"
               >
                 <Trash2 size={13} />
-                <span dir="ltr">Remove</span>
+                {t('إزالة', 'Remove')}
               </button>
             )}
           </div>
@@ -241,7 +249,7 @@ export function ProfileScreen() {
           {editing ? (
             <div className="mt-4 space-y-3 border-t border-line pt-4">
               <label className="block">
-                <span className="text-[11px] font-bold text-ink-muted">الاسم الكامل / Full name</span>
+                <span className="text-[11px] font-bold text-ink-muted">{t('الاسم الكامل', 'Full name')}</span>
                 <input
                   type="text"
                   value={name}
@@ -250,7 +258,7 @@ export function ProfileScreen() {
                 />
               </label>
               <label className="block">
-                <span className="text-[11px] font-bold text-ink-muted">رقم الجوال / Mobile</span>
+                <span className="text-[11px] font-bold text-ink-muted">{t('رقم الجوال', 'Mobile')}</span>
                 <input
                   type="tel"
                   dir="ltr"
@@ -271,7 +279,7 @@ export function ProfileScreen() {
                   disabled={saving}
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-xs font-bold text-ink-muted transition active:scale-[0.98]"
                 >
-                  <X size={14} /> إلغاء <span dir="ltr">Cancel</span>
+                  <X size={14} /> {t('إلغاء', 'Cancel')}
                 </button>
                 <button
                   type="button"
@@ -280,20 +288,20 @@ export function ProfileScreen() {
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand py-2.5 text-xs font-bold text-white transition hover:bg-brand-dark active:scale-[0.98] disabled:opacity-60"
                 >
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                  حفظ <span dir="ltr">Save</span>
+                  {t('حفظ', 'Save')}
                 </button>
               </div>
             </div>
           ) : (
             <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-canvas p-3 text-center">
               <div>
-                <p className="text-micro text-ink-muted">الحالة / Status</p>
+                <p className="text-micro text-ink-muted">{t('الحالة', 'Status')}</p>
                 <p className="mt-0.5 text-xs font-extrabold text-ink">
-                  {user.isActive ? 'نشط' : 'موقوف'} <span dir="ltr" className="text-micro">{user.isActive ? 'Active' : 'Inactive'}</span>
+                  {t(user.isActive ? 'نشط' : 'موقوف', user.isActive ? 'Active' : 'Inactive')}
                 </p>
               </div>
               <div>
-                <p className="text-micro text-ink-muted">المعرّف / ID</p>
+                <p className="text-micro text-ink-muted">{t('المعرّف', 'ID')}</p>
                 <p className="mt-0.5 truncate text-xs font-extrabold text-ink" dir="ltr">
                   {user.id.slice(0, 12)}
                 </p>
@@ -309,17 +317,13 @@ export function ProfileScreen() {
               <MapPin size={18} />
             </span>
             <div className="flex-1 text-end">
-              <h2 className="text-sm font-extrabold">العناوين المحفوظة</h2>
-              <p dir="ltr" className="text-[11px] text-ink-muted">
-                Saved addresses
-              </p>
+              <h2 className="text-sm font-extrabold">{t('العناوين المحفوظة', 'Saved addresses')}</h2>
             </div>
           </div>
 
           {addresses.length === 0 ? (
             <p className="mt-4 rounded-xl bg-canvas px-3 py-4 text-center text-[11px] text-ink-muted">
-              لا توجد عناوين محفوظة — تُحفظ العناوين تلقائياً عند تأكيد طلبك في الخلاصة
-              <span dir="ltr" className="ms-1">No saved addresses yet</span>
+              {t('لا توجد عناوين محفوظة — تُحفظ العناوين تلقائياً عند تأكيد طلبك في الخلاصة', 'No saved addresses yet — addresses are saved automatically when you confirm an order')}
             </p>
           ) : (
             <ul className="mt-4 space-y-2">
@@ -333,8 +337,7 @@ export function ProfileScreen() {
                       <span className="truncate text-xs font-extrabold text-ink">{entry.label || entry.addressText.slice(0, 24)}</span>
                       {entry.tag && (
                         <span className="shrink-0 rounded-full bg-brand-tint px-2 py-0.5 text-micro font-bold text-brand-dark">
-                          {ADDRESS_TAG_META[normalizeTag(entry.tag)].ar}
-                          <span dir="ltr" className="ms-1">{ADDRESS_TAG_META[normalizeTag(entry.tag)].en}</span>
+                          {t(ADDRESS_TAG_META[normalizeTag(entry.tag)].ar, ADDRESS_TAG_META[normalizeTag(entry.tag)].en)}
                         </span>
                       )}
                     </p>
@@ -345,7 +348,7 @@ export function ProfileScreen() {
                   </div>
                   <button
                     type="button"
-                    aria-label="حذف العنوان / Remove address"
+                    aria-label={t('حذف العنوان', 'Remove address')}
                     onClick={() => removeAddress(entry.id)}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink"
                   >
@@ -367,9 +370,9 @@ export function ProfileScreen() {
             <Settings size={18} />
           </span>
           <span className="flex-1">
-            <span className="block text-sm font-extrabold">الإعدادات</span>
-            <span dir="ltr" className="block text-[11px] text-ink-muted">
-              Settings — theme, language, notifications
+            <span className="block text-sm font-extrabold">{t('الإعدادات', 'Settings')}</span>
+            <span className="block text-[11px] text-ink-muted">
+              {t('المظهر واللغة والإشعارات', 'Theme, language, notifications')}
             </span>
           </span>
         </button>

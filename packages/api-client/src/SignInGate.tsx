@@ -14,6 +14,7 @@
 import { useState, type FormEvent } from 'react';
 import { AlertTriangle, Loader2, LogIn, ShoppingCart } from 'lucide-react';
 import type { Auth } from './useAuth';
+import { useAppLanguage } from './language';
 
 export interface SignInGateProps {
   /** The value returned by `useAuth()` in the parent screen. */
@@ -30,10 +31,11 @@ export function SignInGate({
 }: SignInGateProps) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const isArabic = useAppLanguage() === 'ar';
 
   // Field-level feedback from the server's Zod layer, keyed by dotted path.
-  const phoneError = auth.error?.fieldError('phone');
-  const passwordError = auth.error?.fieldError('password');
+  const phoneError = auth.error?.localizedFieldError('phone');
+  const passwordError = auth.error?.localizedFieldError('password');
   // Only show the top-level message when it is not already shown under a field.
   const generalError = auth.error && !phoneError && !passwordError ? auth.error : null;
 
@@ -58,16 +60,10 @@ export function SignInGate({
         </div>
 
         <form onSubmit={handleSubmit} className="card-surface p-6 text-end" noValidate>
-          <h1 className="text-base font-extrabold">{reasonAr}</h1>
-          <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">
-            {reasonEn}
-          </p>
+          <h1 className="text-base font-extrabold">{isArabic ? reasonAr : reasonEn}</h1>
 
           <label className="mt-5 block">
-            <span className="text-xs font-bold">رقم الجوال</span>
-            <span className="ms-2 text-[10px] text-ink-muted" dir="ltr">
-              Mobile number
-            </span>
+            <span className="text-xs font-bold">{isArabic ? 'رقم الجوال' : 'Mobile number'}</span>
             <input
               type="tel"
               inputMode="tel"
@@ -85,10 +81,7 @@ export function SignInGate({
           </label>
 
           <label className="mt-4 block">
-            <span className="text-xs font-bold">كلمة المرور</span>
-            <span className="ms-2 text-[10px] text-ink-muted" dir="ltr">
-              Password
-            </span>
+            <span className="text-xs font-bold">{isArabic ? 'كلمة المرور' : 'Password'}</span>
             <input
               type="password"
               autoComplete="current-password"
@@ -109,13 +102,13 @@ export function SignInGate({
               aria-live="assertive"
             >
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>{generalError.message}</span>
+              <span>{isArabic ? generalError.message : generalError.localizedMessage}</span>
             </p>
           )}
 
           <button type="submit" disabled={!canSubmit} className="btn-primary mt-5 w-full justify-center">
             {auth.pending ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
-            تسجيل الدخول <span dir="ltr">Sign in</span>
+            {isArabic ? 'تسجيل الدخول' : 'Sign in'}
           </button>
         </form>
       </div>

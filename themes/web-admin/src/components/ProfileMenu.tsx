@@ -7,6 +7,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { LogOut } from 'lucide-react';
+import { useLanguage } from '@samou-go/ui';
 
 interface ProfileMenuProps {
   name: string;
@@ -17,6 +18,7 @@ interface ProfileMenuProps {
 export function ProfileMenu({ name, phone, onSignOut }: ProfileMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (!open) return;
@@ -41,7 +43,7 @@ export function ProfileMenu({ name, phone, onSignOut }: ProfileMenuProps) {
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label={`${name} — قائمة الحساب / Account menu`}
+        aria-label={t(`${name} — قائمة الحساب`, `${name} — Account menu`)}
         className="flex items-center gap-2 rounded-full p-1 transition hover:bg-canvas active:scale-95"
       >
         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-tint text-xs font-extrabold text-brand-dark">
@@ -73,7 +75,7 @@ export function ProfileMenu({ name, phone, onSignOut }: ProfileMenuProps) {
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-bold text-danger-ink transition hover:bg-danger-tint"
             >
               <LogOut size={14} />
-              تسجيل الخروج <span dir="ltr" className="font-medium text-danger-ink/70">Sign out</span>
+              {t('تسجيل الخروج', 'Sign out')}
             </button>
           </div>
         </div>

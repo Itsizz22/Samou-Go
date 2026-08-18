@@ -5,7 +5,12 @@
  * can be typed against the API without importing server code.
  */
 
-import type { OrderStatus, UserRole, VoucherDiscountType } from "./enums";
+import type {
+  CustomRequestStatus,
+  OrderStatus,
+  UserRole,
+  VoucherDiscountType,
+} from "./enums";
 import type { DeliveryRegion } from './delivery';
 import type {
   OrderDetail,
@@ -176,6 +181,16 @@ export interface StoreListQuery extends PaginationQuery {
   search?: string;
   /** Defaults to `true` — inactive stores are hidden from the public catalogue. */
   activeOnly?: boolean;
+  /** WGS84 latitude of the requesting customer — triggers a nearby-store query. */
+  lat?: number;
+  /** WGS84 longitude of the requesting customer. */
+  lng?: number;
+  /**
+   * Radius in km for the nearby-store query (default 20). When `lat`/`lng` are
+   * present the results are sorted by straight-line distance, and each item
+   * carries `distanceKm`.
+   */
+  nearby?: number;
 }
 
 export interface ProductListQuery extends PaginationQuery {
@@ -313,6 +328,14 @@ export interface UpdateProductInput {
 export interface CreateCategoryInput {
   nameAr: string;
   nameEn?: string;
+  sortOrder?: number;
+}
+
+/** PATCH /stores/:storeId/categories/:categoryId — rename and/or reorder. */
+export interface UpdateCategoryInput {
+  nameAr?: string;
+  nameEn?: string;
+  sortOrder?: number;
 }
 
 export interface UpdateStoreInput {
@@ -323,6 +346,8 @@ export interface UpdateStoreInput {
   isActive?: boolean;
   /** Admin-only: flips a store's visibility to the public catalogue. */
   isApproved?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 /* ---------------------------------------------------------------------------
@@ -444,11 +469,105 @@ export interface AdminStats {
 }
 
 /* ---------------------------------------------------------------------------
+ * Delivery zones — POST/PATCH/DELETE /delivery-zones (admin), PATCH /orders/:id/delivery-zone
+ * ------------------------------------------------------------------------- */
+
+export interface CreateDeliveryZoneInput {
+  nameAr: string;
+  nameEn: string;
+  /** The full delivery fee for the zone, in ILS. */
+  fee: number;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+export interface UpdateDeliveryZoneInput {
+  nameAr?: string;
+  nameEn?: string;
+  fee?: number;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+/** PATCH /orders/:orderId/delivery-zone — the captain picks the ZONE, not a fee. */
+export interface SetOrderDeliveryZoneInput {
+  zoneId: string;
+}
+
+/* ---------------------------------------------------------------------------
+ * Offers — POST/PATCH/DELETE /stores/:storeId/offers
+ * ------------------------------------------------------------------------- */
+
+export interface CreateOfferInput {
+  titleAr: string;
+  titleEn: string;
+  descriptionAr: string;
+  descriptionEn: string;
+  startsAt?: string;
+  expiresAt?: string;
+  isActive?: boolean;
+  /** Targeted product IDs — omit or empty array = store-wide. */
+  productIds?: string[];
+  sortOrder?: number;
+}
+
+export interface UpdateOfferInput {
+  titleAr?: string;
+  titleEn?: string;
+  descriptionAr?: string;
+  descriptionEn?: string;
+  startsAt?: string | null;
+  expiresAt?: string | null;
+  isActive?: boolean;
+  productIds?: string[];
+  sortOrder?: number;
+}
+
+/* ---------------------------------------------------------------------------
+ * Custom requests — /customer/custom-requests & /store/custom-requests
+ * ------------------------------------------------------------------------- */
+
+/**
+ * POST /customer/custom-requests — ask a store for something not in its
+ * catalogue. Description is free text; the store replies with a price.
+ */
+export interface CreateCustomRequestInput {
+  storeId: string;
+  /** What the customer wants, e.g. "كيلو كبدة طازجة قبل العيد". */
+  description: string;
+}
+
+export interface CustomRequestListQuery extends PaginationQuery {
+  status?: CustomRequestStatus;
+  /** STORE_MANAGER: which of their stores to filter for. Optional. */
+  storeId?: string;
+}
+
+/**
+ * POST /store/custom-requests/:id/offer — the store quotes a price.
+ * The request must still be PENDING. Moving into PRICE_OFFERED.
+ */
+export interface OfferCustomRequestInput {
+  /** The store's price, in ILS — e.g. 18.50. */
+  offeredPrice: number;
+  /** Optional note alongside the quote ("متوفر يوم الجمعة"). */
+  offerNote?: string;
+}
+
+/**
+ * PATCH /customer/custom-requests/:id/respond — the customer answers a
+ * PRICE_OFFERED request. `ACCEPT` moves it to ACCEPTED, `REJECT` to REJECTED.
+ */
+export interface RespondCustomRequestInput {
+  action: 'ACCEPT' | 'REJECT';
+}
+
+/* ---------------------------------------------------------------------------
  * Uploads — POST /uploads/*
  * ------------------------------------------------------------------------- */
 
 /** What a processed image eventually attaches to. */
-export type UploadKind = 'user' | 'product' | 'store';
+export type UploadKind = 'user' | 'product' | 'store' | 'offer';
 
 /** POST /uploads/presign */
 export interface PresignUploadInput {
@@ -460,6 +579,11 @@ export interface PresignUploadInput {
    * store the image attaches to.
    */
   resourceId?: string;
+  /**
+   * Which store image slot the upload targets. Only meaningful for
+   * `kind === 'store'`; ignored otherwise.
+   */
+  purpose?: 'logo' | 'cover';
 }
 
 export interface PresignUploadResult {

@@ -81,6 +81,15 @@ enum LedgerEntryType {
   ADJUSTMENT
 }
 
+/// Lifecycle of a customer's custom request — ask, price, accept/reject.
+enum CustomRequestStatus {
+  PENDING
+  PRICE_OFFERED
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
 // =============================================================================
 // Models
 // =============================================================================
@@ -105,6 +114,10 @@ model User {
   profileImageUrl String?
   /// Storage key of the avatar object (never exposed over the API).
   profileImageKey String?
+  /// Customer's own location, shared via the browser geolocation flow —
+  /// informational today, the seed for future zone geofencing.
+  latitude  Float?
+  longitude Float?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -116,6 +129,7 @@ model User {
   favorites      Favorite[]           @relation("UserFavorites")
   assignedStore  Store?               @relation("DedicatedStoreCaptain", fields: [assignedStoreId], references: [id], onDelete: SetNull)
   captainLocation CaptainLocation?
+  customRequests CustomRequest[]      @relation("CustomRequestCustomer")
   ratingsGiven Rating[] @relation("RatingCustomer")
   ratingsAsCaptain Rating[] @relation("RatingCaptain")
   chatMessages ChatMessage[]
@@ -178,10 +192,15 @@ model Store {
   nameAr     String  
   nameEn     String  
   logoUrl    String?
+  /// Wide hero image behind the store header — processed by the uploads
+  /// pipeline (`store` kind, `cover` purpose).
+  coverUrl   String?
   phone      String  
   isActive   Boolean  @default(true)
   /// New stores stay hidden from the public catalogue until an admin approves.
   isApproved Boolean  @default(false)
+  /// Admin-curated: surfaces a "Recommended by us" badge on customer screens.
+  isRecommended Boolean @default(false)
   managerId  String
   /// Shopfront GPS, when known — powers the captain's "navigate to store".
   latitude   Float?
@@ -193,10 +212,12 @@ model Store {
   categories Category[]
   products   Product[]
   orders     Order[]
+  offers     Offer[]
   favorites  Favorite[] @relation("StoreFavorites")
   dedicatedCaptains User[] @relation("DedicatedStoreCaptain")
   ratings Rating[]
   wallet Wallet?
+  customRequests CustomRequest[]
 
   @@index([managerId])
   @@index([isActive])
@@ -239,6 +260,7 @@ model Product {
   category   Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   store      Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
+  offerProducts OfferProduct[]
 
   @@index([storeId, isAvailable])
   @@index([categoryId])
@@ -275,6 +297,8 @@ model Order {
   totalAmount   Decimal      
   paymentMethod PaymentMethod @default(COD)
   voucherId     String?
+  /// Fee zone chosen by the assigned captain — fee is derived from it server-side.
+  deliveryZoneId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -283,6 +307,7 @@ model Order {
   store         Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
   captain       User?                @relation("OrderCaptain", fields: [captainId], references: [id], onDelete: SetNull)
   voucher       Voucher?             @relation(fields: [voucherId], references: [id], onDelete: Restrict)
+  deliveryZone  DeliveryZone?        @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
   items         OrderItem[]
   statusHistory OrderStatusHistory[]
   rating Rating?
@@ -292,6 +317,7 @@ model Order {
   @@index([storeId, status])
   @@index([captainId, status])
   @@index([status, createdAt])
+  @@index([deliveryZoneId])
   @@map("orders")
 }
 
@@ -363,6 +389,96 @@ model Voucher {
 
   @@index([code, isActive])
   @@map("vouchers")
+}
+
+/// A delivery fee zone configured by an admin (name + flat fee in ILS).
+/// The captain picks the zone for an order — the fee is looked up HERE,
+/// never typed or sent by the captain, so "client never sends money" holds.
+model DeliveryZone {
+  id        String   @id @default(cuid())
+  nameAr    String
+  nameEn    String
+  /// The full delivery fee for this zone, in ILS.
+  fee       Decimal
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+
+  @@index([isActive, sortOrder])
+  @@map("delivery_zones")
+}
+
+/// A store-scoped promotional announcement — «٢٠٪ خصم على المشروبات» shown as
+/// marketing, NOT a redeemable code (that's `Voucher`). Managers create these
+/// for their own store; customers browse them.
+model Offer {
+  id          String   @id @default(cuid())
+  storeId     String
+  titleAr     String
+  titleEn     String
+  descriptionAr String
+  descriptionEn String
+  /// Processed image served by the uploads pipeline (webp, immutable-cached).
+  imageUrl    String?
+  /// Storage key of the image object (never exposed over the API).
+  imageKey    String?
+  /// Optional dispatch window — only shown to customers while active.
+  startsAt    DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products OfferProduct[]
+
+  @@index([storeId, isActive])
+  @@index([isActive, expiresAt])
+  @@map("offers")
+}
+
+/// Join table: an offer targets specific products (empty = store-wide).
+model OfferProduct {
+  id        String @id @default(cuid())
+  offerId   String
+  productId String
+
+  offer   Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([offerId, productId])
+  @@index([productId])
+  @@map("offer_products")
+}
+
+/// A customer's custom request (طلب مخصص): something the store doesn't list.
+/// The customer describes what they want, the store replies with a price
+/// (`PRICE_OFFERED`), and the customer accepts or rejects. Fulfilment is
+/// manual — there is deliberately no delivery-flow coupling.
+model CustomRequest {
+  id          String   @id @default(cuid())
+  customerId  String
+  storeId     String
+  /// What the customer wants, free text.
+  description String
+  status      CustomRequestStatus @default(PENDING)
+  /// The store's quote in ILS — null until an offer is made.
+  offeredPrice Decimal?
+  /// The store manager's optional note alongside the quote.
+  offerNote    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customer User  @relation("CustomRequestCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  store    Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, status, createdAt])
+  @@index([customerId, status, createdAt])
+  @@map("custom_requests")
 }
 
 /// A customer's saved store — the heart toggle on the home screen.

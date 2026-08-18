@@ -12,7 +12,9 @@ import {
   productListQuerySchema,
   storeIdParamsSchema,
   storeListQuerySchema,
+  updateCategorySchema,
   updateProductSchema,
+  updateStoreRecommendationSchema,
   updateStoreSchema,
 } from './stores.schemas';
 import * as storesService from './stores.service';
@@ -85,6 +87,15 @@ export async function approveStoreHandler(req: Request, res: Response): Promise<
   ok(res, await storesService.approveStore(storeId));
 }
 
+/** PATCH /api/v1/stores/:storeId/recommend — ADMIN only, flags the badge. */
+export async function updateStoreRecommendationHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  if (auth.role !== UserRole.ADMIN) throw forbidden();
+  const { storeId } = parseWith(storeIdParamsSchema, req.params);
+  const body = parseWith(updateStoreRecommendationSchema, req.body);
+  ok(res, await storesService.setStoreRecommended(storeId, body.isRecommended));
+}
+
 /** POST /api/v1/stores/:storeId/products */
 export async function createProductHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);
@@ -118,6 +129,15 @@ export async function createCategoryHandler(req: Request, res: Response): Promis
   await storesService.assertStoreAccess(storeId, auth.sub, auth.role);
   const body = parseWith(createCategorySchema, req.body);
   created(res, await storesService.createCategory(storeId, body));
+}
+
+/** PATCH /api/v1/stores/:storeId/categories/:categoryId */
+export async function updateCategoryHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const { storeId, categoryId } = parseWith(categoryIdParamsSchema, req.params);
+  await storesService.assertStoreAccess(storeId, auth.sub, auth.role);
+  const body = parseWith(updateCategorySchema, req.body);
+  ok(res, await storesService.updateCategory(storeId, categoryId, body));
 }
 
 /** DELETE /api/v1/stores/:storeId/categories/:categoryId */

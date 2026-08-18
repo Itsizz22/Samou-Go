@@ -98,6 +98,7 @@ export function NavigationDrawer() {
   const auth = useAuth();
   const { accent, mode, setAccent, setMode } = useTheme();
   const { dir } = useLanguage();
+  const { t } = useLanguage();
   const location = useLocation();
 
   // Slide direction follows the document direction: in RTL the drawer sits on
@@ -137,7 +138,7 @@ export function NavigationDrawer() {
           <motion.button
             key="drawer-scrim"
             type="button"
-            aria-label="إغلاق القائمة / Close menu"
+            aria-label={t('إغلاق القائمة', 'Close menu')}
             onClick={closeDrawer}
             className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
@@ -149,7 +150,7 @@ export function NavigationDrawer() {
             key="drawer-panel"
             role="dialog"
             aria-modal="true"
-            aria-label="قائمة التنقل / Navigation menu"
+            aria-label={t('قائمة التنقل', 'Navigation menu')}
             className="fixed inset-y-0 start-0 z-50 flex w-[290px] max-w-[85vw] flex-col bg-surface text-ink shadow-raised"
             initial={{ x: away }}
             animate={{ x: 0 }}
@@ -164,15 +165,13 @@ export function NavigationDrawer() {
                 </span>
                 <div className="leading-tight">
                   <p className="text-sm font-extrabold">Samou' Go</p>
-                  <p dir="ltr" className="text-micro text-white/80">
-                    Menu
-                  </p>
+                  <p className="text-micro text-white/80">{t('القائمة', 'Menu')}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={closeDrawer}
-                aria-label="إغلاق / Close"
+                aria-label={t('إغلاق', 'Close')}
                 className="rounded-full p-2 transition hover:bg-white/15 active:scale-95"
               >
                 <X size={20} />
@@ -210,10 +209,7 @@ export function NavigationDrawer() {
                   <UserRound size={20} />
                 </span>
                 <div className="text-end">
-                  <p className="text-sm font-extrabold">تسجيل الدخول</p>
-                  <p className="text-[11px] text-ink-muted" dir="ltr">
-                    Sign in to order
-                  </p>
+                  <p className="text-sm font-extrabold">{t('تسجيل الدخول', 'Sign in to order')}</p>
                 </div>
               </Link>
             )}
@@ -233,18 +229,16 @@ export function NavigationDrawer() {
                     </span>
                     <span className="flex-1 text-end">
                       <span className="block text-sm font-extrabold text-brand-deep">
-                        {auth.user.role === UserRole.CAPTAIN
-                          ? 'واجهة الكابتن'
-                          : 'واجهة مدير المتجر'}
-                      </span>
-                      <span dir="ltr" className="block text-micro font-medium text-ink-muted">
-                        {auth.user.role === UserRole.CAPTAIN
-                          ? 'Captain dashboard'
-                          : 'Store manager dashboard'}
+                        {t(
+                          auth.user.role === UserRole.CAPTAIN ? 'واجهة الكابتن' : 'واجهة مدير المتجر',
+                          auth.user.role === UserRole.CAPTAIN
+                            ? 'Captain dashboard'
+                            : 'Store manager dashboard'
+                        )}
                       </span>
                     </span>
                     <span className="rounded-full bg-brand px-2.5 py-1 text-micro font-extrabold text-white">
-                      فتح
+                      {t('فتح', 'Open')}
                     </span>
                   </Link>
                 </div>
@@ -276,10 +270,7 @@ export function NavigationDrawer() {
                           <Icon size={18} />
                         </span>
                         <span className="flex-1 text-end">
-                          <span className="block">{item.labelAr}</span>
-                          <span dir="ltr" className="block text-micro font-medium text-ink-muted">
-                            {item.labelEn}
-                          </span>
+                          <span className="block">{t(item.labelAr, item.labelEn)}</span>
                         </span>
                       </Link>
                     </li>
@@ -291,13 +282,10 @@ export function NavigationDrawer() {
               <div className="mt-4 rounded-2xl border border-line bg-canvas p-4">
                 <p className="flex items-center gap-2 text-xs font-extrabold text-ink">
                   <Palette size={14} className="text-brand" />
-                  <span>لون الواجهة</span>
-                  <span dir="ltr" className="text-micro font-medium text-ink-muted">
-                    Theme
-                  </span>
+                  <span>{t('لون الواجهة', 'Theme')}</span>
                 </p>
                 <div className="mt-3 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2" role="radiogroup" aria-label="Accent colour">
+                  <div className="flex items-center gap-2" role="radiogroup" aria-label={t('لون التمييز', 'Accent colour')}>
                     {ACCENT_OPTIONS.map((option) => (
                       <button
                         key={option.key}
@@ -327,7 +315,7 @@ export function NavigationDrawer() {
                     className="flex items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-[11px] font-bold text-ink-soft transition hover:text-brand active:scale-95"
                   >
                     {mode === 'light' ? <Moon size={13} /> : <Sun size={13} />}
-                    <span dir="ltr">{mode === 'light' ? 'Dark' : 'Light'}</span>
+                    <span>{t(mode === 'light' ? 'الوضع الداكن' : 'الوضع الفاتح', mode === 'light' ? 'Dark' : 'Light')}</span>
                   </button>
                   <LanguageToggle />
                 </div>
@@ -343,7 +331,7 @@ export function NavigationDrawer() {
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-danger-tint bg-danger-tint/40 px-4 py-3 text-xs font-extrabold text-danger-ink transition hover:bg-danger-tint active:scale-[0.98]"
                 >
                   <LogOut size={15} />
-                  تسجيل الخروج <span dir="ltr" className="font-medium text-danger/70">Sign out</span>
+                  {t('تسجيل الخروج', 'Sign out')}
                 </button>
               </footer>
             )}

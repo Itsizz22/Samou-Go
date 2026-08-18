@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { badRequest } from '../lib/http-error';
-import { AVATAR_SIZE, PRODUCT_SIZES, WEBP_QUALITY } from './uploads.config';
+import { AVATAR_SIZE, OFFER_SIZE, PRODUCT_SIZES, WEBP_QUALITY } from './uploads.config';
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const JPEG_SIGNATURE = Buffer.from([0xff, 0xd8, 0xff]);
@@ -30,7 +30,7 @@ export function sniffImageType(buffer: Buffer): ImageMime | null {
 }
 
 export interface ImageVariant {
-  name: 'avatar' | 'sm' | 'md' | 'lg';
+  name: 'avatar' | 'banner' | 'sm' | 'md' | 'lg';
   width: number;
   height: number;
   buffer: Buffer;
@@ -47,24 +47,28 @@ export interface ProcessedImage {
  */
 export async function processImage(input: {
   buffer: Buffer;
-  kind: 'user' | 'product' | 'store';
+  kind: 'user' | 'product' | 'store' | 'offer';
 }): Promise<ProcessedImage> {
-  const targets: Array<{ name: ImageVariant['name']; size: number }> =
+  const targets: Array<{ name: ImageVariant['name']; size?: number; width?: number; height?: number }> =
     input.kind === 'product'
       ? [
           { name: 'sm', size: PRODUCT_SIZES.sm },
           { name: 'md', size: PRODUCT_SIZES.md },
           { name: 'lg', size: PRODUCT_SIZES.lg },
         ]
+      : input.kind === 'offer'
+      ? [{ name: 'banner' as const, width: OFFER_SIZE.width, height: OFFER_SIZE.height }]
       : [{ name: 'avatar', size: AVATAR_SIZE }];
 
   try {
     const variants: ImageVariant[] = [];
     for (const target of targets) {
+      const w = target.width ?? target.size ?? AVATAR_SIZE;
+      const h = target.height ?? target.size ?? AVATAR_SIZE;
       const { data, info } = await sharp(input.buffer)
         .rotate()
-        .resize(target.size, target.size, {
-          fit: 'contain',
+        .resize(w, h, {
+          fit: target.width !== undefined ? 'cover' : 'contain',
           position: 'centre',
           background: { r: 255, g: 255, b: 255, alpha: 1 },
         })

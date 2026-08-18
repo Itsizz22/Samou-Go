@@ -139,6 +139,24 @@ export const setAvailabilitySchema = z.object({
   isAvailable: z.boolean(),
 });
 
+/** PUT /users/me/location — the caller persists their own GPS point. */
+export const updateMyLocationSchema = z
+  .object({
+    latitude: z
+      .number()
+      .finite('خط العرض يجب أن يكون رقماً / Latitude must be a number')
+      .min(-90, 'خط عرض غير صالح / Invalid latitude')
+      .max(90, 'خط عرض غير صالح / Invalid latitude'),
+    longitude: z
+      .number()
+      .finite('خط الطول يجب أن يكون رقماً / Longitude must be a number')
+      .min(-180, 'خط طول غير صالح / Invalid longitude')
+      .max(180, 'خط طول غير صالح / Invalid longitude'),
+  })
+  .refine(data => Object.keys(data).length > 0, {
+    message: 'يجب توفير الإحداثيات / Coordinates are required',
+  });
+
 /** PATCH /users/:id — admin updates any user's account. */
 export const adminUpdateUserSchema = z
   .object({

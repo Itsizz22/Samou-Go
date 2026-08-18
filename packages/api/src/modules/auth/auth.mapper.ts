@@ -16,6 +16,8 @@ export function toPublicUser(user: User): PublicUser {
     isAvailable: user.isAvailable,
     assignedStoreId: user.assignedStoreId,
     profileImageUrl: user.profileImageUrl,
+    latitude: user.latitude,
+    longitude: user.longitude,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };

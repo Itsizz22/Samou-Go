@@ -14,12 +14,22 @@ import { formatCurrency, calculateDeliveryFee, DEFAULT_DELIVERY_FEE_CONFIG, isFr
 import { hapticTap } from '@/lib/haptics';
 import { PageTransition } from '@/components/PageTransition';
 import { SkeletonGrid, ProductRowSkeleton } from '@/components/Skeleton';
+import { useLanguage } from '@samou-go/ui';
+import { useApiMeta } from '@/hooks/useApi';
 
 export function CartScreen() {
   const cart = useCart();
   const navigate = useNavigate();
+  const { t, language } = useLanguage();
+  const isArabic = language === 'ar';
 
-  const deliveryFee = calculateDeliveryFee(cart.itemCount, DEFAULT_DELIVERY_FEE_CONFIG);
+  // Estimate with the server's live tariff, falling back to the vendored copy
+  // only while the meta call is in flight — same pattern as the home badge.
+  const meta = useApiMeta();
+  const deliveryFee = calculateDeliveryFee(
+    cart.itemCount,
+    meta.data?.deliveryFee ?? DEFAULT_DELIVERY_FEE_CONFIG
+  );
   const total = cart.subtotal + deliveryFee;
   const deliveryFree = isFreeDelivery(deliveryFee);
 
@@ -30,17 +40,14 @@ export function CartScreen() {
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
             <button
               type="button"
-              aria-label="رجوع / Back"
+              aria-label={t('رجوع', 'Back')}
               onClick={() => navigate(-1)}
               className="rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
             >
               <ArrowRight size={22} className="rtl:rotate-180" />
             </button>
             <div className="flex-1 text-end">
-              <h1 className="text-lg font-extrabold">سلة المشتريات</h1>
-              <p className="text-[11px] text-white/80" dir="ltr">
-                Your cart
-              </p>
+              <h1 className="text-lg font-extrabold">{t('سلة المشتريات', 'Your cart')}</h1>
             </div>
             <span className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold">
               {cart.itemCount}
@@ -54,16 +61,13 @@ export function CartScreen() {
               <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-surface text-brand">
                 <ShoppingBag size={24} />
               </span>
-              <h2 className="mt-3 text-sm font-extrabold">سلتك فارغة</h2>
-              <p className="mt-1 text-[11px] text-ink-muted" dir="ltr">
-                Your cart is empty
-              </p>
+              <h2 className="mt-3 text-sm font-extrabold">{t('سلتك فارغة', 'Your cart is empty')}</h2>
               <button
                 type="button"
                 onClick={() => navigate('/')}
                 className="btn-primary mt-5 w-full justify-center"
               >
-                تصفح المتاجر <span dir="ltr">Browse stores</span>
+                {t('تصفح المتاجر', 'Browse stores')}
               </button>
             </div>
           ) : (
@@ -99,15 +103,15 @@ export function CartScreen() {
                         <input
                           value={line.note}
                           onChange={(event) => cart.setNote(line.productId, event.target.value.slice(0, 500))}
-                          placeholder="ملاحظة للصنف / Item note"
-                          aria-label={`Item note for ${line.product.nameAr}`}
+                          placeholder={t('ملاحظة للصنف', 'Item note')}
+                          aria-label={`ملاحظة للصنف ${line.product.nameAr}`}
                           className="mt-2 w-full rounded-lg border border-line bg-canvas px-2 py-1.5 text-micro text-ink outline-none focus:border-brand"
                         />
                       </div>
                       <div className="flex shrink-0 items-center gap-2 rounded-full bg-brand px-1.5 py-1 text-white">
                         <button
                           type="button"
-                          aria-label="إنقاص / Decrease"
+                          aria-label={t('إنقاص', 'Decrease')}
                           onClick={() => {
                             cart.setQuantity(line.productId, line.quantity - 1);
                             void hapticTap();
@@ -121,7 +125,7 @@ export function CartScreen() {
                         </span>
                         <button
                           type="button"
-                          aria-label="زيادة / Increase"
+                          aria-label={t('زيادة', 'Increase')}
                           onClick={() => {
                             cart.setQuantity(line.productId, line.quantity + 1);
                             void hapticTap();
@@ -133,7 +137,7 @@ export function CartScreen() {
                       </div>
                       <button
                         type="button"
-                        aria-label="حذف / Remove"
+                        aria-label={t('حذف', 'Remove')}
                         onClick={() => cart.removeItem(line.productId)}
                         className="shrink-0 rounded-full p-2 text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink"
                       >
@@ -150,11 +154,9 @@ export function CartScreen() {
                   <span dir="ltr" className="font-bold text-ink">{formatCurrency(cart.subtotal)}</span>
                 </div>
                 <div className="mt-2 flex justify-between text-xs text-ink-muted">
-                  <span>{deliveryFeeLabel('both')}</span>
+                  <span>{deliveryFeeLabel(language)}</span>
                   <span dir="ltr" className="font-bold text-brand-dark">
-                    {deliveryFree
-                      ? `${FREE_DELIVERY_LABEL.ar} / ${FREE_DELIVERY_LABEL.en}`
-                      : formatCurrency(deliveryFee)}
+                    {deliveryFree ? (isArabic ? FREE_DELIVERY_LABEL.ar : FREE_DELIVERY_LABEL.en) : formatCurrency(deliveryFee)}
                   </span>
                 </div>
                 <div className="mt-3 flex justify-between border-t border-line pt-3 text-sm">
@@ -168,7 +170,7 @@ export function CartScreen() {
                 onClick={() => navigate('/checkout')}
                 className="btn-primary mt-5 w-full justify-center"
               >
-                إتمام الطلب <span dir="ltr">Checkout</span>
+                {t('إتمام الطلب', 'Checkout')}
               </button>
             </>
           )}

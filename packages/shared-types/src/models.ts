@@ -6,7 +6,7 @@
  * `prisma/schema.prisma` one-for-one, minus anything secret.
  */
 
-import type { OrderStatus, PaymentMethod, UserRole } from './enums';
+import type { CustomRequestStatus, OrderStatus, PaymentMethod, UserRole } from './enums';
 
 /** ISO-8601 timestamp, e.g. `"2026-07-28T09:14:00.000Z"`. */
 export type IsoDateTime = string;
@@ -32,6 +32,9 @@ export interface PublicUser {
   isAvailable: boolean;
   /** Dedicated captains may serve this store only; null means shared pool. */
   assignedStoreId: string | null;
+  /** Customer's own location from the browser geolocation flow. */
+  latitude: number | null;
+  longitude: number | null;
   /**
    * Processed avatar URL served by the uploads pipeline (see `/uploads`). The
    * backing object key is never exposed — only this public URL, which is
@@ -51,14 +54,21 @@ export interface Store {
   nameAr: string;
   nameEn: string;
   logoUrl: string | null;
+  /** Wide hero image behind the store header — `store` upload kind, `cover` purpose. */
+  coverUrl: string | null;
   phone: string;
   isActive: boolean;
   /** Hidden from the public catalogue until an admin approves the store. */
   isApproved: boolean;
+  /** Admin-curated: surfaces a "Recommended by us" badge on customer screens. */
+  isRecommended: boolean;
   managerId: string;
   /** WGS84 shopfront coordinates — powers the captain "navigate to store". */
   latitude: number | null;
   longitude: number | null;
+  /** Distance from the requesting customer, in km — present only on
+   * `GET /api/v1/stores?lat=&lng=` (nearby-store queries). */
+  distanceKm?: number;
   createdAt: IsoDateTime;
 }
 
@@ -67,6 +77,8 @@ export interface Category {
   nameAr: string;
   nameEn: string;
   storeId: string;
+  /** Menu ordering — lower renders first. `@@index([storeId, sortOrder])` in Prisma. */
+  sortOrder: number;
 }
 
 export interface Product {
@@ -86,11 +98,77 @@ export interface CategoryWithProducts extends Category {
   products: Product[];
 }
 
+/** An admin-configured delivery fee zone. The fee is authoritative — the
+ * captain picks the zone, the server derives the fee from this row. */
+export interface DeliveryZone {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  /** The full delivery fee for this zone, in ILS. */
+  fee: number;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+/** A store-scoped promotional announcement — marketing display, NOT a
+ * redeemable code (that's `Voucher`). */
+export interface Offer {
+  id: string;
+  storeId: string;
+  titleAr: string;
+  titleEn: string;
+  descriptionAr: string;
+  descriptionEn: string;
+  imageUrl: string | null;
+  startsAt: IsoDateTime | null;
+  expiresAt: IsoDateTime | null;
+  isActive: boolean;
+  /** Targeted product IDs — empty array = store-wide offer. */
+  productIds: string[];
+  sortOrder: number;
+  createdAt: IsoDateTime;
+}
+
 /** A store with its full catalogue — `GET /api/v1/stores/:id`. */
 export interface StoreWithCatalogue extends Store {
   categories: CategoryWithProducts[];
   /** Returned only by the authenticated manager/admin catalogue endpoint. */
   dedicatedCaptains?: Array<Pick<PublicUser, 'id' | 'name' | 'phone' | 'isAvailable' | 'isVerified'>>;
+}
+
+/* ---------------------------------------------------------------------------
+ * Custom requests
+ * ------------------------------------------------------------------------- */
+
+/**
+ * A customer's request for something the store doesn't list — a special order
+ * (طلب مخصص). The store replies with a price via `PRICE_OFFERED`; the customer
+ * then accepts or rejects. Fulfilment is manual (phone), so there is no
+ * follow-on delivery flow.
+ */
+export interface CustomRequest {
+  id: string;
+  customerId: string;
+  storeId: string;
+  /** What the customer wants — free text, e.g. "كيلو كبدة طازجة". */
+  description: string;
+  status: CustomRequestStatus;
+  /** The store's quote in ILS — `null` until the store makes an offer. */
+  offeredPrice: number | null;
+  /** The store manager's optional note alongside the quote. */
+  offerNote: string | null;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+}
+
+/** Custom request with the store identity joined in, for customer displays. */
+export interface CustomRequestWithStore extends CustomRequest {
+  store: Pick<Store, 'id' | 'nameAr' | 'nameEn' | 'logoUrl'>;
+}
+
+/** Custom request with the requesting customer joined in, for store displays. */
+export interface CustomRequestWithCustomer extends CustomRequest {
+  customer: Pick<PublicUser, 'id' | 'name' | 'phone'>;
 }
 
 /* ---------------------------------------------------------------------------
@@ -141,12 +219,14 @@ export interface Order {
   /** Kitchen estimate selected when the store accepts the order. */
   estimatedPrepMinutes: number | null;
   subtotal: number;
-  /** Always derived from item count via `calculateDeliveryFee`. */
+  /** Fee from the captain-selected `deliveryZone`, or 0 before one is set. */
   deliveryFee: number;
   /** Voucher savings in ILS — 0 when no voucher was applied. */
   discount: number;
   /** The voucher that produced `discount`, or null. */
   voucherId: string | null;
+  /** Fee zone chosen by the assigned captain (fee derived server-side). */
+  deliveryZoneId: string | null;
   totalAmount: number;
   paymentMethod: PaymentMethod;
   createdAt: IsoDateTime;
@@ -167,6 +247,8 @@ export interface OrderDetail extends Order {
   statusHistory: OrderStatusHistoryEntry[];
   /** Resolved voucher identity for the discount — `null` when not applied. */
   voucher: { code: string; labelAr: string; labelEn: string } | null;
+  /** The fee zone chosen by the captain, when set. */
+  deliveryZone: DeliveryZone | null;
 }
 
 /** The condensed row used in list views. */

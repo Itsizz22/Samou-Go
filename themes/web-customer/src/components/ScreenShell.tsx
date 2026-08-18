@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Menu } from 'lucide-react';
+import { useLanguage } from '@samou-go/ui';
 import { BottomNav } from '@/components/BottomNav';
 import { useDrawer } from '@/components/NavigationDrawer';
 
@@ -17,6 +18,7 @@ interface ScreenShellProps {
  */
 export function ScreenShell({ title, subtitle, children }: ScreenShellProps) {
   const { openDrawer } = useDrawer();
+  const { t } = useLanguage();
 
   return (
     <main className="min-h-screen bg-canvas pb-24 text-ink">
@@ -24,17 +26,14 @@ export function ScreenShell({ title, subtitle, children }: ScreenShellProps) {
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">
           <button
             type="button"
-            aria-label="القائمة / Menu"
+            aria-label={t('القائمة', 'Menu')}
             onClick={openDrawer}
             className="rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
           >
             <Menu size={22} />
           </button>
           <div className="flex-1 text-end">
-            <p className="text-lg font-bold">{title}</p>
-            <p dir="ltr" className="text-[11px] text-white/80">
-              {subtitle}
-            </p>
+            <p className="text-lg font-bold">{t(title, subtitle)}</p>
           </div>
         </div>
       </header>

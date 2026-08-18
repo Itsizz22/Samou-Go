@@ -60,6 +60,26 @@ interface SeedStore {
   categories: SeedCategory[];
 }
 
+/**
+ * Delivery zones — admin-configured regions with a flat fee. The captain
+ * picks the zone per order; the fee is looked up from HERE, never typed by
+ * the captain ("client never sends money").
+ */
+interface SeedZone {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  fee: number;
+  sortOrder: number;
+}
+
+const DELIVERY_ZONES: SeedZone[] = [
+  { id: 'zone-hebron-center', nameAr: 'وسط الخليل', nameEn: 'Hebron Center', fee: 5, sortOrder: 1 },
+  { id: 'zone-hebron-north', nameAr: 'شمال الخليل', nameEn: 'Hebron North', fee: 8, sortOrder: 2 },
+  { id: 'zone-hebron-south', nameAr: 'جنوب الخليل', nameEn: 'Hebron South', fee: 8, sortOrder: 3 },
+  { id: 'zone-hebron-remote', nameAr: 'الأطراف البعيدة', nameEn: 'Remote Areas', fee: 12, sortOrder: 4 },
+];
+
 const STORES: SeedStore[] = [
   {
     id: 'store-albaraka',
@@ -239,6 +259,114 @@ interface SeedVoucher {
   expiresAt?: Date;
 }
 
+interface SeedOffer {
+  id: string;
+  storeId: string;
+  titleAr: string;
+  titleEn: string;
+  descriptionAr: string;
+  descriptionEn: string;
+  startsAt?: Date;
+  expiresAt?: Date;
+  isActive: boolean;
+  sortOrder: number;
+  /** Targeted product ids — empty array = store-wide offer. */
+  productIds: string[];
+}
+
+/**
+ * Demo offers — deterministic ids, every product id references a product that
+ * `seedCatalogue` created above, so the offer cards render real items.
+ */
+const OFFERS: SeedOffer[] = [
+  {
+    id: 'offer-shawarma-falafel',
+    storeId: 'store-shawarma',
+    titleAr: 'فلافل بخصم ١ شيكل',
+    titleEn: 'Falafel for 1 ILS less',
+    descriptionAr: 'سندويش فلافل طازج بسعر مخفّض لفترة محدودة.',
+    descriptionEn: 'Fresh falafel sandwich at a reduced price for a limited time.',
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    isActive: true,
+    sortOrder: 1,
+    productIds: ['p-shawarma-falafel'],
+  },
+  {
+    id: 'offer-shawarma-plate-combo',
+    storeId: 'store-shawarma',
+    titleAr: 'صحن شاورما + مشروب',
+    titleEn: 'Chicken plate + drink combo',
+    descriptionAr: 'صحن شاورما دجاج مع أي مشروب غازي بطلب واحد.',
+    descriptionEn: 'Chicken shawarma plate with any soft drink in one order.',
+    isActive: true,
+    sortOrder: 2,
+    productIds: ['p-shawarma-plate', 'p-shawarma-cola'],
+  },
+  {
+    id: 'offer-baraka-dairy',
+    storeId: 'store-albaraka',
+    titleAr: 'ألبان البلدة',
+    titleEn: 'Local dairy favourites',
+    descriptionAr: 'لبنة بلدية ولبن رايب بسعر السوق المحلي.',
+    descriptionEn: 'Local labneh and laban at local market prices.',
+    isActive: true,
+    sortOrder: 1,
+    productIds: ['p-baraka-labneh', 'p-baraka-yogurt'],
+  },
+  {
+    id: 'offer-pharmacy-vitc',
+    storeId: 'store-pharmacy',
+    titleAr: 'مناعة أقوى',
+    titleEn: 'Boost your immunity',
+    descriptionAr: 'فيتامين C فوّار — ١٠ أقراص.',
+    descriptionEn: 'Effervescent Vitamin C — 10 tablets.',
+    isActive: true,
+    sortOrder: 1,
+    productIds: ['p-pharmacy-vitc'],
+  },
+];
+
+async function seedOffers(): Promise<void> {
+  for (const offer of OFFERS) {
+    await prisma.offer.upsert({
+      where: { id: offer.id },
+      update: {
+        storeId: offer.storeId,
+        titleAr: offer.titleAr,
+        titleEn: offer.titleEn,
+        descriptionAr: offer.descriptionAr,
+        descriptionEn: offer.descriptionEn,
+        startsAt: offer.startsAt ?? null,
+        expiresAt: offer.expiresAt ?? null,
+        isActive: offer.isActive,
+        sortOrder: offer.sortOrder,
+      },
+      create: {
+        id: offer.id,
+        storeId: offer.storeId,
+        titleAr: offer.titleAr,
+        titleEn: offer.titleEn,
+        descriptionAr: offer.descriptionAr,
+        descriptionEn: offer.descriptionEn,
+        startsAt: offer.startsAt ?? null,
+        expiresAt: offer.expiresAt ?? null,
+        isActive: offer.isActive,
+        sortOrder: offer.sortOrder,
+      },
+    });
+
+    // Replace the product links idempotently (offer_products has a unique
+    // (offerId, productId) constraint, so deletes + creates are safe).
+    await prisma.offerProduct.deleteMany({ where: { offerId: offer.id } });
+    if (offer.productIds.length > 0) {
+      await prisma.offerProduct.createMany({
+        data: offer.productIds.map(productId => ({ offerId: offer.id, productId })),
+      });
+    }
+  }
+  console.log(`✓ ${OFFERS.length} offers`);
+}
+
 const VOUCHERS: SeedVoucher[] = [
   {
     id: 'voucher-welcome10',
@@ -301,6 +429,30 @@ async function seedVouchers(): Promise<void> {
     });
   }
   console.log(`✓ ${VOUCHERS.length} vouchers`);
+}
+
+async function seedDeliveryZones(): Promise<void> {
+  for (const zone of DELIVERY_ZONES) {
+    await prisma.deliveryZone.upsert({
+      where: { id: zone.id },
+      update: {
+        nameAr: zone.nameAr,
+        nameEn: zone.nameEn,
+        fee: zone.fee,
+        sortOrder: zone.sortOrder,
+        isActive: true,
+      },
+      create: {
+        id: zone.id,
+        nameAr: zone.nameAr,
+        nameEn: zone.nameEn,
+        fee: zone.fee,
+        sortOrder: zone.sortOrder,
+        isActive: true,
+      },
+    });
+  }
+  console.log(`✓ ${DELIVERY_ZONES.length} delivery zones`);
 }
 
 async function seedCatalogue(): Promise<void> {
@@ -519,6 +671,8 @@ async function seedCleanup(): Promise<void> {
     prisma.refreshToken.deleteMany({}),
     prisma.otpRequest.deleteMany({}),
     prisma.order.deleteMany({}),
+    prisma.offerProduct.deleteMany({}),
+    prisma.offer.deleteMany({}),
     prisma.product.deleteMany({}),
     prisma.category.deleteMany({}),
     prisma.dailyOrderSequence.deleteMany({}),
@@ -566,6 +720,8 @@ async function main(): Promise<void> {
   await seedUsers();
   await seedCatalogue();
   await seedVouchers();
+  await seedOffers();
+  await seedDeliveryZones();
   await seedOrders();
   await seedWalletCredits();
   console.log(`\nDone. Demo password for every account: ${DEMO_PASSWORD}`);
