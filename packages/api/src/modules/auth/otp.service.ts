@@ -214,6 +214,22 @@ export async function requestOtp(
   };
 }
 
+/**
+ * Verifies a code AND consumes it in one call — for flows where a single
+ * proof must not be reusable (e.g. changing the phone number on an account).
+ * `verifyOtpCode` alone leaves the row in place so a transient provisioning
+ * failure can retry; callers that have no such step consume explicitly.
+ */
+export async function verifyAndConsumeOtp(phone: string, code: string): Promise<void> {
+  await verifyOtpCode(phone, code, {
+    missing: () => CODE_INVALID,
+    expired: () => CODE_EXPIRED,
+    maxAttempts: () => CODE_EXPIRED,
+    invalid: () => CODE_INVALID,
+  });
+  await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
+}
+
 /** POST /auth/otp/verify — exchange a valid code for a session. */
 export async function verifyOtp(body: OtpVerifyInput): Promise<AuthResponse> {
   const { phone, code, name } = body;
@@ -290,28 +306,33 @@ export async function adminVerifyStoreOtp(body: AdminOtpVerifyBody): Promise<Aut
     invalid: () => unauthorized("رمز خاطئ / Incorrect code"),
   });
 
-  // Create the user (store manager) first
-  const user = await prisma.user.create({
-    data: {
-      name: storeData?.nameAr ?? "مدير المتجر / Store Manager",
-      phone,
-      passwordHash: await hashPassword(`otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`),
-      role: UserRole.STORE_MANAGER,
-      isActive: true,
-      isVerified: true,
-    },
-  });
+  // Create the user (store manager) and their store in ONE transaction so a
+  // failure mid-way never orphans an account or a store.
+  const { user, store } = await prisma.$transaction(async tx => {
+    const user = await tx.user.create({
+      data: {
+        name: storeData?.nameAr ?? "مدير المتجر / Store Manager",
+        phone,
+        passwordHash: await hashPassword(`otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`),
+        role: UserRole.STORE_MANAGER,
+        isActive: true,
+        isVerified: true,
+      },
+    });
 
-  // Create the store with the managerId pointing to the created user
-  const store = await prisma.store.create({
-    data: {
-      nameAr: storeData?.nameAr ?? "متجر جديد / New Store",
-      nameEn: storeData?.nameEn ?? "New Store",
-      phone,
-      isActive: true,
-      isApproved: true, // Admin-created stores are immediately approved
-      managerId: user.id,
-    },
+    // Create the store with the managerId pointing to the created user
+    const store = await tx.store.create({
+      data: {
+        nameAr: storeData?.nameAr ?? "متجر جديد / New Store",
+        nameEn: storeData?.nameEn ?? "New Store",
+        phone,
+        isActive: true,
+        isApproved: true, // Admin-created stores are immediately approved
+        managerId: user.id,
+      },
+    });
+
+    return { user, store };
   });
 
   // Consume the code

@@ -17,7 +17,7 @@ interface TabItem {
 }
 
 const TABS: TabItem[] = [
-  { to: '/', label: 'Home', icon: Home },
+  { to: '/home', label: 'Home', icon: Home },
   { to: '/search', label: 'Search', icon: Search },
   { to: '/orders', label: 'Orders', icon: Package },
   { to: '/favorites', label: 'Favorites', icon: Heart },
@@ -35,14 +35,14 @@ export function BottomNav() {
           <NavLink
             key={to}
             to={to}
-            end={to === '/'}
+            end={to === '/home'}
             className={({ isActive }) =>
               `flex flex-col items-center gap-1 transition active:scale-95 ${
                 isActive ? 'text-brand' : 'text-ink-muted'
               }`
             }
           >
-            <Icon size={20} fill={to === '/' ? 'currentColor' : 'none'} />
+            <Icon size={20} fill={to === '/home' ? 'currentColor' : 'none'} />
             <span className="text-micro font-semibold">{label}</span>
           </NavLink>
         ))}

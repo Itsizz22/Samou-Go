@@ -16,6 +16,7 @@ import {
   Settings,
   Truck,
   Users,
+  WalletCards,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -36,6 +37,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
   { id: 'Zones', ar: 'مناطق التوصيل', icon: MapPin },
   { id: 'Offers', ar: 'العروض', icon: Megaphone },
   { id: 'Settings', ar: 'الإعدادات', icon: Settings },
+  { id: 'Financials', ar: 'Financials', icon: WalletCards },
 ] as const;
 
 interface AdminSidebarProps {

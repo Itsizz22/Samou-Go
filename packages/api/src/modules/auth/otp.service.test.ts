@@ -58,61 +58,67 @@ vi.mock('../../config/env', () => ({
   },
 }));
 
-vi.mock('../../lib/prisma', () => ({
-  prisma: {
-    otpRequest: {
-      findUnique: vi.fn(async ({ where }: any) =>
-        h.state.otp && h.state.otp.phone === where.phone ? h.state.otp : null
-      ),
-      upsert: vi.fn(async ({ where, create, update }: any) => {
-        if (!h.state.otp || h.state.otp.phone !== where.phone) {
-          h.state.otp = { ...create };
+vi.mock('../../lib/prisma', () => {
+  const user = {
+    findUnique: vi.fn(async ({ where }: any) =>
+      h.state.user && h.state.user.phone === where.phone ? h.state.user : null
+    ),
+    create: vi.fn(async ({ data }: any) => {
+      h.state.user = { id: 'u-1', ...data };
+      return h.state.user;
+    }),
+    update: vi.fn(async ({ where, data }: any) => {
+      h.state.user = { ...h.state.user, id: where.id, ...data };
+      return h.state.user;
+    }),
+  };
+  const store = {
+    create: vi.fn(async ({ data }: any) => {
+      h.state.store = { id: 's-1', ...data };
+      return h.state.store;
+    }),
+    findUnique: vi.fn(async ({ where }: any) =>
+      h.state.store && h.state.store.id === where.id ? h.state.store : null
+    ),
+  };
+  return {
+    prisma: {
+      otpRequest: {
+        findUnique: vi.fn(async ({ where }: any) =>
+          h.state.otp && h.state.otp.phone === where.phone ? h.state.otp : null
+        ),
+        upsert: vi.fn(async ({ where, create, update }: any) => {
+          if (!h.state.otp || h.state.otp.phone !== where.phone) {
+            h.state.otp = { ...create };
+            return h.state.otp;
+          }
+          h.state.otp.codeHash = update.codeHash;
+          h.state.otp.expiresAt = update.expiresAt;
+          h.state.otp.attempts = 0;
+          if (update.requests && typeof update.requests === 'object') {
+            h.state.otp.requests += (update.requests as { increment: number }).increment;
+          } else if (typeof update.requests === 'number') {
+            h.state.otp.requests = update.requests;
+            if (update.windowStartsAt) h.state.otp.windowStartsAt = update.windowStartsAt;
+          }
           return h.state.otp;
-        }
-        h.state.otp.codeHash = update.codeHash;
-        h.state.otp.expiresAt = update.expiresAt;
-        h.state.otp.attempts = 0;
-        if (update.requests && typeof update.requests === 'object') {
-          h.state.otp.requests += (update.requests as { increment: number }).increment;
-        } else if (typeof update.requests === 'number') {
-          h.state.otp.requests = update.requests;
-          if (update.windowStartsAt) h.state.otp.windowStartsAt = update.windowStartsAt;
-        }
-        return h.state.otp;
-      }),
-      update: vi.fn(async ({ where, data }: any) => {
-        if (data?.attempts?.increment) h.state.otp!.attempts += 1;
-        return h.state.otp;
-      }),
-      delete: vi.fn(async () => {
-        h.state.otp = null;
-        return {};
-      }),
+        }),
+        update: vi.fn(async ({ where, data }: any) => {
+          if (data?.attempts?.increment) h.state.otp!.attempts += 1;
+          return h.state.otp;
+        }),
+        delete: vi.fn(async () => {
+          h.state.otp = null;
+          return {};
+        }),
+      },
+      user,
+      store,
+      // `adminVerifyStoreOtp` provisions the account + store atomically.
+      $transaction: async (fn: (tx: unknown) => unknown) => fn({ user, store }),
     },
-    user: {
-      findUnique: vi.fn(async ({ where }: any) =>
-        h.state.user && h.state.user.phone === where.phone ? h.state.user : null
-      ),
-      create: vi.fn(async ({ data }: any) => {
-        h.state.user = { id: 'u-1', ...data };
-        return h.state.user;
-      }),
-      update: vi.fn(async ({ where, data }: any) => {
-        h.state.user = { ...h.state.user, id: where.id, ...data };
-        return h.state.user;
-      }),
-    },
-    store: {
-      create: vi.fn(async ({ data }: any) => {
-        h.state.store = { id: 's-1', ...data };
-        return h.state.store;
-      }),
-      findUnique: vi.fn(async ({ where }: any) =>
-        h.state.store && h.state.store.id === where.id ? h.state.store : null
-      ),
-    },
-  },
-}));
+  };
+});
 
 vi.mock('../../lib/jwt', () => ({
   // `signAccessToken` is synchronous in the real module (never awaited) —

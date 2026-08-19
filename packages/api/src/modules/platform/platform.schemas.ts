@@ -45,9 +45,17 @@ export const walletCreditSchema = z.object({
   note: z.string().max(500).optional(),
 });
 
+/** PATCH /platform/settings — platform-wide economy knobs (admin only). */
+export const platformSettingsSchema = z.object({
+  captainDeliveryRate: z.number().min(0).max(10000).optional(),
+  storeCommissionRate: z.number().min(0).max(1).optional(),
+  autoAssign: z.boolean().optional(),
+});
+
 export type LocationBody = z.infer<typeof locationSchema>;
 export type RatingBody = z.infer<typeof ratingSchema>;
 export type ChatBody = z.infer<typeof chatSchema>;
 export type TicketBody = z.infer<typeof ticketSchema>;
 export type SettlementBody = z.infer<typeof settlementSchema>;
 export type WalletCreditBody = z.infer<typeof walletCreditSchema>;
+export type PlatformSettingsBody = z.infer<typeof platformSettingsSchema>;

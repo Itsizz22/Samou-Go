@@ -1,7 +1,7 @@
 import { Theme } from './settings/types';
 import { LiveOrderTracking } from './components/generated/LiveOrderTracking';
 
-let theme: Theme = 'light';
+const theme: Theme = 'light';
 
 function App() {
   function setTheme(theme: Theme) {

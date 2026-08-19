@@ -256,6 +256,8 @@ export interface OrderSummary {
   id: string;
   orderNumber: string;
   status: OrderStatus;
+  /** Assigned captain (`null` = still in the unclaimed pool). */
+  captainId: string | null;
   itemCount: number;
   totalAmount: number;
   deliveryFee: number;

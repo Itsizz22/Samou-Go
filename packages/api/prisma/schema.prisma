@@ -593,3 +593,16 @@ model Settlement {
   @@index([walletId, createdAt])
   @@map("settlements")
 }
+
+/// Singleton row (`id = 'platform'`) holding the platform-wide economy knobs.
+model PlatformSettings {
+  id String @id
+  /// Flat captain payout per delivered order, on top of the delivery fee.
+  captainDeliveryRate Decimal @default(0) @db.Decimal(10, 2)
+  /// Store commission rate applied to orders whose store wallet has no rate set.
+  storeCommissionRate Decimal @default(0.10) @db.Decimal(5, 4)
+  /// Reserved for a future auto-assignment engine.
+  autoAssign Boolean @default(false)
+  updatedAt DateTime @updatedAt
+  @@map("platform_settings")
+}

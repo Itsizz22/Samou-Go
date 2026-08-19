@@ -21,6 +21,10 @@ export interface CartLine {
   note: string;
 }
 
+/** Result of {@link CartState.addItem} when the basket already holds a
+ * different store's items. */
+export type AddItemResult = 'added' | 'store-mismatch';
+
 export interface CartState {
   storeId: string | null;
   storeNameAr: string;
@@ -29,7 +33,13 @@ export interface CartState {
   subtotal: number;
   /** Basket is scoped to one store; set when switching store. */
   setStore: (storeId: string, storeNameAr: string) => void;
-  addItem: (product: Product, quantity?: number, note?: string) => void;
+  /**
+   * Adds an item. Never silently destroys a basket from another store: when
+   * the cart holds a different store's items it returns `'store-mismatch'`
+   * WITHOUT mutating anything, so the caller can ask the customer first and
+   * call `setStore` (which clears) only after confirmation.
+   */
+  addItem: (product: Product, quantity?: number, note?: string) => AddItemResult;
   setNote: (productId: string, note: string) => void;
   setQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
@@ -63,6 +73,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<PersistedCart>(() => readPersisted());
   const hydrated = useRef(false);
 
+  // Mirrors the latest cart so callbacks can read it synchronously (a `setCart`
+  // updater cannot return a value to its caller).
+  const cartRef = useRef(cart);
+  cartRef.current = cart;
+
   // Persist after every change, but never during the first render (React 18
   // strict-mode double-render would otherwise re-run the reader).
   useEffect(() => {
@@ -85,12 +100,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const addItem = useCallback((product: Product, quantity = 1, note = '') => {
+  const addItem = useCallback((product: Product, quantity = 1, note = ''): AddItemResult => {
+    // The basket is scoped to one store. Silently dropping the current lines
+    // would destroy the customer's basket on a stray tap — signal the mismatch
+    // instead and let the caller confirm before `setStore` clears.
+    if (cartRef.current.storeId !== null && cartRef.current.storeId !== product.storeId) {
+      return 'store-mismatch';
+    }
     setCart((current) => {
       const base: PersistedCart = {
         storeId: current.storeId ?? product.storeId,
         storeNameAr: current.storeNameAr,
-        lines: current.storeId && current.storeId !== product.storeId ? [] : current.lines,
+        lines: current.lines,
       };
       const existing = base.lines.find((line) => line.productId === product.id);
       const lines = existing
@@ -102,6 +123,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         : [...base.lines, { productId: product.id, quantity, product, note }];
       return { ...base, lines };
     });
+    return 'added';
   }, []);
 
   const setQuantity = useCallback((productId: string, quantity: number) => {

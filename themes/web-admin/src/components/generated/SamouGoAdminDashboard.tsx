@@ -46,12 +46,14 @@ import {
   approveStore,
   createDeliveryZone,
   deleteDeliveryZone,
+  getPlatformSettings,
   getStoreProducts,
   listAllDeliveryZones,
   removeCurrentImage,
   setStoreRecommended,
   updateDeliveryZone,
   updateOrderStatus,
+  updatePlatformSettings,
   updateProfile,
   updateStore,
   updateUser,
@@ -98,6 +100,7 @@ import { ProfileMenu } from '@/components/ProfileMenu';
 import { Badge, type BellNotification, LanguageToggle, ThemeToggle, useLanguage } from '@samou-go/ui';
 import { LeafletMap } from '@samou-go/ui/map';
 import { CreateCaptainDialog, ConfirmDialog, CreateStoreDialog } from '@/components/CreateDialogs';
+import { FinancialsPanel } from '@/components/FinancialsPanel';
 
 /* ---------------------------------------------------------------------------
  * Shared bits
@@ -273,6 +276,7 @@ export function SamouGoAdminDashboard() {
           {activeNav === 'Zones' && <ZonesPanel />}
           {activeNav === 'Offers' && <OffersPanel />}
           {activeNav === 'Settings' && <AdminSettingsPanel auth={auth} />}
+          {activeNav === 'Financials' && <FinancialsPanel />}
         </div>
       </section>
     </main>
@@ -282,25 +286,51 @@ export function SamouGoAdminDashboard() {
 function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const toast = useToast();
   const { t } = useLanguage();
-  const [autoAssign, setAutoAssign] = useState(
-    () => window.localStorage.getItem('samou-go.admin.auto-assign') !== '0'
-  );
-  const [baseStoreRate, setBaseStoreRate] = useState(
-    () => window.localStorage.getItem('samou-go.admin.base-store-rate') ?? '0'
-  );
-  const [captainRate, setCaptainRate] = useState(
-    () => window.localStorage.getItem('samou-go.admin.captain-rate') ?? '3'
-  );
+  const [autoAssign, setAutoAssign] = useState(false);
+  const [baseStoreRate, setBaseStoreRate] = useState('10');
+  const [captainRate, setCaptainRate] = useState('0');
   const [name, setName] = useState(auth.user?.name ?? '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const saveSystemSettings = () => {
-    window.localStorage.setItem('samou-go.admin.auto-assign', autoAssign ? '1' : '0');
-    window.localStorage.setItem('samou-go.admin.base-store-rate', baseStoreRate);
-    window.localStorage.setItem('samou-go.admin.captain-rate', captainRate);
-    toast.success('تم حفظ الإعدادات المحلية', 'Local dashboard settings saved');
+  // Load the LIVE platform knobs on mount — the server is the source of truth,
+  // not this browser's localStorage. The old localStorage-only version of this
+  // panel edited nothing the API could see.
+  useEffect(() => {
+    let active = true;
+    getPlatformSettings()
+      .then((settings) => {
+        if (!active) return;
+        setAutoAssign(settings.autoAssign);
+        setBaseStoreRate(String(Math.round(settings.storeCommissionRate * 100)));
+        setCaptainRate(String(settings.captainDeliveryRate));
+      })
+      .catch(() => {
+        /* Server unreachable — the defaults remain; the API is still authoritative. */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const saveSystemSettings = async () => {
+    const captainDeliveryRate = Number(captainRate);
+    const storeCommissionRate = Number(baseStoreRate) / 100;
+    if (!Number.isFinite(captainDeliveryRate) || captainDeliveryRate < 0) {
+      toast.error('حصة السائق يجب أن تكون رقماً غير سالب', 'Captain rate must be a non-negative number');
+      return;
+    }
+    if (!Number.isFinite(storeCommissionRate) || storeCommissionRate < 0 || storeCommissionRate > 1) {
+      toast.error('عمولة المنصة يجب أن تكون بين 0 و 100', 'Platform commission must be between 0 and 100');
+      return;
+    }
+    try {
+      await updatePlatformSettings({ autoAssign, captainDeliveryRate, storeCommissionRate });
+      toast.success('تم حفظ إعدادات النظام على الخادم', 'System settings saved on the server');
+    } catch (cause) {
+      toast.error('تعذّر حفظ الإعدادات', cause instanceof Error ? cause.message : 'Save failed');
+    }
   };
 
   const saveAccount = async () => {
@@ -404,7 +434,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
           <h2 className="text-sm font-extrabold">{t('رسوم التوصيل الافتراضية', 'Default delivery fees')}</h2>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <label className="text-[11px] font-bold">
-              حصة المتجر
+              عمولة المنصة ٪
               <input
                 dir="ltr"
                 inputMode="decimal"
@@ -414,7 +444,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
               />
             </label>
             <label className="text-[11px] font-bold">
-              حصة السائق
+              حصة السائق ₪/توصيلة
               <input
                 dir="ltr"
                 inputMode="decimal"

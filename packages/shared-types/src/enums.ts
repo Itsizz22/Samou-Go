@@ -216,6 +216,54 @@ export function canRoleSetOrderStatus(role: UserRole, status: OrderStatus): bool
   return ORDER_STATUS_ACTORS[status].includes(role);
 }
 
+/**
+ * `true` when `role` may take an order from `from` to `to`.
+ *
+ * This is the full, authoritative role-aware contract that the API enforces
+ * (see `orders.service.ts`) — the base edge must exist AND the role must be
+ * allowed to drive the change from THIS `from` state. It exists so dashboards
+ * and tracking screens can show or hide actions with the exact rules the
+ * server applies, not a superset.
+ *
+ * Beyond the plain actor table this encodes the cancel windows the actor table
+ * cannot express:
+ *   - CUSTOMER may cancel only before the kitchen starts (PENDING / ACCEPTED).
+ *   - STORE_MANAGER owns the kitchen half — may cancel up to (but not after)
+ *     READY_FOR_PICKUP.
+ *   - CAPTAIN owns the road half — may cancel only before pickup
+ *     (READY_FOR_PICKUP); abandoning an order mid-route is admin-only.
+ *   - ADMIN may take any legal edge in the base table.
+ */
+export function canRoleTransitionOrderStatus(
+  role: UserRole,
+  from: OrderStatus,
+  to: OrderStatus
+): boolean {
+  if (!canTransitionOrderStatus(from, to)) return false;
+
+  switch (role) {
+    case UserRole.ADMIN:
+      return true;
+    case UserRole.CUSTOMER:
+      return (
+        to === OrderStatus.CANCELLED &&
+        (from === OrderStatus.PENDING || from === OrderStatus.ACCEPTED)
+      );
+    case UserRole.STORE_MANAGER:
+      if (to === OrderStatus.CANCELLED) {
+        return from !== OrderStatus.ON_THE_WAY;
+      }
+      return true;
+    case UserRole.CAPTAIN:
+      if (to === OrderStatus.CANCELLED) {
+        return from === OrderStatus.READY_FOR_PICKUP;
+      }
+      return true;
+    default:
+      return false;
+  }
+}
+
 /* ---------------------------------------------------------------------------
  * Custom request state machine
  * ------------------------------------------------------------------------- */

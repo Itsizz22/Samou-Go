@@ -64,7 +64,7 @@ import {
   ORDER_STATUS_TONES,
   OrderStatus,
   UserRole,
-  canTransitionOrderStatus,
+  canRoleTransitionOrderStatus,
   type OrderDetail,
   type OrderSummary,
   type Store as StoreType,
@@ -147,6 +147,17 @@ export function SamouGoStoreManager() {
   const [activeTab, setActiveTab] = useState<string>('home');
   const [menuView, setMenuView] = useState<'products' | 'sections'>('products');
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+
+  // The header's open/closed switch must reflect the SERVER's state, not a
+  // hard-coded default: an admin who closed the store while the manager was
+  // away, or a reload mid-session, would otherwise show the wrong state. Sync
+  // from the fetched store whenever the data changes (the optimistic flip in
+  // `handleToggleStore` is never overwritten because the resource does not
+  // refetch on toggle).
+  const managedIsActive = managedStore.data?.isActive;
+  useEffect(() => {
+    if (managedIsActive !== undefined) setIsOpen(managedIsActive);
+  }, [managedIsActive]);
 
   /* -- /Role gate --------------------------------------------------------- */
 
@@ -956,7 +967,14 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
     }
   })();
 
-  const canCancel = canTransitionOrderStatus(order.status, OrderStatus.CANCELLED);
+  // The store manager may cancel from any status except ON_THE_WAY (the order
+  // is with the captain) — same contract the server enforces via
+  // `canRoleTransitionOrderStatus`.
+  const canCancel = canRoleTransitionOrderStatus(
+    UserRole.STORE_MANAGER,
+    order.status,
+    OrderStatus.CANCELLED
+  );
 
   return (
     <article className="rounded-2xl border border-line bg-surface p-4 shadow-card">

@@ -9,6 +9,7 @@ import {
   Pencil,
   Save,
   Settings,
+  ClipboardList,
   Trash2,
   UserRound,
   X,
@@ -171,6 +172,7 @@ export function ProfileScreen() {
   return (
     <ScreenShell title="الملف الشخصي" subtitle="Profile">
       <div className="space-y-4">
+        <button type="button" onClick={() => navigate('/custom-requests')} className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-start shadow-card"><ClipboardList className="text-brand" size={20}/><span className="font-bold">{t('طلب مخصص', 'Custom request')}</span></button>
         {/* Identity */}
         <section className="rounded-2xl border border-line bg-surface p-5 shadow-card">
           <div className="flex items-center gap-3">

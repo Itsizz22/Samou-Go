@@ -131,6 +131,7 @@ export function toOrderSummary(order: OrderForSummary): OrderSummary {
     id: order.id,
     orderNumber: order.orderNumber,
     status: order.status,
+    captainId: order.captainId,
     itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
     totalAmount: decimalToNumber(order.totalAmount),
     deliveryFee: decimalToNumber(order.deliveryFee),

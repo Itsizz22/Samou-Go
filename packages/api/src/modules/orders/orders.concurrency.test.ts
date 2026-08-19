@@ -49,7 +49,7 @@ const h = vi.hoisted(() => {
 
   const state = {
     /* createOrder path */
-    store: { id: 'store-1', isActive: true },
+    store: { id: 'store-1', isActive: true, isApproved: true },
     products: [{ id: 'p-chicken', nameAr: 'شاورما دجاج', price: 15, isAvailable: true }],
     /** Emulates the DB row lock of `daily_order_sequences`. */
     sequence: 0,

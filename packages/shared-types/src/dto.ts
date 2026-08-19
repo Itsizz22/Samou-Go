@@ -563,6 +563,29 @@ export interface RespondCustomRequestInput {
 }
 
 /* ---------------------------------------------------------------------------
+ * Platform — /platform/settings, wallet
+ * ------------------------------------------------------------------------- */
+
+/** GET/PATCH /platform/settings — the platform-wide economy knobs. */
+export interface PlatformSettings {
+  id: string;
+  /** Flat captain payout per delivered order, on top of the delivery fee. */
+  captainDeliveryRate: number;
+  /** Store commission rate applied when the store wallet has no rate set. */
+  storeCommissionRate: number;
+  /** Reserved for a future auto-assignment engine. */
+  autoAssign: boolean;
+  updatedAt: string;
+}
+
+/** PATCH /platform/settings — admin updates one or more knobs. */
+export interface UpdatePlatformSettingsInput {
+  captainDeliveryRate?: number;
+  storeCommissionRate?: number;
+  autoAssign?: boolean;
+}
+
+/* ---------------------------------------------------------------------------
  * Uploads — POST /uploads/*
  * ------------------------------------------------------------------------- */
 

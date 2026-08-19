@@ -112,7 +112,25 @@ export const CartCheckoutSummary = () => {
 
   /* ---- Basket ----------------------------------------------------------- */
 
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  // The store-details app lives on a different origin, so its basket cannot be
+  // read from localStorage — it arrives encoded in the URL (`items=p1:2,p2:1`)
+  // and re-hydrates the steppers here. See `StoreDetailsMenu.tsx`.
+  const [quantities, setQuantities] = useState<Record<string, number>>(() => {
+    try {
+      const raw = new URLSearchParams(window.location.search).get('items');
+      if (!raw) return {};
+      const parsed: Record<string, number> = {};
+      for (const token of raw.split(',')) {
+        const [id, qty] = token.split(':');
+        if (!id || !qty) continue;
+        const quantity = Number(qty);
+        if (Number.isInteger(quantity) && quantity > 0) parsed[id] = quantity;
+      }
+      return parsed;
+    } catch {
+      return {};
+    }
+  });
 
   const items: CreateOrderItemInput[] = useMemo(
     () =>

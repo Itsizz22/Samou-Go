@@ -1,7 +1,7 @@
 import { Theme } from './settings/types';
 import { StoreDetailsMenu } from './components/generated/StoreDetailsMenu';
 
-let theme: Theme = 'light';
+const theme: Theme = 'light';
 
 function App() {
   function setTheme(theme: Theme) {

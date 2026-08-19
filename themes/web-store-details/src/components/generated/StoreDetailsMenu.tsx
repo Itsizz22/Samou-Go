@@ -436,14 +436,21 @@ export const StoreDetailsMenu = () => {
         </section>
       </main>
 
-      {/* View Cart CTA — links to checkout app with storeId */}
+      {/* View Cart CTA — links to checkout app with storeId AND the basket.
+          The two apps run on different ports/origins, so localStorage cannot
+          carry the cart across — it travels in the query string instead:
+          `items=p1:2,p2:1`. The checkout app re-hydrates its steppers from it. */}
       {itemCount > 0 && storeId && (
         <aside
           className="fixed bottom-[72px] end-4 start-4 z-40 mx-auto max-w-lg"
           aria-label="Shopping cart summary"
         >
           <a
-            href={`${CHECKOUT_URL}/?storeId=${encodeURIComponent(storeId)}`}
+            href={`${CHECKOUT_URL}/?storeId=${encodeURIComponent(storeId)}&items=${encodeURIComponent(
+              Object.entries(cartItems)
+                .map(([id, qty]) => `${id}:${qty}`)
+                .join(',')
+            )}`}
             className="flex w-full items-center justify-between rounded-xl bg-brand-deep px-4 py-3.5 text-white shadow-raised transition hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
           >
             <span className="flex flex-col items-start">

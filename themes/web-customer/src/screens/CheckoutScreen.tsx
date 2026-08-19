@@ -214,47 +214,49 @@ export function CheckoutScreen() {
   }
 
   const handleSubmit = async () => {
-    // Double-tap guard: only one placement in flight, ever.
+    // Double-tap guard: only one placement in flight, ever. The latch lives in
+    // a try/finally so EVERY exit path — validation short-circuits included —
+    // releases it; a leak here would permanently block further orders.
     if (submittingRef.current) return;
     submittingRef.current = true;
 
-    setFieldError(null);
-    setSubmitError(null);
-
-    const finalText = (useSavedAddress?.addressText ?? addressText).trim();
-    if (!finalText) {
-      setFieldError(t('يرجى إدخال عنوان التوصيل', 'Please enter a delivery address'));
-      await hapticError();
-      return;
-    }
-    if (!cart.storeId || items.length === 0) {
-      setSubmitError(
-        Object.assign(new Error(t('سلتك فارغة', 'Your cart is empty')), {
-          message: t('سلتك فارغة', 'Your cart is empty'),
-        }) as ApiError
-      );
-      await hapticError();
-      return;
-    }
-
-    // Persist the address for the next order, if the customer wants it.
-    if (saveForNextTime) {
-      const entry: SavedAddress = {
-        id: useSavedAddress?.id ?? `${Date.now()}`,
-        label: useSavedAddress?.label ?? finalText.slice(0, 24),
-        tag: useSavedAddress?.tag ?? addressTag,
-        addressText: finalText,
-        addressNote: addressNote.trim() || useSavedAddress?.addressNote || undefined,
-      };
-      setSaved((current) => {
-        const next = upsertAddress(current, entry);
-        writeSavedAddresses(next);
-        return next;
-      });
-    }
-
-    setPlacing(true);
     try {
+      setFieldError(null);
+      setSubmitError(null);
+
+      const finalText = (useSavedAddress?.addressText ?? addressText).trim();
+      if (!finalText) {
+        setFieldError(t('يرجى إدخال عنوان التوصيل', 'Please enter a delivery address'));
+        await hapticError();
+        return;
+      }
+      if (!cart.storeId || items.length === 0) {
+        setSubmitError(
+          Object.assign(new Error(t('سلتك فارغة', 'Your cart is empty')), {
+            message: t('سلتك فارغة', 'Your cart is empty'),
+          }) as ApiError
+        );
+        await hapticError();
+        return;
+      }
+
+      // Persist the address for the next order, if the customer wants it.
+      if (saveForNextTime) {
+        const entry: SavedAddress = {
+          id: useSavedAddress?.id ?? `${Date.now()}`,
+          label: useSavedAddress?.label ?? finalText.slice(0, 24),
+          tag: useSavedAddress?.tag ?? addressTag,
+          addressText: finalText,
+          addressNote: addressNote.trim() || useSavedAddress?.addressNote || undefined,
+        };
+        setSaved((current) => {
+          const next = upsertAddress(current, entry);
+          writeSavedAddresses(next);
+          return next;
+        });
+      }
+
+      setPlacing(true);
       const created = await createOrder({
         storeId: cart.storeId,
         items,

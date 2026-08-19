@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { created, ok } from '../../lib/respond';
 import { parseWith } from '../../lib/validate';
 import { requireAuth } from '../../middleware/authenticate';
-import { chatSchema, locationSchema, orderIdParamsSchema, ticketSchema, walletIdParamsSchema } from './platform.schemas';
+import { chatSchema, locationSchema, orderIdParamsSchema, platformSettingsSchema, ticketSchema, walletIdParamsSchema } from './platform.schemas';
 import * as platformService from './platform.service';
 
 /** PUT /api/v1/platform/captains/me/location */
@@ -68,4 +68,15 @@ export async function settleWalletHandler(req: Request, res: Response): Promise<
 export async function creditWalletHandler(req: Request, res: Response): Promise<void> {
   const { walletId } = parseWith(walletIdParamsSchema, req.params);
   ok(res, await platformService.creditWallet(walletId, req.body));
+}
+
+/** GET /api/v1/platform/settings */
+export async function getPlatformSettingsHandler(_req: Request, res: Response): Promise<void> {
+  ok(res, await platformService.getPlatformSettings());
+}
+
+/** PATCH /api/v1/platform/settings — admin economy knobs */
+export async function updatePlatformSettingsHandler(req: Request, res: Response): Promise<void> {
+  const body = parseWith(platformSettingsSchema, req.body);
+  ok(res, await platformService.updatePlatformSettings(body));
 }
