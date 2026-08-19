@@ -21,9 +21,11 @@ import {
   deleteUser,
   getMyStores,
   getOrder,
+  getPlatformSettings,
   getStore,
   getStoreManager,
   getStores,
+  getWallet,
   listActiveOffers,
   listAllOffers,
   listOrders,
@@ -33,6 +35,9 @@ import {
   type ApiMeta,
   getMeta,
   getAdminStats,
+  getAdminFinancials,
+  type WalletSummary,
+  type AdminFinancials,
 } from './api';
 import type {
   AdminCreateCaptainInput,
@@ -45,6 +50,7 @@ import type {
   OrderListQuery,
   OrderSummary,
   Paginated,
+  PlatformSettings,
   PublicUser,
   Store,
   StoreListQuery,
@@ -203,7 +209,14 @@ export function useMutation<TInput, TResult>(
     };
   }, []);
 
+  // Guards against double-submits: a second `run` while one is in flight is a
+  // no-op. The ref (not state) carries the lock so two taps in the same frame
+  // cannot both read `pending === false`.
+  const pendingRef = useRef(false);
+
   const run = useCallback(async (input: TInput): Promise<TResult | null> => {
+    if (pendingRef.current) return null;
+    pendingRef.current = true;
     const controller = new AbortController();
     setPending(true);
     setError(null);
@@ -219,6 +232,7 @@ export function useMutation<TInput, TResult>(
       if (mounted.current) setError(apiError);
       return null;
     } finally {
+      pendingRef.current = false;
       if (mounted.current) setPending(false);
     }
   }, []);
@@ -379,6 +393,18 @@ export function useDeleteUser(): Mutation<string, { removed: boolean }> {
   );
 }
 
+/** GET /platform/settings — the platform economy knobs. */
+export function usePlatformSettings(
+  options?: ResourceOptions<PlatformSettings>
+): Resource<PlatformSettings> {
+  return useResource('platform-settings', (signal) => getPlatformSettings(signal), options);
+}
+
+/** GET /platform/wallet — the caller's wallet + recent settlements. */
+export function useWallet(options?: ResourceOptions<WalletSummary | null>): Resource<WalletSummary | null> {
+  return useResource('platform-wallet', (signal) => getWallet(signal), options);
+}
+
 /* ---------------------------------------------------------------------------
  * Image uploads
  * ------------------------------------------------------------------------- */
@@ -473,8 +499,10 @@ export function useOrderEvent(
     };
 
     source.onerror = () => {
-      eventSourceRef.current = null;
-      source.close();
+      // Do NOT `source.close()` here: EventSource auto-reconnects with an
+      // exponential backoff of its own, so the stream heals itself when the
+      // network or the server comes back. We only surface the outage to the UI
+      // and clear it on the next successful `onopen`.
       setError(new ApiError('SSE_ERROR', 'Connection lost — reconnecting…'));
     };
 
@@ -529,4 +557,9 @@ export function hapticConfirm() {
   if (typeof window !== 'undefined' && 'vibrate' in navigator) {
     navigator.vibrate([20, 50, 20]);
   }
+}
+
+/** GET /platform/admin/financials — wallets, settlements and delivered revenue. */
+export function useAdminFinancials(options?: ResourceOptions<AdminFinancials>): Resource<AdminFinancials> {
+  return useResource('admin-financials', signal => getAdminFinancials(signal), options);
 }

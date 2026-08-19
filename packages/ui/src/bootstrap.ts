@@ -7,7 +7,9 @@
  *
  * What it does:
  *   1. Disables Framer Motion animations in editable/preview mode
- *   2. Forces the app into light mode (dark mode is not implemented yet)
+ *   2. Pins the app to light mode unless the app opts into its own theme
+ *      switcher (`allowDarkMode: true`) — the web-customer and staff apps
+ *      ship their own dark toggle and pass that flag
  *   3. Attaches a global broken-image fallback handler
  *
  * The `MotionGlobalConfig` import is lazy (dynamic) so this module does not
@@ -89,9 +91,15 @@ export function bootstrapApp(options: BootstrapOptions = {}): void {
   if (!options.allowDarkMode) {
     forceLightMode();
     document.addEventListener('DOMContentLoaded', forceLightMode);
-    window
-      .matchMedia('(prefers-color-scheme: dark)')
-      .addEventListener('change', forceLightMode);
+    // Older Android WebViews (Capacitor) expose `addListener`, not the modern
+    // `addEventListener` on `MediaQueryList` — fall back so the guard works
+    // everywhere instead of throwing on boot.
+    const darkMode = window.matchMedia('(prefers-color-scheme: dark)');
+    if (typeof darkMode.addEventListener === 'function') {
+      darkMode.addEventListener('change', forceLightMode);
+    } else if (typeof darkMode.addListener === 'function') {
+      darkMode.addListener(forceLightMode);
+    }
   }
 
   /* ---- 2b. Brand theme --------------------------------------------------- */

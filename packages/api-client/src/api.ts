@@ -77,6 +77,14 @@ import type {
   CreateDeliveryZoneInput,
   UpdateDeliveryZoneInput,
   DeliveryZone,
+  CreateCustomRequestInput,
+  CustomRequestListQuery,
+  CustomRequestWithCustomer,
+  CustomRequestWithStore,
+  OfferCustomRequestInput,
+  RespondCustomRequestInput,
+  PlatformSettings,
+  UpdatePlatformSettingsInput,
 } from "@samou-go/shared-types";
 import type {
   DeliveryFeeConfig,
@@ -1454,15 +1462,15 @@ export function updateDeliveryZone(
 export function deleteDeliveryZone(
   zoneId: string,
   signal?: AbortSignal,
-): Promise<null> {
-  return request<null>(
+): Promise<void> {
+  return request<unknown>(
     "DELETE",
     `/delivery-zones/${encodeURIComponent(zoneId)}`,
     {
       auth: true,
       signal,
     },
-  );
+  ).then(() => undefined);
 }
 
 /** Assigns a delivery zone to an order (sets the fee). Requires CAPTAIN or ADMIN. */
@@ -1593,4 +1601,189 @@ export function toggleOffer(
     `/stores/${encodeURIComponent(storeId)}/offers/${encodeURIComponent(offerId)}/toggle`,
     { auth: true, signal },
   );
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/customer/custom-requests — the customer's "make me one" asks
+ * ------------------------------------------------------------------------- */
+
+/**
+ * POST /customer/custom-requests — ask a store for something not on the menu.
+ * Fulfilment is manual (the store replies with a price); no order is created.
+ */
+export function createCustomRequest(
+  input: CreateCustomRequestInput,
+  signal?: AbortSignal,
+): Promise<CustomRequestWithStore> {
+  return request<CustomRequestWithStore>(
+    "POST",
+    "/customer/custom-requests",
+    { body: input, auth: true, signal },
+  );
+}
+
+/** GET /customer/custom-requests — the signed-in customer's own requests. */
+export function listMyCustomRequests(
+  query: CustomRequestListQuery = {},
+  signal?: AbortSignal,
+): Promise<Paginated<CustomRequestWithStore>> {
+  return request<Paginated<CustomRequestWithStore>>(
+    "GET",
+    "/customer/custom-requests",
+    { query: { ...query }, auth: true, signal },
+  );
+}
+
+/** PATCH /customer/custom-requests/:id/respond — accept or reject a quote. */
+export function respondToCustomRequest(
+  requestId: string,
+  input: RespondCustomRequestInput,
+  signal?: AbortSignal,
+): Promise<CustomRequestWithStore> {
+  return request<CustomRequestWithStore>(
+    "PATCH",
+    `/customer/custom-requests/${encodeURIComponent(requestId)}/respond`,
+    { body: input, auth: true, signal },
+  );
+}
+
+/** POST /customer/custom-requests/:id/cancel — pull an open request. */
+export function cancelCustomRequest(
+  requestId: string,
+  signal?: AbortSignal,
+): Promise<CustomRequestWithStore> {
+  return request<CustomRequestWithStore>(
+    "POST",
+    `/customer/custom-requests/${encodeURIComponent(requestId)}/cancel`,
+    { auth: true, signal },
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/store/custom-requests — requests aimed at the manager's stores
+ * ------------------------------------------------------------------------- */
+
+/** GET /store/custom-requests — requests for the manager's (or any) stores. */
+export function listStoreCustomRequests(
+  query: CustomRequestListQuery = {},
+  signal?: AbortSignal,
+): Promise<Paginated<CustomRequestWithCustomer>> {
+  return request<Paginated<CustomRequestWithCustomer>>(
+    "GET",
+    "/store/custom-requests",
+    { query: { ...query }, auth: true, signal },
+  );
+}
+
+/** POST /store/custom-requests/:id/offer — quote a price on a pending request. */
+export function offerPriceOnCustomRequest(
+  requestId: string,
+  input: OfferCustomRequestInput,
+  signal?: AbortSignal,
+): Promise<CustomRequestWithCustomer> {
+  return request<CustomRequestWithCustomer>(
+    "POST",
+    `/store/custom-requests/${encodeURIComponent(requestId)}/offer`,
+    { body: input, auth: true, signal },
+  );
+}
+
+/** POST /store/custom-requests/:id/cancel — withdraw an open request/offer. */
+export function cancelStoreCustomRequest(
+  requestId: string,
+  signal?: AbortSignal,
+): Promise<CustomRequestWithCustomer> {
+  return request<CustomRequestWithCustomer>(
+    "POST",
+    `/store/custom-requests/${encodeURIComponent(requestId)}/cancel`,
+    { auth: true, signal },
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * /api/v1/platform — wallet + settings
+ * ------------------------------------------------------------------------- */
+
+/** GET /platform/settings — the platform economy knobs. Authenticated. */
+export function getPlatformSettings(
+  signal?: AbortSignal,
+): Promise<PlatformSettings> {
+  return request<PlatformSettings>("GET", "/platform/settings", {
+    auth: true,
+    signal,
+  });
+}
+
+/** PATCH /platform/settings — admin updates one or more knobs. */
+export function updatePlatformSettings(
+  input: UpdatePlatformSettingsInput,
+  signal?: AbortSignal,
+): Promise<PlatformSettings> {
+  return request<PlatformSettings>("PATCH", "/platform/settings", {
+    body: input,
+    auth: true,
+    signal,
+  });
+}
+
+/** A captain/store wallet settlement row with money already as a number. */
+export interface WalletSettlementRow {
+  id: string;
+  walletId: string;
+  amount: number;
+  method: string;
+  note: string | null;
+  createdAt: string;
+}
+
+/** GET /platform/wallet — the caller's wallet + recent settlements. */
+export interface WalletSummary {
+  id: string;
+  userId: string | null;
+  storeId: string | null;
+  balance: number;
+  commissionRate: number;
+  updatedAt: string;
+  settlements: WalletSettlementRow[];
+}
+
+/** Admin-wide wallet report. Values are converted to plain numbers at the API edge. */
+export interface AdminFinancials {
+  revenue: number;
+  wallets: Array<Omit<WalletSummary, 'settlements'> & {
+    user: { id: string; name: string; role: UserRole } | null;
+    store: { id: string; nameAr: string } | null;
+  }>;
+  settlements: WalletSettlementRow[];
+}
+
+export interface SettleWalletInput {
+  amount: number;
+  method: 'CASH' | 'BANK_TRANSFER' | 'MOBILE_WALLET';
+  note?: string;
+}
+
+export interface CreditWalletInput {
+  amount: number;
+  note?: string;
+}
+
+/** GET /platform/wallet — the signed-in user's own wallet (null when none). */
+export function getWallet(signal?: AbortSignal): Promise<WalletSummary | null> {
+  return request<WalletSummary | null>("GET", "/platform/wallet", {
+    auth: true,
+    signal,
+  });
+}
+
+export function getAdminFinancials(signal?: AbortSignal): Promise<AdminFinancials> {
+  return request<AdminFinancials>('GET', '/platform/admin/financials', { auth: true, signal });
+}
+
+export function settleWallet(walletId: string, input: SettleWalletInput, signal?: AbortSignal): Promise<{ wallet: WalletSummary; settlement: WalletSettlementRow }> {
+  return request('POST', `/platform/admin/wallets/${encodeURIComponent(walletId)}/settle`, { body: input, auth: true, signal });
+}
+
+export function creditWallet(walletId: string, input: CreditWalletInput, signal?: AbortSignal): Promise<WalletSummary> {
+  return request('POST', `/platform/admin/wallets/${encodeURIComponent(walletId)}/credit`, { body: input, auth: true, signal });
 }

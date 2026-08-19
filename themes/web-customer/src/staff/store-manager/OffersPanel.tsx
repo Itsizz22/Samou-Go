@@ -65,22 +65,38 @@ const emptyForm = (): OfferFormState => ({
   productIds: [],
 });
 
+/** ISO → `datetime-local` value in the BROWSER's own timezone. `slice(0,16)`
+ * would cut the UTC string and show the wrong local hour whenever the offset
+ * is not zero. */
+function toDatetimeLocal(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** `datetime-local` → ISO with a timezone marker. The server schema is
+ * `z.string().datetime({ offset: true })`, so a bare `YYYY-MM-DDTHH:mm` is
+ * rejected. `new Date()` interprets the value as local time and
+ * `toISOString()` pins it to UTC. */
+function toIso(value: string): string | undefined {
+  if (!value) return undefined;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+}
+
 function formFromOffer(o: Offer): OfferFormState {
   return {
     titleAr: o.titleAr,
     titleEn: o.titleEn,
     descriptionAr: o.descriptionAr,
     descriptionEn: o.descriptionEn,
-    startsAt: o.startsAt ? o.startsAt.slice(0, 16) : '',
-    expiresAt: o.expiresAt ? o.expiresAt.slice(0, 16) : '',
+    startsAt: toDatetimeLocal(o.startsAt),
+    expiresAt: toDatetimeLocal(o.expiresAt),
     sortOrder: String(o.sortOrder),
     productIds: o.productIds ?? [],
   };
-}
-
-function toLocalDatetime(iso: string | null): string {
-  if (!iso) return '';
-  return iso.slice(0, 16);
 }
 
 /* ---------------------------------------------------------------------------
@@ -165,8 +181,8 @@ export function OffersPanel({ storeId }: Props) {
         titleEn,
         descriptionAr: descAr,
         descriptionEn: descEn,
-        startsAt: form.startsAt || undefined,
-        expiresAt: form.expiresAt || undefined,
+        startsAt: toIso(form.startsAt),
+        expiresAt: toIso(form.expiresAt),
         sortOrder,
         productIds: form.productIds.length > 0 ? form.productIds : undefined,
       };

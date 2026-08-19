@@ -43,3 +43,11 @@ platformRouter.post(
   authorize(UserRole.ADMIN),
   asyncHandler(controller.creditWalletHandler)
 );
+
+platformRouter.get('/settings', asyncHandler(controller.getPlatformSettingsHandler));
+
+platformRouter.patch(
+  '/settings',
+  authorize(UserRole.ADMIN),
+  asyncHandler(controller.updatePlatformSettingsHandler)
+);

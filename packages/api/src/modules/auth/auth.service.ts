@@ -17,7 +17,7 @@ import { verifyFirebaseIdToken } from '../../config/firebaseAdmin';
 import { fromE164, toE164 } from '../../lib/sms/phone';
 import { env } from '../../config/env';
 import { toPublicUser } from './auth.mapper';
-import { requestOtp } from './otp.service';
+import { requestOtp, verifyAndConsumeOtp } from './otp.service';
 import { issueRefreshToken, revokeAllUserRefreshTokens, rotateRefreshToken } from './refresh-token';
 import type {
   AdminCreateCaptainBody,
@@ -224,6 +224,11 @@ export async function updateProfile(
     if (conflict_) {
       throw conflict('رقم الجوال مسجّل مسبقاً / This phone number is already in use');
     }
+    // A phone change must be proven by the OTP dispatched to the NEW number.
+    // The schema already requires `otpCode` when `phone` is present; this
+    // verifies the code against the stored hash and consumes it so it cannot
+    // be replayed against another account.
+    await verifyAndConsumeOtp(body.phone, body.otpCode ?? '');
   }
 
   const updated = await prisma.user.update({

@@ -63,7 +63,7 @@ import {
   ORDER_STATUS_TONES,
   OrderStatus,
   UserRole,
-  canTransitionOrderStatus,
+  canRoleTransitionOrderStatus,
   type OrderDetail,
   type OrderSummary,
   type Store as StoreType,
@@ -73,6 +73,7 @@ import { ProductCataloguePanel } from './ProductCataloguePanel';
 import { CategoriesPanel } from './CategoriesPanel';
 import { OffersPanel } from './OffersPanel';
 import { StoreProfilePanel } from './StoreProfilePanel';
+import { CustomRequestsPanel } from './CustomRequestsPanel';
 
 /* ---------------------------------------------------------------------------
  * Presentation helpers
@@ -110,6 +111,7 @@ const BOTTOM_TABS = [
   { id: 'products', icon: ShoppingBag, ar: 'المنتجات', en: 'Products' },
   { id: 'offers', icon: Megaphone, ar: 'العروض', en: 'Offers' },
   { id: 'settings', icon: Settings, ar: 'إعدادات المتجر', en: 'Settings' },
+  { id: 'custom-requests', icon: ClipboardList, ar: 'طلبات مخصصة', en: 'Requests' },
 ] as const;
 
 /* ---------------------------------------------------------------------------
@@ -856,6 +858,7 @@ export function SamouGoStoreManager() {
           )}
         </section>
       )}
+      {activeTab === 'custom-requests' && managedStoreId && <CustomRequestsPanel storeId={managedStoreId} />}
 
       <nav
         className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface px-3 safe-bottom pt-2 shadow-raised md:hidden"
@@ -953,7 +956,14 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
     }
   })();
 
-  const canCancel = canTransitionOrderStatus(order.status, OrderStatus.CANCELLED);
+  // The store manager may cancel from any status except ON_THE_WAY (the order
+  // is with the captain) — same contract the server enforces via
+  // `canRoleTransitionOrderStatus`.
+  const canCancel = canRoleTransitionOrderStatus(
+    UserRole.STORE_MANAGER,
+    order.status,
+    OrderStatus.CANCELLED
+  );
 
   return (
     <article className="rounded-2xl border border-line bg-surface p-4 shadow-card">

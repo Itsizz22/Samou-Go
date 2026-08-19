@@ -145,8 +145,8 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onClose: () => void;
 }) {
-  if (!open) return null;
   const { t } = useLanguage();
+  if (!open) return null;
   return (
     <AdminModal title={title} en={en} onClose={onClose}>
       <div className="p-6">

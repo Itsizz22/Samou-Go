@@ -37,8 +37,10 @@ import {
   useMutation,
   useOrder,
   useOrders,
+  usePlatformSettings,
   useRoleRedirect,
   useToast,
+  useWallet,
   connectRealtime,
 } from '@samou-go/api-client';
 import {
@@ -55,6 +57,7 @@ import {
   OrderStatus,
   UserRole,
   canRoleSetOrderStatus,
+  canRoleTransitionOrderStatus,
   canTransitionOrderStatus,
   type DeliveryZone,
   type OrderDetail,
@@ -95,8 +98,10 @@ const NAV_ITEMS = [
   { id: 'account', label: 'حسابي', english: 'Account', icon: UserRound },
 ] as const;
 
-/** Captain's flat earnings per completed delivery, in ILS. */
-const CAPTAIN_RATE_PER_DELIVERY = 3;
+/** Captain's flat earnings per completed delivery, in ILS — read LIVE from the
+ * platform settings, not a hard-coded constant. The server credits exactly
+ * `deliveryFee + captainDeliveryRate` per delivered order (see
+ * `creditDeliveredOrder`); with free delivery that is the rate alone. */
 
 /* ---- Google Maps navigation ---------------------------------------------- */
 
@@ -177,6 +182,12 @@ export function SamouGoCaptain() {
 
   const activeOrderDetail = useOrder(activeItems[0]?.id, { enabled: Boolean(auth.user) && isCaptain, pollMs: 10_000 });
 
+  // The real per-delivery rate from the platform (admin-configured) and the
+  // captain's ACTUAL wallet balance — never a hard-coded constant.
+  const platformSettings = usePlatformSettings({ enabled: isCaptain });
+  const captainRate = platformSettings.data?.captainDeliveryRate ?? 0;
+  const wallet = useWallet({ enabled: isCaptain });
+
   useEffect(() => {
     if (!isCaptain || !activeItems[0]?.id || !navigator.geolocation) return;
     const socket = connectRealtime();
@@ -185,7 +196,10 @@ export function SamouGoCaptain() {
       socket.emit('captain:location', { orderId, lat: position.coords.latitude, lng: position.coords.longitude, heading: position.coords.heading ?? undefined });
     }, () => undefined, { enableHighAccuracy: true, maximumAge: 5_000 });
     return () => { navigator.geolocation.clearWatch(watchId); socket.disconnect(); };
-  }, [activeItems, isCaptain]);
+    // Depend on the ORDER ID, not `activeItems`: `availableOrders` re-fetches
+    // every 10 s, producing a fresh array reference that would otherwise tear
+    // down and rebuild the socket + GPS watch on every poll.
+  }, [activeItems[0]?.id, isCaptain]);
 
   // Load active delivery zones once on mount for the zone picker.
   useEffect(() => {
@@ -200,10 +214,11 @@ export function SamouGoCaptain() {
   const todayDeliveries = completedToday.length;
   const todayCash = useMemo(() => completedToday.reduce((total, order) => total + order.totalAmount, 0), [completedToday]);
   const todayEarnings = useMemo(() => {
-    // Delivery fees are FREE platform-wide (0 ₪), so the captain's earnings are
-    // the flat per-delivery rate, not a share of any delivery fee.
-    return todayDeliveries * CAPTAIN_RATE_PER_DELIVERY;
-  }, [todayDeliveries]);
+    // Each delivered order credits the captain `deliveryFee + captainDeliveryRate`
+    // (delivery fees are 0 platform-wide), so today's accrued earnings are
+    // exactly the delivered count times the LIVE platform rate.
+    return todayDeliveries * captainRate;
+  }, [todayDeliveries, captainRate]);
 
   /* ---- New available-order toast ------------------------------------------ */
 
@@ -246,6 +261,10 @@ export function SamouGoCaptain() {
     (input, signal) => updateOrderStatus(input.orderId, { status: input.status }, signal)
   );
 
+  const cancelMutation = useMutation<TransitionInput, OrderDetail>(
+    (input, signal) => updateOrderStatus(input.orderId, { status: input.status }, signal)
+  );
+
   const handleAccept = async (orderId: string) => {
     const result = await acceptMutation.run({ orderId, status: OrderStatus.ON_THE_WAY });
     if (result) {
@@ -273,6 +292,20 @@ export function SamouGoCaptain() {
     }
     void activeOrders.reload();
     void completedOrders.reload();
+  };
+
+  // A captain may cancel a ready order already assigned to them (server gate:
+  // READY_FOR_PICKUP → CANCELLED, ownership enforced server-side). Once the
+  // trip starts (ON_THE_WAY) the cancel window is closed.
+  const handleCancel = async (orderId: string) => {
+    const result = await cancelMutation.run({ orderId, status: OrderStatus.CANCELLED });
+    if (result) {
+      toast.success('تم إلغاء الطلب', 'Order cancelled');
+    } else if (cancelMutation.error) {
+      toast.error('تعذّر إلغاء الطلب', cancelMutation.error.localizedMessage, { duration: 5_000 });
+    }
+    void availableOrders.reload();
+    void activeOrders.reload();
   };
 
   // Sets the delivery zone for one order. Returns `true` on success so the
@@ -408,7 +441,7 @@ export function SamouGoCaptain() {
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/20 pt-3 text-[11px]">
         <span>النقد المحصّل <b dir="ltr" className="block mt-1 text-base">₪{todayCash.toFixed(2)}</b></span>
-        <span>عمولتك <b dir="ltr" className="block mt-1 text-base">₪{todayEarnings.toFixed(2)}</b></span>
+        <span>رصيدك المحفظي <b dir="ltr" className="block mt-1 text-base">₪{(wallet.data?.balance ?? 0).toFixed(2)}</b></span>
       </div>
     </section>
   );
@@ -489,6 +522,22 @@ export function SamouGoCaptain() {
                           {acceptMutation.pending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                           <span>{t('قبول', 'Accept')}</span>
                         </button>
+                        {order.captainId === auth.user?.id &&
+                          canRoleTransitionOrderStatus(UserRole.CAPTAIN, order.status, OrderStatus.CANCELLED) && (
+                          <button
+                            type="button"
+                            disabled={cancelMutation.pending}
+                            onClick={() => {
+                              if (window.confirm(t('إلغاء هذا الطلب؟', 'Cancel this order?'))) {
+                                void handleCancel(order.id);
+                              }
+                            }}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-danger/30 py-2.5 text-[11px] font-bold text-danger-ink transition hover:bg-danger-tint disabled:opacity-60"
+                          >
+                            <X size={14} />
+                            <span>{t('إلغاء', 'Cancel')}</span>
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => {

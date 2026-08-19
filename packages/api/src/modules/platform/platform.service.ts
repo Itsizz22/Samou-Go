@@ -9,6 +9,7 @@ import { parseWith } from '../../lib/validate';
 import { isOrderPartyMember } from '../../lib/order-party';
 import type {
   LocationBody,
+  PlatformSettingsBody,
   RatingBody,
   SettlementBody,
   TicketBody,
@@ -128,6 +129,50 @@ export async function getAdminFinancials() {
   };
 }
 
+/**
+ * Reads the platform settings singleton, defaulting every knob when the row
+ * has not been provisioned yet. Money fields are returned as plain numbers.
+ */
+export async function getPlatformSettings() {
+  const row =
+    (await prisma.platformSettings.findUnique({ where: { id: 'platform' } })) ??
+    (await prisma.platformSettings.create({
+      data: { id: 'platform' },
+    }));
+  return {
+    id: row.id,
+    captainDeliveryRate: decimalToNumber(row.captainDeliveryRate),
+    storeCommissionRate: decimalToNumber(row.storeCommissionRate),
+    autoAssign: row.autoAssign,
+    updatedAt: row.updatedAt,
+  };
+}
+
+/** PATCH — admin updates one or more knobs on the singleton row. */
+export async function updatePlatformSettings(body: PlatformSettingsBody) {
+  const row = await prisma.platformSettings.upsert({
+    where: { id: 'platform' },
+    create: {
+      id: 'platform',
+      ...(body.captainDeliveryRate !== undefined ? { captainDeliveryRate: body.captainDeliveryRate } : {}),
+      ...(body.storeCommissionRate !== undefined ? { storeCommissionRate: body.storeCommissionRate } : {}),
+      ...(body.autoAssign !== undefined ? { autoAssign: body.autoAssign } : {}),
+    },
+    update: {
+      ...(body.captainDeliveryRate !== undefined ? { captainDeliveryRate: body.captainDeliveryRate } : {}),
+      ...(body.storeCommissionRate !== undefined ? { storeCommissionRate: body.storeCommissionRate } : {}),
+      ...(body.autoAssign !== undefined ? { autoAssign: body.autoAssign } : {}),
+    },
+  });
+  return {
+    id: row.id,
+    captainDeliveryRate: decimalToNumber(row.captainDeliveryRate),
+    storeCommissionRate: decimalToNumber(row.storeCommissionRate),
+    autoAssign: row.autoAssign,
+    updatedAt: row.updatedAt,
+  };
+}
+
 /* ---------------------------------------------------------------------------
  * Wallet credits — P0-2: every balance mutation carries a LedgerEntry in the
  * SAME transaction, and every mutation is an atomic increment/decrement (never
@@ -142,14 +187,15 @@ export interface OrderFinancials {
   commission: Prisma.Decimal;
   /** `gross − commission` — what lands in the store wallet. */
   storeNet: Prisma.Decimal;
-  /** `deliveryFee` — what lands in the captain wallet. */
+  /** `deliveryFee + captainDeliveryRate` — what lands in the captain wallet. */
   captainPayout: Prisma.Decimal;
 }
 
 export function computeOrderFinancials(
   subtotal: Prisma.Decimal | number | string,
   deliveryFee: Prisma.Decimal | number | string,
-  commissionRate: Prisma.Decimal | number | string
+  commissionRate: Prisma.Decimal | number | string,
+  captainDeliveryRate: Prisma.Decimal | number | string = 0
 ): OrderFinancials {
   const gross = new PrismaRuntime.Decimal(subtotal);
   const commission = gross
@@ -159,7 +205,9 @@ export function computeOrderFinancials(
     gross,
     commission,
     storeNet: gross.minus(commission),
-    captainPayout: new PrismaRuntime.Decimal(deliveryFee),
+    captainPayout: new PrismaRuntime.Decimal(deliveryFee).plus(
+      new PrismaRuntime.Decimal(captainDeliveryRate)
+    ),
   };
 }
 
@@ -185,10 +233,17 @@ export async function creditDeliveredOrder(
     where: { storeId: order.storeId },
     select: { commissionRate: true },
   });
+  // Platform-wide knobs: the store wallet's own rate always wins over the
+  // global default; the captain flat rate adds on top of the delivery fee.
+  // Defensive access so a fixture without the settings client degrades to defaults.
+  const settings = tx.platformSettings
+    ? await tx.platformSettings.findUnique({ where: { id: 'platform' } }).catch(() => null)
+    : null;
   const financials = computeOrderFinancials(
     order.subtotal,
     order.deliveryFee,
-    existingStoreWallet?.commissionRate ?? '0.10'
+    existingStoreWallet?.commissionRate ?? settings?.storeCommissionRate ?? '0.10',
+    settings?.captainDeliveryRate ?? 0
   );
 
   const storeWallet = await tx.wallet.upsert({

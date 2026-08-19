@@ -116,6 +116,17 @@ export const updateProfileSchema = z
     /** Requires currentPassword to be present when provided. */
     newPassword: passwordSchema.optional(),
     currentPassword: z.string().min(1).optional(),
+    /**
+     * Proof of ownership of a NEW `phone`: the OTP code dispatched to that
+     * number. Required whenever `phone` is changed — otherwise a stolen
+     * session could hijack the account by pointing it at the attacker's number.
+     */
+    otpCode: z
+      .string()
+      .trim()
+      .transform((value) => value.replace(/\D/g, ""))
+      .pipe(z.string().length(6))
+      .optional(),
   })
   .refine(
     (data) => {
@@ -127,6 +138,18 @@ export const updateProfileSchema = z
       message:
         "كلمة المرور الحالية مطلوبة لتغيير كلمة المرور / currentPassword required to set a new password",
       path: ["currentPassword"],
+    },
+  )
+  .refine(
+    (data) => {
+      // Changing the phone number requires the OTP dispatched to the new one.
+      if (data.phone && !data.otpCode) return false;
+      return true;
+    },
+    {
+      message:
+        "يلزم تأكيد الرقم الجديد برمز تحقق / Verify the new number with a one-time code",
+      path: ["otpCode"],
     },
   )
   .refine((data) => Object.keys(data).length > 0, {
@@ -275,8 +298,8 @@ export const adminOtpVerifySchema = z.object({
     .pipe(
       z
         .string()
-        .min(4, "رمز短信短 / Code is too short")
-        .max(8, "رمز_long_sms / Code is too long"),
+        .min(4, "رمز قصير جداً / Code is too short")
+        .max(8, "رمز طويل جداً / Code is too long"),
     ),
   accountType: z.enum(['store', 'captain']).refine(
     (val) => val === 'store' || val === 'captain',

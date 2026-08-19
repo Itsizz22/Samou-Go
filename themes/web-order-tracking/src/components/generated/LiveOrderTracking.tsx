@@ -43,8 +43,7 @@ import {
   ORDER_STATUS_SEQUENCE,
   OrderStatus,
   UserRole,
-  canRoleSetOrderStatus,
-  canTransitionOrderStatus,
+  canRoleTransitionOrderStatus,
   isTerminalOrderStatus,
   type OrderDetail,
   type PublicUser,
@@ -171,13 +170,12 @@ export const LiveOrderTracking = () => {
   const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   const detail = order.detail;
-  // Three gates, the same three the server checks in `orders.service.ts`:
-  // a legal edge, a role allowed to make it, and — server-side — ownership.
+  // Same contract the server enforces in `orders.service.ts`: the customer may
+  // cancel only while PENDING or ACCEPTED — never after the captain is en route.
   const canCancel =
     detail !== null &&
     auth.user?.role === UserRole.CUSTOMER &&
-    canTransitionOrderStatus(detail.status, OrderStatus.CANCELLED) &&
-    canRoleSetOrderStatus(UserRole.CUSTOMER, OrderStatus.CANCELLED);
+    canRoleTransitionOrderStatus(UserRole.CUSTOMER, detail.status, OrderStatus.CANCELLED);
 
   const handleCancel = async () => {
     const result = await cancel.run({ status: OrderStatus.CANCELLED });
@@ -206,6 +204,20 @@ export const LiveOrderTracking = () => {
     window.location.href = `tel:${phoneNumber}`;
   };
 
+  // The tracking screen's own bell: one live row for the order being watched,
+  // re-keyed by status so each advance surfaces as a fresh unread notification.
+  const bellNotifications: BellNotification[] = useMemo(() => {
+    if (!detail) return [];
+    return [{
+      id: `order:${detail.id}:${detail.status}`,
+      ar: `طلب ${detail.orderNumber} — ${ORDER_STATUS_LABELS[detail.status].ar}`,
+      en: ORDER_STATUS_LABELS[detail.status].en,
+      caption: detail.store.nameEn,
+      href: `${window.location.pathname}?orderId=${encodeURIComponent(detail.id)}`,
+      tone: detail.status === OrderStatus.CANCELLED ? 'danger' : 'info',
+    }];
+  }, [detail]);
+
   /* ---- Gates ------------------------------------------------------------ */
 
   if (!auth.ready) {
@@ -229,20 +241,6 @@ export const LiveOrderTracking = () => {
   const noOrders = !loading && !error && !orderId;
 
   const timeline = detail && detail.status !== OrderStatus.CANCELLED ? buildTimeline(detail) : [];
-
-  // The tracking screen's own bell: one live row for the order being watched,
-  // re-keyed by status so each advance surfaces as a fresh unread notification.
-  const bellNotifications: BellNotification[] = useMemo(() => {
-    if (!detail) return [];
-    return [{
-      id: `order:${detail.id}:${detail.status}`,
-      ar: `طلب ${detail.orderNumber} — ${ORDER_STATUS_LABELS[detail.status].ar}`,
-      en: ORDER_STATUS_LABELS[detail.status].en,
-      caption: detail.store.nameEn,
-      href: `${window.location.pathname}?orderId=${encodeURIComponent(detail.id)}`,
-      tone: detail.status === OrderStatus.CANCELLED ? 'danger' : 'info',
-    }];
-  }, [detail]);
 
   /* ---- Profile tab — swaps the whole screen ----------------------------- */
 

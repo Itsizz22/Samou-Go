@@ -109,6 +109,11 @@ const h = vi.hoisted(() => {
         return { id: `ledger-${state.ledgerEntries.length}`, ...data };
       }),
     },
+    platformSettings: {
+      findUnique: vi.fn(async () => null),
+      create: vi.fn(async ({ data }: any) => ({ id: 'platform', ...data })),
+      upsert: vi.fn(async ({ create }: any) => ({ id: 'platform', ...create })),
+    },
   };
 
   return { state, tx };
@@ -126,6 +131,11 @@ vi.mock('../../lib/prisma', () => ({
     },
     settlement: { findMany: vi.fn() },
     captainLocation: { upsert: vi.fn() },
+    platformSettings: {
+      findUnique: vi.fn(async () => null),
+      create: vi.fn(async ({ data }: any) => ({ id: 'platform', ...data })),
+      upsert: vi.fn(async ({ create }: any) => ({ id: 'platform', ...create })),
+    },
     $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(h.tx)),
   },
 }));
@@ -382,6 +392,13 @@ describe('computeOrderFinancials — Decimal math, never float', () => {
     expect(f.commission.toFixed(2)).toBe('30.00');
     expect(f.storeNet.toFixed(2)).toBe('170.00');
   });
+
+  it('adds the platform captain rate on top of the delivery fee', () => {
+    const f = computeOrderFinancials('100.00', '0.00', '0.10', '5.00');
+
+    expect(f.captainPayout.toFixed(2)).toBe('5.00');
+    expect(f.storeNet.toFixed(2)).toBe('90.00');
+  });
 });
 
 describe('creditDeliveredOrder — atomic credits with ledger entries', () => {
@@ -453,6 +470,19 @@ describe('creditDeliveredOrder — atomic credits with ledger entries', () => {
 
     expect(h.state.wallets.some(w => w.userId === 'captain-1')).toBe(false);
     expect(h.state.ledgerEntries).toHaveLength(2);
+  });
+
+  it('pays the captain the platform rate even when the delivery fee is zero', async () => {
+    (h.tx.platformSettings.findUnique as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      captainDeliveryRate: '5.00',
+      storeCommissionRate: '0.10',
+    });
+
+    await creditDeliveredOrder(tx, { ...order, deliveryFee: '0.00' });
+
+    const captainWallet = h.state.wallets.find(w => w.userId === 'captain-1')!;
+    expect(captainWallet.balance).toBe(5);
+    expect(h.state.ledgerEntries).toHaveLength(3);
   });
 });
 

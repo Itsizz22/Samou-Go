@@ -1,7 +1,7 @@
 import { Theme } from './settings/types';
 import { CartCheckoutSummary } from './components/generated/CartCheckoutSummary';
 
-let theme: Theme = 'light';
+const theme: Theme = 'light';
 
 function App() {
   function setTheme(theme: Theme) {

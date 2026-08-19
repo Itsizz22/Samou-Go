@@ -53,14 +53,17 @@ export async function listStores(
   query: StoreListQuery,
   auth: JwtPayload | null = null
 ): Promise<Paginated<Store>> {
+  // `isApproved: true` is the public catalogue. An admin asking for the full
+  // set (`activeOnly: false`) sees unapproved stores too, so the approval
+  // workflow can list them for review. Customers are always pinned to live,
+  // approved shops.
+  const canSeeInactive = canSeeInactiveStores(auth) && !query.activeOnly;
+  const isAdminFullList = auth?.role === UserRoleEnum.ADMIN && !query.activeOnly;
   const where: Prisma.StoreWhereInput = {
-    // `isApproved: true` is the public catalogue. An admin asking for
-    // everything (`activeOnly: false`) sees unapproved stores too, so the
-    // approval workflow can list them.
-    isApproved: true,
+    ...(isAdminFullList ? {} : { isApproved: true }),
     // `activeOnly` only relaxes the filter for staff. Customers are always
     // pinned to live, approved shops — a disabled store is invisible to them.
-    ...(canSeeInactiveStores(auth) && !query.activeOnly ? {} : { isActive: true }),
+    ...(canSeeInactive ? {} : { isActive: true }),
     ...(query.search
       ? {
           OR: [

@@ -6,6 +6,7 @@ import {
   calculateOrderTotals,
   calculateVoucherDiscount,
   canRoleSetOrderStatus,
+  canRoleTransitionOrderStatus,
   canTransitionOrderStatus,
   deliveryFeeLabel,
   isTerminalOrderStatus,
@@ -145,11 +146,15 @@ async function priceBasket(
 ): Promise<PricedLine[]> {
   const store = await db.store.findUnique({
     where: { id: storeId },
-    select: { id: true, isActive: true },
+    select: { id: true, isActive: true, isApproved: true },
   });
   if (!store) throw notFound('المتجر غير موجود / Store not found');
   if (!store.isActive) {
     throw unprocessable('STORE_CLOSED', 'المتجر مغلق حالياً / This store is currently closed');
+  }
+  // An unapproved store has no public page, so it must not accept orders either.
+  if (!store.isApproved) {
+    throw unprocessable('STORE_NOT_APPROVED', 'المتجر غير معتمد بعد / This store is not approved yet');
   }
 
   const merged = new Map<string, number>();
@@ -532,6 +537,23 @@ export async function updateOrderStatus(
     );
   }
 
+  // The role-aware contract also encodes the cancel windows the actor table
+  // cannot express (customer may cancel only before the kitchen starts; a
+  // store may not abandon an order mid-route; a captain may not abandon after
+  // pickup). A closed cancel window is a bad *request* (400) — the caller
+  // reached for a legal target but from the wrong current state.
+  if (!canRoleTransitionOrderStatus(actor.role, current, next)) {
+    if (next === OrderStatus.CANCELLED) {
+      throw badState(
+        'CANCEL_WINDOW_CLOSED',
+        'لا يمكن الإلغاء بعد بدء التحضير / Cannot cancel once preparation has started'
+      );
+    }
+    throw forbidden(
+      `دورك لا يسمح بهذا الانتقال من الحالة الحالية / Your role may not transition ${current} → ${next}`
+    );
+  }
+
   if (body.estimatedPrepMinutes !== undefined &&
     (actor.role !== UserRole.STORE_MANAGER || current !== OrderStatus.PENDING || next !== OrderStatus.ACCEPTED)) {
     throw badState('PREP_ESTIMATE_NOT_ALLOWED', 'مدة التحضير تُحدَّد عند قبول المتجر للطلب فقط / Prep time is set only when the store accepts an order');
@@ -541,13 +563,6 @@ export async function updateOrderStatus(
   if (actor.role === UserRole.CUSTOMER) {
     if (order.customerId !== actor.sub) {
       throw forbidden('هذا ليس طلبك / Not your order');
-    }
-    // A customer may pull out only before the shop starts cooking.
-    if (current !== OrderStatus.PENDING && current !== OrderStatus.ACCEPTED) {
-      throw badState(
-        'CANCEL_WINDOW_CLOSED',
-        'لا يمكن الإلغاء بعد بدء التحضير / Cannot cancel once preparation has started'
-      );
     }
   }
 

@@ -25,7 +25,7 @@ const h = vi.hoisted(() => {
   ];
 
   const state = {
-    store: { id: 'store-1', isActive: true },
+    store: { id: 'store-1', isActive: true, isApproved: true },
     products: defaultProducts,
     voucher: null as null | {
       id: string;
@@ -161,7 +161,7 @@ function expectHttpError(promise: Promise<unknown>, code: string, status = 422) 
 }
 
 beforeEach(() => {
-  h.state.store = { id: 'store-1', isActive: true };
+  h.state.store = { id: 'store-1', isActive: true, isApproved: true };
   h.state.products = [
     { id: 'p-chicken', nameAr: 'شاورما دجاج', price: 15, isAvailable: true },
     { id: 'p-meat', nameAr: 'شاورما لحم', price: 22, isAvailable: true },

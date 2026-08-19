@@ -17,6 +17,10 @@ import { favoritesRouter } from '../modules/favorites/favorites.routes';
 import { uploadsRouter } from '../uploads/uploads.routes';
 import { platformRouter } from '../modules/platform/platform.routes';
 import { deliveryZonesRouter } from '../modules/zones/zones.routes';
+import {
+  customerCustomRequestsRouter,
+  storeCustomRequestsRouter,
+} from '../modules/custom-requests/custom-requests.routes';
 import { optionalAuthenticate } from '../middleware/authenticate';
 import { asyncHandler } from '../lib/async-handler';
 import { listAllOffersHandler } from '../modules/offers/offers.controller';
@@ -53,3 +57,5 @@ apiRouter.use('/favorites', favoritesRouter);
 apiRouter.use('/uploads', uploadsRouter);
 apiRouter.use('/platform', platformRouter);
 apiRouter.use('/delivery-zones', deliveryZonesRouter);
+apiRouter.use('/customer/custom-requests', customerCustomRequestsRouter);
+apiRouter.use('/store/custom-requests', storeCustomRequestsRouter);
