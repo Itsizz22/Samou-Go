@@ -198,7 +198,12 @@ export function LoginScreen() {
           تسجيل الدخول
         </button>
       </form>
-      <p className="mt-5 text-center text-sm text-ink-muted">
+      <div className="mt-4 text-center">
+        <Link to="/otp-login" className="text-sm font-bold text-brand">
+          تسجيل الدخول برمز التحقق
+        </Link>
+      </div>
+      <p className="mt-4 text-center text-sm text-ink-muted">
         ليس لديك حساب؟{' '}
         <Link to="/register" className="font-bold text-brand">
           أنشئ حساباً
