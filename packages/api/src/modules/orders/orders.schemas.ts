@@ -2,6 +2,16 @@ import { z } from 'zod';
 import { OrderStatus } from '@samou-go/shared-types';
 import { paginationSchema } from '../stores/stores.schemas';
 
+/**
+ * Case-insensitive enum coercion for query strings. Express delivers query
+ * params as lowercase strings; `z.nativeEnum` is case-sensitive, so
+ * `?status=pending` would fail against `OrderStatus.PENDING`.
+ */
+const caseInsensitiveOrderStatus = z
+  .string()
+  .transform((val) => val.toUpperCase())
+  .pipe(z.nativeEnum(OrderStatus));
+
 export const modifierOptionSchema = z.object({
   key: z.string().min(1, 'مفتاح الخيار مطلوب / option key is required'),
   labelAr: z.string().min(1, 'اسم الخيار بالعربية مطلوب / Arabic label is required'),
@@ -87,7 +97,7 @@ export const orderIdParamsSchema = z.object({
 });
 
 export const orderListQuerySchema = paginationSchema.extend({
-  status: z.nativeEnum(OrderStatus).optional(),
+  status: caseInsensitiveOrderStatus.optional(),
   storeId: z.string().min(1).optional(),
   captainId: z.string().min(1).optional(),
 });

@@ -7,6 +7,7 @@
 import { env } from '../../config/env';
 import { createConsoleGateway, createGenericGateway, createMockGateway, createNoopGateway } from './generic';
 import { createTwilioGateway } from './twilio';
+import { createInfobipGateway } from './infobip';
 import type { SmsGateway } from './types';
 
 let cached: SmsGateway | null = null;
@@ -17,6 +18,9 @@ export function getSmsGateway(): SmsGateway {
   switch (env.sms.provider) {
     case 'twilio':
       cached = createTwilioGateway();
+      break;
+    case 'infobip':
+      cached = createInfobipGateway();
       break;
     case 'generic':
       cached = createGenericGateway();

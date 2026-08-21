@@ -21,6 +21,8 @@ import { NavigationDrawer, NavigationDrawerProvider } from './components/Navigat
 import { ThemeProvider } from './theme/ThemeProvider';
 import { useAuth, type Auth } from './hooks/useApi';
 import { roleHomePath } from './lib/roles';
+import { registerForPushNotifications } from './lib/notifications';
+import { getToken } from '@samou-go/api-client';
 // %IMPORT_STATEMENT
 
 /**
@@ -109,6 +111,14 @@ function App() {
     const timer = window.setTimeout(() => setSplashElapsed(true), 1_650);
     return () => window.clearTimeout(timer);
   }, []);
+
+  // Register for push notifications when the user is authenticated.
+  useEffect(() => {
+    if (auth.ready && auth.user) {
+      const token = getToken();
+      if (token) void registerForPushNotifications(token);
+    }
+  }, [auth.ready, auth.user]);
 
   if (!auth.ready || !splashElapsed) return <BootScreen />;
 

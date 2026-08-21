@@ -24,7 +24,6 @@
     "noImplicitAny": false,
 
     /* Path Aliases */
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }

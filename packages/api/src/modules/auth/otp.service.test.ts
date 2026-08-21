@@ -37,7 +37,11 @@ const h = vi.hoisted(() => {
     /** bcrypt.compare result — drives every wrong-vs-correct code test. */
     compareResult: true,
   };
-  const gateway = { send: vi.fn(async () => {}) };
+  const gateway = {
+    send: vi.fn(async () => {}),
+    /** When set, the gateway is Twilio Verify — `check` is called at verify time. */
+    check: null as ((...args: unknown[]) => Promise<{ valid: boolean }>) | null,
+  };
   return { state, gateway };
 });
 
@@ -127,7 +131,11 @@ vi.mock('../../lib/jwt', () => ({
 }));
 vi.mock('../../lib/password', () => ({ hashPassword: vi.fn(async () => 'pw-hash') }));
 vi.mock('../../lib/sms/gateway', () => ({
-  getSmsGateway: vi.fn(() => ({ send: h.gateway.send, provider: 'console' })),
+  getSmsGateway: vi.fn(() => {
+    const gw: Record<string, unknown> = { send: h.gateway.send, provider: 'console' };
+    if (h.gateway.check) gw.check = h.gateway.check;
+    return gw;
+  }),
 }));
 vi.mock('./auth.mapper', () => ({
   toPublicUser: vi.fn((u: Record<string, unknown>) => ({
@@ -162,6 +170,7 @@ beforeEach(() => {
   h.state.user = null;
   h.state.store = null;
   h.state.compareResult = true;
+  h.gateway.check = null;
   vi.clearAllMocks();
 });
 
@@ -216,6 +225,42 @@ describe('requestOtp — dispatch + rate limiting', () => {
 });
 
 describe('verifyOtp — customer sign-in', () => {
+  describe('Twilio Verify carrier fallback', () => {
+    it('throws 503 when carrier check fails instead of burning an attempt on the sentinel hash', async () => {
+      // Seed a sentinel-hash record — this is what requestOtp stores when
+      // Twilio Verify owns the code. The sentinel is a bcrypt hash of the
+      // literal string "__twilio_verify__", so bcrypt.compare(code, sentinel)
+      // can never match any real OTP the user enters.
+      seedOtp({ codeHash: 'hash:__twilio_verify__' });
+
+      // Configure a Twilio Verify gateway whose check() is down.
+      h.gateway.check = vi.fn(async () => { throw new Error('carrier timeout'); });
+
+      await expect(verifyOtp({ phone: PHONE, code: CODE })).rejects.toMatchObject({
+        statusCode: 503,
+        code: 'SMS_VERIFY_UNAVAILABLE',
+      });
+
+      // The attempt counter must NOT have been incremented — the carrier
+      // failure is not the user's fault.
+      expect(h.state.otp?.attempts).toBe(0);
+    });
+
+    it('throws 401 when carrier explicitly rejects the code (not carrier-down)', async () => {
+      seedOtp({ codeHash: 'hash:__twilio_verify__' });
+
+      h.gateway.check = vi.fn(async () => ({ valid: false }));
+
+      await expect(verifyOtp({ phone: PHONE, code: '654321' })).rejects.toMatchObject({
+        statusCode: 401,
+        code: 'UNAUTHORIZED',
+      });
+
+      // The attempt counter IS incremented — the code was wrong.
+      expect(h.state.otp?.attempts).toBe(1);
+    });
+  });
+
   it('rejects a phone that never requested a code', async () => {
     const promise = verifyOtp({ phone: PHONE, code: CODE });
 

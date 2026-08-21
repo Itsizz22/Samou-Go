@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
+  Home,
   Loader2,
   LogOut,
   MapPin,
@@ -63,6 +64,11 @@ const TRACKING_URL: string = (
 /** Where the store-details app is served. Used for the back button. Override with VITE_STORE_URL in .env */
 const STORE_URL: string = (
   import.meta.env.VITE_STORE_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:5174')
+).replace(/\/+$/, '');
+
+/** Where the customer home app is served. Used for "Continue Shopping" / bottom tab home. */
+const CUSTOMER_URL: string = (
+  import.meta.env.VITE_CUSTOMER_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:5173')
 ).replace(/\/+$/, '');
 
 /** The server rejects a whitespace-only address; catch it before the round-trip. */
@@ -218,6 +224,9 @@ export const CartCheckoutSummary = () => {
 
   const canSubmit = hasItems && addressValid && !quoteStale && !submit.pending && Boolean(storeId);
 
+  const navigateHome = () => { window.location.href = CUSTOMER_URL; };
+  const navigateTo = (path: string) => { window.location.href = path; };
+
   const handlePlaceOrder = async () => {
     if (!canSubmit || !storeId) return;
     const result = await submit.run({
@@ -270,6 +279,14 @@ export const CartCheckoutSummary = () => {
                 </a>
                 <button
                   type="button"
+                  onClick={() => { navigateHome(); }}
+                  className="btn-secondary w-full justify-center"
+                >
+                  <Home size={18} />
+                  {t('متابعة التسوق', 'Continue Shopping')}
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
                     submit.reset();
                     setQuantities({});
@@ -297,7 +314,12 @@ export const CartCheckoutSummary = () => {
             </div>
           </dl>
         </main>
-        <BottomTabs activeTab="orders" />
+        <BottomTabs activeTab="orders" onTabChange={(tab) => {
+          if (tab === 'home') navigateHome();
+          else if (tab === 'explore') navigateTo(STORE_URL);
+          else if (tab === 'orders') navigateTo(`${TRACKING_URL}`);
+          else if (tab === 'profile') navigateHome(); // profile is in customer app
+        }} />
       </div>
     );
   }
@@ -403,8 +425,8 @@ export const CartCheckoutSummary = () => {
                 return (
                   <li
                     key={product.id}
-                    className={`flex items-center gap-3 rounded-xl bg-surface p-3.5 shadow-card ring-1 transition ${
-                      quantity > 0 ? 'ring-brand' : 'ring-line'
+                    className={`flex items-center gap-3 rounded-xl bg-surface p-3.5 shadow-card ring-1 transition-all duration-200 ${
+                      quantity > 0 ? 'ring-brand shadow-card' : 'ring-line'
                     }`}
                   >
                     <div
@@ -634,7 +656,8 @@ export const CartCheckoutSummary = () => {
           type="button"
           onClick={handlePlaceOrder}
           disabled={!canSubmit}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-4 text-base font-black text-white shadow-raised transition hover:bg-brand-dark focus:outline-none focus:ring-4 focus:ring-brand-tint active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-4 text-base font-black text-white shadow-brand transition-all duration-200 hover:bg-brand-dark hover:-translate-y-px hover:shadow-raised focus:outline-none focus:ring-4 focus:ring-brand-tint active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ transitionTimingFunction: 'var(--ease-spring-soft)' }}
         >
           {submit.pending ? <Loader2 size={20} className="animate-spin" /> : <ShieldCheck size={20} />}
           <span>{t('اطلب الآن', 'Place Order')}</span>
@@ -653,7 +676,12 @@ export const CartCheckoutSummary = () => {
         </button>
       </main>
 
-      <BottomTabs activeTab="orders" />
+      <BottomTabs activeTab="orders" onTabChange={(tab) => {
+        if (tab === 'home') navigateHome();
+        else if (tab === 'explore') navigateTo(STORE_URL);
+        else if (tab === 'orders') navigateTo(TRACKING_URL);
+        else if (tab === 'profile') navigateHome();
+      }} />
     </div>
   );
 };

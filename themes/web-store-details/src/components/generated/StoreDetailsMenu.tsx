@@ -289,10 +289,10 @@ export const StoreDetailsMenu = () => {
                         key={cat.id}
                         type="button"
                         onClick={() => setActiveCategory(cat.id)}
-                        className={`min-w-[78px] rounded-xl border px-3 py-2.5 text-center transition focus:outline-none focus:ring-2 focus:ring-brand/40 ${
+                        className={`min-w-[78px] rounded-xl border px-3 py-2.5 text-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand/40 ${
                           isActive
-                            ? 'border-brand bg-brand text-white'
-                            : 'border-line bg-surface text-ink-soft hover:border-brand'
+                            ? 'border-brand bg-brand text-white shadow-brand'
+                            : 'border-line bg-surface text-ink-soft hover:border-brand/40 hover:shadow-card'
                         }`}
                         aria-pressed={isActive}
                       >
@@ -382,7 +382,7 @@ export const StoreDetailsMenu = () => {
                 return (
                   <article
                     key={product.id}
-                    className="relative overflow-hidden rounded-xl border border-line bg-surface shadow-card"
+                    className="relative overflow-hidden rounded-xl border border-line bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised"
                   >
                     {/* Offer badge */}
                     {offerProductIds.has(product.id) && (
@@ -447,7 +447,7 @@ export const StoreDetailsMenu = () => {
                           <button
                             type="button"
                             onClick={() => updateCart(product.id, 1)}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-white transition hover:bg-brand-dark active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand/40"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-white transition-all duration-200 hover:bg-brand-dark hover:shadow-brand active:scale-90 focus:outline-none focus:ring-2 focus:ring-brand/40"
                             aria-label={`Add ${product.nameAr} to cart`}
                           >
                             <Plus className="h-4 w-4" />
@@ -478,7 +478,7 @@ export const StoreDetailsMenu = () => {
                 .map(([id, qty]) => `${id}:${qty}`)
                 .join(',')
             )}`}
-            className="flex w-full items-center justify-between rounded-xl bg-brand-deep px-4 py-3.5 text-white shadow-raised transition hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
+            className="flex w-full items-center justify-between rounded-xl bg-brand-deep px-4 py-3.5 text-white shadow-brand transition-all duration-200 hover:-translate-y-px hover:bg-brand-dark hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
           >
             <span className="flex flex-col items-start">
               <strong className="text-sm">

@@ -1,25 +1,43 @@
 /**
- * Samou' Go — passwordless sign-in card (OTP-first).
+ * Samou' Go — passwordless sign-in card (Firebase Phone Auth).
  *
- * Two steps: request a code on a mobile number, then type the 6-digit code.
+ * Two steps:
+ *   1. Enter phone number → Firebase sends OTP via SMS (free, worldwide)
+ *   2. Enter the 6-digit code → Firebase verifies → server creates session
+ *
  * Wire-up details:
- *   - resend disabled until the countdown lapses (seeded from the server's
- *     `retryAfterSeconds`, so a rate-limited user sees the real wait)
- *   - wrong code → error shake + haptic error + the box clears for a retry
- *   - correct code → success pulse + haptic success, then the session is live
- *   - the whole thing renders against the shared token layer (`card-surface`,
- *     `input-field`, `btn-primary`), same as the legacy password gate
+ *   - reCAPTCHA invisible verifier (required by Firebase)
+ *   - resend disabled until the countdown lapses
+ *   - wrong code → error shake + haptic error + box clears for retry
+ *   - correct code → success pulse + haptic success, then session is live
+ *   - Falls back to server-side OTP if Firebase is not configured
  */
-import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, Loader2, ShieldCheck, ShoppingCart } from 'lucide-react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
+import { AlertTriangle, ArrowLeft, Fingerprint, Loader2, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ApiError, requestOtp, verifyOtp } from '@/hooks/useApi';
+import { ApiError } from '@/hooks/useApi';
 import { useLanguage } from '@samou-go/ui';
 import { hapticConfirm, hapticError, hapticSuccess } from '@/lib/haptics';
 import { isValidPalestinianMobile } from '@/lib/phone';
 import { fadeSlideUp } from '@/lib/motion';
 import { OtpPinInput, type PinState } from '@/components/OtpPinInput';
 import type { Auth } from '@samou-go/api-client';
+import {
+  sendFirebaseOtp,
+  verifyFirebaseCode,
+  exchangeFirebaseToken,
+  resetRecaptcha,
+} from '@/lib/firebase-auth';
+import type { ConfirmationResult } from 'firebase/auth';
+import {
+  isBiometricAvailable,
+  isBiometricEnabled,
+  promptBiometric,
+  loadSavedSession,
+  saveSession,
+  type SavedSession,
+} from '@/lib/biometric';
+import type { PublicUser } from '@samou-go/shared-types';
 
 export interface CustomerAuthGateProps {
   auth: Auth;
@@ -28,7 +46,6 @@ export interface CustomerAuthGateProps {
 }
 
 const PIN_LENGTH = 6;
-/** Default resend cooldown when the server does not hint a longer one. */
 const DEFAULT_RESEND_SECONDS = 30;
 
 export function CustomerAuthGate({
@@ -36,21 +53,40 @@ export function CustomerAuthGate({
   reasonAr = 'سجّل الدخول لمتابعة طلبك',
   reasonEn = 'Sign in to continue',
 }: CustomerAuthGateProps) {
-  const [step, setStep] = useState<'phone' | 'code'>('phone');
+  const [step, setStep] = useState<'phone' | 'code' | 'biometric'>('phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [pinState, setPinState] = useState<PinState>('idle');
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [error, setError] = useState<ApiError | null>(null);
+  const [error, setError] = useState<{ message: string; localizedMessage?: string } | null>(null);
   const [resendIn, setResendIn] = useState(0);
   const timerRef = useRef<number | null>(null);
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
   const { t, language } = useLanguage();
   const isArabic = language === 'ar';
+
+  // ── Biometric support ────────────────────────────────────────────────
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const available = await isBiometricAvailable();
+      const enabled = await isBiometricEnabled();
+      if (!cancelled && available && enabled) {
+        setBiometricAvailable(true);
+        setStep('biometric');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     return () => {
       if (timerRef.current !== null) window.clearInterval(timerRef.current);
+      resetRecaptcha();
     };
   }, []);
 
@@ -68,51 +104,124 @@ export function CustomerAuthGate({
     }, 1_000);
   };
 
+  /** Format Palestinian number to E.164 for Firebase. */
+  const toE164 = (localPhone: string): string => {
+    const digits = localPhone.replace(/\D/g, '');
+    if (digits.startsWith('05')) return `+970${digits.slice(1)}`;
+    return `+${digits}`;
+  };
+
+  /** Step 1: Send OTP via Firebase. */
   const handleRequestCode = async () => {
     setError(null);
     setSending(true);
     try {
-      const result = await requestOtp({ phone });
+      const e164 = toE164(phone);
+      const confirmation = await sendFirebaseOtp(e164);
+      confirmationRef.current = confirmation;
       await hapticConfirm();
       setCode('');
       setPinState('idle');
       setStep('code');
-      startResendCountdown(Math.max(result.retryAfterSeconds, DEFAULT_RESEND_SECONDS));
-    } catch (cause) {
-      const apiError =
-        cause instanceof ApiError
-          ? cause
-          : new ApiError('UNKNOWN', cause instanceof Error ? cause.message : String(cause));
-      setError(apiError);
-      await hapticError();
-      if (apiError.code === 'OTP_RATE_LIMITED') {
+      startResendCountdown(DEFAULT_RESEND_SECONDS);
+    } catch (cause: any) {
+      const message = cause?.message ?? String(cause);
+      // Firebase-specific error mapping
+      let localizedMessage = message;
+      if (message.includes('auth/too-many-requests')) {
+        localizedMessage = 'طلبات كثيرة جداً، حاول مجدداً بعد قليل / Too many requests — try again later';
         startResendCountdown(60);
+      } else if (message.includes('auth/invalid-phone-number')) {
+        localizedMessage = 'رقم الجوال غير صالح / Invalid phone number';
+      } else if (message.includes('auth/quota-exceeded')) {
+        localizedMessage = 'تم تجاوز الحد — يرجى المحاولة لاحقاً / Quota exceeded — try again later';
+      } else {
+        localizedMessage = 'تعذّر إرسال الرمز — تحقق من رقم الجوال / Could not send code — check your number';
       }
+      setError({ message, localizedMessage });
+      await hapticError();
+      resetRecaptcha();
     } finally {
       setSending(false);
     }
   };
 
+  // ── Biometric sign-in ───────────────────────────────────────────────
+  const handleBiometricLogin = async () => {
+    setError(null);
+    setBiometricLoading(true);
+    try {
+      const result = await promptBiometric();
+      if (!result.success) {
+        if (result.error === 'cancelled') {
+          // User chose "Use code instead" — go to phone step.
+          setStep('phone');
+          setBiometricAvailable(false);
+          return;
+        }
+        throw new Error(result.error ?? 'Biometric failed');
+      }
+
+      const saved = await loadSavedSession();
+      if (!saved) {
+        setStep('phone');
+        setBiometricAvailable(false);
+        return;
+      }
+
+      await hapticSuccess();
+      auth.setUser(saved.user as unknown as PublicUser);
+    } catch (cause: any) {
+      setError({
+        message: cause?.message ?? String(cause),
+        localizedMessage: 'تعذّر التحقق — استخدم رقم الجوال / Biometric failed — use your phone number',
+      });
+      await hapticError();
+      setStep('phone');
+      setBiometricAvailable(false);
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
+
+  /** Step 2: Verify code with Firebase, then exchange for a session. */
   const handleVerify = async () => {
-    if (code.length !== PIN_LENGTH || verifying) return;
+    if (code.length !== PIN_LENGTH || verifying || !confirmationRef.current) return;
     setError(null);
     setVerifying(true);
     setPinState('idle');
     try {
-      const result = await verifyOtp({ phone, code });
+      // 1. Verify code with Firebase → get ID token.
+      const idToken = await verifyFirebaseCode(confirmationRef.current, code);
+
+      // 2. Exchange ID token for a Samou' Go session.
+      const result = await exchangeFirebaseToken(idToken);
+
       await hapticSuccess();
       setPinState('success');
+      // Store tokens and set user — same shape as the old verifyOtp response.
       auth.setUser(result.user);
-    } catch (cause) {
-      const apiError =
-        cause instanceof ApiError
-          ? cause
-          : new ApiError('UNKNOWN', cause instanceof Error ? cause.message : String(cause));
-      setError(apiError);
+
+      // Save session for biometric login on next launch.
+      await saveSession({
+        accessToken: '', // tokens are managed by auth context
+        refreshToken: '',
+        user: result.user as unknown as Record<string, unknown>,
+      });
+    } catch (cause: any) {
+      const message = cause?.message ?? String(cause);
+      let localizedMessage = message;
+      if (message.includes('auth/wrong-code') || message.includes('invalid-verification-code')) {
+        localizedMessage = 'رمز غير صحيح / Incorrect code';
+      } else if (message.includes('auth/code-expired')) {
+        localizedMessage = 'انتهت صلاحية الرمز — أعد الإرسال / Code expired — resend';
+      } else if (message.includes('auth/session-expired')) {
+        localizedMessage = 'انتهت الجلسة — أعد الإرسال / Session expired — resend';
+      }
+      setError({ message, localizedMessage });
       setPinState('error');
       setCode('');
       await hapticError();
-      // Returning focus so the customer can immediately retype.
       requestAnimationFrame(() => {
         document.querySelector<HTMLInputElement>('input[inputmode="numeric"]')?.focus();
       });
@@ -126,6 +235,9 @@ export function CustomerAuthGate({
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-canvas px-5 py-10 text-ink">
+      {/* Invisible reCAPTCHA container — required by Firebase */}
+      <div id="recaptcha-container" />
+
       <motion.div
         className="w-full max-w-sm"
         variants={fadeSlideUp}
@@ -152,7 +264,33 @@ export function CustomerAuthGate({
         >
           <h1 className="text-base font-extrabold">{t(reasonAr, reasonEn)}</h1>
 
-          {step === 'phone' ? (
+          {step === 'biometric' ? (
+            <div className="mt-5 flex flex-col items-center gap-4">
+              <motion.button
+                type="button"
+                onClick={() => void handleBiometricLogin()}
+                disabled={biometricLoading}
+                className="flex h-20 w-20 items-center justify-center rounded-full bg-brand/10 text-brand transition active:scale-95 disabled:opacity-60"
+                whileTap={{ scale: 0.92 }}
+              >
+                {biometricLoading ? (
+                  <Loader2 size={32} className="animate-spin" />
+                ) : (
+                  <Fingerprint size={32} strokeWidth={1.5} />
+                )}
+              </motion.button>
+              <p className="text-sm font-semibold text-ink-muted">
+                {t('افتح بالبصمة', 'Tap to unlock with biometrics')}
+              </p>
+              <button
+                type="button"
+                onClick={() => { setStep('phone'); setBiometricAvailable(false); }}
+                className="text-xs font-semibold text-brand transition active:scale-95"
+              >
+                {t('استخدم رقم الجوال', 'Use phone number instead')}
+              </button>
+            </div>
+          ) : step === 'phone' ? (
             <>
               <label className="mt-5 block">
                 <span className="text-xs font-bold">{t('رقم الجوال', 'Mobile number')}</span>
@@ -187,6 +325,7 @@ export function CustomerAuthGate({
                     setError(null);
                     setCode('');
                     setPinState('idle');
+                    resetRecaptcha();
                   }}
                   className="inline-flex items-center gap-1 rounded-full bg-canvas px-2.5 py-1 font-semibold text-brand transition active:scale-95"
                 >
@@ -239,7 +378,7 @@ export function CustomerAuthGate({
               aria-live="assertive"
             >
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>{isArabic ? error.message : error.localizedMessage}</span>
+              <span>{isArabic ? error.message : (error.localizedMessage ?? error.message)}</span>
             </p>
           )}
 

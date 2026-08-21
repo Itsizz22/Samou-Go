@@ -180,18 +180,20 @@ export function SamouGoHome() {
       </header>
 
       <section className="mx-auto max-w-md px-5" role="search" aria-label="Search">
-        <label className="-mt-6 flex h-14 cursor-text items-center gap-3 rounded-2xl bg-surface px-4 text-ink-muted shadow-raised">
-          <Search size={20} className="text-brand" /><input value={searchTerm} onChange={event => setSearchTerm(event.target.value)} enterKeyHint="search" aria-controls="home-results" onKeyDown={event => { if (event.key === 'Enter') setDebouncedSearch(searchTerm.trim()); }} className="w-full bg-transparent text-sm outline-none placeholder:text-ink-subtle" placeholder={t('ابحث عن متاجر أو منتجات', 'Search stores or products…')} aria-label={t('ابحث عن متاجر أو منتجات', 'Search stores or products')} />
+        <label className="-mt-6 flex h-14 cursor-text items-center gap-3 rounded-2xl bg-surface px-4 text-ink-muted shadow-raised transition-all duration-200 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
+          <Search size={20} className="shrink-0 text-brand" /><input value={searchTerm} onChange={event => setSearchTerm(event.target.value)} enterKeyHint="search" aria-controls="home-results" onKeyDown={event => { if (event.key === 'Enter') setDebouncedSearch(searchTerm.trim()); }} className="w-full bg-transparent text-sm outline-none placeholder:text-ink-subtle" placeholder={t('ابحث عن متاجر أو منتجات', 'Search stores or products…')} aria-label={t('ابحث عن متاجر أو منتجات', 'Search stores or products')} />
           {stores.refreshing && <Loader2 size={16} className="shrink-0 animate-spin text-brand" aria-label="Searching" />}
         </label>
       </section>
 
       <section className="mx-auto max-w-md px-5 pt-6" aria-label="Promotions">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-brand-dark to-brand-soft px-5 py-5 text-white shadow-card">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-dark via-brand to-brand-soft px-5 py-5 text-white shadow-card">
           <div className="relative z-10 flex min-h-[104px] items-center justify-between">
             <div><p className="mb-2 text-xs font-medium text-white/85">{t('عرض خاص لفترة محدودة', 'Limited-time offer')}</p><h2 className="max-w-[220px] text-[22px] font-extrabold leading-tight">{t(banner === 0 ? 'توصيل مجاني لأول طلب' : 'متاجر جديدة في السموع!', banner === 0 ? 'Free delivery on your first order!' : "New stores in Al-Samou'!")}</h2></div><span className="text-5xl opacity-20">{banner === 0 ? '✦' : '✚'}</span>
           </div>
+          {/* Layered decorative circles for depth */}
           <div className="absolute -bottom-10 -start-8 h-32 w-32 rounded-full border-[18px] border-white/10" />
+          <div className="absolute -top-6 -end-6 h-24 w-24 rounded-full bg-white/5" />
         </div>
         <div className="mt-3 flex items-center justify-center gap-1.5"><button type="button" aria-label="Promotion one" onClick={() => setBanner(0)} className="-m-2.5 p-2.5"><span className={`block h-1.5 rounded-full transition-all ${banner === 0 ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`} /></button><button type="button" aria-label="Promotion two" onClick={() => setBanner(1)} className="-m-2.5 p-2.5"><span className={`block h-1.5 rounded-full transition-all ${banner === 1 ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`} /></button></div>
       </section>
@@ -230,7 +232,7 @@ export function SamouGoHome() {
           {STORE_CATEGORIES.map(category => {
           const Icon = CATEGORY_ICONS[category.key];
           const active = activeCategory === category.key;
-          return <button key={category.key} type="button" aria-pressed={active} onClick={() => setActiveCategory(category.key)} className={`flex min-w-[82px] flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center transition ${active ? 'border-brand bg-brand-tint text-brand-dark' : 'border-transparent bg-surface text-ink-soft shadow-card'}`}><span className={`flex h-10 w-10 items-center justify-center rounded-xl ${active ? 'bg-brand text-white' : 'bg-brand-surface text-brand'}`}><Icon size={20} /></span><span className="text-[11px] font-bold leading-tight">{t(category.ar, category.en)}</span></button>;
+          return <button key={category.key} type="button" aria-pressed={active} onClick={() => setActiveCategory(category.key)} className={`flex min-w-[82px] flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center transition-all duration-200 ${active ? 'border-brand bg-brand-tint text-brand-dark shadow-card' : 'border-transparent bg-surface text-ink-soft shadow-card hover:border-brand/30 hover:shadow-raised'}`}><span className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ${active ? 'bg-brand text-white shadow-brand' : 'bg-brand-surface text-brand'}`}><Icon size={20} /></span><span className="text-[11px] font-bold leading-tight">{t(category.ar, category.en)}</span></button>;
         })}
         </div>
         <div className="mt-3 flex gap-2" aria-label="Store availability filter">
@@ -266,7 +268,7 @@ export function SamouGoHome() {
           {stores.loading
             ? [0, 1, 2].map(index => <div key={index} className="skeleton min-w-[196px] overflow-hidden rounded-2xl shadow-card" aria-hidden="true"><div className="h-24 bg-line-soft" /><div className="space-y-2 p-3"><div className="ms-auto h-3 w-2/3 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-1/2 rounded bg-line-soft" /><div className="h-5 w-20 rounded-full bg-line-soft" /></div></div>)
             : featured.map(({ store, category, initials, gradient }) => (
-                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="min-w-[196px] overflow-hidden rounded-2xl bg-surface shadow-card transition hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
+                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="min-w-[196px] overflow-hidden rounded-2xl bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
                   <article>
                     <div className={`relative flex h-24 items-center justify-center bg-gradient-to-br ${gradient}`}>
                       {store.logoUrl ? <img src={store.logoUrl} alt="" className="h-full w-full object-cover" loading="lazy" /> : <span className="text-3xl font-black text-white/40">{initials}</span>}
@@ -291,7 +293,7 @@ export function SamouGoHome() {
           {stores.loading
             ? [0, 1, 2].map(index => <div key={index} className="skeleton flex items-center gap-3 rounded-2xl p-3 shadow-card" aria-hidden="true"><div className="h-12 w-12 shrink-0 rounded-xl bg-line-soft" /><div className="flex-1 space-y-2"><div className="ms-auto h-3 w-1/2 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-2/3 rounded bg-line-soft" /></div><div className="h-6 w-12 shrink-0 rounded-full bg-line-soft" /></div>)
             : cards.map(({ store, category, initials, tint }) => (
-                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card transition hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
+                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card transition-all duration-200 hover:-translate-y-px hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
                   <div className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-black ${tint}`}>{store.logoUrl ? <img src={store.logoUrl} alt="" className="h-full w-full object-cover" loading="lazy" /> : initials}</div>
                   <div className="min-w-0 flex-1 text-end"><h3 className="truncate text-sm font-extrabold">{t(store.nameAr, store.nameEn)}{store.isRecommended && <span className="ms-1.5 inline-flex items-center gap-0.5 rounded-full bg-brand-tint px-1.5 py-0.5 align-middle text-micro font-bold text-brand-deep" title={t('ينصح به لدينا', 'Recommended by us')}><Star size={9} fill="currentColor" />{t('موصى به', 'Recommended')}</span>}</h3><p className="mt-1 flex items-center gap-2 text-micro font-semibold text-ink-muted"><DeliveryFee amount={baseFee} variant="inline" /></p></div>
                   <span className={`shrink-0 rounded-full px-2 py-1 text-micro font-bold ${store.isActive ? 'bg-brand-tint text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{store.isActive ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>

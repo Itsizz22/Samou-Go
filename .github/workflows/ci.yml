@@ -33,9 +33,17 @@ jobs:
         working-directory: packages/api
         run: npx prisma validate --schema=prisma/schema.prisma
 
+      - name: Prisma validate (local dev SQLite schema)
+        working-directory: packages/api
+        run: npx prisma validate --schema=prisma/schema.sqlite.prisma
+
       - name: Prisma generate (production PostgreSQL client)
         working-directory: packages/api
         run: npx prisma generate --schema=prisma/schema.prisma
+
+      - name: Prisma generate (local dev SQLite client)
+        working-directory: packages/api
+        run: npx prisma generate --schema=prisma/schema.sqlite.prisma
 
       - name: Run Typecheck
         run: npm run typecheck
