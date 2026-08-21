@@ -411,7 +411,7 @@ export function SamouGoStoreManager() {
   }
 
   const apiError = incoming.error ?? accepted.error ?? preparing.error ?? readyForPickup.error ?? deliveredToday.error;
-  const loading = incoming.loading && accepted.loading && preparing.loading && readyForPickup.loading;
+  const loading = managedStores.loading || (incoming.loading && accepted.loading && preparing.loading && readyForPickup.loading);
 
   /* ---- Render ------------------------------------------------------------ */
 

@@ -9,6 +9,7 @@ import {
   Loader2,
   MapPin,
   Menu,
+  MessageSquarePlus,
   Pill,
   RefreshCw,
   Search,
@@ -143,7 +144,7 @@ export function SamouGoHome() {
   }, [auth.user, orders.data]);
 
   return <main className="min-h-screen bg-canvas pb-24 text-ink">
-      <header className="bg-brand px-5 pb-5 pt-4 text-white">
+      <header className="bg-brand px-5 pb-6 pt-4 text-white safe-top">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Main navigation">
           <button
             type="button"
@@ -180,13 +181,40 @@ export function SamouGoHome() {
       </header>
 
       <section className="mx-auto max-w-md px-5" role="search" aria-label="Search">
-        <label className="-mt-6 flex h-14 cursor-text items-center gap-3 rounded-2xl bg-surface px-4 text-ink-muted shadow-raised transition-all duration-200 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
-          <Search size={20} className="shrink-0 text-brand" /><input value={searchTerm} onChange={event => setSearchTerm(event.target.value)} enterKeyHint="search" aria-controls="home-results" onKeyDown={event => { if (event.key === 'Enter') setDebouncedSearch(searchTerm.trim()); }} className="w-full bg-transparent text-sm outline-none placeholder:text-ink-subtle" placeholder={t('ابحث عن متاجر أو منتجات', 'Search stores or products…')} aria-label={t('ابحث عن متاجر أو منتجات', 'Search stores or products')} />
+        <label className="-mt-6 flex h-[52px] cursor-text items-center gap-3 rounded-2xl bg-surface px-4 text-ink-muted shadow-raised transition-all duration-200 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
+          <Search size={20} className="shrink-0 text-brand" />
+          <input
+            value={searchTerm}
+            onChange={event => setSearchTerm(event.target.value)}
+            enterKeyHint="search"
+            aria-controls="home-results"
+            onKeyDown={event => { if (event.key === 'Enter') setDebouncedSearch(searchTerm.trim()); }}
+            className="w-full bg-transparent text-sm outline-none placeholder:text-ink-subtle"
+            placeholder={t('ابحث عن متاجر أو منتجات', 'Search stores or products…')}
+            aria-label={t('ابحث عن متاجر أو منتجات', 'Search stores or products')}
+          />
           {stores.refreshing && <Loader2 size={16} className="shrink-0 animate-spin text-brand" aria-label="Searching" />}
         </label>
       </section>
 
-      <section className="mx-auto max-w-md px-5 pt-6" aria-label="Promotions">
+      {/* Custom Order quick-action banner */}
+      <section className="mx-auto max-w-md px-5 pt-5" aria-label="Custom order">
+        <Link
+          to="/custom-requests"
+          className="flex items-center gap-3 rounded-2xl border border-brand/20 bg-brand-surface p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised active:scale-[0.98]"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand text-white shadow-brand">
+            <MessageSquarePlus size={20} strokeWidth={2.5} />
+          </span>
+          <div className="min-w-0 flex-1 text-end">
+            <p className="text-sm font-extrabold text-brand-deep">{t('طلب خاص', 'Custom Order')}</p>
+            <p className="mt-0.5 text-micro text-ink-muted">{t('اطلب منتج غير موجود في القائمة', 'Order something not on the menu')}</p>
+          </div>
+          <ChevronLeft size={18} className="shrink-0 text-brand" />
+        </Link>
+      </section>
+
+      <section className="mx-auto max-w-md px-5 pt-5" aria-label="Promotions">
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-dark via-brand to-brand-soft px-5 py-5 text-white shadow-card">
           <div className="relative z-10 flex min-h-[104px] items-center justify-between">
             <div><p className="mb-2 text-xs font-medium text-white/85">{t('عرض خاص لفترة محدودة', 'Limited-time offer')}</p><h2 className="max-w-[220px] text-[22px] font-extrabold leading-tight">{t(banner === 0 ? 'توصيل مجاني لأول طلب' : 'متاجر جديدة في السموع!', banner === 0 ? 'Free delivery on your first order!' : "New stores in Al-Samou'!")}</h2></div><span className="text-5xl opacity-20">{banner === 0 ? '✦' : '✚'}</span>

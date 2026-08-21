@@ -15,7 +15,8 @@ import { CartScreen } from './screens/CartScreen';
 import { CheckoutScreen } from './screens/CheckoutScreen';
 import { OrderTrackingScreen } from './screens/OrderTrackingScreen';
 import { CustomRequestsScreen } from './screens/CustomRequestsScreen';
-import { ForgotPasswordScreen, LoginScreen, RegisterScreen } from './screens/AuthScreens';
+import { ForgotPasswordScreen, RegisterScreen } from './screens/AuthScreens';
+import { CustomerAuthGate } from './components/CustomerAuthGate';
 import { BootScreen } from './components/BootScreen';
 import { NavigationDrawer, NavigationDrawerProvider } from './components/NavigationDrawer';
 import { ThemeProvider } from './theme/ThemeProvider';
@@ -192,7 +193,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
       <Route path="/favorites" element={<ProtectedRoute auth={auth}><FavoritesScreen /></ProtectedRoute>} />
       <Route path="/search" element={<ProtectedRoute auth={auth}><SearchScreen /></ProtectedRoute>} />
       <Route path="/custom-requests" element={<ProtectedRoute auth={auth}><CustomRequestsScreen /></ProtectedRoute>} />
-      <Route path="/login" element={<AuthRoute auth={auth}><LoginScreen /></AuthRoute>} />
+      <Route path="/login" element={<AuthRoute auth={auth}><CustomerAuthGate auth={auth} /></AuthRoute>} />
       <Route path="/register" element={<AuthRoute auth={auth}><RegisterScreen /></AuthRoute>} />
       <Route path="/forgot-password" element={<AuthRoute auth={auth}><ForgotPasswordScreen /></AuthRoute>} />
 
