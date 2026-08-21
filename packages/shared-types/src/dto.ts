@@ -115,11 +115,12 @@ export interface OtpDispatchResult {
 export interface RegisterPendingResponse {
   user: PublicUser;
   /**
-   * Always `true`: registration never returns a session until the phone is
-   * proven with the one-time code it just dispatched.
+   * `true` when an OTP was dispatched and must be verified before a session
+   * is granted. `false` when the SMS provider was unavailable and the user
+   * was auto-verified (can log in with password immediately).
    */
-  verificationRequired: true;
-  otp: OtpDispatchResult;
+  verificationRequired: boolean;
+  otp: OtpDispatchResult | null;
 }
 
 /** POST /auth/otp/verify — exchange a code for a session. */
