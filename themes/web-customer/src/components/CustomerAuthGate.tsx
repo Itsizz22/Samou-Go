@@ -68,21 +68,9 @@ export function CustomerAuthGate({
   const isArabic = language === 'ar';
 
   // ── Biometric support ────────────────────────────────────────────────
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [biometricLoading, setBiometricLoading] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const available = await isBiometricAvailable();
-      const enabled = await isBiometricEnabled();
-      if (!cancelled && available && enabled) {
-        setBiometricAvailable(true);
-        setStep('biometric');
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  // Biometric login disabled — @aparajita plugins crash the app.
+  const biometricAvailable = false;
+  const biometricLoading = false;
 
   useEffect(() => {
     return () => {
@@ -147,43 +135,8 @@ export function CustomerAuthGate({
     }
   };
 
-  // ── Biometric sign-in ───────────────────────────────────────────────
-  const handleBiometricLogin = async () => {
-    setError(null);
-    setBiometricLoading(true);
-    try {
-      const result = await promptBiometric();
-      if (!result.success) {
-        if (result.error === 'cancelled') {
-          // User chose "Use code instead" — go to phone step.
-          setStep('phone');
-          setBiometricAvailable(false);
-          return;
-        }
-        throw new Error(result.error ?? 'Biometric failed');
-      }
-
-      const saved = await loadSavedSession();
-      if (!saved) {
-        setStep('phone');
-        setBiometricAvailable(false);
-        return;
-      }
-
-      await hapticSuccess();
-      auth.setUser(saved.user as unknown as PublicUser);
-    } catch (cause: any) {
-      setError({
-        message: cause?.message ?? String(cause),
-        localizedMessage: 'تعذّر التحقق — استخدم رقم الجوال / Biometric failed — use your phone number',
-      });
-      await hapticError();
-      setStep('phone');
-      setBiometricAvailable(false);
-    } finally {
-      setBiometricLoading(false);
-    }
-  };
+  // Biometric sign-in disabled — @aparajita plugins crash the native app.
+  const handleBiometricLogin = async () => { setStep('phone'); };
 
   /** Step 2: Verify code with Firebase, then exchange for a session. */
   const handleVerify = async () => {
@@ -204,11 +157,17 @@ export function CustomerAuthGate({
       auth.setUser(result.user);
 
       // Save session for biometric login on next launch.
-      await saveSession({
-        accessToken: '', // tokens are managed by auth context
-        refreshToken: '',
-        user: result.user as unknown as Record<string, unknown>,
-      });
+      // Wrapped in try-catch to prevent crash if SecureStorage plugin fails.
+      try {
+        await saveSession({
+          accessToken: '', // tokens are managed by auth context
+          refreshToken: '',
+          user: result.user as unknown as Record<string, unknown>,
+        });
+      } catch {
+        // Biometric/secure storage may not work — non-fatal, app continues.
+        console.warn('[auth] Could not save session to secure storage');
+      }
     } catch (cause: any) {
       const message = cause?.message ?? String(cause);
       let localizedMessage = message;
@@ -285,7 +244,7 @@ export function CustomerAuthGate({
               </p>
               <button
                 type="button"
-                onClick={() => { setStep('phone'); setBiometricAvailable(false); }}
+                onClick={() => setStep('phone')}
                 className="text-xs font-semibold text-brand transition active:scale-95"
               >
                 {t('استخدم رقم الجوال', 'Use phone number instead')}
