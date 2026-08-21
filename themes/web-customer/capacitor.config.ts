@@ -5,9 +5,6 @@ const config: CapacitorConfig = {
   appName: "Samou'Go",
   webDir: 'dist',
   server: {
-    // cleartext must be false in production — all API traffic must go over
-    // HTTPS.  Set to true only in local dev (capacitor.config.ts can be
-    // overridden per environment via capacitor.config.json).
     cleartext: false,
   },
   plugins: {

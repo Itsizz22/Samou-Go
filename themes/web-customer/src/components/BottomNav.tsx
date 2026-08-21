@@ -30,24 +30,34 @@ export function BottomNav() {
   const { t } = useLanguage();
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-20 border-t border-line/80 bg-surface/95 px-3 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-2 shadow-nav backdrop-blur-md"
+      className="fixed bottom-0 inset-x-0 z-20 border-t border-line/80 bg-surface/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 shadow-nav backdrop-blur-md safe-bottom"
       aria-label={t('التنقل السفلي', 'Bottom navigation')}
     >
-      <div className="mx-auto grid max-w-md grid-cols-5 items-stretch gap-1">
+      <div className="mx-auto grid max-w-md grid-cols-5 items-stretch gap-0.5">
         {TABS.map(({ to, labelAr, labelEn, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             end={to === '/home'}
             className={({ isActive }) =>
-              `flex min-h-14 flex-col items-center justify-center gap-1 rounded-field px-1 text-micro font-bold transition-all duration-200 active:scale-[0.96] ${
+              `flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-bold transition-all duration-200 active:scale-[0.95] ${
                 isActive
-                  ? 'bg-brand-tint text-brand-deep shadow-card'
-                  : 'text-ink-muted hover:bg-canvas hover:text-ink-soft'
+                  ? 'bg-brand-tint text-brand-deep shadow-sm'
+                  : 'text-ink-muted active:bg-canvas'
               }`
             }
           >
-            {({ isActive }) => <><Icon size={20} strokeWidth={isActive ? 2.4 : 1.9} fill={isActive && to === '/home' ? 'currentColor' : 'none'} /><span>{t(labelAr, labelEn)}</span></>}
+            {({ isActive }) => (
+              <>
+                <Icon
+                  size={21}
+                  strokeWidth={isActive ? 2.5 : 1.8}
+                  fill={isActive && to === '/home' ? 'currentColor' : 'none'}
+                  className={isActive ? 'text-brand-deep' : ''}
+                />
+                <span className="leading-none">{t(labelAr, labelEn)}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </div>
