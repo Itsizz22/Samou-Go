@@ -1086,7 +1086,7 @@ export function finalizeUpload(
 export async function removeCurrentImage(
   kind: UploadKind,
   resourceId?: string,
-  purpose?: 'logo' | 'cover',
+  purpose?: 'logo' | 'cover' | 'image',
   signal?: AbortSignal,
 ): Promise<void> {
   await request<unknown>("DELETE", "/uploads/current", {

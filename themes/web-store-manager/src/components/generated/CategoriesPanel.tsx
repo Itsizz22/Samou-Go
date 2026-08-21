@@ -159,8 +159,8 @@ export function CategoriesPanel({ storeId }: Props) {
         const { presignUpload, uploadRawFile, finalizeUpload } = await import('@samou-go/api-client');
         const presign = await presignUpload({ kind: 'category', resourceId: editTarget?.id ?? 'new', purpose: 'image', contentType: imageFile.type });
         await uploadRawFile(presign.key, imageFile);
-        await finalizeUpload(presign.key, 'category');
-        finalImageUrl = presign.url;
+        const finalized = await finalizeUpload(presign.key, 'category');
+        finalImageUrl = finalized.url;
       }
 
       if (modal === 'create') {

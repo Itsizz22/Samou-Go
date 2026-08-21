@@ -47,7 +47,7 @@ export interface ProcessedImage {
  */
 export async function processImage(input: {
   buffer: Buffer;
-  kind: 'user' | 'product' | 'store' | 'offer';
+  kind: 'user' | 'product' | 'store' | 'offer' | 'category';
 }): Promise<ProcessedImage> {
   const targets: Array<{ name: ImageVariant['name']; size?: number; width?: number; height?: number }> =
     input.kind === 'product'
