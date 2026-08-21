@@ -15,8 +15,6 @@
     "cap:open": "npx cap open android"
   },
   "dependencies": {
-    "@aparajita/capacitor-biometric-auth": "^10.0.0",
-    "@aparajita/capacitor-secure-storage": "^8.0.0",
     "@capacitor/android": "^8.5.0",
     "@capacitor/app": "^8.1.1",
     "@capacitor/assets": "^3.0.5",
