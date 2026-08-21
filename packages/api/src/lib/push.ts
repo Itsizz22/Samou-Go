@@ -43,7 +43,14 @@ async function getMessaging(): Promise<any> {
       } else {
         const fs = await import('node:fs/promises');
         const nodePath = await import('node:path');
-        const keyPath = nodePath.resolve(env.firebase.serviceAccountPath!);
+        // Try Render's /etc/secrets/ path first, then the configured path.
+        const secretsPath = `/etc/secrets/${env.firebase.serviceAccountPath}`;
+        let keyPath: string;
+        if (await fs.access(secretsPath).then(() => true).catch(() => false)) {
+          keyPath = secretsPath;
+        } else {
+          keyPath = nodePath.resolve(env.firebase.serviceAccountPath!);
+        }
         serviceAccount = JSON.parse(await fs.readFile(keyPath, 'utf-8'));
       }
 
