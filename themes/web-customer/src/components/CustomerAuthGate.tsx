@@ -13,6 +13,7 @@
  *   - Falls back to server-side OTP if Firebase is not configured
  */
 import { useEffect, useRef, useState, type RefObject } from 'react';
+import { Link } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, Fingerprint, Loader2, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ApiError } from '@/hooks/useApi';
@@ -403,6 +404,12 @@ export function CustomerAuthGate({
             </button>
           )}
         </form>
+
+        <p className="mt-5 text-center text-sm text-ink-muted">
+          <Link to="/login" className="font-bold text-brand">
+            {t('تسجيل الدخول بكلمة المرور', 'Login with password instead')}
+          </Link>
+        </p>
       </motion.div>
     </main>
   );
