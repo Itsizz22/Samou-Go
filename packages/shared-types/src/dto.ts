@@ -599,7 +599,7 @@ export interface UpdatePlatformSettingsInput {
  * ------------------------------------------------------------------------- */
 
 /** What a processed image eventually attaches to. */
-export type UploadKind = 'user' | 'product' | 'store' | 'offer';
+export type UploadKind = 'user' | 'product' | 'store' | 'offer' | 'category';
 
 /** POST /uploads/presign */
 export interface PresignUploadInput {
@@ -615,7 +615,7 @@ export interface PresignUploadInput {
    * Which store image slot the upload targets. Only meaningful for
    * `kind === 'store'`; ignored otherwise.
    */
-  purpose?: 'logo' | 'cover';
+  purpose?: 'logo' | 'cover' | 'image';
 }
 
 export interface PresignUploadResult {

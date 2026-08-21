@@ -12,7 +12,7 @@ import { processImage, sniffImageType } from './image';
 import { storage } from './storage';
 import { ALLOWED_IMAGE_MIMES, MIME_TO_EXT, uploadConfig } from './uploads.config';
 
-const KEY_PATTERN = /^(user|product|store|offer)\/([^/]+)\/([^/]+)\.(jpg|png|webp)$/;
+const KEY_PATTERN = /^(user|product|store|offer|category)\/([^/]+)\/([^/]+)\.(jpg|png|webp)$/;
 
 export interface UploadCaller {
   userId: string;
@@ -27,7 +27,7 @@ interface ParsedKey {
    * carry a `cover-` filename marker (`store/<id>/cover-<uuid>.jpg`); logo keys
    * keep the plain shape so pre-cover uploads and tests stay valid.
    */
-  purpose: 'logo' | 'cover';
+  purpose: 'logo' | 'cover' | 'image';
 }
 
 function parseKey(key: string): ParsedKey | null {
@@ -37,7 +37,7 @@ function parseKey(key: string): ParsedKey | null {
   return {
     kind: match[1] as UploadKind,
     ownerId: match[2] as string,
-    purpose: filename.startsWith('cover-') ? 'cover' : 'logo',
+    purpose: filename.startsWith('cover-') ? 'cover' : (match[1] === 'category' ? 'image' : 'logo'),
   };
 }
 
@@ -114,9 +114,32 @@ async function resolveOffer(
   return offer;
 }
 
+/**
+ * A category key is only usable by the category's store manager (or an admin).
+ * Resolves the category so callers can act on the loaded row instead of re-querying.
+ */
+async function resolveCategory(
+  ownerId: string,
+  caller: UploadCaller
+): Promise<{ id: string; storeId: string; imageUrl: string | null }> {
+  const category = await prisma.category.findUnique({
+    where: { id: ownerId },
+    select: { id: true, storeId: true, imageUrl: true },
+  });
+  if (!category) throw notFound('القسم غير موجود / Category not found');
+  if (caller.role === UserRole.ADMIN) return category;
+
+  const store = await prisma.store.findUnique({
+    where: { id: category.storeId },
+    select: { managerId: true },
+  });
+  if (!store || store.managerId !== caller.userId) throw forbidden();
+  return category;
+}
+
 export async function presign(
   caller: UploadCaller,
-  input: { contentType: string; kind: UploadKind; resourceId?: string; purpose?: 'logo' | 'cover' }
+  input: { contentType: string; kind: UploadKind; resourceId?: string; purpose?: 'logo' | 'cover' | 'image' }
 ): Promise<PresignUploadResult> {
   const mime = ALLOWED_IMAGE_MIMES.find(entry => entry === input.contentType);
   if (!mime) {
@@ -158,6 +181,14 @@ export async function presign(
     }
     await resolveOffer(input.resourceId, caller);
     key = `offer/${input.resourceId}/${randomUUID()}.${ext}`;
+  } else if (input.kind === 'category') {
+    if (!input.resourceId) {
+      throw badRequest(
+        'resourceId مطلوب لصور الأقسام / resourceId is required for category images'
+      );
+    }
+    await resolveCategory(input.resourceId, caller);
+    key = `category/${input.resourceId}/${randomUUID()}.${ext}`;
   } else {
     throw badRequest('نوع رفع غير معروف / Unknown upload kind');
   }
@@ -181,6 +212,8 @@ export async function storeRaw(key: string, body: Readable, caller: UploadCaller
     await resolveProduct(parsed.ownerId, caller);
   } else if (parsed.kind === 'offer') {
     await resolveOffer(parsed.ownerId, caller);
+  } else if (parsed.kind === 'category') {
+    await resolveCategory(parsed.ownerId, caller);
   } else {
     await resolveStore(parsed.ownerId, caller);
   }
@@ -202,6 +235,7 @@ export async function finalizeUpload(
   const product = parsed.kind === 'product' ? await resolveProduct(parsed.ownerId, caller) : null;
   const store = parsed.kind === 'store' ? await resolveStore(parsed.ownerId, caller) : null;
   const offer = parsed.kind === 'offer' ? await resolveOffer(parsed.ownerId, caller) : null;
+  const category = parsed.kind === 'category' ? await resolveCategory(parsed.ownerId, caller) : null;
   if (parsed.kind === 'user') assertUserKey(key, caller);
 
   const raw = await storage.readRaw(key);
@@ -218,7 +252,7 @@ export async function finalizeUpload(
   const base = baseKeyOf(key);
   const processed = await processImage({ buffer: raw, kind });
 
-  if (parsed.kind === 'user' || parsed.kind === 'store' || parsed.kind === 'offer') {
+  if (parsed.kind === 'user' || parsed.kind === 'store' || parsed.kind === 'offer' || parsed.kind === 'category') {
     const variant = processed.variants[0]!;
     const finalKey = `${base}.webp`;
     const url = storage.finalUrl(finalKey);
@@ -234,6 +268,11 @@ export async function finalizeUpload(
         await prisma.offer.update({
           where: { id: offer!.id },
           data: { imageUrl: url, imageKey: key },
+        });
+      } else if (parsed.kind === 'category') {
+        await prisma.category.update({
+          where: { id: category!.id },
+          data: { imageUrl: url },
         });
       } else if (parsed.purpose === 'cover') {
         await prisma.store.update({
@@ -369,6 +408,25 @@ export async function removeCurrentImage(
     return;
   }
 
+  if (kind === 'category') {
+    if (!resourceId) {
+      throw badRequest(
+        'resourceId مطلوب لصور الأقسام / resourceId is required for category images'
+      );
+    }
+    const cat = await resolveCategory(resourceId, caller);
+    if (!cat.imageUrl) return;
+
+    const finalKey = keyFromPublicUrl(cat.imageUrl);
+    if (finalKey) await storage.removeFinal(finalKey).catch(() => undefined);
+
+    await prisma.category.update({
+      where: { id: cat.id },
+      data: { imageUrl: null },
+    });
+    return;
+  }
+
   if (!resourceId) {
     throw badRequest(
       'resourceId مطلوب لصور المنتجات / resourceId is required for product images'
@@ -425,6 +483,20 @@ export async function removeUpload(key: string, caller: UploadCaller): Promise<v
       await prisma.offer.update({
         where: { id: offer.id },
         data: { imageUrl: null, imageKey: null },
+      });
+    }
+    await storage.removeRaw(key).catch(() => undefined);
+    await storage.removeFinal(`${base}.webp`).catch(() => undefined);
+    return;
+  }
+
+  if (parsed.kind === 'category') {
+    const cat = await resolveCategory(parsed.ownerId, caller);
+    const url = storage.finalUrl(`${base}.webp`);
+    if (cat.imageUrl === url) {
+      await prisma.category.update({
+        where: { id: cat.id },
+        data: { imageUrl: null },
       });
     }
     await storage.removeRaw(key).catch(() => undefined);
