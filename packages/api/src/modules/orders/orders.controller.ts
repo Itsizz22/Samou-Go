@@ -10,6 +10,8 @@ import {
   orderIdParamsSchema,
   orderListQuerySchema,
   quoteOrderSchema,
+  setDeliveryFeeSchema,
+  reviewSchema,
   updateOrderStatusSchema,
 } from './orders.schemas';
 import { setOrderDeliveryZoneSchema } from '../zones/zones.schemas';
@@ -150,6 +152,30 @@ export async function setOrderDeliveryZoneHandler(req: Request, res: Response): 
   const result = await ordersService.setOrderDeliveryZone(auth, orderId, body.zoneId);
   // Push a refresh to the order's room so the customer's tracking screen shows
   // the new fee without waiting for its polling interval.
+  emitOrderStatus(orderId, { status: result.status, orderId, timestamp: new Date().toISOString() });
+  ok(res, result);
+}
+
+/** PATCH /api/v1/orders/:orderId/set-delivery-fee — driver sets a custom delivery fee (dynamic fee mode). */
+export async function setOrderDeliveryFeeHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const { orderId } = parseWith(orderIdParamsSchema, req.params);
+  const body = parseWith(setDeliveryFeeSchema, req.body);
+  const result = await ordersService.setOrderDeliveryFee(auth, orderId, body.deliveryFee);
+  // Push a refresh to the order's room so the customer's tracking screen shows
+  // the new fee without waiting for its polling interval.
+  emitOrderStatus(orderId, { status: result.status, orderId, timestamp: new Date().toISOString() });
+  ok(res, result);
+}
+
+/** PATCH /api/v1/orders/:orderId/review — sets a rating and comment for the order. */
+export async function setOrderReviewHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const { orderId } = parseWith(orderIdParamsSchema, req.params);
+  const body = parseWith(reviewSchema, req.body);
+  const result = await ordersService.setOrderReview(auth, orderId, body.rating, body.comment ?? null);
+  // Push a refresh to the order's room so the customer's tracking screen shows
+  // the updated rating without waiting for its polling interval.
   emitOrderStatus(orderId, { status: result.status, orderId, timestamp: new Date().toISOString() });
   ok(res, result);
 }

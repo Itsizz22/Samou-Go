@@ -97,21 +97,6 @@ export interface AuthResponse {
  * OTP (passwordless phone sign-in)
  * ------------------------------------------------------------------------- */
 
-/**
- * POST /auth/firebase-register — Firebase Phone Auth proves ownership of
- * `phone`. The backend verifies the ID token with Firebase Admin, extracts the
- * canonical `05XXXXXXXX` number from the token claim, and returns a session
- * immediately (no server-side OTP round-trip).
- */
-export interface FirebaseRegisterInput {
-  /** Short-lived ID token from `confirmationResult.user.getIdToken()`. */
-  idToken: string;
-  /** Display name for the new CUSTOMER account. */
-  name: string;
-  /** `05XXXXXXXX` — Palestinian mobile, kept for cross-checks. */
-  phone: string;
-}
-
 /** POST /auth/otp/request — ask for a one-time code on a mobile number. */
 export interface OtpRequestInput {
   /** `05XXXXXXXX` — Palestinian mobile. */
@@ -222,6 +207,11 @@ export interface CreateOrderInput {
   deliveryRegion?: DeliveryRegion;
   addressNote?: string;
   orderNote?: string;
+  /** Delivery preset: "call_on_arrival" or "leave_at_door". */
+  deliveryPreset?: string;
+  /** Exact GPS coordinates of the delivery pin. */
+  latitude?: number;
+  longitude?: number;
   voucherCode?: string;
 }
 
@@ -234,6 +224,11 @@ export interface UpdateOrderStatusInput {
 
 export interface AssignCaptainInput {
   captainId: string;
+}
+
+/** PATCH /orders/:orderId/set-delivery-fee — driver sets a custom delivery fee (dynamic fee mode). */
+export interface SetDeliveryFeeInput {
+  deliveryFee: number;
 }
 
 export interface OrderListQuery extends PaginationQuery {
@@ -328,6 +323,7 @@ export interface UpdateProductInput {
 export interface CreateCategoryInput {
   nameAr: string;
   nameEn?: string;
+  imageUrl?: string;
   sortOrder?: number;
 }
 
@@ -335,6 +331,7 @@ export interface CreateCategoryInput {
 export interface UpdateCategoryInput {
   nameAr?: string;
   nameEn?: string;
+  imageUrl?: string | null;
   sortOrder?: number;
 }
 
@@ -344,8 +341,14 @@ export interface UpdateStoreInput {
   phone?: string;
   logoUrl?: string;
   isActive?: boolean;
-  /** Admin-only: flips a store's visibility to the public catalogue. */
+  /** Admin-only: approving publishes the store to the public catalogue. */
   isApproved?: boolean;
+  /** Manager instant toggle — customers see "closed" banner. */
+  isAcceptingOrders?: boolean;
+  /** Store opening hour (HH:mm). */
+  openingTime?: string | null;
+  /** Store closing hour (HH:mm). */
+  closingTime?: string | null;
   latitude?: number | null;
   longitude?: number | null;
 }
@@ -575,6 +578,10 @@ export interface PlatformSettings {
   storeCommissionRate: number;
   /** Reserved for a future auto-assignment engine. */
   autoAssign: boolean;
+  /** When enabled, the driver sets the delivery fee per order upon acceptance. */
+  isDriverDynamicFeeEnabled: boolean;
+  /** When enabled, sensitive actions (first order, password reset, phone change) require OTP verification. */
+  requireOtpForSensitiveActions: boolean;
   updatedAt: string;
 }
 
@@ -583,6 +590,8 @@ export interface UpdatePlatformSettingsInput {
   captainDeliveryRate?: number;
   storeCommissionRate?: number;
   autoAssign?: boolean;
+  isDriverDynamicFeeEnabled?: boolean;
+  requireOtpForSensitiveActions?: boolean;
 }
 
 /* ---------------------------------------------------------------------------

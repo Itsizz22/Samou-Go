@@ -391,7 +391,7 @@ export function SamouGoStoreManager() {
             const Icon = tab.icon;
             const selected = activeTab === tab.id;
             return <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition ${selected ? 'bg-brand text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'}`}>
-              <Icon size={18} /><span>{tab.ar}</span>
+              <Icon size={18} /><span>{t(tab.ar, tab.en)}</span>
             </button>;
           })}
         </nav>

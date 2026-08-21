@@ -28,7 +28,7 @@ const envSchema = z.object({
   /* ---- SMS / OTP --------------------------------------------------------- */
   /** Which gateway dispatches OTP codes. `console` logs codes (dev only), `none` swallows them,
    *  `mock` logs them but reports `dispatched: false` (test-only fallback). */
-  SMS_PROVIDER: z.enum(['twilio', 'firebase', 'generic', 'console', 'mock', 'none']).default('console'),
+  SMS_PROVIDER: z.enum(['twilio', 'generic', 'console', 'mock', 'none']).default('console'),
   /** Country code prepended to local `05XXXXXXXX` numbers before they reach the carrier. */
   SMS_COUNTRY_CODE: z.string().default('+970'),
   /**
@@ -46,23 +46,10 @@ const envSchema = z.object({
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_FROM_NUMBER: z.string().optional(),
-  FIREBASE_SMS_FUNCTION_URL: z.string().url().optional(),
-  FIREBASE_SMS_API_KEY: z.string().optional(),
-  /* ---- Firebase Admin (phone-auth ID-token verification) ---------------- */
-  /** Service-account fields for `firebase-admin`. All three are required
-   *  together; absent, `/auth/firebase-register` answers a clean 503. */
-  FIREBASE_PROJECT_ID: z.string().min(1).optional(),
-  FIREBASE_CLIENT_EMAIL: z.string().min(1).optional(),
-  FIREBASE_PRIVATE_KEY: z.string().min(1).optional(),
-  /**
-   * Dev/demo-only bypass for `/auth/firebase-register`: accepts the unsigned
-   * `mock-firebase-token` (sent by the web app when `VITE_USE_MOCK_AUTH=true`)
-   * and synthesises a `phone_number` claim from the submitted phone. The rest
-   * of the pipeline (canonical-phone + mismatch validation) still runs, so the
-   * mock can only ever assert the number the user typed. The production guard
-   * below refuses to boot with it, mirroring `SMS_ALLOW_INSECURE_TEST_PROVIDERS`.
-   */
-  FIREBASE_MOCK_TOKENS: z.enum(['true', 'false']).default('false'),
+  /** Twilio Verify service SID — when set, codes are dispatched via the
+   *  Twilio Verify API (managed code lifecycle). When absent, raw SMS via
+   *  the Messages API is used (server generates + stores the code). */
+  TWILIO_VERIFY_SERVICE_SID: z.string().optional(),
   /** Digits in the OTP code. 6 is the default everywhere else in the stack. */
   OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
   /** OTP validity, in seconds. Requirement: 3 minutes. */
@@ -127,7 +114,7 @@ if (raw.NODE_ENV === 'production') {
       throw new Error(
         'Invalid environment configuration:\n' +
           `  • SMS_PROVIDER: "${raw.SMS_PROVIDER}" prints OTP codes to the server log — never acceptable in production. ` +
-          'Set SMS_PROVIDER=twilio|firebase|generic with real credentials, or set ' +
+          'Set SMS_PROVIDER=twilio|generic with real credentials, or set ' +
           'SMS_ALLOW_INSECURE_TEST_PROVIDERS=true ONLY while testing before a carrier is live.'
       );
     }
@@ -137,13 +124,6 @@ if (raw.NODE_ENV === 'production') {
       'Invalid environment configuration:\n' +
         '  • PUBLIC_API_ORIGIN: refusing to serve insecure (http) image URLs in production. ' +
         'Set it to the HTTPS origin this API is reachable at.'
-    );
-  }
-  if (raw.FIREBASE_MOCK_TOKENS === 'true') {
-    throw new Error(
-      'Invalid environment configuration:\n' +
-        '  • FIREBASE_MOCK_TOKENS: refusing to accept unsigned "Firebase" ID tokens in production. ' +
-        'Registration without real Firebase verification would let anyone create accounts.'
     );
   }
 }
@@ -206,17 +186,8 @@ export const env = {
       accountSid: raw.TWILIO_ACCOUNT_SID,
       authToken: raw.TWILIO_AUTH_TOKEN,
       from: raw.TWILIO_FROM_NUMBER,
+      verifyServiceSid: raw.TWILIO_VERIFY_SERVICE_SID,
     },
-    firebase: {
-      functionUrl: raw.FIREBASE_SMS_FUNCTION_URL,
-      apiKey: raw.FIREBASE_SMS_API_KEY,
-    },
-  },
-  firebaseAdmin: {
-    projectId: raw.FIREBASE_PROJECT_ID,
-    clientEmail: raw.FIREBASE_CLIENT_EMAIL,
-    privateKey: raw.FIREBASE_PRIVATE_KEY,
-    mockTokens: raw.FIREBASE_MOCK_TOKENS === 'true',
   },
   otp: {
     length: raw.OTP_LENGTH,

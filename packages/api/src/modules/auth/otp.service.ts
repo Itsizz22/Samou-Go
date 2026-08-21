@@ -109,6 +109,22 @@ async function verifyOtpCode(
     throw errors.maxAttempts();
   }
 
+  // Twilio Verify path: delegate code check to the carrier.
+  const gateway = getSmsGateway();
+  if ("check" in gateway && typeof gateway.check === "function") {
+    const e164 = toE164(phone, env.sms.countryCode);
+    const result = await gateway.check(e164, code);
+    if (!result.valid) {
+      await prisma.otpRequest.update({
+        where: { phone },
+        data: { attempts: { increment: 1 } },
+      });
+      throw errors.invalid();
+    }
+    return;
+  }
+
+  // Local bcrypt path (console / generic / noop / raw-twilio-messages).
   const matches = await bcrypt.compare(code, record.codeHash);
   if (!matches) {
     await prisma.otpRequest.update({
@@ -145,6 +161,68 @@ export async function requestOtp(
     }
   }
 
+  const gateway = getSmsGateway();
+
+  // ── Twilio Verify path: carrier generates and delivers the code ──────────
+  if ("verify" in gateway && typeof gateway.verify === "function") {
+    const to = toE164(phone, env.sms.countryCode);
+    let dispatched = false;
+    try {
+      await gateway.verify(to);
+      dispatched = true;
+    } catch (cause) {
+      console.error(
+        `[sms] twilio-verify dispatch failed for ${phone} (E.164 ${to})`,
+        cause,
+      );
+      throw serviceUnavailable(
+        "SMS_DELIVERY_FAILED",
+        "تعذّر إرسال رمز التحقق، حاول مجدداً / Couldn't send the verification code — please try again",
+      );
+    }
+
+    // Upsert a rate-limit sentinel (no real code hash — Twilio owns the code).
+    const sentinelHash = await bcrypt.hash("__twilio_verify__", OTP_BCRYPT_ROUNDS);
+    const expiresAt = new Date(now.getTime() + env.otp.ttlMs);
+
+    await prisma.otpRequest.upsert({
+      where: { phone },
+      create: {
+        phone,
+        codeHash: sentinelHash,
+        expiresAt,
+        requests: 1,
+        windowStartsAt: now,
+      },
+      update:
+        existing &&
+        now.getTime() - existing.windowStartsAt.getTime() < env.otp.rateWindowMs
+          ? {
+              codeHash: sentinelHash,
+              expiresAt,
+              attempts: 0,
+              requests: { increment: 1 },
+            }
+          : {
+              codeHash: sentinelHash,
+              expiresAt,
+              attempts: 0,
+              requests: 1,
+              windowStartsAt: now,
+            },
+    });
+
+    const windowElapsed = now.getTime() - now.getTime();
+    return {
+      retryAfterSeconds: Math.max(
+        0,
+        Math.ceil((env.otp.rateWindowMs - windowElapsed) / 1_000),
+      ),
+      dispatched,
+    };
+  }
+
+  // ── Local code path (console / generic / raw-twilio-messages) ───────────
   const code = generateOtpCode(env.otp.length);
   const codeHash = await bcrypt.hash(code, OTP_BCRYPT_ROUNDS);
   const expiresAt = new Date(now.getTime() + env.otp.ttlMs);
@@ -175,8 +253,6 @@ export async function requestOtp(
             windowStartsAt: now,
           },
   });
-
-  const gateway = getSmsGateway();
 
   // Carriers require E.164 (`+9705XXXXXXXX`), while the API stores and
   // validates canonical local form (`05XXXXXXXX`) — convert at the edge.

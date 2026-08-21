@@ -1,5 +1,6 @@
 import { Home, Heart, Package, Search, User, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useLanguage } from '@samou-go/ui';
 
 /**
  * Samou' Go — customer bottom tab bar.
@@ -12,38 +13,41 @@ import { NavLink } from 'react-router-dom';
 
 interface TabItem {
   to: string;
-  label: string;
+  labelAr: string;
+  labelEn: string;
   icon: LucideIcon;
 }
 
-const TABS: TabItem[] = [
-  { to: '/home', label: 'Home', icon: Home },
-  { to: '/search', label: 'Search', icon: Search },
-  { to: '/orders', label: 'Orders', icon: Package },
-  { to: '/favorites', label: 'Favorites', icon: Heart },
-  { to: '/profile', label: 'Profile', icon: User },
+const TABS: readonly TabItem[] = [
+  { to: '/home', labelAr: 'الرئيسية', labelEn: 'Home', icon: Home },
+  { to: '/search', labelAr: 'بحث', labelEn: 'Search', icon: Search },
+  { to: '/orders', labelAr: 'طلباتي', labelEn: 'Orders', icon: Package },
+  { to: '/favorites', labelAr: 'المفضلة', labelEn: 'Favorites', icon: Heart },
+  { to: '/profile', labelAr: 'حسابي', labelEn: 'Profile', icon: User },
 ];
 
 export function BottomNav() {
+  const { t } = useLanguage();
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface/95 px-4 safe-bottom pt-3 shadow-raised"
-      aria-label="Bottom navigation"
+      className="fixed bottom-0 inset-x-0 z-20 border-t border-line/80 bg-surface/95 px-3 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-2 shadow-nav backdrop-blur-md"
+      aria-label={t('التنقل السفلي', 'Bottom navigation')}
     >
-      <div className="mx-auto flex max-w-md items-center justify-around" dir="ltr">
-        {TABS.map(({ to, label, icon: Icon }) => (
+      <div className="mx-auto grid max-w-md grid-cols-5 items-stretch gap-1">
+        {TABS.map(({ to, labelAr, labelEn, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             end={to === '/home'}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-1 transition active:scale-95 ${
-                isActive ? 'text-brand' : 'text-ink-muted'
+              `flex min-h-14 flex-col items-center justify-center gap-1 rounded-field px-1 text-micro font-bold transition-all duration-200 active:scale-[0.96] ${
+                isActive
+                  ? 'bg-brand-tint text-brand-deep shadow-card'
+                  : 'text-ink-muted hover:bg-canvas hover:text-ink-soft'
               }`
             }
           >
-            <Icon size={20} fill={to === '/home' ? 'currentColor' : 'none'} />
-            <span className="text-micro font-semibold">{label}</span>
+            {({ isActive }) => <><Icon size={20} strokeWidth={isActive ? 2.4 : 1.9} fill={isActive && to === '/home' ? 'currentColor' : 'none'} /><span>{t(labelAr, labelEn)}</span></>}
           </NavLink>
         ))}
       </div>

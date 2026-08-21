@@ -28,6 +28,8 @@ import type {
   CreateOrderBody,
   OrderListQuery,
   QuoteOrderBody,
+  SetDeliveryFeeBody,
+  SetReviewBody,
   UpdateOrderStatusBody,
 } from './orders.schemas';
 
@@ -39,6 +41,7 @@ export const DETAIL_INCLUDE = {
   captain: true,
   voucher: true,
   deliveryZone: true,
+  rating: true,
   statusHistory: { orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.OrderInclude;
 
@@ -292,6 +295,9 @@ export async function createOrder(
         customerAddressText: body.customerAddressText,
         addressNote: body.addressNote ?? null,
         orderNote: body.orderNote ?? null,
+        deliveryPreset: body.deliveryPreset ?? null,
+        latitude: body.latitude ?? null,
+        longitude: body.longitude ?? null,
         subtotal: totals.subtotal,
         deliveryFee: totals.deliveryFee,
         discount,
@@ -807,6 +813,180 @@ export async function setOrderDeliveryZone(
             status: order.status,
             changedByUserId: actor.sub,
             note: `تم تحديد منطقة التوصيل: ${zone.nameAr} / Delivery zone: ${zone.nameEn}`,
+          },
+        },
+      },
+      include: DETAIL_INCLUDE,
+    });
+
+    return toOrderDetail(updated);
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      'code' in err &&
+      (err as { code?: string }).code === 'P2025'
+    ) {
+      throw conflict(
+        'تغيّرت حالة الطلب في هذه الأثناء — حدّث الصفحة وحاول مجدداً / Order status changed concurrently — refresh and retry'
+      );
+    }
+    throw err;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Dynamic review — the customer/store/captain sets a rating and comment for
+ * an order when the order is in a non-terminal state. This is an exception to
+ * the general "client never sends money" rule — it's a controlled, role-gated
+ * flow where authenticated users can provide feedback on their order
+ * experience.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * PATCH /orders/:orderId/review — sets a rating and comment for an order
+ * when dynamic review is allowed. Only the order customer, store manager, or
+ * admin may do this, and only while the order is still live.
+ */
+export async function setOrderReview(
+  actor: { sub: string; role: UserRole },
+  orderId: string,
+  rating: number,
+  comment: string | null
+): Promise<OrderDetail> {
+  const order = await loadOrderOrThrow(orderId);
+
+  if (isTerminalOrderStatus(order.status)) {
+    throw badState('ORDER_CLOSED', 'الطلب مُغلق / Order is closed');
+  }
+
+  // Authorization checks
+  if (actor.role === UserRole.CUSTOMER) {
+    if (order.customerId !== actor.sub) {
+      throw forbidden('هذا ليس طلبك / This is not your order');
+    }
+  } else if (actor.role === UserRole.STORE_MANAGER) {
+    // Store manager must own the store
+    const store = await prisma.store.findUnique({ where: { id: order.storeId } });
+    if (!store || store.managerId !== actor.sub) {
+      throw forbidden('الطلب ليس من متجرك / This order is not from your store');
+    }
+  } else if (actor.role !== UserRole.ADMIN) {
+    throw forbidden();
+  }
+
+  // Validate rating (1-5)
+  if (rating < 1 || rating > 5) {
+    throw unprocessable(
+      'INVALID_RATING',
+      'التقييم يجب أن يكون من 1 إلى 5 / Rating must be between 1 and 5'
+    );
+  }
+
+  try {
+    // Upsert the Rating row directly — the Rating model has required foreign keys
+    // (customerId, storeId) that must come from the order itself.
+    await prisma.rating.upsert({
+      where: { orderId },
+      create: {
+        orderId,
+        customerId: order.customerId,
+        storeId: order.storeId,
+        storeRating: rating,
+        comment: comment ?? undefined,
+      },
+      update: {
+        storeRating: rating,
+        comment: comment ?? undefined,
+      },
+    });
+
+    // Reload the order with relations to return the updated detail.
+    const updated = await prisma.order.findUniqueOrThrow({
+      where: { id: orderId },
+      include: DETAIL_INCLUDE,
+    });
+
+    return toOrderDetail(updated);
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      'code' in err &&
+      (err as { code?: string }).code === 'P2025'
+    ) {
+      throw conflict(
+        'تغيّرت حالة الطلب في هذه الأثناء — حدّث الصفحة وحاول مجدداً / Order status changed concurrently — refresh and retry'
+      );
+    }
+    throw err;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Dynamic delivery fee — the captain sets the fee manually when the platform
+ * setting `isDriverDynamicFeeEnabled` is true. The captain sends an amount,
+ * which is validated server-side. This is an EXCEPTION to "client never sends
+ * money" — it's a controlled, admin-enabled flow where the driver (a trusted
+ * actor) sets the fee based on their knowledge of the delivery area.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * PATCH /orders/:orderId/set-delivery-fee — sets a custom delivery fee for an
+ * order when dynamic fee mode is enabled. Only the assigned captain (or admin)
+ * may do this, and only while the order is still live.
+ */
+export async function setOrderDeliveryFee(
+  actor: { sub: string; role: UserRole },
+  orderId: string,
+  deliveryFee: number
+): Promise<OrderDetail> {
+  const order = await loadOrderOrThrow(orderId);
+
+  // Check platform setting for dynamic fee mode
+  const settings = await prisma.platformSettings.findUnique({ where: { id: 'platform' } });
+  if (!settings?.isDriverDynamicFeeEnabled) {
+    throw forbidden('وضع الرسوم الديناميكي غير مفعل / Dynamic fee mode is not enabled');
+  }
+
+  if (actor.role === UserRole.CAPTAIN) {
+    if (order.captainId !== actor.sub) {
+      throw forbidden('الطلب غير مُسند إليك / This order is not assigned to you');
+    }
+  } else if (actor.role !== UserRole.ADMIN) {
+    throw forbidden();
+  }
+
+  if (isTerminalOrderStatus(order.status)) {
+    throw badState('ORDER_CLOSED', 'الطلب مُغلق / Order is closed');
+  }
+
+  // Validate the fee amount (0-1000 ILS)
+  if (deliveryFee < 0 || deliveryFee > 1000) {
+    throw unprocessable(
+      'INVALID_FEE',
+      'رسوم التوصيل يجب أن تكون بين 0 و 1000 ₪ / Delivery fee must be between 0 and 1000 ₪'
+    );
+  }
+
+  // Money math stays server-side: the total is recomputed from the persisted
+  // subtotal/discount + the provided fee, never trusting the request for totals.
+  const totalAmount = roundMoney(
+    decimalToNumber(order.subtotal) - decimalToNumber(order.discount) + deliveryFee
+  );
+
+  try {
+    const updated = await prisma.order.update({
+      // Optimistic lock on the status we validated against — a concurrent
+      // status change (e.g. the order got delivered) makes this match zero
+      // rows and surface a 409 instead of silently writing a fee on a closed order.
+      where: { id: orderId, status: order.status },
+      data: {
+        deliveryFee: deliveryFee,
+        totalAmount,
+        statusHistory: {
+          create: {
+            status: order.status,
+            changedByUserId: actor.sub,
+            note: `تم تحديد رسوم التوصيل بواسطة السائق: ${deliveryFee.toFixed(2)} ₪ / Delivery fee set by driver: ${deliveryFee.toFixed(2)} ₪`,
           },
         },
       },

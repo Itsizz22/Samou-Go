@@ -21,8 +21,8 @@ export function ScreenShell({ title, subtitle, children }: ScreenShellProps) {
   const { t } = useLanguage();
 
   return (
-    <main className="min-h-screen bg-canvas pb-24 text-ink">
-      <header className="bg-brand px-5 pb-5 pt-4 text-white">
+    <main className="min-h-[100dvh] bg-canvas pb-28 text-ink">
+      <header className="bg-brand px-5 pb-5 pt-[max(1rem,env(safe-area-inset-top))] text-white shadow-brand">
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">
           <button
             type="button"
@@ -33,7 +33,7 @@ export function ScreenShell({ title, subtitle, children }: ScreenShellProps) {
             <Menu size={22} />
           </button>
           <div className="flex-1 text-end">
-            <p className="text-lg font-bold">{t(title, subtitle)}</p>
+            <p className="font-heading text-[1.15rem] font-bold leading-relaxed tracking-[-0.015em]">{t(title, subtitle)}</p>
           </div>
         </div>
       </header>

@@ -66,14 +66,15 @@ export const StoreDetailsMenu = () => {
 
   const [activeCategory, setActiveCategory] = useState<string>('all');
 
-  const categories = useMemo<Array<{ id: string; ar: string; en: string }>>(() => {
+  const categories = useMemo<Array<{ id: string; ar: string; en: string; imageUrl: string | null }>>(() => {
     if (!store.data) return [];
     return [
-      { id: 'all', ar: 'الكل', en: 'All' },
+      { id: 'all', ar: 'الكل', en: 'All', imageUrl: null },
       ...store.data.categories.map((cat) => ({
         id: cat.id,
         ar: cat.nameAr,
         en: cat.nameEn,
+        imageUrl: cat.imageUrl,
       })),
     ];
   }, [store.data]);
@@ -129,7 +130,7 @@ export const StoreDetailsMenu = () => {
   return (
     <div className="min-h-screen bg-canvas pb-36 text-ink">
       <HeaderNav
-        title="Store Details"
+        title={t('تفاصيل المتجر', 'Store Details')}
         arabicTitle={store.data?.nameAr ?? 'تفاصيل المتجر'}
         showBack
         showCart
@@ -150,7 +151,7 @@ export const StoreDetailsMenu = () => {
                 alt={store.data.nameEn}
               />
               <figcaption className="absolute bottom-3 end-4 rounded-full bg-surface/95 px-3 py-1 text-xs font-semibold text-brand-deep shadow-card">
-                {store.data.isActive ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}
+                {store.data.isAcceptingOrders ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}
               </figcaption>
             </figure>
           ) : (
@@ -159,7 +160,7 @@ export const StoreDetailsMenu = () => {
                 {store.data?.nameAr.slice(0, 1) ?? ''}
               </span>
               <span className="absolute bottom-3 end-4 rounded-full bg-surface/95 px-3 py-1 text-xs font-semibold text-brand-deep shadow-card">
-                {store.data?.isActive ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}
+                {store.data?.isAcceptingOrders ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}
               </span>
             </div>
           )}
@@ -207,6 +208,24 @@ export const StoreDetailsMenu = () => {
           </div>
         </section>
 
+        {/* Store closed banner — shown when the manager toggled "accepting orders" off */}
+        {store.data && !store.data.isAcceptingOrders && (
+          <div className="px-5 pt-4">
+            <div className="flex items-center gap-3 rounded-2xl border border-warning bg-warning-tint px-4 py-3">
+              <div className="flex-1 text-end">
+                <p className="text-xs font-extrabold text-warning-dark">
+                  {t('المتجر مغلق حالياً — يمكنك تصفح القائمة فقط', 'Store is currently closed — browsing only')}
+                </p>
+                {store.data.openingTime && store.data.closingTime && (
+                  <p className="mt-0.5 text-[11px] text-ink-muted">
+                    {t(`يفتح الساعة ${store.data.openingTime}`, `Opens at ${store.data.openingTime}`)}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Error state */}
         {error && (
           <section className="px-5 pt-7" aria-live="assertive">
@@ -243,7 +262,7 @@ export const StoreDetailsMenu = () => {
             <div className="mb-4 flex items-end justify-between">
               <div>
                 <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-brand">
-                  Shop by aisle
+                  {t('تسوق حسب القسم', 'Shop by aisle')}
                 </p>
                 <h2 id="categories-heading" className="text-lg font-extrabold text-ink">
                   {t('الأقسام', 'Categories')}
@@ -277,6 +296,14 @@ export const StoreDetailsMenu = () => {
                         }`}
                         aria-pressed={isActive}
                       >
+                        {cat.imageUrl && (
+                          <img
+                            src={cat.imageUrl}
+                            alt=""
+                            className="mx-auto mb-1 h-8 w-8 rounded-lg object-cover"
+                            loading="lazy"
+                          />
+                        )}
                         <span className="block text-xs font-bold">{t(cat.ar, cat.en)}</span>
                       </button>
                     );

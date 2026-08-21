@@ -62,6 +62,12 @@ export interface Store {
   isApproved: boolean;
   /** Admin-curated: surfaces a "Recommended by us" badge on customer screens. */
   isRecommended: boolean;
+  /** Instant toggle: false = customers see "closed" banner but store stays visible. */
+  isAcceptingOrders: boolean;
+  /** Store opening hour (HH:mm format, e.g. "08:00"). */
+  openingTime: string | null;
+  /** Store closing hour (HH:mm format, e.g. "23:00"). */
+  closingTime: string | null;
   managerId: string;
   /** WGS84 shopfront coordinates — powers the captain "navigate to store". */
   latitude: number | null;
@@ -76,6 +82,7 @@ export interface Category {
   id: string;
   nameAr: string;
   nameEn: string;
+  imageUrl: string | null;
   storeId: string;
   /** Menu ordering — lower renders first. `@@index([storeId, sortOrder])` in Prisma. */
   sortOrder: number;
@@ -207,15 +214,17 @@ export interface Order {
   /**
    * Free-text destination — neighbourhood, street, landmark.
    * Samou' has no reliable street numbering, so the captain phones the customer.
-   * The customer address is intentionally free text with no lat/lng — GPS is
-   * used only operationally (store coordinates + the assigned captain's live
-   * position via `CaptainLocation`), never on the customer destination.
    */
   customerAddressText: string;
   /** Optional extra directions ("بجانب مسجد عمر، الطابق الثاني"). */
   addressNote: string | null;
   /** Customer instruction for the whole order, separate from directions. */
   orderNote: string | null;
+  /** Delivery preset: "call_on_arrival", "leave_at_door", or null. */
+  deliveryPreset: string | null;
+  /** GPS coordinates of the delivery pin — null for legacy orders. */
+  latitude: number | null;
+  longitude: number | null;
   /** Kitchen estimate selected when the store accepts the order. */
   estimatedPrepMinutes: number | null;
   subtotal: number;
@@ -266,6 +275,8 @@ export interface OrderSummary {
   createdAt: IsoDateTime;
   /** Customer instruction for the whole order, e.g. "اتصل قبل الوصول". */
   orderNote: string | null;
+  /** Delivery preset: "call_on_arrival", "leave_at_door", or null. */
+  deliveryPreset: string | null;
   /** Kitchen estimate chosen when the store accepted the order. */
   estimatedPrepMinutes: number | null;
   /**

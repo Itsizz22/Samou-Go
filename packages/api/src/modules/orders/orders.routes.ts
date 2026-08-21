@@ -80,3 +80,25 @@ ordersRouter.patch(
   authorize(UserRole.CAPTAIN, UserRole.ADMIN),
   asyncHandler(controller.setOrderDeliveryZoneHandler)
 );
+
+/**
+ * PATCH /orders/:orderId/review — driver/customer sets a rating and comment
+ * for the order. Only the order customer, store manager, or admin may do this,
+ * and only while the order is in a non-terminal state.
+ */
+ordersRouter.patch(
+  '/:orderId/review',
+  authorize(UserRole.CUSTOMER, UserRole.STORE_MANAGER, UserRole.CAPTAIN, UserRole.ADMIN),
+  asyncHandler(controller.setOrderReviewHandler)
+);
+
+/**
+ * PATCH /orders/:orderId/set-delivery-fee — driver sets a custom delivery fee
+ * when the platform setting `isDriverDynamicFeeEnabled` is true.
+ * Only the assigned captain (or admin) may do this, and only while the order is live.
+ */
+ordersRouter.patch(
+  '/:orderId/set-delivery-fee',
+  authorize(UserRole.CAPTAIN, UserRole.ADMIN),
+  asyncHandler(controller.setOrderDeliveryFeeHandler)
+);

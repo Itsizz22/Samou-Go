@@ -46,6 +46,9 @@ export function toOrder(order: PrismaOrder): Order {
     customerAddressText: order.customerAddressText,
     addressNote: order.addressNote,
     orderNote: order.orderNote,
+    deliveryPreset: order.deliveryPreset,
+    latitude: order.latitude,
+    longitude: order.longitude,
     estimatedPrepMinutes: order.estimatedPrepMinutes,
     subtotal: decimalToNumber(order.subtotal),
     deliveryFee: decimalToNumber(order.deliveryFee),
@@ -139,6 +142,7 @@ export function toOrderSummary(order: OrderForSummary): OrderSummary {
     storeNameAr: order.store.nameAr,
     createdAt: order.createdAt.toISOString(),
     orderNote: order.orderNote,
+    deliveryPreset: order.deliveryPreset,
     estimatedPrepMinutes: order.estimatedPrepMinutes,
     itemNotes: order.items.flatMap((item) =>
       item.note

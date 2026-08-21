@@ -2,26 +2,20 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Crosshair, Eye, EyeOff, Loader2, LockKeyhole, MapPin, ShoppingCart } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  type ConfirmationResult,
-  type UserCredential,
-} from 'firebase/auth';
-import {
   ApiError,
-  firebaseRegister,
+  register,
   requestOtp,
   resetPassword,
   setSessionPersistence,
   updateMyLocation,
   useAuth,
   useToast,
+  verifyOtp,
 } from '@/hooks/useApi';
 import { OtpPinInput } from '@/components/OtpPinInput';
 import { useLanguage } from '@samou-go/ui';
-import { normalizePhone, isValidPalestinianMobile, toE164 } from '@/lib/phone';
+import { normalizePhone, isValidPalestinianMobile } from '@/lib/phone';
 import { roleHomePath } from '@/lib/roles';
-import { auth as firebaseAuth, isMockAuth, MOCK_FIREBASE_ID_TOKEN } from '@/lib/firebase';
 import {
   ADDRESS_TAG_META,
   ADDRESS_TAGS,
@@ -50,67 +44,6 @@ function apiErrorMessage(cause: unknown, fallback: LocalizedText): LocalizedText
   return fieldMessages.length > 0
     ? { ar: fieldMessages.join(' · '), en: cause.localizedMessage }
     : { ar: cause.message, en: cause.localizedMessage };
-}
-
-const FIREBASE_ERROR_MESSAGES: Record<string, LocalizedText> = {
-  'auth/invalid-phone-number': { ar: 'رقم الجوال غير صالح', en: 'Invalid phone number' },
-  'auth/invalid-verification-code': { ar: 'رمز التحقق غير صحيح', en: 'Invalid verification code' },
-  'auth/missing-verification-code': {
-    ar: 'أدخل رمز التحقق المكوّن من 6 أرقام',
-    en: 'Enter the 6-digit verification code',
-  },
-  'auth/code-expired': {
-    ar: 'انتهت صلاحية الرمز — اطلب رمزاً جديداً',
-    en: 'Code expired — request a new one',
-  },
-  'auth/too-many-requests': {
-    ar: 'طلبات كثيرة جداً — انتظر قليلاً',
-    en: 'Too many attempts — slow down',
-  },
-  'auth/quota-exceeded': {
-    ar: 'تجاوز حد الرسائل اليومي — حاول لاحقاً',
-    en: 'Daily SMS quota reached — try later',
-  },
-  'auth/network-request-failed': {
-    ar: 'تعذر الاتصال بالشبكة',
-    en: 'Network error — check your connection',
-  },
-  'auth/argument-error': {
-    ar: 'تعذّر تحميل التحقق الأمني — أعد المحاولة',
-    en: 'Security check failed to load — retry',
-  },
-  'auth/captcha-check-failed': {
-    ar: 'تعذّر التحقق من أنك لست روبوتاً — أعد المحاولة',
-    en: 'reCAPTCHA failed — try again',
-  },
-  'auth/invalid-recaptcha-token': {
-    ar: 'تعذّر التحقق من أنك لست روبوتاً — أعد المحاولة',
-    en: 'reCAPTCHA failed — try again',
-  },
-  'auth/missing-recaptcha-token': {
-    ar: 'تعذّر التحقق من أنك لست روبوتاً — أعد المحاولة',
-    en: 'reCAPTCHA failed — try again',
-  },
-  'auth/operation-not-allowed': {
-    ar: 'التحقق عبر الجوال غير مفعّل — تواصل مع الدعم',
-    en: 'Phone sign-in is not enabled',
-  },
-  'auth/unauthorized-domain': {
-    ar: 'هذا النطاق غير مصرّح في Firebase — تواصل مع الدعم',
-    en: 'Domain not authorized for Firebase — contact support',
-  },
-  'auth/internal-error': { ar: 'خطأ داخلي — أعد المحاولة', en: 'Internal error — try again' },
-};
-
-/**
- * Firebase phone-auth failures carry SDK error codes (`auth/...`) instead of
- * HTTP envelopes — map the ones a Palestinian user can actually hit to a
- * localized sentence, and fall back for anything unexpected.
- */
-function firebaseErrorMessage(cause: unknown, fallback: LocalizedText): LocalizedText {
-  const code = (cause as { code?: string } | null)?.code;
-  if (!code) return fallback;
-  return FIREBASE_ERROR_MESSAGES[code] ?? fallback;
 }
 
 function AuthShell({ children }: { children: React.ReactNode }) {
@@ -227,13 +160,15 @@ export function LoginScreen() {
             inputMode="tel"
             autoComplete="tel"
             value={phone}
-            onChange={event => setPhone(event.target.value)}
+            onChange={event => setPhone(event.target.value.replace(/[^\d+]/g, ''))}
             placeholder="05XXXXXXXX"
             aria-invalid={phone.length > 0 && !phoneValid(phone)}
           />
         </label>
         {phone.length > 0 && !phoneValid(phone) && (
-          <p className="mt-1 text-xs text-danger-ink">أدخل رقماً فلسطينياً صحيحاً.</p>
+          <p className="mt-1 text-xs text-danger-ink">
+            يرجى إدخال رقم جوال فلسطيني صالح يبدأ بـ 059 أو 056
+          </p>
         )}
         <PasswordInput label="كلمة المرور" value={password} onChange={setPassword} />
         <div className="mt-4 flex items-center justify-between text-sm">
@@ -281,50 +216,20 @@ export function RegisterScreen() {
   const [step, setStep] = useState<'form' | 'otp' | 'location'>('form');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [accepted, setAccepted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<LocalizedText | null>(null);
-  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
   const [code, setCode] = useState('');
   const [resendIn, setResendIn] = useState(0);
-  const verifierRef = useRef<RecaptchaVerifier | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const RESEND_COOLDOWN = 60;
   useEffect(() => {
     if (!resendIn) return;
     const timer = window.setTimeout(() => setResendIn(resendIn - 1), 1000);
     return () => window.clearTimeout(timer);
   }, [resendIn]);
-  // ONE invisible reCAPTCHA widget for the whole screen lifetime, created on
-  // mount against the hidden container. Recreating a verifier on the same
-  // element per submit (or clearing mid-flight) races the widget render and
-  // throws `auth/argument-error` / `auth/captcha-check-failed` — reuse the
-  // same instance for every send/resend and tear it down only on unmount.
-  useEffect(() => {
-    if (isMockAuth) return;
-    // The widget must be constructed against a real DOM node. A ref (not a
-    // string id lookup) guarantees the node from this very render — a stale
-    // or missing `#recaptcha-container` would otherwise throw uncaught here.
-    const container = containerRef.current;
-    if (!container) {
-      console.error('[firebase] #recaptcha-container not in the DOM — reCAPTCHA disabled');
-      return;
-    }
-    const verifier = new RecaptchaVerifier(firebaseAuth, container, {
-      size: 'invisible',
-    });
-    verifierRef.current = verifier;
-    window.recaptchaVerifier = verifier;
-    return () => {
-      try {
-        verifier.clear();
-      } catch {
-        // Never rendered — nothing to tear down.
-      }
-      window.recaptchaVerifier = undefined;
-      verifierRef.current = null;
-    };
-  }, []);
-  const valid = name.trim().length >= 2 && phoneValid(phone) && accepted;
+  const valid = name.trim().length >= 2 && phoneValid(phone) && password.length >= 8 && password === confirmPassword && accepted;
   const [locationText, setLocationText] = useState('');
   const [locationTag, setLocationTag] = useState<AddressTag>('home');
   const [geoPending, setGeoPending] = useState(false);
@@ -332,118 +237,87 @@ export function RegisterScreen() {
   const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
   if (auth.ready && auth.user) return <Navigate to={roleHomePath(auth.user.role)} replace />;
   const normalizedPhone = normalizePhone(phone);
-  /**
-   * Widget-init failures mean the invisible reCAPTCHA iframe never finished
-   * booting (stale widget, interrupted load, domain re-check). Tear the old
-   * verifier down and build a fresh one so the user's retry starts with a
-   * clean widget instead of a half-initialised one.
-   */
-  const rebuildVerifier = () => {
-    const old = verifierRef.current;
-    if (old) {
-      try {
-        old.clear();
-      } catch {
-        // Widget never rendered — nothing to tear down.
-      }
-    }
-    verifierRef.current = null;
-    window.recaptchaVerifier = undefined;
-    const container = containerRef.current;
-    if (!container) {
-      console.error('[firebase] #recaptcha-container missing during verifier rebuild');
-      return;
-    }
-    const fresh = new RecaptchaVerifier(firebaseAuth, container, {
-      size: 'invisible',
-    });
-    verifierRef.current = fresh;
-    window.recaptchaVerifier = fresh;
-  };
-  const isWidgetFailure = (code: string | undefined) =>
-    code === 'auth/argument-error' ||
-    code === 'auth/captcha-check-failed' ||
-    code === 'auth/invalid-recaptcha-token' ||
-    code === 'auth/missing-recaptcha-token' ||
-    code === 'auth/internal-error';
   const sendCode = () => {
     if (pending) return;
-    // Mock-auth mode (VITE_USE_MOCK_AUTH=true): skip Firebase Phone Auth and
-    // the reCAPTCHA widget entirely. Any 6-digit code is accepted; the finish
-    // step presents the API's mock ID token instead of a real Firebase one.
-    if (isMockAuth) {
-      setPending(true);
-      setError(null);
-      window.setTimeout(() => {
-        setConfirmation({
-          verificationId: `mock-${Date.now()}`,
-          confirm: async () =>
-            ({
-              user: { getIdToken: async () => MOCK_FIREBASE_ID_TOKEN },
-            }) as unknown as UserCredential,
-        });
-        setStep('otp');
-        setResendIn(30);
-        setPending(false);
-        toast.info(
-          'وضع الاختبار: أدخل أي رمز من 6 أرقام',
-          'Mock auth — any 6-digit code is accepted'
-        );
-      }, 400);
-      return;
-    }
-    const verifier = verifierRef.current;
-    if (!verifier) return;
     setPending(true);
     setError(null);
-    signInWithPhoneNumber(firebaseAuth, toE164(normalizedPhone), verifier)
-      .then(result => {
-        setConfirmation(result);
+    void requestOtp({ phone: normalizedPhone })
+      .then(() => {
         setStep('otp');
-        setResendIn(30);
-        toast.success('تم إرسال رمز التحقق', 'OTP sent — check your SMS inbox');
+        setResendIn(RESEND_COOLDOWN);
       })
       .catch((cause: unknown) => {
-        const message = firebaseErrorMessage(cause, {
-          ar: 'تعذر إرسال رمز التحقق — حاول مجدداً.',
-          en: 'Could not send the code — try again.',
-        });
+        const apiErr = cause as { code?: string; status?: number } | null;
+        let message: LocalizedText;
+        if (apiErr?.code === 'OTP_RATE_LIMITED') {
+          message = { ar: 'طلبات كثيرة جداً — يرجى الانتظار قبل طلب رمز جديد', en: 'Too many requests — please wait before requesting a new code' };
+        } else if (apiErr?.code === 'SMS_DELIVERY_FAILED') {
+          message = { ar: 'تعذّر إرسال رمز التحقق — يرجى المحاولة مجدداً', en: 'Could not send verification code — please try again' };
+        } else if (apiErr?.status === 429) {
+          message = { ar: 'تم تجاوز حد الطلبات — يرجى المحاولة لاحقاً', en: 'Rate limit exceeded — please try again later' };
+        } else if (apiErr?.status && apiErr?.status >= 500) {
+          message = { ar: 'خطأ في الخادم — يرجى المحاولة لاحقاً', en: 'Server error — please try again later' };
+        } else {
+          message = apiErrorMessage(cause, { ar: 'تعذر إرسال الرمز.', en: 'Could not send the code.' });
+        }
         setError(message);
-        toast.error(message.ar, message.en);
-        // A half-initialised widget poisons every later attempt — rebuild it
-        // so the next send/resend gets a fresh reCAPTCHA.
-        if (isWidgetFailure((cause as { code?: string } | null)?.code)) rebuildVerifier();
       })
       .finally(() => setPending(false));
   };
-  const finish = () => {
-    if (code.length !== 6 || pending || !confirmation) return;
+  const handleRegister = () => {
+    if (pending) return;
     setPending(true);
     setError(null);
-    setSessionPersistence(true);
-    confirmation
-      .confirm(code)
-      .then(async firebaseUser => {
-        const idToken = await firebaseUser.user.getIdToken();
-        return firebaseRegister({ idToken, name: name.trim(), phone: normalizedPhone });
-      })
-      // Account is live — collect a delivery address before dropping the user
-      // into the app, so the first checkout starts with a prefilled location.
+    void register({ name: name.trim(), phone: normalizedPhone, password })
       .then(() => {
-        toast.success('تم إنشاء حسابك — أهلاً بك!', 'Account created — welcome!');
+        setStep('otp');
+        setResendIn(RESEND_COOLDOWN);
+        toast.success('تم إنشاء الحساب — تم إرسال رمز التحقق', 'Account created — verification code sent');
+      })
+      .catch((cause: unknown) => {
+        const apiErr = cause as { code?: string; status?: number; details?: Array<{ path: string; message: string }> } | null;
+        let message: LocalizedText;
+        if (apiErr?.code === 'CONFLICT') {
+          message = { ar: 'رقم الجوال مسجّل مسبقاً', en: 'This phone number is already registered' };
+        } else if (apiErr?.details?.some(d => d.path === 'password')) {
+          const detail = apiErr.details.find(d => d.path === 'password');
+          message = { ar: detail?.message ?? 'كلمة المرور غير صالحة', en: detail?.message ?? 'Invalid password' };
+        } else if (apiErr?.status === 429) {
+          message = { ar: 'تم تجاوز حد الطلبات — يرجى المحاولة لاحقاً', en: 'Rate limit exceeded — please try again later' };
+        } else if (apiErr?.status && apiErr?.status >= 500) {
+          message = { ar: 'خطأ في الخادم — يرجى المحاولة لاحقاً', en: 'Server error — please try again later' };
+        } else {
+          message = apiErrorMessage(cause, { ar: 'تعذر إنشاء الحساب.', en: 'Could not create account.' });
+        }
+        setError(message);
+      })
+      .finally(() => setPending(false));
+  };
+const finish = () => {
+    if (code.length !== 6 || pending) return;
+    setPending(true);
+    setError(null);
+    void verifyOtp({ phone: normalizedPhone, code })
+      .then(() => {
+        toast.success('تم تفعيل الحساب — أهلاً بك!', 'Account verified — welcome!');
         setStep('location');
       })
       .catch((cause: unknown) => {
-        const message = firebaseErrorMessage(cause, {
-          ar: 'رمز التحقق غير صحيح.',
-          en: 'Verification code is incorrect.',
-        });
+        const apiErr = cause as { code?: string; status?: number } | null;
+        let message: LocalizedText;
+        if (apiErr?.code === 'INVALID_FEE' || apiErr?.code === 'VOUCHER_NOT_FOUND') {
+          message = { ar: 'رمز التحقق غير صحيح أو منتهي الصلاحية', en: 'Invalid or expired verification code' };
+        } else if (apiErr?.status === 400) {
+          message = { ar: 'رمز التحقق غير صحيح — يرجى طلب رمز جديد', en: 'Invalid verification code — please request a new code' };
+        } else if (apiErr?.status === 404) {
+          message = { ar: 'الحساب غير موجود', en: 'Account not found' };
+        } else if (apiErr?.status && apiErr?.status >= 500) {
+          message = { ar: 'خطأ في الخادم — يرجى المحاولة لاحقاً', en: 'Server error — please try again later' };
+        } else {
+          message = apiErrorMessage(cause, { ar: 'تعذر تفعيل الحساب.', en: 'Could not verify account.' });
+        }
         setError(message);
-        // An invalid or expired code must not stick in the pin input — clear
-        // it so the retry starts from a clean field (and the submit button
-        // un-disables only once all 6 digits are re-entered).
-        const codeErr = (cause as { code?: string } | null)?.code;
-        if (codeErr === 'auth/invalid-verification-code' || codeErr === 'auth/code-expired') {
+        if (apiErr?.status === 400 || apiErr?.status === 404) {
           setCode('');
         }
       })
@@ -512,15 +386,6 @@ export function RegisterScreen() {
   return (
     <AuthShell>
       <h1 className="text-xl font-extrabold">{t('إنشاء حساب', 'Create your account')}</h1>
-      {/* Invisible reCAPTCHA host — kept in the DOM but pushed off-screen.
-          `display:none` breaks the widget render in some browsers, so hide it
-          geometrically instead. */}
-      <div
-        id="recaptcha-container"
-        ref={containerRef}
-        aria-hidden="true"
-        className="pointer-events-none fixed -z-10 start-[-9999px] top-[-9999px] h-px w-px opacity-0"
-      />
       {step === 'form' && (
         <form
           noValidate
@@ -550,6 +415,41 @@ export function RegisterScreen() {
               onChange={event => setPhone(event.target.value.replace(/[^\d+]/g, ''))}
               placeholder="05XXXXXXXX"
             />
+            {phone.length > 0 && !phoneValid(phone) && (
+              <p className="mt-1 text-xs text-danger-ink">
+                يرجى إدخال رقم جوال فلسطيني صالح يبدأ بـ 059 أو 056
+              </p>
+            )}
+          </label>
+          <label className="mt-4 block text-sm font-bold">
+            كلمة المرور
+            <input
+              type="password"
+              className="input-field mt-1.5 w-full"
+              dir="ltr"
+              autoComplete="new-password"
+              value={password}
+              onChange={event => setPassword(event.target.value)}
+              placeholder="كلمة مرور (٨ أحرف على الأقل)"
+            />
+            {password.length > 0 && password.length < 8 && (
+              <p className="mt-1 text-xs text-danger-ink">كلمة المرور يجب أن تكون ٨ أحرف على الأقل</p>
+            )}
+          </label>
+          <label className="mt-4 block text-sm font-bold">
+            تأكيد كلمة المرور
+            <input
+              type="password"
+              className="input-field mt-1.5 w-full"
+              dir="ltr"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={event => setConfirmPassword(event.target.value)}
+              placeholder="أعد إدخال كلمة المرور"
+            />
+            {confirmPassword.length > 0 && confirmPassword !== password && (
+              <p className="mt-1 text-xs text-danger-ink">كلمة المرور غير متطابقة</p>
+            )}
           </label>
           <label className="mt-4 flex items-start gap-2 text-sm text-ink-muted">
             <input
@@ -601,7 +501,7 @@ export function RegisterScreen() {
             disabled={resendIn > 0 || pending}
             className="mt-4 w-full text-sm font-bold text-brand"
           >
-            {resendIn ? `إعادة الإرسال خلال ${resendIn}ث` : 'إعادة إرسال الرمز'}
+            {resendIn ? `${t('إعادة الإرسال خلال', 'Resend in')} ${resendIn}${t('ث', 's')}` : t('إعادة إرسال الرمز', 'Resend code')}
           </button>
         </div>
       )}
@@ -704,6 +604,7 @@ export function ForgotPasswordScreen() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<LocalizedText | null>(null);
   const [resendIn, setResendIn] = useState(0);
+  const RESEND_COOLDOWN = 60;
   useEffect(() => {
     if (!resendIn) return;
     const timer = window.setTimeout(() => setResendIn(resendIn - 1), 1000);
@@ -716,11 +617,24 @@ export function ForgotPasswordScreen() {
     void requestOtp({ phone: normalizePhone(phone) })
       .then(() => {
         setStep(2);
-        setResendIn(30);
+        setResendIn(RESEND_COOLDOWN);
       })
-      .catch((cause: unknown) =>
-        setError(apiErrorMessage(cause, { ar: 'تعذر إرسال الرمز.', en: 'Could not send the code.' }))
-      )
+      .catch((cause: unknown) => {
+        const apiErr = cause as { code?: string; status?: number } | null;
+        let message: LocalizedText;
+        if (apiErr?.code === 'OTP_RATE_LIMITED') {
+          message = { ar: 'طلبات كثيرة جداً — يرجى الانتظار قبل طلب رمز جديد', en: 'Too many requests — please wait before requesting a new code' };
+        } else if (apiErr?.code === 'SMS_DELIVERY_FAILED') {
+          message = { ar: 'تعذّر إرسال رمز التحقق — يرجى المحاولة مجدداً', en: 'Could not send verification code — please try again' };
+        } else if (apiErr?.status === 429) {
+          message = { ar: 'تم تجاوز حد الطلبات — يرجى المحاولة لاحقاً', en: 'Rate limit exceeded — please try again later' };
+        } else if (apiErr?.status && apiErr?.status >= 500) {
+          message = { ar: 'خطأ في الخادم — يرجى المحاولة لاحقاً', en: 'Server error — please try again later' };
+        } else {
+          message = apiErrorMessage(cause, { ar: 'تعذر إرسال الرمز.', en: 'Could not send the code.' });
+        }
+        setError(message);
+      })
       .finally(() => setPending(false));
   };
   const finish = () => {
@@ -729,9 +643,22 @@ export function ForgotPasswordScreen() {
     setError(null);
     void resetPassword({ phone: normalizePhone(phone), code, password })
       .then(() => navigate('/login', { replace: true, state: { resetComplete: true } }))
-      .catch((cause: unknown) =>
-        setError(apiErrorMessage(cause, { ar: 'تعذر تحديث كلمة المرور.', en: 'Could not update the password.' }))
-      )
+      .catch((cause: unknown) => {
+        const apiErr = cause as { code?: string; status?: number } | null;
+        let message: LocalizedText;
+        if (apiErr?.code === 'INVALID_FEE' || apiErr?.code === 'VOUCHER_NOT_FOUND') {
+          message = { ar: 'رمز التحقق غير صحيح أو منتهي الصلاحية', en: 'Invalid or expired verification code' };
+        } else if (apiErr?.status === 400) {
+          message = { ar: 'رمز التحقق غير صحيح — يرجى طلب رمز جديد', en: 'Invalid verification code — please request a new code' };
+        } else if (apiErr?.status === 404) {
+          message = { ar: 'الحساب غير موجود', en: 'Account not found' };
+        } else if (apiErr?.status && apiErr?.status >= 500) {
+          message = { ar: 'خطأ في الخادم — يرجى المحاولة لاحقاً', en: 'Server error — please try again later' };
+        } else {
+          message = apiErrorMessage(cause, { ar: 'تعذر تحديث كلمة المرور.', en: 'Could not update the password.' });
+        }
+        setError(message);
+      })
       .finally(() => setPending(false));
   };
   return (
@@ -746,9 +673,14 @@ export function ForgotPasswordScreen() {
               dir="ltr"
               inputMode="tel"
               value={phone}
-              onChange={event => setPhone(event.target.value)}
+              onChange={event => setPhone(event.target.value.replace(/[^\d+]/g, ''))}
               placeholder="05XXXXXXXX"
             />
+            {phone.length > 0 && !phoneValid(phone) && (
+              <p className="mt-1 text-xs text-danger-ink">
+                يرجى إدخال رقم جوال فلسطيني صالح يبدأ بـ 059 أو 056
+              </p>
+            )}
           </label>
           <ErrorBanner error={error} />
           <button
@@ -791,7 +723,7 @@ export function ForgotPasswordScreen() {
             disabled={resendIn > 0 || pending}
             className="mt-4 w-full text-sm font-bold text-brand"
           >
-            {resendIn ? `إعادة الإرسال خلال ${resendIn}ث` : 'إعادة إرسال الرمز'}
+            {resendIn ? `${t('إعادة الإرسال خلال', 'Resend in')} ${resendIn}${t('ث', 's')}` : t('إعادة إرسال الرمز', 'Resend code')}
           </button>
         </div>
       )}

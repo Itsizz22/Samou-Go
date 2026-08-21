@@ -1,61 +1,119 @@
 /**
- * Twilio adapter — REST API over fetch, no SDK dependency.
+ * Twilio adapter — uses the official twilio Node SDK.
  *
- * Sends via the Messages resource:
- *   POST /2010-04-01/Accounts/{sid}/Messages.json
- * with HTTP Basic auth (sid:authToken) and form-encoded payload.
+ * Two dispatch paths:
+ *   1. **Twilio Verify** (default when `TWILIO_VERIFY_SERVICE_SID` is set):
+ *      delegates code generation and verification to Twilio's managed Verify
+ *      service. The adapter exposes `verify()` and `check()` so the OTP service
+ *      can offload code lifecycle to Twilio.
+ *   2. **Twilio Messages** (fallback when `TWILIO_VERIFY_SERVICE_SID` is absent):
+ *      sends raw SMS via the Messages API — the server generates and stores
+ *      the OTP code itself (same flow as other SMS providers).
  */
 
+import Twilio from 'twilio';
 import { env } from '../../config/env';
 import type { SmsGateway, SmsMessage, SmsSendResult } from './types';
 
-const TWILIO_API_BASE = 'https://api.twilio.com/2010-04-01';
+export interface TwilioVerifyResult {
+  sid: string;
+  status: string;
+}
 
-export function createTwilioGateway(): SmsGateway {
+export interface TwilioCheckResult {
+  sid: string;
+  status: string;
+  valid: boolean;
+}
+
+export function createTwilioGateway(): SmsGateway & {
+  verify?(to: string, customMessage?: string): Promise<TwilioVerifyResult>;
+  check?(to: string, code: string): Promise<TwilioCheckResult>;
+} {
   const { accountSid, authToken, from } = env.sms.twilio;
+  const verifyServiceSid = env.sms.twilio.verifyServiceSid;
 
-  if (!accountSid || !authToken || !from) {
+  if (!accountSid || !authToken) {
     throw new Error(
-      'SMS_PROVIDER=twilio requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER'
+      'SMS_PROVIDER=twilio requires TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN',
+    );
+  }
+
+  const client = Twilio(accountSid, authToken);
+
+  // ── Verify path ──────────────────────────────────────────────────────────
+  if (verifyServiceSid) {
+    return {
+      provider: 'twilio',
+      async send(message: SmsMessage): Promise<SmsSendResult> {
+        const verification = await client.verify.v2
+          .services(verifyServiceSid)
+          .verifications.create({
+            to: message.to,
+            channel: 'sms',
+          });
+
+        return {
+          accepted: verification.status === 'pending',
+          providerMessageId: verification.sid,
+        };
+      },
+
+      async verify(to: string, customMessage?: string): Promise<TwilioVerifyResult> {
+        // When a custom bilingual body is required (e.g. Arabic+English
+        // server-generated message), bypass Verify and send via Messages API.
+        if (customMessage && from) {
+          await client.messages.create({
+            to,
+            from,
+            body: customMessage,
+          });
+          // Return a synthetic pending result — the OTP service stores the
+          // code hash in the DB and verifies it server-side, same as the
+          // Messages-only path.
+          return { sid: 'raw-sms', status: 'pending' };
+        }
+
+        const verification = await client.verify.v2
+          .services(verifyServiceSid)
+          .verifications.create({ to, channel: 'sms' });
+
+        return { sid: verification.sid, status: verification.status };
+      },
+
+      async check(to: string, code: string): Promise<TwilioCheckResult> {
+        const check = await client.verify.v2
+          .services(verifyServiceSid)
+          .verificationChecks.create({ to, code });
+
+        return {
+          sid: check.sid,
+          status: check.status,
+          valid: check.valid,
+        };
+      },
+    };
+  }
+
+  // ── Messages-only path (no Verify service configured) ────────────────────
+  if (!from) {
+    throw new Error(
+      'SMS_PROVIDER=twilio requires TWILIO_FROM_NUMBER',
     );
   }
 
   return {
     provider: 'twilio',
     async send(message: SmsMessage): Promise<SmsSendResult> {
-      const body = new URLSearchParams({
-        To: message.to,
-        From: from,
-        Body: message.body,
+      const msg = await client.messages.create({
+        to: message.to,
+        from,
+        body: message.body,
       });
-
-      const response = await fetch(`${TWILIO_API_BASE}/Accounts/${accountSid}/Messages.json`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: body.toString(),
-      });
-
-      const payload = (await response.json().catch(() => ({}))) as {
-        status?: string;
-        sid?: string;
-        code?: number;
-        message?: string;
-      };
-
-      if (!response.ok) {
-        // The provider's own reason (e.g. "The 'To' number is not a valid phone
-        // number") is exactly what Render logs need — surface it verbatim.
-        throw new Error(
-          `Twilio rejected the message (${response.status}): ${payload.message ?? payload.code ?? 'no detail'}`,
-        );
-      }
 
       return {
-        accepted: true,
-        providerMessageId: payload.sid,
+        accepted: msg.status === 'queued' || msg.status === 'sent',
+        providerMessageId: msg.sid,
       };
     },
   };

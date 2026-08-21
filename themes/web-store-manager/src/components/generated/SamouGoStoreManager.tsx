@@ -23,6 +23,8 @@ import {
   Clock3,
   Home,
   Loader2,
+  Menu,
+  X,
   LogOut,
   MapPin,
   Megaphone,
@@ -35,7 +37,7 @@ import {
   StickyNote,
   Store,
   UtensilsCrossed,
-  X,
+  Phone,
 } from 'lucide-react';
 import {
   SignInGate,
@@ -68,6 +70,8 @@ import {
   type OrderSummary,
   type Store as StoreType,
   type UpdateOrderStatusInput,
+  formatWhatsAppLink,
+  WHATSAPP_MESSAGES,
 } from '@samou-go/shared-types';
 import { ProductCataloguePanel } from './ProductCataloguePanel';
 import { CategoriesPanel } from './CategoriesPanel';
@@ -144,8 +148,13 @@ export function SamouGoStoreManager() {
   const [prepMinutes, setPrepMinutes] = useState(25);
   const [storeTogglePending, setStoreTogglePending] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('home');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [menuView, setMenuView] = useState<'products' | 'sections'>('products');
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  /** Operating hours state */
+  const [openingTime, setOpeningTime] = useState<string>('');
+  const [closingTime, setClosingTime] = useState<string>('');
+  const [hoursPending, setHoursPending] = useState(false);
 
   /* -- /Role gate --------------------------------------------------------- */
 
@@ -155,13 +164,39 @@ export function SamouGoStoreManager() {
     setIsOpen(next);
     setStoreTogglePending(true);
     try {
-      await updateStore(managedStoreId, { isActive: next });
+      await updateStore(managedStoreId, { isAcceptingOrders: next });
       toast.success(next ? 'تم فتح المتجر ✅' : 'تم إغلاق المتجر', next ? 'Store is now open' : 'Store is now closed');
     } catch (err) {
       setIsOpen(!next);
       toast.error('تعذّر تحديث حالة المتجر', err instanceof Error ? err.message : String(err));
     } finally {
       setStoreTogglePending(false);
+    }
+  };
+
+  // Sync operating hours from the loaded store data
+  useEffect(() => {
+    if (managedStore.data) {
+      setIsOpen(managedStore.data.isAcceptingOrders);
+      setOpeningTime(managedStore.data.openingTime ?? '');
+      setClosingTime(managedStore.data.closingTime ?? '');
+    }
+  }, [managedStore.data]);
+
+  const handleSaveHours = async () => {
+    if (!managedStoreId || hoursPending) return;
+    setHoursPending(true);
+    try {
+      await updateStore(managedStoreId, {
+        openingTime: openingTime || null,
+        closingTime: closingTime || null,
+      });
+      toast.success('تم حفظ أوقات العمل', 'Operating hours saved');
+      void managedStore.reload();
+    } catch (err) {
+      toast.error('تعذّر حفظ الأوقات', err instanceof Error ? err.message : String(err));
+    } finally {
+      setHoursPending(false);
     }
   };
 
@@ -190,6 +225,17 @@ export function SamouGoStoreManager() {
     { status: OrderStatus.DELIVERED, pageSize: 1 },
     { enabled: Boolean(auth.user) && isManager }
   );
+  // For the sales KPI we need the actual amounts — fetch enough for a daily total.
+  const deliveredTodayFull = useOrders(
+    { status: OrderStatus.DELIVERED, pageSize: 100 },
+    { enabled: Boolean(auth.user) && isManager }
+  );
+  const completedTodaySales = useMemo(() => {
+    const today = new Date().toDateString();
+    return (deliveredTodayFull.data?.items ?? [])
+      .filter((o) => new Date(o.createdAt).toDateString() === today)
+      .reduce((sum, o) => sum + o.totalAmount, 0);
+  }, [deliveredTodayFull.data]);
 
   const incomingItems = useMemo(() => incoming.data?.items ?? [], [incoming.data]);
   const acceptedItems = useMemo(() => accepted.data?.items ?? [], [accepted.data]);
@@ -370,8 +416,9 @@ export function SamouGoStoreManager() {
   /* ---- Render ------------------------------------------------------------ */
 
   return (
-    <main className="min-h-screen bg-canvas pb-24 font-sans text-ink md:pe-60">
-      <aside className="fixed inset-y-0 end-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل مدير المتجر">
+    <main className={`min-h-screen bg-canvas pb-24 font-sans text-ink transition-[padding] duration-300 ${sidebarOpen ? 'md:pe-60' : ''}`}>
+      {sidebarOpen && <button type="button" aria-label={t('إغلاق القائمة', 'Close navigation')} onClick={() => setSidebarOpen(false)} className="fixed inset-0 z-20 bg-ink/40 md:hidden" />}
+      <aside className={`fixed inset-y-0 end-0 z-30 flex w-60 flex-col bg-brand-deep px-4 py-6 text-white shadow-overlay transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} aria-label={t('تنقل مدير المتجر', 'Store manager navigation')}>
         <p className="px-3 text-lg font-extrabold">Samou' Go</p>
         <p className="px-3 text-[11px] text-white/70">مدير المتجر</p>
         <nav className="mt-8 flex-1 space-y-1">
@@ -379,7 +426,7 @@ export function SamouGoStoreManager() {
             const Icon = tab.icon;
             const selected = activeTab === tab.id;
             return <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition ${selected ? 'bg-brand text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'}`}>
-              <Icon size={18} /><span>{tab.ar}</span>
+              <Icon size={18} /><span>{t(tab.ar, tab.en)}</span>
             </button>;
           })}
         </nav>
@@ -403,9 +450,11 @@ export function SamouGoStoreManager() {
             </button>
           </div>
         </div>
+        <button type="button" onClick={() => setSidebarOpen(false)} aria-label={t('إغلاق القائمة', 'Close navigation')} className="absolute start-3 top-3 rounded-lg p-2 text-white/80 hover:bg-white/10 md:hidden"><X size={18} /></button>
       </aside>
       <header className="bg-brand px-4 pb-4 pt-4 text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="التنقل الرئيسي">
+          <button type="button" onClick={() => setSidebarOpen(value => !value)} aria-expanded={sidebarOpen} aria-label={t('فتح القائمة', 'Open navigation')} className="rounded-lg p-2 text-white transition hover:bg-white/10 active:scale-95"><Menu size={21} /></button>
           <div className="flex-1 text-center leading-tight">
             <h1 className="text-[15px] font-extrabold">{t('لوحة المتجر', 'Store Manager')}</h1>
           </div>
@@ -450,6 +499,43 @@ export function SamouGoStoreManager() {
           >
             <span className={`h-4 w-4 rounded-full ${isOpen ? 'bg-brand' : 'bg-surface'}`} />
           </button>
+        </div>
+
+        {/* Operating hours */}
+        <div className="mx-auto mt-2 max-w-md rounded-xl bg-brand-dark/80 px-3 py-2.5">
+          <div className="flex items-center gap-2 text-[11px] font-bold text-white/90">
+            <Clock3 size={13} />
+            <span>{t('أوقات العمل', 'Operating hours')}</span>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <label className="flex-1">
+              <span className="block text-[10px] text-white/70">{t('من', 'From')}</span>
+              <input
+                type="time"
+                value={openingTime}
+                onChange={(e) => setOpeningTime(e.target.value)}
+                className="mt-0.5 w-full rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-[11px] font-bold text-white outline-none focus:border-white/40"
+              />
+            </label>
+            <span className="mt-4 text-white/50">—</span>
+            <label className="flex-1">
+              <span className="block text-[10px] text-white/70">{t('إلى', 'To')}</span>
+              <input
+                type="time"
+                value={closingTime}
+                onChange={(e) => setClosingTime(e.target.value)}
+                className="mt-0.5 w-full rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-[11px] font-bold text-white outline-none focus:border-white/40"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => void handleSaveHours()}
+              disabled={hoursPending}
+              className="mt-4 rounded-lg bg-white/20 px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-white/30 active:scale-95 disabled:opacity-60"
+            >
+              {hoursPending ? <Loader2 size={12} className="animate-spin" /> : t('حفظ', 'Save')}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -519,6 +605,14 @@ export function SamouGoStoreManager() {
             labelEn="Completed"
             value={String(completedCount)}
             suffix=""
+            isLoading={deliveredToday.loading}
+          />
+          <KpiTile
+            icon={<BarChart3 size={17} />}
+            labelAr="مبيعات اليوم"
+            labelEn="Today's Sales"
+            value={String(completedTodaySales.toFixed(0))}
+            suffix="₪"
             isLoading={deliveredToday.loading}
           />
         </div>
@@ -920,6 +1014,8 @@ function KpiTile({ icon, labelAr, labelEn, value, suffix, isLoading }: KpiTilePr
 
 interface OrderRowProps {
   order: OrderSummary;
+  customerPhone?: string;
+  customerName?: string;
   pending: boolean;
   onAccept: () => void;
   onStartPreparing: () => void;
@@ -927,7 +1023,7 @@ interface OrderRowProps {
   onReject: () => void;
 }
 
-function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup, onReject }: OrderRowProps) {
+function OrderRow({ order, customerPhone, customerName, pending, onAccept, onStartPreparing, onReadyForPickup, onReject }: OrderRowProps) {
   const { t } = useLanguage();
   const time = relativeTime(order.createdAt);
   const itemCount = order.itemCount;
@@ -1024,6 +1120,16 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
             ))}
           </div>
         )}
+        {/* Delivery preset badge */}
+        {'deliveryPreset' in order && (order as { deliveryPreset?: string }).deliveryPreset && (
+          <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-info-ink">
+            <Phone size={12} />
+            {t(
+              (order as { deliveryPreset?: string }).deliveryPreset === 'call_on_arrival' ? 'اتصل عند الوصول' : 'اترك عند الباب',
+              (order as { deliveryPreset?: string }).deliveryPreset === 'call_on_arrival' ? 'Call on arrival' : 'Leave at door'
+            )}
+          </p>
+        )}
       </div>
 
       {/* READY_FOR_PICKUP: informational — captain is expected to claim it */}
@@ -1034,8 +1140,8 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
         </p>
       )}
 
-      {(primaryAction || canCancel) && (
-        <div className={`grid gap-2 ${primaryAction && canCancel ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      {(primaryAction || canCancel || customerPhone) && (
+        <div className={`grid gap-2 ${(primaryAction && canCancel) || (primaryAction && customerPhone) || (canCancel && customerPhone) ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {primaryAction && (
             <button
               type="button"
@@ -1057,6 +1163,25 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
               {pending ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />}
               {t('رفض', 'Cancel')}
             </button>
+          )}
+          {customerPhone && (
+            <a
+              href={formatWhatsAppLink(
+                customerPhone,
+                WHATSAPP_MESSAGES.storeManager(order.orderNumber, customerName, order.storeNameAr)
+              )}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={t('تواصل عبر واتساب', 'Contact via WhatsApp')}
+              title={t('تواصل عبر واتساب', 'Contact via WhatsApp')}
+              className="flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold text-white transition hover:opacity-90 active:scale-95"
+              style={{ backgroundColor: '#25D366' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.263.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.67m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378 3.094 3.094 0 01-.988-.77 9.86 9.86 0 004.776-5.684 3.072 3.072 0 011.228-.378c1.613 0 2.612 1.228 2.612 2.944 0 1.85-1.54 3.325-3.328 3.724-.34.074-.68.148-1.02.222-.34.074-.567.075-.827-.074-.26-.148-.774-.865-1.077-1.488-.302-.622-.373-1.1-.074-1.328s.722-.148 1.095-.074c.373.075.68.3 1.02.623.623.56 1.096 1.592 1.314 2.56.183.78.173 1.558.048 2.068-.099.404-.404.828-.758 1.096-.353.267-.827.374-1.327.312-.488-.062-.948-.136-1.267-.375l-.57-.373c-.43-.238-.675-.286-1.12-.173-.352.123-1.121.375-1.582.81-.507.475-1.53 1.146-1.53 2.104 0 1.137.985 2.14 2.17 2.357.267.049.52.049.804.049.373 0 .747-.099 1.095-.272.34-.173.64-.397.89-.748.267-.373.39-.85.323-1.096-.074-.26-.468-.436-.967-.623-.373-.148-.847-.148-1.24-.074-.622.075-1.106.507-1.342 1.137-.21.576-.21 1.127-.105 1.274.105.15.423.624 1.096 1.517.788.975 2.03 2.18 2.03 3.558 0 2.374-2.778 2.374-2.778 2.914" />
+              </svg>
+              <span>{t('واتساب', 'WhatsApp')}</span>
+            </a>
           )}
         </div>
       )}

@@ -242,6 +242,11 @@ export function OrderTrackingScreen() {
                         : formatCurrency(order.data.deliveryFee)}
                     </dd>
                   </div>
+                  {order.data.deliveryFee <= 0 && !terminal && (
+                    <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
+                      {t('رسوم التوصيل: سيتم تحديدها بواسطة السائق عند الاستلام', 'Delivery fee: Will be set by driver upon pickup')}
+                    </p>
+                  )}
                   {order.data.discount > 0 && (
                     <div className="flex justify-between text-brand-dark">
                       <dt>{isArabic ? order.data.voucher?.labelAr ?? 'خصم الكوبون' : order.data.voucher?.labelEn ?? 'Voucher discount'}</dt>

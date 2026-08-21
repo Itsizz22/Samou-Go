@@ -15,6 +15,7 @@ import {
   ArrowUp,
   Check,
   FolderOpen,
+  Image as ImageIcon,
   Loader2,
   Pencil,
   Plus,
@@ -45,13 +46,14 @@ interface Props {
 interface CategoryFormState {
   nameAr: string;
   nameEn: string;
+  imageUrl: string;
   sortOrder: string;
 }
 
-const emptyForm = (): CategoryFormState => ({ nameAr: '', nameEn: '', sortOrder: '' });
+const emptyForm = (): CategoryFormState => ({ nameAr: '', nameEn: '', imageUrl: '', sortOrder: '' });
 
 function formFromCategory(c: Category): CategoryFormState {
-  return { nameAr: c.nameAr, nameEn: c.nameEn, sortOrder: String(c.sortOrder) };
+  return { nameAr: c.nameAr, nameEn: c.nameEn, imageUrl: c.imageUrl ?? '', sortOrder: String(c.sortOrder) };
 }
 
 /* ---------------------------------------------------------------------------
@@ -124,6 +126,7 @@ export function CategoriesPanel({ storeId }: Props) {
         await createCategory(storeId, {
           nameAr,
           nameEn: form.nameEn.trim() || undefined,
+          imageUrl: form.imageUrl.trim() || undefined,
           sortOrder,
         });
         toast.success('تم إنشاء القسم', 'Section created');
@@ -131,6 +134,7 @@ export function CategoriesPanel({ storeId }: Props) {
         await updateCategory(storeId, editTarget.id, {
           nameAr,
           nameEn: form.nameEn.trim() || undefined,
+          imageUrl: form.imageUrl.trim() || null,
           sortOrder,
         });
         toast.success('تم تحديث القسم', 'Section updated');
@@ -289,10 +293,26 @@ export function CategoriesPanel({ storeId }: Props) {
               {categories.map((c, index) => (
                 <tr key={c.id} className="transition hover:bg-canvas">
                   <td className="px-4 py-3">
-                    <span className="block font-bold text-ink">{c.nameAr}</span>
-                    <span className="block text-[11px] text-ink-muted" dir="ltr">
-                      {c.nameEn}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      {c.imageUrl ? (
+                        <img
+                          src={c.imageUrl}
+                          alt={c.nameAr}
+                          className="h-10 w-10 shrink-0 rounded-xl object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-surface text-brand">
+                          <ImageIcon size={16} />
+                        </span>
+                      )}
+                      <div>
+                        <span className="block font-bold text-ink">{c.nameAr}</span>
+                        <span className="block text-[11px] text-ink-muted" dir="ltr">
+                          {c.nameEn}
+                        </span>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-3 py-3 text-center">
                     <span className="inline-flex items-center gap-1 rounded-full bg-brand-tint px-2.5 py-1 text-micro font-bold text-brand-dark">
@@ -406,6 +426,32 @@ export function CategoriesPanel({ storeId }: Props) {
                 <span className="mt-1 block text-[11px] text-ink-muted">
                   {t('يُترك فارغاً ليتم توليده تلقائياً. يجب أن يكون فريداً داخل المتجر.', 'Leave empty to auto-generate. Must be unique within the store.')}
                 </span>
+              </label>
+
+              {/* Image URL */}
+              <label className="block">
+                <span className="mb-1 block text-xs font-bold text-ink">
+                  {t('رابط صورة القسم', 'Section image URL')} <span className="font-normal text-ink-muted">({t('اختياري', 'optional')})</span>
+                </span>
+                <input
+                  type="url"
+                  value={form.imageUrl}
+                  onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))}
+                  placeholder="https://example.com/image.jpg"
+                  dir="ltr"
+                  className="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+                />
+                <span className="mt-1 block text-[11px] text-ink-muted">
+                  {t('رابط صورة للقسم تظهر للعملاء.', 'An image URL that customers will see for this section.')}
+                </span>
+                {form.imageUrl.trim() && (
+                  <img
+                    src={form.imageUrl.trim()}
+                    alt={t('معاينة الصورة', 'Image preview')}
+                    className="mt-2 h-16 w-16 rounded-xl object-cover"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                )}
               </label>
 
               {/* Sort order */}

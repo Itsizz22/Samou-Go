@@ -1,5 +1,0 @@
-{
-  "buildCommand": "npm run build --workspace @samou-go/web-customer",
-  "installCommand": "npm install",
-  "outputDirectory": "themes/web-customer/dist"
-}

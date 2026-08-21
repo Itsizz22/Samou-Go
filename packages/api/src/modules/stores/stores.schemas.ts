@@ -52,6 +52,7 @@ export const categoryIdParamsSchema = z.object({
 export const createCategorySchema = z.object({
   nameAr: z.string().trim().min(1, 'اسم القسم مطلوب / Section name required').max(120),
   nameEn: z.string().trim().min(1).max(120).optional(),
+  imageUrl: z.string().url('رابط الصورة غير صالح / Invalid image URL').optional(),
   sortOrder: z.number().int().min(0).max(9999).optional(),
 });
 
@@ -59,6 +60,7 @@ export const updateCategorySchema = z
   .object({
     nameAr: z.string().trim().min(1).max(120).optional(),
     nameEn: z.string().trim().min(1).max(120).optional(),
+    imageUrl: z.string().url('رابط الصورة غير صالح / Invalid image URL').nullable().optional(),
     sortOrder: z.number().int().min(0).max(9999).optional(),
   })
   .refine(data => Object.keys(data).length > 0, {
@@ -87,14 +89,17 @@ export const updateStoreSchema = z
   .object({
     nameAr: z.string().trim().min(1).max(160).optional(),
     nameEn: z.string().trim().min(1).max(160).optional(),
-    // Accept any non-empty phone string — the auth.schemas phoneSchema is
-    // intentionally strict for login credentials; store contact numbers are
-    // less tightly validated (could be a landline or formatted differently).
     phone: z.string().trim().min(1).max(30).optional(),
     logoUrl: z.string().url().optional().nullable(),
     isActive: z.boolean().optional(),
     /** Admin-only: approving publishes the store to the public catalogue. */
     isApproved: z.boolean().optional(),
+    /** Manager instant toggle — customers see "closed" banner. */
+    isAcceptingOrders: z.boolean().optional(),
+    /** Store opening hour (HH:mm). */
+    openingTime: z.string().trim().max(5).optional().nullable(),
+    /** Store closing hour (HH:mm). */
+    closingTime: z.string().trim().max(5).optional().nullable(),
     /** Shopfront GPS — set by the store manager from the location flow. */
     latitude: z
       .number()

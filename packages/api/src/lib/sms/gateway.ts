@@ -5,7 +5,6 @@
  */
 
 import { env } from '../../config/env';
-import { createFirebaseGateway } from './firebase';
 import { createConsoleGateway, createGenericGateway, createMockGateway, createNoopGateway } from './generic';
 import { createTwilioGateway } from './twilio';
 import type { SmsGateway } from './types';
@@ -18,9 +17,6 @@ export function getSmsGateway(): SmsGateway {
   switch (env.sms.provider) {
     case 'twilio':
       cached = createTwilioGateway();
-      break;
-    case 'firebase':
-      cached = createFirebaseGateway();
       break;
     case 'generic':
       cached = createGenericGateway();

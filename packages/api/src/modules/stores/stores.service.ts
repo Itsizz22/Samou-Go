@@ -228,6 +228,9 @@ export async function updateStore(storeId: string, body: UpdateStoreBody): Promi
       ...(body.logoUrl !== undefined ? { logoUrl: body.logoUrl } : {}),
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
       ...(body.isApproved !== undefined ? { isApproved: body.isApproved } : {}),
+      ...(body.isAcceptingOrders !== undefined ? { isAcceptingOrders: body.isAcceptingOrders } : {}),
+      ...(body.openingTime !== undefined ? { openingTime: body.openingTime } : {}),
+      ...(body.closingTime !== undefined ? { closingTime: body.closingTime } : {}),
       ...(body.latitude !== undefined ? { latitude: body.latitude } : {}),
       ...(body.longitude !== undefined ? { longitude: body.longitude } : {}),
     },
@@ -389,12 +392,19 @@ export async function createCategory(storeId: string, body: CreateCategoryBody):
   }
 
   const category = await prisma.category.create({
-    data: { nameAr: body.nameAr, nameEn, storeId, sortOrder: body.sortOrder ?? 0 },
+    data: {
+      nameAr: body.nameAr,
+      nameEn,
+      imageUrl: body.imageUrl ?? null,
+      storeId,
+      sortOrder: body.sortOrder ?? 0,
+    },
   });
   return {
     id: category.id,
     nameAr: category.nameAr,
     nameEn: category.nameEn,
+    imageUrl: category.imageUrl ?? null,
     storeId: category.storeId,
     sortOrder: category.sortOrder,
   };
@@ -422,6 +432,7 @@ export async function updateCategory(
   const data: Prisma.CategoryUpdateInput = {};
   if (body.nameAr !== undefined) data.nameAr = body.nameAr;
   if (body.sortOrder !== undefined) data.sortOrder = body.sortOrder;
+  if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl;
   let nextNameEn: string | undefined;
   if (body.nameEn !== undefined) {
     nextNameEn = body.nameEn.trim() || slugify(body.nameAr ?? existing.nameAr) || existing.nameEn;
@@ -443,6 +454,7 @@ export async function updateCategory(
     id: category.id,
     nameAr: category.nameAr,
     nameEn: category.nameEn,
+    imageUrl: category.imageUrl ?? null,
     storeId: category.storeId,
     sortOrder: category.sortOrder,
   };

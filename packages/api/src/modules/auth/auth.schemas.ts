@@ -3,8 +3,9 @@ import { UserRole } from "@samou-go/shared-types";
 
 /**
  * Palestinian mobile, stored canonically as `05XXXXXXXX`.
- * Accepts the shapes people actually type — `+970`, `00970`, `+972`, spaces,
- * dashes — and normalises them before validation.
+ * Accepts the shapes people actually type — `+970`, `00970`, `+972`, `00972`,
+ * spaces, dashes — and normalises them before validation.
+ * Only Palestinian prefixes (059, 056) are accepted.
  */
 export const phoneSchema = z
   .string()
@@ -21,8 +22,8 @@ export const phoneSchema = z
     z
       .string()
       .regex(
-        /^05\d{8}$/,
-        "رقم جوال فلسطيني غير صالح / Invalid Palestinian mobile (05XXXXXXXX)",
+        /^05[69]\d{7}$/,
+        "يرجى إدخال رقم جوال فلسطيني صالح يبدأ بـ 059 أو 056 / Please enter a valid Palestinian mobile starting with 059 or 056",
       ),
   );
 
@@ -52,23 +53,6 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   phone: phoneSchema,
   password: z.string().min(1, "كلمة المرور مطلوبة / Password is required"),
-});
-
-/**
- * POST /auth/firebase-register — Firebase Phone Auth already proved the phone
- * client-side; the ID token is the credential, so there is no password.
- * `phone` is cross-checked against the token's `phone_number` claim.
- */
-export const firebaseRegisterSchema = z.object({
-  idToken: z
-    .string()
-    .min(20, "رمز تحقق Firebase غير صالح / Invalid Firebase verification token"),
-  name: z
-    .string()
-    .trim()
-    .min(2, "الاسم قصير جداً / Name is too short")
-    .max(120),
-  phone: phoneSchema,
 });
 
 /** POST /auth/otp/request — the phoneSchema normalises before the service runs. */
@@ -227,7 +211,6 @@ export const userListQuerySchema = z.object({
 });
 
 export type RegisterBody = z.infer<typeof registerSchema>;
-export type FirebaseRegisterBody = z.infer<typeof firebaseRegisterSchema>;
 export type LoginBody = z.infer<typeof loginSchema>;
 export type OtpRequestBody = z.infer<typeof otpRequestSchema>;
 export type OtpVerifyBody = z.infer<typeof otpVerifySchema>;

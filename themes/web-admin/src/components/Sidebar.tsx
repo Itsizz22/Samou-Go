@@ -37,7 +37,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
   { id: 'Zones', ar: 'مناطق التوصيل', icon: MapPin },
   { id: 'Offers', ar: 'العروض', icon: Megaphone },
   { id: 'Settings', ar: 'الإعدادات', icon: Settings },
-  { id: 'Financials', ar: 'Financials', icon: WalletCards },
+  { id: 'Financials', ar: 'المالية', icon: WalletCards },
 ] as const;
 
 interface AdminSidebarProps {
@@ -57,7 +57,7 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
       className={`fixed inset-y-0 start-0 z-30 w-[244px] flex-col bg-brand-deep px-4 py-6 text-white transition-transform duration-200 ${
         open ? 'flex translate-x-0' : 'hidden translate-x-full md:flex md:translate-x-0'
       }`}
-      aria-label="Admin sidebar"
+      aria-label={t('قائمة الإدارة', 'Admin sidebar')}
     >
       <div className="flex items-center gap-3 px-3 pb-9" dir="ltr">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface text-brand">
@@ -71,7 +71,7 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
           type="button"
           className="ms-auto rounded-lg p-2 text-white/80 hover:bg-surface/10 md:hidden"
           onClick={onClose}
-          aria-label="Close sidebar"
+          aria-label={t('إغلاق', 'Close sidebar')}
         >
           <X size={18} />
         </button>
@@ -79,7 +79,7 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
 
       <nav className="flex-1" aria-label="Primary navigation">
         <p className="mb-3 px-3 text-micro font-bold uppercase tracking-[0.18em] text-white/55">
-          Workspace
+          {t('العمل', 'Workspace')}
         </p>
         <ul className="space-y-1">
           {ADMIN_NAV_ITEMS.map((item) => {
@@ -115,7 +115,7 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
           <button
             type="button"
             onClick={onSignOut}
-            aria-label="Sign out"
+            aria-label={t('تسجيل الخروج', 'Sign out')}
             className="ms-auto rounded-lg p-2 text-white/70 transition hover:bg-surface/10 hover:text-white"
           >
             <LogOut size={15} />

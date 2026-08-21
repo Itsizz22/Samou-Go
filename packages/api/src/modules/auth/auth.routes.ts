@@ -21,11 +21,6 @@ authRouter.post(
 );
 authRouter.post("/login", authLimiter, asyncHandler(controller.loginHandler));
 authRouter.post(
-  "/firebase-register",
-  authLimiter,
-  asyncHandler(controller.firebaseRegisterHandler),
-);
-authRouter.post(
   "/otp/request",
   otpIpLimiter,
   asyncHandler(controller.requestOtpHandler),
@@ -40,7 +35,7 @@ authRouter.post(
   authLimiter,
   asyncHandler(controller.resetPasswordHandler),
 );
-authRouter.post("/refresh", asyncHandler(controller.refreshHandler));
+authRouter.post("/refresh", authLimiter, asyncHandler(controller.refreshHandler));
 authRouter.post("/logout", asyncHandler(controller.logoutHandler));
 authRouter.get("/me", authenticate, asyncHandler(controller.meHandler));
 authRouter.patch(

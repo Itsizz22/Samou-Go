@@ -23,6 +23,9 @@ export function toStore(store: PrismaStore): Store {
     phone: store.phone,
     isActive: store.isActive,
     isApproved: store.isApproved,
+    isAcceptingOrders: store.isAcceptingOrders,
+    openingTime: store.openingTime ?? null,
+    closingTime: store.closingTime ?? null,
     managerId: store.managerId,
     latitude: store.latitude,
     longitude: store.longitude,
@@ -35,6 +38,7 @@ export function toCategory(category: PrismaCategory): Category {
     id: category.id,
     nameAr: category.nameAr,
     nameEn: category.nameEn,
+    imageUrl: category.imageUrl ?? null,
     storeId: category.storeId,
     sortOrder: category.sortOrder,
   };

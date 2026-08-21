@@ -10,11 +10,25 @@
  *    the SPA still opens offline.
  *  - Stale-while-revalidate for same-origin GET assets (hashed build files
  *    are immutable in practice; the cache refreshes in the background).
- *  - Cross-origin traffic (API, Firebase Auth / reCAPTCHA / SMS) is never
- *    intercepted — the phone-sign-in iframe must always hit the network.
+ *  - Cross-origin traffic (API, SMS verification) is never
+ *    intercepted — network requests must always hit the origin.
  */
-const CACHE_NAME = 'samou-go-customer-v1';
+const CACHE_NAME = 'samou-go-customer-v2';
 const APP_SHELL = '/index.html';
+const API_HOSTNAME = 'samou-go.onrender.com';
+
+/** `respondWith` must always receive a Response — never an undefined cache miss. */
+function offlineResponse() {
+  return new Response(JSON.stringify({ error: 'OFFLINE', message: 'Network unavailable' }), {
+    status: 503,
+    statusText: 'Service Unavailable',
+    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+  });
+}
+
+function networkOnly(request) {
+  return fetch(request).catch(() => offlineResponse());
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -40,8 +54,15 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Only same-origin GETs participate in the cache. API calls and the
-  // Firebase Auth / reCAPTCHA widget traffic stay network-only.
+  // The Render API is always live data. Do not cache it, even if a deployment
+  // eventually proxies it through the same origin.
+  if (url.hostname === API_HOSTNAME) {
+    event.respondWith(networkOnly(request));
+    return;
+  }
+
+  // Only same-origin GETs participate in the cache. API calls and cross-origin
+  // traffic stay network-only.
   if (url.origin !== self.location.origin || request.method !== 'GET') return;
 
   // Navigations: network first, app shell as the offline fallback.
@@ -49,11 +70,13 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(APP_SHELL, copy));
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(APP_SHELL, copy)).catch(() => undefined);
+          }
           return response;
         })
-        .catch(() => caches.match(APP_SHELL))
+        .catch(() => caches.match(APP_SHELL).then((cached) => cached || offlineResponse()))
     );
     return;
   }
@@ -61,16 +84,16 @@ self.addEventListener('fetch', (event) => {
   // Static assets: serve from cache instantly, refresh in the background.
   event.respondWith(
     caches.match(request).then((cached) => {
-      const network = fetch(request)
+      const network = networkOnly(request)
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => undefined);
           }
           return response;
         })
-        .catch(() => cached);
+        .catch(() => cached || offlineResponse());
       return cached || network;
-    })
+    }).catch(() => networkOnly(request))
   );
 });

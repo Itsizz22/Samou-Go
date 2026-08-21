@@ -1,6 +1,7 @@
 /**
  * Phone normalisation — mirrors the API's Zod `phoneSchema` exactly so the
  * client shows the same canonical `05XXXXXXXX` shape the server stores.
+ * Only Palestinian numbers (059/056) are accepted.
  */
 export function normalizePhone(input: string): string {
   const digits = input
@@ -15,13 +16,12 @@ export function normalizePhone(input: string): string {
 }
 
 export function isValidPalestinianMobile(input: string): boolean {
-  return /^05\d{8}$/.test(normalizePhone(input));
+  return /^05[69]\d{7}$/.test(normalizePhone(input));
 }
 
 /**
- * `05XXXXXXXX` → `+9705XXXXXXXX` — the E.164 shape Firebase's
- * `signInWithPhoneNumber` requires (the API's SMS dispatch uses the same
- * conversion server-side).
+ * `05XXXXXXXX` → `+9705XXXXXXXX` — the E.164 shape carriers require.
+ * The API's SMS dispatch uses the same conversion server-side.
  */
 export function toE164(input: string, countryCode = '+970'): string {
   const normalized = normalizePhone(input);
