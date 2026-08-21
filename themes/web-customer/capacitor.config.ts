@@ -6,6 +6,12 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     cleartext: false,
+    androidScheme: 'https',
+  },
+  android: {
+    // Enable hardware-accelerated WebView for CSS/framer-motion animations
+    allowMixedContent: false,
+    webContentsDebuggingEnabled: true,
   },
   plugins: {
     // iOS status bar: dark text on light background, matching the app's

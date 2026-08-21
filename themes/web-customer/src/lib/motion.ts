@@ -5,14 +5,16 @@
  */
 import type { Variants } from 'framer-motion';
 
-/** Boot: logo springs from a small, dimmed mark into full size. */
+/** Boot: logo springs from a small, dimmed mark into full size.
+ * Uses only transform + opacity for reliable GPU acceleration on Android.
+ * (filter: blur() is not GPU-accelerated on many Android WebViews.)
+ */
 export const bootVariants: Variants = {
-  initial: { opacity: 0, scale: 0.55, filter: 'blur(8px)' },
+  initial: { opacity: 0, scale: 0.55 },
   animate: {
     opacity: 1,
     scale: 1,
-    filter: 'blur(0px)',
-    transition: { type: 'spring', stiffness: 180, damping: 18, duration: 0.7 },
+    transition: { type: 'spring', stiffness: 180, damping: 18 },
   },
   exit: { opacity: 0, scale: 1.06, transition: { duration: 0.35, ease: 'easeInOut' } },
 };
