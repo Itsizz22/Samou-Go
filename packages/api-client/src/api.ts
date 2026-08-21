@@ -39,7 +39,6 @@ import type {
   CreateOrderInput,
   CreateProductInput,
   FavoriteListResult,
-  FirebaseRegisterInput,
   LoginInput,
   Offer,
   OrderDetail,
@@ -62,6 +61,8 @@ import type {
   ResetPasswordInput,
   ReorderResult,
   SetAvailabilityInput,
+  SetOrderDeliveryZoneInput,
+  SetDeliveryFeeInput,
   Store,
   StoreListQuery,
   StoreWithCatalogue,
@@ -892,25 +893,6 @@ export function resetPassword(
 }
 
 /**
- * Registers with Firebase Phone Auth as the proof of ownership. The backend
- * verifies the ID token with Firebase Admin, extracts the phone from the token
- * claims, creates (or signs into) the account, and returns a session — the
- * server-side OTP round-trip of `register()` is skipped entirely.
- */
-export async function firebaseRegister(
-  input: FirebaseRegisterInput,
-  signal?: AbortSignal,
-): Promise<AuthResponse> {
-  const auth = await request<AuthResponse>("POST", "/auth/firebase-register", {
-    body: input,
-    signal,
-  });
-  setToken(auth.accessToken);
-  setRefreshToken(auth.refreshToken ?? null);
-  return auth;
-}
-
-/**
  * Requests a one-time code. The server rate-limits a phone to 3 per 5 minutes
  * and answers overflow with a 429 whose `Retry-After` the UI can read.
  */
@@ -1484,6 +1466,23 @@ export function setOrderDeliveryZone(
     `/orders/${encodeURIComponent(orderId)}/delivery-zone`,
     {
       body: { zoneId },
+      auth: true,
+      signal,
+    },
+  );
+}
+
+/** Sets a custom delivery fee for an order (dynamic fee mode). Requires CAPTAIN or ADMIN. */
+export function setOrderDeliveryFee(
+  orderId: string,
+  deliveryFee: number,
+  signal?: AbortSignal,
+): Promise<OrderDetail> {
+  return request<OrderDetail>(
+    "PATCH",
+    `/orders/${encodeURIComponent(orderId)}/set-delivery-fee`,
+    {
+      body: { deliveryFee },
       auth: true,
       signal,
     },

@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Check,
   Loader2,
+  Menu,
   LogOut,
   MapPin,
   Navigation,
@@ -25,14 +26,17 @@ import {
   UserRound,
   WalletCards,
   X,
+  Camera,
 } from 'lucide-react';
 import {
   SignInGate,
   listActiveDeliveryZones,
   setAvailability,
   setOrderDeliveryZone,
+  setOrderDeliveryFee,
   updateOrderStatus,
   updateProfile,
+  useUploadImage,
   useAuth,
   useMutation,
   useOrder,
@@ -65,6 +69,8 @@ import {
   type PublicUser,
   type UpdateOrderStatusInput,
   type UpdateProfileInput,
+  formatWhatsAppLink,
+  WHATSAPP_MESSAGES,
 } from '@samou-go/shared-types';
 import { FREE_DELIVERY_LABEL } from '@/lib/delivery';
 import { LeafletMap } from '@samou-go/ui/map';
@@ -138,7 +144,12 @@ export function SamouGoCaptain() {
 
   const [available, setAvailable] = useState<boolean>(auth.user?.isAvailable ?? false);
   const [activeTab, setActiveTab] = useState('home');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [zones, setZones] = useState<DeliveryZone[]>([]);
+  // Dynamic fee modal state
+  const [dynamicFeeOrderId, setDynamicFeeOrderId] = useState<string | null>(null);
+  const [dynamicFeeValue, setDynamicFeeValue] = useState('');
+  const [dynamicFeeLoading, setDynamicFeeLoading] = useState(false);
 
   // Availability is server state — re-sync whenever the profile reloads so the
   // header reflects the last PATCH, not the last local flip.
@@ -266,6 +277,15 @@ export function SamouGoCaptain() {
   );
 
   const handleAccept = async (orderId: string) => {
+    // Check if dynamic fee mode is enabled
+    const isDynamicFeeEnabled = platformSettings.data?.isDriverDynamicFeeEnabled;
+    if (isDynamicFeeEnabled) {
+      // Open the dynamic fee modal instead of directly accepting
+      setDynamicFeeOrderId(orderId);
+      setDynamicFeeValue('');
+      return;
+    }
+    // Normal acceptance flow
     const result = await acceptMutation.run({ orderId, status: OrderStatus.ON_THE_WAY });
     if (result) {
       toast.success('تم استلام الطلب للتوصيل', 'Order picked up — heading to the customer');
@@ -280,6 +300,40 @@ export function SamouGoCaptain() {
       }
       // Refresh the pool so the claimed order disappears immediately.
       void availableOrders.reload();
+    }
+  };
+
+  const handleDynamicFeeAccept = async () => {
+    if (!dynamicFeeOrderId || dynamicFeeLoading) return;
+    const fee = Number(dynamicFeeValue);
+    if (!Number.isFinite(fee) || fee < 0 || fee > 1000) {
+      toast.error('أدخل رسوم توصيل صحيحة بين 0 و 1000 ₪', 'Enter a valid delivery fee between 0 and 1000 ₪');
+      return;
+    }
+    setDynamicFeeLoading(true);
+    try {
+      // First set the delivery fee
+      await setOrderDeliveryFee(dynamicFeeOrderId, fee);
+      // Then accept the order
+      const result = await acceptMutation.run({ orderId: dynamicFeeOrderId, status: OrderStatus.ON_THE_WAY });
+      if (result) {
+        toast.success('تم استلام الطلب للتوصيل', 'Order picked up — heading to the customer');
+        void availableOrders.reload();
+        void activeOrders.reload();
+      } else if (acceptMutation.error) {
+        if (acceptMutation.error.status === 409) {
+          toast.error('سبقك كابتن آخر إلى هذا الطلب', 'Another captain just claimed this order');
+        } else {
+          toast.error('تعذّر قبول الطلب', acceptMutation.error.localizedMessage, { duration: 5_000 });
+        }
+        void availableOrders.reload();
+      }
+    } catch (err) {
+      toast.error('تعذّر تحديد الرسوم', err instanceof Error ? err.message : 'Failed to set fee');
+    } finally {
+      setDynamicFeeLoading(false);
+      setDynamicFeeOrderId(null);
+      setDynamicFeeValue('');
     }
   };
 
@@ -439,10 +493,25 @@ export function SamouGoCaptain() {
           {t(`${todayDeliveries} توصيلات`, `${todayDeliveries} Deliveries`)}
         </span>
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/20 pt-3 text-[11px]">
-        <span>النقد المحصّل <b dir="ltr" className="block mt-1 text-base">₪{todayCash.toFixed(2)}</b></span>
-        <span>رصيدك المحفظي <b dir="ltr" className="block mt-1 text-base">₪{(wallet.data?.balance ?? 0).toFixed(2)}</b></span>
+      <div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/20 pt-3 text-[11px]">
+        <span>
+          <span className="text-white/70">{t('النقد المحصّل', 'Cash')}</span>
+          <b dir="ltr" className="block mt-1 text-base">₪{todayCash.toFixed(2)}</b>
+        </span>
+        <span>
+          <span className="text-white/70">{t('أرباحك', 'Your fee')}</span>
+          <b dir="ltr" className="block mt-1 text-base">₪{todayEarnings.toFixed(2)}</b>
+        </span>
+        <span>
+          <span className="text-white/70">{t('المحفظة', 'Wallet')}</span>
+          <b dir="ltr" className="block mt-1 text-base">₪{(wallet.data?.balance ?? 0).toFixed(2)}</b>
+        </span>
       </div>
+      {captainRate > 0 && (
+        <p className="mt-2 text-[10px] text-white/60">
+          {t(`الرسوم: ₪${captainRate} لكل توصيل`, `Rate: ₪${captainRate} per delivery`)}
+        </p>
+      )}
     </section>
   );
 
@@ -510,6 +579,16 @@ export function SamouGoCaptain() {
                       </Badge>
                       <span>{order.itemCount} items</span>
                     </div>
+                    {/* Delivery preset badge */}
+                    {'deliveryPreset' in order && (order as { deliveryPreset?: string }).deliveryPreset && (
+                      <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-info-ink">
+                        <Phone size={12} />
+                        {t(
+                          (order as { deliveryPreset?: string }).deliveryPreset === 'call_on_arrival' ? 'اتصل عند الوصول' : 'اترك عند الباب',
+                          (order as { deliveryPreset?: string }).deliveryPreset === 'call_on_arrival' ? 'Call on arrival' : 'Leave at door'
+                        )}
+                      </p>
+                    )}
                     {canTransitionOrderStatus(order.status, OrderStatus.ON_THE_WAY) &&
                       canRoleSetOrderStatus(UserRole.CAPTAIN, OrderStatus.ON_THE_WAY) && (
                       <div className="mt-3 flex gap-2">
@@ -602,8 +681,9 @@ export function SamouGoCaptain() {
   /* ---- Render ------------------------------------------------------------ */
 
   return (
-    <main className="min-h-screen bg-canvas pb-24 font-sans text-ink md:pe-60">
-      <aside className="fixed inset-y-0 end-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل الكابتن">
+    <main className={`min-h-screen bg-canvas pb-24 font-sans text-ink transition-[padding] duration-300 ${sidebarOpen ? 'md:pe-60' : ''}`}>
+      {sidebarOpen && <button type="button" aria-label={t('إغلاق القائمة', 'Close navigation')} onClick={() => setSidebarOpen(false)} className="fixed inset-0 z-20 bg-ink/40 md:hidden" />}
+      <aside className={`fixed inset-y-0 end-0 z-30 flex w-60 flex-col bg-brand-deep px-4 py-6 text-white shadow-overlay transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} aria-label={t('تنقل الكابتن', 'Captain navigation')}>
         <p className="px-3 text-lg font-extrabold">Samou' Go</p>
         <p className="px-3 text-[11px] text-white/70">الكابتن</p>
         <nav className="mt-8 flex-1 space-y-1">
@@ -611,13 +691,13 @@ export function SamouGoCaptain() {
             const Icon = item.icon;
             const selected = activeTab === item.id;
             return <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition ${selected ? 'bg-brand text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'}`}>
-              <Icon size={18} /><span>{item.label}</span>
+              <Icon size={18} /><span>{t(item.label, item.english)}</span>
             </button>;
           })}
         </nav>
         <div className="border-t border-white/10 pt-5">
           <div className="flex items-center gap-3 rounded-xl px-2 py-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-tint text-sm font-extrabold text-brand-deep">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-tint text-sm font-extrabold text-brand-deep">
               {auth.user?.name.slice(0, 2).toUpperCase() ?? 'ك'}
             </span>
             <span className="min-w-0">
@@ -635,11 +715,13 @@ export function SamouGoCaptain() {
             </button>
           </div>
         </div>
+        <button type="button" onClick={() => setSidebarOpen(false)} aria-label={t('إغلاق القائمة', 'Close navigation')} className="absolute start-3 top-3 rounded-lg p-2 text-white/80 hover:bg-white/10 md:hidden"><X size={18} /></button>
       </aside>
       <header className="bg-brand px-4 pb-4 pt-3 text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Captain navigation">
+          <button type="button" onClick={() => setSidebarOpen(value => !value)} aria-expanded={sidebarOpen} aria-label={t('فتح القائمة', 'Open navigation')} className="rounded-lg p-2 text-white transition hover:bg-white/10 active:scale-95"><Menu size={21} /></button>
           <button type="button" aria-label="Profile" onClick={() => setActiveTab('account')} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-surface/15 transition hover:bg-surface/25">
-            <UserRound size={21} />
+            {auth.user.profileImageUrl ? <img src={auth.user.profileImageUrl} alt={auth.user.name} className="h-full w-full object-cover" /> : <UserRound size={21} />}
           </button>
           <div className="text-center leading-tight">
             <p className="text-[16px] font-extrabold">{t(`مرحباً ${captainName} 👋`, `Hello, ${captainName}`)}</p>
@@ -801,6 +883,25 @@ export function SamouGoCaptain() {
                           <Navigation size={15} />
                           <span>{t('العميل', 'Customer')}</span>
                         </a>
+                        {activeOrderDetail.data?.customer?.phone && (
+                          <a
+                            href={formatWhatsAppLink(
+                              activeOrderDetail.data.customer.phone,
+                              WHATSAPP_MESSAGES.captain(order.orderNumber, activeOrderDetail.data.customer.name)
+                            )}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={t('تواصل عبر واتساب', 'Contact via WhatsApp')}
+                            title={t('تواصل عبر واتساب', 'Contact via WhatsApp')}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] py-2.5 text-[11px] font-bold text-white transition hover:bg-[#1ea952] active:scale-95"
+                            style={{ backgroundColor: '#25D366' }}
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.263.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.67m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378 3.094 3.094 0 01-.988-.77 9.86 9.86 0 004.776-5.684 3.072 3.072 0 011.228-.378c1.613 0 2.612 1.228 2.612 2.944 0 1.85-1.54 3.325-3.328 3.724-.34.074-.68.148-1.02.222-.34.074-.567.075-.827-.074-.26-.148-.774-.865-1.077-1.488-.302-.622-.373-1.1-.074-1.328s.722-.148 1.095-.074c.373.075.68.3 1.02.623.623.56 1.096 1.592 1.314 2.56.183.78.173 1.558.048 2.068-.099.404-.404.828-.758 1.096-.353.267-.827.374-1.327.312-.488-.062-.948-.136-1.267-.375l-.57-.373c-.43-.238-.675-.286-1.12-.173-.352.123-1.121.375-1.582.81-.507.475-1.53 1.146-1.53 2.104 0 1.137.985 2.14 2.17 2.357.267.049.52.049.804.049.373 0 .747-.099 1.095-.272.34-.173.64-.397.89-.748.267-.373.39-.85.323-1.096-.074-.26-.468-.436-.967-.623-.373-.148-.847-.148-1.24-.074-.622.075-1.106.507-1.342 1.137-.21.576-.21 1.127-.105 1.274.105.15.423.624 1.096 1.517.788.975 2.03 2.18 2.03 3.558 0 2.374-2.778 2.374-2.778 2.914" />
+                            </svg>
+                            <span>{t('واتساب', 'WhatsApp')}</span>
+                          </a>
+                        )}
                         <button
                           type="button"
                           disabled={deliverMutation.pending}
@@ -920,6 +1021,7 @@ export function SamouGoCaptain() {
             pending={profileMutation.pending}
             savingError={profileMutation.error ? (isArabic ? profileMutation.error.message : profileMutation.error.localizedMessage) : undefined}
             onSave={handleSaveProfile}
+            onAvatarChange={(url) => auth.setUser({ ...auth.user!, profileImageUrl: url })}
             onSignOut={auth.signOut}
           />
         )}
@@ -945,6 +1047,18 @@ export function SamouGoCaptain() {
           })}
         </div>
       </nav>
+      {/* Dynamic Fee Modal */}
+      {dynamicFeeOrderId && (
+        <DynamicFeeModal
+          isOpen={!!dynamicFeeOrderId}
+          onClose={() => {
+            setDynamicFeeOrderId(null);
+            setDynamicFeeValue('');
+          }}
+          onConfirm={handleDynamicFeeAccept}
+          loading={dynamicFeeLoading}
+        />
+      )}
     </main>
   );
 }
@@ -1048,11 +1162,13 @@ interface CaptainAccountPanelProps {
   pending: boolean;
   savingError?: string;
   onSave: (input: UpdateProfileInput) => Promise<PublicUser | null>;
+  onAvatarChange: (url: string) => void;
   onSignOut: () => void;
 }
 
-function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: CaptainAccountPanelProps) {
+function CaptainAccountPanel({ user, pending, savingError, onSave, onAvatarChange, onSignOut }: CaptainAccountPanelProps) {
   const { t } = useLanguage();
+  const upload = useUploadImage();
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState(user.phone);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -1060,6 +1176,17 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saved, setSaved] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+
+  const chooseAvatar = async (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/') || file.size > 8 * 1024 * 1024) {
+      setLocalError(t('اختر صورة أقل من 8 ميغابايت', 'Choose an image under 8 MB'));
+      return;
+    }
+    const result = await upload.run({ kind: 'user', file });
+    if (result) onAvatarChange(result.url);
+    else setLocalError(upload.error?.localizedMessage ?? t('تعذّر رفع الصورة', 'Could not upload image'));
+  };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -1103,9 +1230,11 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
       <form onSubmit={(event) => void submit(event)} className="space-y-4">
         <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
           <div className="flex items-center gap-3 border-b border-line-soft pb-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-tint text-base font-extrabold text-brand-deep">
-              {user.name.slice(0, 2)}
-            </span>
+            <label className="relative flex h-14 w-14 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-brand-tint text-base font-extrabold text-brand-deep ring-2 ring-brand/20 transition hover:ring-brand/50">
+              {user.profileImageUrl ? <img src={user.profileImageUrl} alt={user.name} className="h-full w-full object-cover" /> : user.name.slice(0, 2)}
+              <span className="absolute inset-x-0 bottom-0 flex justify-center bg-ink/60 py-1 text-white"><Camera size={12} /></span>
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => void chooseAvatar(event.target.files?.[0])} />
+            </label>
             <div>
               <p className="text-sm font-extrabold">{user.name}</p>
               <p className="text-[11px] text-ink-muted" dir="ltr">{user.phone}</p>
@@ -1169,5 +1298,91 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
         {t('تسجيل الخروج', 'Sign out')}
       </button>
     </section>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * Dynamic Fee Modal — shown when accepting an order with dynamic fee mode enabled
+ * ------------------------------------------------------------------------- */
+function DynamicFeeModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  loading,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  loading: boolean;
+}) {
+  const { t } = useLanguage();
+  const [feeValue, setFeeValue] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleConfirm = () => {
+    const fee = Number(feeValue);
+    if (!Number.isFinite(fee) || fee < 0 || fee > 1000) return;
+    onConfirm();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4" role="dialog" aria-modal="true" aria-labelledby="dynamic-fee-title">
+      <div className="w-full max-w-md rounded-2xl bg-surface p-5 shadow-xl animate-in fade-in zoom-in-95">
+        <h2 id="dynamic-fee-title" className="text-lg font-extrabold text-center">
+          {t('تحديد رسوم التوصيل', 'Set Delivery Fee')}
+        </h2>
+        <p className="mt-2 text-center text-sm text-ink-muted">
+          {t('أدخل رسوم التوصيل لهذا الطلب (بالشيكل)', 'Enter the delivery fee for this order (in ILS)')}
+        </p>
+        <div className="mt-4 flex items-center justify-center gap-2">
+          <label className="flex-1">
+            <input
+              type="number"
+              value={feeValue}
+              onChange={(e) => setFeeValue(e.target.value)}
+              min={0}
+              max={1000}
+              step={0.5}
+              inputMode="decimal"
+              dir="ltr"
+              className="w-full rounded-xl border border-line bg-canvas px-4 py-3 text-center text-2xl font-bold text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+              placeholder="0.00"
+              disabled={loading}
+              autoFocus
+            />
+          </label>
+          <span className="text-xl font-bold text-brand-dark self-center">₪</span>
+        </div>
+        <p className="mt-2 text-center text-[11px] text-ink-muted">
+          {t('الحد الأقصى 1000 ₪', 'Maximum 1000 ₪')}
+        </p>
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 rounded-xl border border-line bg-surface py-2.5 text-sm font-bold text-ink transition hover:bg-canvas disabled:opacity-60"
+          >
+            {t('إلغاء', 'Cancel')}
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={loading || !Number.isFinite(Number(feeValue)) || Number(feeValue) < 0 || Number(feeValue) > 1000}
+            className="flex-1 rounded-xl bg-brand py-2.5 text-sm font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                <span>{t('جاري الحفظ…', 'Saving…')}</span>
+              </span>
+            ) : (
+              t('تأكيد', 'Confirm')
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,5 +1,4 @@
 import { randomInt } from 'node:crypto';
-import type { DecodedIdToken } from 'firebase-admin/auth';
 import type { Store, User } from '../../lib/prisma-types';
 import type { Prisma } from '../../lib/prisma-types';
 import type {
@@ -13,9 +12,7 @@ import { prisma, caseInsensitiveContains } from '../../lib/prisma';
 import { conflict, forbidden, notFound, unauthorized, unprocessable } from '../../lib/http-error';
 import { signAccessToken } from '../../lib/jwt';
 import { hashPassword, verifyPassword } from '../../lib/password';
-import { verifyFirebaseIdToken } from '../../config/firebaseAdmin';
 import { fromE164, toE164 } from '../../lib/sms/phone';
-import { env } from '../../config/env';
 import { toPublicUser } from './auth.mapper';
 import { requestOtp, verifyAndConsumeOtp } from './otp.service';
 import { issueRefreshToken, revokeAllUserRefreshTokens, rotateRefreshToken } from './refresh-token';
@@ -23,7 +20,6 @@ import type {
   AdminCreateCaptainBody,
   AdminCreateStoreBody,
   AdminUpdateUserBody,
-  FirebaseRegisterBody,
   LoginBody,
   RefreshTokenBody,
   RegisterBody,
@@ -85,67 +81,6 @@ export async function register(
   });
 
   return { user: toPublicUser(user), verificationRequired: true, otp };
-}
-
-/**
- * POST /auth/firebase-register — Firebase Phone Auth proves the phone.
- *
- * The ID token is verified against Firebase Admin, the canonical `05XXXXXXXX`
- * number is recovered from the token's E.164 `phone_number` claim and
- * cross-checked against the submitted `phone`, then the account is created
- * (`isVerified: true` — Firebase already proved ownership) or, when it exists,
- * signed straight in. No password exists: the phone IS the credential.
- */
-export async function firebaseRegister(body: FirebaseRegisterBody): Promise<AuthResponse> {
-  let claims: DecodedIdToken;
-  try {
-    // The expected E.164 form of the submitted phone is passed along so the
-    // dev-only mock path (FIREBASE_MOCK_TOKENS) can synthesise a matching
-    // `phone_number` claim; the real verification path ignores it.
-    claims = await verifyFirebaseIdToken(body.idToken, toE164(body.phone, env.sms.countryCode));
-  } catch {
-    throw unauthorized('رمز التحقق من Firebase غير صالح أو منتهي / Invalid or expired Firebase token');
-  }
-
-  const tokenPhone = claims.phone_number;
-  if (!tokenPhone) {
-    throw unprocessable(
-      'FIREBASE_NO_PHONE',
-      'لم يتحقق Firebase من رقم الجوال / Firebase did not verify a phone number'
-    );
-  }
-
-  const canonicalPhone = fromE164(tokenPhone, env.sms.countryCode);
-  if (!/^05\d{8}$/.test(canonicalPhone) || canonicalPhone !== body.phone) {
-    throw unprocessable(
-      'FIREBASE_PHONE_MISMATCH',
-      'رقم الجوال لا يطابق الرقم الموثّق / Phone does not match the verified number'
-    );
-  }
-
-  const existing = await prisma.user.findUnique({ where: { phone: canonicalPhone } });
-  if (existing) {
-    if (!existing.isActive) {
-      throw forbidden('الحساب موقوف / This account has been deactivated');
-    }
-    // Firebase re-proved the phone — a returning customer just signs in.
-    return buildAuthResponse(existing);
-  }
-
-  const user = await prisma.user.create({
-    data: {
-      name: body.name,
-      phone: canonicalPhone,
-      // No password — the Firebase token is the credential. A random hash keeps
-      // the column non-null (same pattern as admin-provisioned accounts).
-      passwordHash: await hashPassword(`firebase-${randomInt(0, 1_000_000_000)}-${Date.now()}`),
-      role: UserRole.CUSTOMER,
-      isActive: true,
-      isVerified: true,
-    },
-  });
-
-  return buildAuthResponse(user);
 }
 
 export async function login(body: LoginBody): Promise<AuthResponse> {

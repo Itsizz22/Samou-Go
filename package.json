@@ -55,11 +55,9 @@
   },
   "dependencies": {
     "@emotion/is-prop-valid": "^1.4.0",
-    "firebase": "^12.17.1",
     "lucide-react": "^1.31.0"
   },
   "allowScripts": {
-    "@firebase/util@1.15.2": true,
     "@prisma/client@6.19.3": true,
     "@prisma/engines@6.19.3": true,
     "esbuild@0.25.12": true,

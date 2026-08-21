@@ -45,7 +45,7 @@ jobs:
       - name: Build shared packages
         run: |
           npm run build --workspace @samou-go/shared-types
-          npm run build --workspace @samou-go/ui || true
+          npm run build --workspace @samou-go/ui
 
       # ============================================================
       # 5. Generate Prisma production client

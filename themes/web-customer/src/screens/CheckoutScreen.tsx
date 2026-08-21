@@ -17,16 +17,19 @@ import {
   CreditCard,
   Loader2,
   MapPin,
+  Navigation,
   Package,
+  Phone,
   RefreshCw,
   Save,
   Store as StoreIcon,
   Ticket,
 } from 'lucide-react';
 import type { ApiError } from '@samou-go/api-client';
-import { createOrder, quoteOrder } from '@/hooks/useApi';
+import { createOrder, quoteOrder, getPlatformSettings } from '@/hooks/useApi';
 import { OrderSuccess, Button, useLanguage } from '@samou-go/ui';
 import { useCart } from '@/components/CartProvider';
+import { MapPicker } from '@/components/MapPicker';
 import { CustomerAuthGate } from '@/components/CustomerAuthGate';
 import { useAuth } from '@/hooks/useApi';
 import { formatCurrency, FREE_DELIVERY_LABEL, deliveryFeeLabel } from '@/lib/delivery';
@@ -79,6 +82,12 @@ export function CheckoutScreen() {
   const [saveForNextTime, setSaveForNextTime] = useState(true);
   /** Home / Work / Other — persisted with the saved address, shown as a chip. */
   const [addressTag, setAddressTag] = useState<AddressTag>('home');
+  /** Map picker state */
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [pickedLat, setPickedLat] = useState<number | undefined>(undefined);
+  const [pickedLng, setPickedLng] = useState<number | undefined>(undefined);
+  /** Delivery preset: call on arrival / leave at door */
+  const [deliveryPreset, setDeliveryPreset] = useState<string>('');
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [quote, setQuote] = useState<{
     subtotal: number;
@@ -98,6 +107,8 @@ export function CheckoutScreen() {
   const [placedOrder, setPlacedOrder] = useState<OrderDetail | null>(null);
   /** Re-fetches the live quote — bumped when a stale-basket error is caught. */
   const [quoteRevision, setQuoteRevision] = useState(0);
+  /** Platform settings — used to check if dynamic driver fee is enabled. */
+  const [platformSettings, setPlatformSettings] = useState<{ isDriverDynamicFeeEnabled: boolean } | null>(null);
   /**
    * Belt-and-suspenders against double-submit. The button is also disabled
    * while `placing`, but `disabled` cannot protect against two rapid taps that
@@ -115,9 +126,30 @@ export function CheckoutScreen() {
     if (saved.length > 0 && !selectedAddressId) {
       setSelectedAddressId(saved[0].id);
       if (saved[0].tag) setAddressTag(normalizeTag(saved[0].tag));
+      if (saved[0].lat && saved[0].lng) {
+        setPickedLat(saved[0].lat);
+        setPickedLng(saved[0].lng);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved.length]);
+
+  // Fetch platform settings to check if dynamic driver fee is enabled.
+  useEffect(() => {
+    let cancelled = false;
+    getPlatformSettings()
+      .then((settings) => {
+        if (!cancelled) {
+          setPlatformSettings({ isDriverDynamicFeeEnabled: settings.isDriverDynamicFeeEnabled });
+        }
+      })
+      .catch(() => {
+        // Ignore errors — if we can't fetch settings, assume dynamic fee is disabled.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Live quote — re-priced whenever the basket, the voucher, or the session
   // changes shape. The voucher is only sent to the server once the customer
@@ -248,6 +280,7 @@ export function CheckoutScreen() {
           tag: useSavedAddress?.tag ?? addressTag,
           addressText: finalText,
           addressNote: addressNote.trim() || useSavedAddress?.addressNote || undefined,
+          ...(pickedLat !== undefined && pickedLng !== undefined ? { lat: pickedLat, lng: pickedLng } : {}),
         };
         setSaved((current) => {
           const next = upsertAddress(current, entry);
@@ -264,6 +297,9 @@ export function CheckoutScreen() {
         deliveryRegion,
         addressNote: addressNote.trim() || useSavedAddress?.addressNote || undefined,
         orderNote: orderNote.trim() || undefined,
+        deliveryPreset: deliveryPreset || undefined,
+        latitude: pickedLat,
+        longitude: pickedLng,
         voucherCode: appliedVoucher || undefined,
       });
       await hapticSuccess();
@@ -339,6 +375,13 @@ export function CheckoutScreen() {
                     onClick={() => {
                       setSelectedAddressId(entry.id);
                       if (entry.tag) setAddressTag(normalizeTag(entry.tag));
+                      if (entry.lat && entry.lng) {
+                        setPickedLat(entry.lat);
+                        setPickedLng(entry.lng);
+                      } else {
+                        setPickedLat(undefined);
+                        setPickedLng(undefined);
+                      }
                     }}
                     className={`flex w-full items-start gap-2 rounded-xl border p-3 text-end transition ${
                       selectedAddressId === entry.id
@@ -403,6 +446,59 @@ export function CheckoutScreen() {
                   className="input-field mt-1.5 w-full"
                 />
               </label>
+
+              {/* Map picker button */}
+              <button
+                type="button"
+                onClick={() => setShowMapPicker(true)}
+                className="flex w-full items-center gap-3 rounded-xl border border-line bg-canvas p-3 text-start transition hover:border-brand active:scale-[98%]"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-tint text-brand">
+                  <Navigation size={17} />
+                </span>
+                <span className="flex-1">
+                  <span className="block text-xs font-bold">{t('حدد الموقع على الخريطة', 'Pin location on map')}</span>
+                  <span className="block text-[10px] text-ink-muted">
+                    {pickedLat && pickedLng
+                      ? `${pickedLat.toFixed(5)}, ${pickedLng.toFixed(5)}`
+                      : t('اختياري — يساعد الكابتن الوصول بسرعة', 'Optional — helps the captain find you faster')}
+                  </span>
+                </span>
+                {(pickedLat && pickedLng) && (
+                  <Check size={14} className="text-brand-dark" />
+                )}
+              </button>
+
+              {/* Delivery preset */}
+              <div className="rounded-xl bg-canvas p-3">
+                <p className="text-[11px] font-bold text-ink-muted">{t('تعليمات التوصيل', 'Delivery instructions')}</p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryPreset(deliveryPreset === 'call_on_arrival' ? '' : 'call_on_arrival')}
+                    className={`flex-1 rounded-lg border px-2 py-2 text-[11px] font-bold transition ${
+                      deliveryPreset === 'call_on_arrival'
+                        ? 'border-brand bg-brand-tint text-brand-dark'
+                        : 'border-line bg-surface text-ink-muted'
+                    }`}
+                  >
+                    <Phone size={12} className="inline-block ms-1" />
+                    {t('اتصل عند الوصول', 'Call on arrival')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryPreset(deliveryPreset === 'leave_at_door' ? '' : 'leave_at_door')}
+                    className={`flex-1 rounded-lg border px-2 py-2 text-[11px] font-bold transition ${
+                      deliveryPreset === 'leave_at_door'
+                        ? 'border-brand bg-brand-tint text-brand-dark'
+                        : 'border-line bg-surface text-ink-muted'
+                    }`}
+                  >
+                    <Package size={12} className="inline-block ms-1" />
+                    {t('اترك عند الباب', 'Leave at door')}
+                  </button>
+                </div>
+              </div>
               {saved.length > 0 && (
                 <label className="flex items-center justify-between rounded-xl bg-canvas px-3 py-2.5">
                   <span className="text-[11px] font-bold text-ink-muted">إدخال عنوان جديد</span>
@@ -412,6 +508,8 @@ export function CheckoutScreen() {
                       setSelectedAddressId(null);
                       setAddressText('');
                       setAddressTag('home');
+                      setPickedLat(undefined);
+                      setPickedLng(undefined);
                     }}
                     className="rounded-full bg-brand-tint px-3 py-1 text-[11px] font-bold text-brand-dark"
                   >
@@ -456,8 +554,11 @@ export function CheckoutScreen() {
           </section>
 
           <section className="rounded-2xl bg-surface p-4 shadow-card">
-            <h2 className="text-sm font-extrabold">{t('ملاحظة للطلب', 'Order note')}</h2>
-            <textarea value={orderNote} onChange={(event) => setOrderNote(event.target.value)} maxLength={500} rows={2} placeholder="مثال: الاتصال قبل الوصول" className="input-field mt-3 w-full" />
+            <h2 className="text-sm font-extrabold">{t('ملاحظة إضافية للطلب', 'Additional order note')}</h2>
+            <p className="mt-1 text-[11px] text-ink-muted">
+              {t('تظهر للكابتن والمتجر — مثال: لا تضع معجون', 'Visible to the captain & store — e.g. no paste')}
+            </p>
+            <textarea value={orderNote} onChange={(event) => setOrderNote(event.target.value)} maxLength={500} rows={2} placeholder={t('مثال: لا تضع معجون', 'e.g. no paste')} className="input-field mt-3 w-full" />
           </section>
 
           {/* Payment — COD only, by design. */}
@@ -567,11 +668,18 @@ export function CheckoutScreen() {
                   <div className="flex justify-between text-ink-muted">
                     <span>{deliveryFeeLabel(language)}</span>
                     <span dir="ltr" className="font-bold text-brand-dark">
-                      {quote.deliveryFee <= 0
+                      {platformSettings?.isDriverDynamicFeeEnabled
+                        ? (isArabic ? 'يتم تحديدها بواسطة السائق عند الاستلام' : 'Set by driver upon pickup')
+                        : quote.deliveryFee <= 0
                         ? (isArabic ? FREE_DELIVERY_LABEL.ar : FREE_DELIVERY_LABEL.en)
                         : formatCurrency(quote.deliveryFee)}
                     </span>
                   </div>
+                  {platformSettings?.isDriverDynamicFeeEnabled && (
+                    <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
+                      {t('رسوم التوصيل: يتم تحديدها بواسطة السائق عند الاستلام', 'Delivery fee: Set by driver upon pickup')}
+                    </p>
+                  )}
                   {quote.discount > 0 && (
                     <div className="flex justify-between text-brand-dark">
                       <span>{isArabic ? quote.voucherLabelAr : quote.voucherLabelEn || t('خصم الكوبون', 'Voucher discount')}</span>
@@ -626,6 +734,15 @@ export function CheckoutScreen() {
           </p>
         </div>
       </main>
+
+      {/* Interactive map picker — full screen on mobile */}
+      <MapPicker
+        isOpen={showMapPicker}
+        initialLat={pickedLat}
+        initialLng={pickedLng}
+        onPick={(lat, lng) => { setPickedLat(lat); setPickedLng(lng); }}
+        onClose={() => setShowMapPicker(false)}
+      />
     </PageTransition>
   );
 }

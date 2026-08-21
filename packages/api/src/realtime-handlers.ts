@@ -85,21 +85,25 @@ export async function handleCaptainLocation(
   if (last !== undefined && now - last < LOCATION_MIN_INTERVAL_MS) return;
   markLocationWrite(auth.sub, now);
 
-  const location = await prisma.captainLocation.upsert({
-    where: { captainId: auth.sub },
-    create: { captainId: auth.sub, lat, lng, heading },
-    update: { lat, lng, heading },
-  });
-
-  const orderId = (payload as { orderId?: unknown }).orderId;
-  if (typeof orderId === 'string' && orderId.length > 0) {
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      select: { captainId: true },
+  try {
+    const location = await prisma.captainLocation.upsert({
+      where: { captainId: auth.sub },
+      create: { captainId: auth.sub, lat, lng, heading },
+      update: { lat, lng, heading },
     });
-    if (order?.captainId === auth.sub) {
-      io.to(`order:${orderId}`).emit('captain:location', location);
+
+    const orderId = (payload as { orderId?: unknown }).orderId;
+    if (typeof orderId === 'string' && orderId.length > 0) {
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { captainId: true },
+      });
+      if (order?.captainId === auth.sub) {
+        io.to(`order:${orderId}`).emit('captain:location', location);
+      }
     }
+  } catch {
+    // DB failure — silently drop this location update rather than crashing the socket handler.
   }
 }
 
@@ -112,15 +116,19 @@ export async function handleChatSend(io: Server, auth: Auth, payload: unknown): 
   const { orderId, message } = payload as { orderId?: unknown; message?: unknown };
   if (typeof orderId !== 'string' || orderId.length === 0) return;
   if (typeof message !== 'string' || !message.trim()) return;
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    select: { customerId: true, captainId: true, store: { select: { managerId: true } } },
-  });
-  if (!order || !isOrderPartyMember(auth, order)) {
-    return;
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { customerId: true, captainId: true, store: { select: { managerId: true } } },
+    });
+    if (!order || !isOrderPartyMember(auth, order)) {
+      return;
+    }
+    const row = await prisma.chatMessage.create({
+      data: { orderId, senderId: auth.sub, senderRole: auth.role, message: message.trim() },
+    });
+    io.to(`order:${orderId}`).emit('chat:message', row);
+  } catch {
+    // DB failure — silently drop this chat message rather than crashing the socket handler.
   }
-  const row = await prisma.chatMessage.create({
-    data: { orderId, senderId: auth.sub, senderRole: auth.role, message: message.trim() },
-  });
-  io.to(`order:${orderId}`).emit('chat:message', row);
 }

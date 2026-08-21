@@ -50,6 +50,8 @@ export const platformSettingsSchema = z.object({
   captainDeliveryRate: z.number().min(0).max(10000).optional(),
   storeCommissionRate: z.number().min(0).max(1).optional(),
   autoAssign: z.boolean().optional(),
+  isDriverDynamicFeeEnabled: z.boolean().optional(),
+  requireOtpForSensitiveActions: z.boolean().optional(),
 });
 
 export type LocationBody = z.infer<typeof locationSchema>;

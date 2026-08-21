@@ -9,7 +9,6 @@ import {
   adminIdParamsSchema,
   adminUpdateUserSchema,
   captainIdParamsSchema,
-  firebaseRegisterSchema,
   loginSchema,
   logoutSchema,
   otpRequestSchema,
@@ -48,15 +47,6 @@ export async function registerHandler(
 export async function loginHandler(req: Request, res: Response): Promise<void> {
   const body = parseWith(loginSchema, req.body);
   ok(res, await authService.login(body));
-}
-
-/** POST /api/v1/auth/firebase-register — Firebase Phone Auth as the proof. */
-export async function firebaseRegisterHandler(
-  req: Request,
-  res: Response,
-): Promise<void> {
-  const body = parseWith(firebaseRegisterSchema, req.body);
-  created(res, await authService.firebaseRegister(body));
 }
 
 /** POST /api/v1/auth/otp/request — dispatch a one-time code (rate-limited). */

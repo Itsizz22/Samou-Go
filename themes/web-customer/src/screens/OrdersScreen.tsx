@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { SignInGate, useAuth, useOrders } from '@/hooks/useApi';
-import { Loader2, Package, RefreshCw, RotateCcw } from 'lucide-react';
+import { Loader2, Package, Phone, RefreshCw, RotateCcw, StickyNote } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { reorderOrder } from '@samou-go/api-client';
-import { Badge } from '@samou-go/ui';
+import { Badge, useLanguage } from '@samou-go/ui';
 import { ScreenShell } from '@/components/ScreenShell';
 import { useCart } from '@/components/CartProvider';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_TONES, type OrderStatus } from '@samou-go/shared-types';
@@ -18,6 +18,7 @@ export function OrdersScreen() {
   const auth = useAuth();
   const navigate = useNavigate();
   const cart = useCart();
+  const { t } = useLanguage();
   const [reorderingId, setReorderingId] = useState<string | null>(null);
   const orders = useOrders({ pageSize: 20 }, { enabled: Boolean(auth.user) });
 
@@ -100,6 +101,22 @@ export function OrdersScreen() {
                     {reorderingId === order.id ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} إعادة الطلب <span dir="ltr">Reorder</span>
                   </button>
                 </div>
+                {/* Delivery preset & notes */}
+                {(order as { deliveryPreset?: string }).deliveryPreset && (
+                  <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-info-ink">
+                    <Phone size={11} />
+                    {t(
+                      (order as { deliveryPreset?: string }).deliveryPreset === 'call_on_arrival' ? 'اتصل عند الوصول' : 'اترك عند الباب',
+                      (order as { deliveryPreset?: string }).deliveryPreset === 'call_on_arrival' ? 'Call on arrival' : 'Leave at door'
+                    )}
+                  </p>
+                )}
+                {(order as { orderNote?: string }).orderNote && (
+                  <p className="mt-1.5 flex items-start gap-1.5 text-[11px] text-ink-muted">
+                    <StickyNote size={11} className="mt-0.5 shrink-0 text-brand" />
+                    {(order as { orderNote?: string }).orderNote}
+                  </p>
+                )}
               </article>
             ))
           )}

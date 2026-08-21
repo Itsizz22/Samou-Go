@@ -25,7 +25,12 @@ export interface SmsSendResult {
 
 /** One adapter per provider. Implementers must swallow nothing — a failed
  *  dispatch must reject so the request fails loudly rather than "succeeding"
- *  without an SMS reaching the customer. */
+ *  without an SMS reaching the customer.
+ *
+ *  Providers that support server-managed verification (e.g. Twilio Verify)
+ *  may expose optional `verify()` and `check()` methods. The OTP service
+ *  checks for these at runtime; when absent, it falls back to local
+ *  bcrypt-based code comparison. */
 export interface SmsGateway {
   readonly provider: string;
   send(message: SmsMessage): Promise<SmsSendResult>;

@@ -201,6 +201,12 @@ model Store {
   isApproved Boolean  @default(false)
   /// Admin-curated: surfaces a "Recommended by us" badge on customer screens.
   isRecommended Boolean @default(false)
+  /// Instant toggle: when false, customers see "closed" but the store stays
+  /// visible in the catalogue. Manager flips this without touching `isActive`.
+  isAcceptingOrders Boolean @default(true)
+  /// Store operating hours (HH:mm format, e.g. "08:00", "23:00").
+  openingTime String?
+  closingTime String?
   managerId  String
   /// Shopfront GPS, when known — powers the captain's "navigate to store".
   latitude   Float?
@@ -230,6 +236,7 @@ model Category {
   id        String   @id @default(cuid())
   nameAr    String  
   nameEn    String  
+  imageUrl  String?
   storeId   String
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -287,7 +294,13 @@ model Order {
   customerAddressText String 
   /// Optional extra directions, e.g. "بجانب مسجد عمر، الطابق الثاني".
   addressNote         String?
+  /// Customer instruction for the whole order (e.g. delivery presets + freeform).
   orderNote           String?
+  /// Customer delivery preset, e.g. "call_on_arrival" or "leave_at_door".
+  deliveryPreset      String?
+  /// Exact GPS coordinates of the delivery pin — nullable for legacy orders.
+  latitude            Float?
+  longitude           Float?
   estimatedPrepMinutes Int?
 
   subtotal      Decimal      
@@ -616,6 +629,10 @@ model PlatformSettings {
   storeCommissionRate Decimal @default(0.10)
   /// Reserved for a future auto-assignment engine.
   autoAssign Boolean @default(false)
+  /// When enabled, the driver sets the delivery fee per order upon acceptance.
+  isDriverDynamicFeeEnabled Boolean @default(false)
+  /// When enabled, sensitive actions (first order, password reset, phone change) require OTP verification.
+  requireOtpForSensitiveActions Boolean @default(false)
   updatedAt DateTime @updatedAt
   @@map("platform_settings")
 }

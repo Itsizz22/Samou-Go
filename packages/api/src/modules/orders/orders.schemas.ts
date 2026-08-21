@@ -52,6 +52,9 @@ export const createOrderSchema = z.object({
   deliveryRegion: z.enum(['central', 'outer', 'remote']).optional(),
   addressNote: z.string().trim().max(500).optional(),
   orderNote: z.string().trim().max(500).optional(),
+  deliveryPreset: z.string().trim().max(50).optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
   voucherCode: voucherCodeField,
 });
 
@@ -69,6 +72,12 @@ export const updateOrderStatusSchema = z.object({
   estimatedPrepMinutes: z.number().int().min(5).max(180).optional(),
 });
 
+/** Rating and comment for an order review. */
+export const reviewSchema = z.object({
+  rating: z.number().int().min(1).max(5, 'التقييم يجب أن يكون من 1 إلى 5 / Rating must be between 1 and 5'),
+  comment: z.string().trim().max(500).optional(),
+});
+
 export const assignCaptainSchema = z.object({
   captainId: z.string().min(1, 'معرّف الكابتن مطلوب / captainId is required'),
 });
@@ -83,8 +92,15 @@ export const orderListQuerySchema = paginationSchema.extend({
   captainId: z.string().min(1).optional(),
 });
 
+/** PATCH /orders/:orderId/set-delivery-fee — driver sets a custom delivery fee (when dynamic fee mode is enabled). */
+export const setDeliveryFeeSchema = z.object({
+  deliveryFee: z.number().min(0).max(1000, 'رسوم التوصيل يجب أن تكون بين 0 و 1000 ₪ / Delivery fee must be between 0 and 1000 ₪'),
+});
+
 export type CreateOrderBody = z.infer<typeof createOrderSchema>;
 export type QuoteOrderBody = z.infer<typeof quoteOrderSchema>;
 export type UpdateOrderStatusBody = z.infer<typeof updateOrderStatusSchema>;
 export type AssignCaptainBody = z.infer<typeof assignCaptainSchema>;
 export type OrderListQuery = z.infer<typeof orderListQuerySchema>;
+export type SetReviewBody = z.infer<typeof reviewSchema>;
+export type SetDeliveryFeeBody = z.infer<typeof setDeliveryFeeSchema>;

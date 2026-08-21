@@ -144,6 +144,8 @@ export async function getPlatformSettings() {
     captainDeliveryRate: decimalToNumber(row.captainDeliveryRate),
     storeCommissionRate: decimalToNumber(row.storeCommissionRate),
     autoAssign: row.autoAssign,
+    isDriverDynamicFeeEnabled: row.isDriverDynamicFeeEnabled,
+    requireOtpForSensitiveActions: row.requireOtpForSensitiveActions,
     updatedAt: row.updatedAt,
   };
 }
@@ -157,11 +159,15 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
       ...(body.captainDeliveryRate !== undefined ? { captainDeliveryRate: body.captainDeliveryRate } : {}),
       ...(body.storeCommissionRate !== undefined ? { storeCommissionRate: body.storeCommissionRate } : {}),
       ...(body.autoAssign !== undefined ? { autoAssign: body.autoAssign } : {}),
+      ...(body.isDriverDynamicFeeEnabled !== undefined ? { isDriverDynamicFeeEnabled: body.isDriverDynamicFeeEnabled } : {}),
+      ...(body.requireOtpForSensitiveActions !== undefined ? { requireOtpForSensitiveActions: body.requireOtpForSensitiveActions } : {}),
     },
     update: {
       ...(body.captainDeliveryRate !== undefined ? { captainDeliveryRate: body.captainDeliveryRate } : {}),
       ...(body.storeCommissionRate !== undefined ? { storeCommissionRate: body.storeCommissionRate } : {}),
       ...(body.autoAssign !== undefined ? { autoAssign: body.autoAssign } : {}),
+      ...(body.isDriverDynamicFeeEnabled !== undefined ? { isDriverDynamicFeeEnabled: body.isDriverDynamicFeeEnabled } : {}),
+      ...(body.requireOtpForSensitiveActions !== undefined ? { requireOtpForSensitiveActions: body.requireOtpForSensitiveActions } : {}),
     },
   });
   return {
@@ -169,6 +175,8 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
     captainDeliveryRate: decimalToNumber(row.captainDeliveryRate),
     storeCommissionRate: decimalToNumber(row.storeCommissionRate),
     autoAssign: row.autoAssign,
+    isDriverDynamicFeeEnabled: row.isDriverDynamicFeeEnabled,
+    requireOtpForSensitiveActions: row.requireOtpForSensitiveActions,
     updatedAt: row.updatedAt,
   };
 }

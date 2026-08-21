@@ -289,6 +289,8 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [autoAssign, setAutoAssign] = useState(false);
   const [baseStoreRate, setBaseStoreRate] = useState('10');
   const [captainRate, setCaptainRate] = useState('0');
+  const [isDriverDynamicFeeEnabled, setIsDriverDynamicFeeEnabled] = useState(false);
+  const [requireOtpForSensitiveActions, setRequireOtpForSensitiveActions] = useState(false);
   const [name, setName] = useState(auth.user?.name ?? '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -305,6 +307,8 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
         setAutoAssign(settings.autoAssign);
         setBaseStoreRate(String(Math.round(settings.storeCommissionRate * 100)));
         setCaptainRate(String(settings.captainDeliveryRate));
+        setIsDriverDynamicFeeEnabled(settings.isDriverDynamicFeeEnabled);
+        setRequireOtpForSensitiveActions(settings.requireOtpForSensitiveActions);
       })
       .catch(() => {
         /* Server unreachable — the defaults remain; the API is still authoritative. */
@@ -326,7 +330,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
       return;
     }
     try {
-      await updatePlatformSettings({ autoAssign, captainDeliveryRate, storeCommissionRate });
+      await updatePlatformSettings({ autoAssign, captainDeliveryRate, storeCommissionRate, isDriverDynamicFeeEnabled, requireOtpForSensitiveActions });
       toast.success('تم حفظ إعدادات النظام على الخادم', 'System settings saved on the server');
     } catch (cause) {
       toast.error('تعذّر حفظ الإعدادات', cause instanceof Error ? cause.message : 'Save failed');
@@ -380,6 +384,36 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
               <span className="h-5 w-5 rounded-full bg-white" />
             </button>
           </label>
+          <label className="mt-3 flex items-center justify-between gap-3 text-sm font-bold">
+            <span>{t('تمكين تحديد رسوم التوصيل بواسطة السائق', 'Enable driver-set delivery fee')}</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isDriverDynamicFeeEnabled}
+              onClick={() => setIsDriverDynamicFeeEnabled(value => !value)}
+              className={`flex h-7 w-12 items-center rounded-full p-1 bg-surface transition-colors ${isDriverDynamicFeeEnabled ? 'justify-end bg-brand' : 'justify-start bg-line'}`}
+            >
+              <span className="h-5 w-5 rounded-full bg-white" />
+            </button>
+          </label>
+          <p className="mt-1 text-[11px] text-ink-muted">
+            {t('عند التفعيل، يحدد السائق رسوم التوصيل يدوياً عند قبول الطلب', 'When enabled, the driver manually sets the delivery fee upon accepting an order')}
+          </p>
+          <label className="mt-3 flex items-center justify-between gap-3 text-sm font-bold">
+            <span>{t('طلب التحقق OTP للإجراءات الحساسة', 'Require OTP for sensitive actions')}</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={requireOtpForSensitiveActions}
+              onClick={() => setRequireOtpForSensitiveActions(value => !value)}
+              className={`flex h-7 w-12 items-center rounded-full p-1 bg-surface transition-colors ${requireOtpForSensitiveActions ? 'justify-end bg-brand' : 'justify-start bg-line'}`}
+            >
+              <span className="h-5 w-5 rounded-full bg-white" />
+            </button>
+          </label>
+          <p className="mt-1 text-[11px] text-ink-muted">
+            {t('عند التفعيل، يتطلب طلب أول طلب أو تغيير رقم الجوال أو إعادة تعيين كلمة المرور التحقق عبر OTP', 'When enabled, first order, phone change, or password reset require OTP verification')}
+          </p>
         </section>
         <section className="rounded-2xl border border-line bg-surface p-4">
           <h2 className="text-sm font-extrabold">{t('المظهر والنسق', 'Appearance & dark mode')}</h2>
