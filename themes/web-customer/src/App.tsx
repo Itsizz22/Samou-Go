@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { MotionConfig } from 'framer-motion';
 import { Loader2, MapPin, X } from 'lucide-react';
 import { UserRole, type UserRole as UserRoleValue } from '@samou-go/shared-types';
 import { useLanguage } from '@samou-go/ui';
@@ -124,6 +125,7 @@ function App() {
   if (!auth.ready || !splashElapsed) return <BootScreen />;
 
   return (
+    <MotionConfig reducedMotion="never">
     <ThemeProvider>
       <NavigationDrawerProvider>
         <StartupRoutes auth={auth} />
@@ -131,6 +133,7 @@ function App() {
         <CustomerLocationPrompt auth={auth} />
       </NavigationDrawerProvider>
     </ThemeProvider>
+    </MotionConfig>
   );
 }
 
