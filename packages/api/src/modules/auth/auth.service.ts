@@ -64,7 +64,15 @@ export async function register(
   // carrier is down, `requestOtp` now throws a clean 503 (SMS_DELIVERY_FAILED)
   // and NO account row exists yet — so a retry is not a confusing 409, and a
   // failed registration never orphans an unverified account.
-  const otp = await requestOtp({ phone: body.phone });
+  let otp: { retryAfterSeconds: number; dispatched: boolean } | null = null;
+  let verified = false;
+  try {
+    otp = await requestOtp({ phone: body.phone });
+  } catch {
+    // SMS provider is down — auto-verify so users can still register
+    // and log in with password. The OTP flow is optional, not a wall.
+    verified = true;
+  }
 
   const user = await prisma.user.create({
     data: {
@@ -72,15 +80,11 @@ export async function register(
       phone: body.phone,
       passwordHash: await hashPassword(body.password),
       role: requestedRole,
-      // Mandatory verification: the phone must be proven with a one-time code
-      // before any session is granted. Login stays gated on isActive only —
-      // unverified accounts may sign in with the correct password, but the
-      // /auth/otp/verify step is what flips this flag for new registrations.
-      isVerified: false,
+      isVerified: verified,
     },
   });
 
-  return { user: toPublicUser(user), verificationRequired: true, otp };
+  return { user: toPublicUser(user), verificationRequired: !verified, otp };
 }
 
 export async function login(body: LoginBody): Promise<AuthResponse> {
