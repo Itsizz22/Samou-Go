@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { ORDER_STATUS_LABELS, UserRole } from '@samou-go/shared-types';
+import { ORDER_STATUS_LABELS, OrderStatus, UserRole } from '@samou-go/shared-types';
 import { created, ok } from '../../lib/respond';
 import { parseWith } from '../../lib/validate';
 import { forbidden } from '../../lib/http-error';
@@ -17,6 +17,9 @@ import {
 import { setOrderDeliveryZoneSchema } from '../zones/zones.schemas';
 import * as ordersService from './orders.service';
 import { emitOrderStatus, emitPlatformEvent } from '../../realtime';
+import { sendPushToUser, sendPushToMany } from '../../lib/push';
+import { prisma } from '../../lib/prisma';
+import type { OrderDetail } from '@samou-go/shared-types';
 
 /** SSE event type emitted to connected clients. */
 type OrderEvent = {
@@ -100,6 +103,26 @@ export async function createOrderHandler(req: Request, res: Response): Promise<v
   const body = parseWith(createOrderSchema, req.body);
   const result = await ordersService.createOrder(auth.sub, body);
   emitPlatformEvent('order:created', { orderId: result.id, storeId: result.storeId, status: result.status });
+
+  // Push: notify all store managers of the new order.
+  void (async () => {
+    try {
+      const store = await prisma.store.findUnique({
+        where: { id: result.storeId },
+        select: { managerId: true, nameAr: true },
+      });
+      if (store) {
+        await sendPushToUser(store.managerId, {
+          title: 'طلب جديد 🛒',
+          body: `طلب جديد #${result.orderNumber} من ${result.customer.name}`,
+          data: { orderId: result.id, screen: 'order' },
+        });
+      }
+    } catch {
+      // Push failure must never break the order flow.
+    }
+  })();
+
   created(res, result);
 }
 
@@ -131,6 +154,10 @@ export async function updateOrderStatusHandler(req: Request, res: Response): Pro
   const body = parseWith(updateOrderStatusSchema, req.body);
   const result = await ordersService.updateOrderStatus(auth, orderId, body);
   emitOrderStatus(orderId, { status: result.status, orderId, timestamp: new Date().toISOString() });
+
+  // Push: notify the relevant party about the status change.
+  void notifyStatusChange(result, orderId, body.status);
+
   ok(res, result);
 }
 
@@ -141,6 +168,23 @@ export async function assignCaptainHandler(req: Request, res: Response): Promise
   const body = parseWith(assignCaptainSchema, req.body);
   const result = await ordersService.assignCaptain(auth, orderId, body);
   emitPlatformEvent('order:assigned', { orderId: result.id, captainId: result.captainId, storeId: result.storeId });
+
+  // Push: notify the captain they have a new delivery assignment.
+  if (result.captainId) {
+    const captainId = result.captainId;
+    void (async () => {
+      try {
+        await sendPushToUser(captainId, {
+          title: 'توصيل جديد 🚗',
+          body: `لديك طلب جديد #${result.orderNumber} — اضغط للتوصيل`,
+          data: { orderId: result.id, screen: 'order' },
+        });
+      } catch {
+        // Push failure must never break the assignment flow.
+      }
+    })();
+  }
+
   ok(res, result);
 }
 
@@ -166,6 +210,110 @@ export async function setOrderDeliveryFeeHandler(req: Request, res: Response): P
   // the new fee without waiting for its polling interval.
   emitOrderStatus(orderId, { status: result.status, orderId, timestamp: new Date().toISOString() });
   ok(res, result);
+}
+
+/**
+ * Send a push notification to the relevant party after an order status change.
+ * Fire-and-forget — push failure must never break the API response.
+ */
+async function notifyStatusChange(
+  order: OrderDetail,
+  orderId: string,
+  newStatus: string
+): Promise<void> {
+  try {
+    const labels = ORDER_STATUS_LABELS[newStatus as OrderStatus];
+    if (!labels) return;
+
+    switch (newStatus) {
+      case OrderStatus.ACCEPTED: {
+        // Store accepted → notify the customer.
+        await sendPushToUser(order.customerId, {
+          title: 'تم قبول الطلب ✅',
+          body: `متجر ${order.store.nameAr} قبول طلبك #${order.orderNumber}`,
+          data: { orderId, screen: 'tracking' },
+        });
+        break;
+      }
+      case OrderStatus.PREPARING: {
+        // Store is preparing → notify the customer.
+        await sendPushToUser(order.customerId, {
+          title: 'جاري التحضير 👨‍🍳',
+          body: `طلبك #${order.orderNumber} قيد التحضير`,
+          data: { orderId, screen: 'tracking' },
+        });
+        break;
+      }
+      case OrderStatus.READY_FOR_PICKUP: {
+        // Ready → notify the customer + all available captains.
+        await sendPushToUser(order.customerId, {
+          title: 'جاهز للاستلام 📦',
+          body: `طلبك #${order.orderNumber} جاهز — في انتظار الكابتن`,
+          data: { orderId, screen: 'tracking' },
+        });
+        // Notify available captains that there's a new order to claim.
+        const availableCaptains = await prisma.user.findMany({
+          where: {
+            role: UserRole.CAPTAIN,
+            isActive: true,
+            isVerified: true,
+            isAvailable: true,
+          },
+          select: { id: true },
+        });
+        if (availableCaptains.length > 0) {
+          await sendPushToMany(
+            availableCaptains.map((c) => c.id),
+            {
+              title: 'طلب جاهز للاستلام 📦',
+              body: `طلب #${order.orderNumber} من ${order.store.nameAr} جاهز للاستلام`,
+              data: { orderId, screen: 'order' },
+            }
+          );
+        }
+        break;
+      }
+      case OrderStatus.ON_THE_WAY: {
+        // Captain picked up → notify the customer.
+        if (order.customerId && order.captainId) {
+          await sendPushToUser(order.customerId, {
+            title: 'في الطريق إليك 🚗',
+            body: `طلبك #${order.orderNumber} في الطريق — الكابتن في الطريق`,
+            data: { orderId, screen: 'tracking' },
+          });
+        }
+        break;
+      }
+      case OrderStatus.DELIVERED: {
+        // Delivered → notify the customer.
+        await sendPushToUser(order.customerId, {
+          title: 'تم التوصيل 🎉',
+          body: `طلبك #${order.orderNumber} تم توصيله — بالعافية!`,
+          data: { orderId, screen: 'tracking' },
+        });
+        break;
+      }
+      case OrderStatus.CANCELLED: {
+        // Cancelled → notify the other party.
+        // If customer cancelled, notify store manager. If store cancelled, notify customer.
+        if (order.captainId) {
+          await sendPushToUser(order.captainId, {
+            title: 'تم إلغاء الطلب ❌',
+            body: `طلب #${order.orderNumber} تم إلغاؤه`,
+            data: { orderId, screen: 'order' },
+          });
+        }
+        await sendPushToUser(order.customerId, {
+          title: 'تم إلغاء الطلب ❌',
+          body: `طلب #${order.orderNumber} تم إلغاؤه`,
+          data: { orderId, screen: 'orders' },
+        });
+        break;
+      }
+    }
+  } catch {
+    // Push failure must never break the status update response.
+  }
 }
 
 /** PATCH /api/v1/orders/:orderId/review — sets a rating and comment for the order. */

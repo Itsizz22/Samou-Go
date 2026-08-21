@@ -214,8 +214,8 @@ export function SamouGoAdminDashboard() {
       />
 
       {/* Main content */}
-      <section className="flex min-h-screen w-full flex-col md:ps-[244px]">
-        <header className="sticky top-0 z-20 flex min-h-[78px] items-center justify-between border-b border-line bg-surface/95 px-5 shadow-card backdrop-blur md:px-8">
+      <section className="flex min-h-screen w-full flex-col md:ps-61">
+        <header className="sticky top-0 z-20 flex min-h-19.5 items-center justify-between border-b border-line bg-surface/95 px-5 shadow-card backdrop-blur md:px-8">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -566,7 +566,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
       <section aria-labelledby="overview-title">
         <div className="mb-5">
           <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-brand">Overview</p>
-          <h2 id="overview-title" className="mt-1 text-[20px] font-extrabold tracking-[-0.025em]">
+          <h2 id="overview-title" className="mt-1 text-[20px] font-extrabold tracking-tight">
             {t('نظرة عامة', 'Overview')}
           </h2>
           <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Dashboard date range">
@@ -701,7 +701,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
 
       {!error && (
         <section className="mt-7 overflow-x-auto" aria-labelledby="pipeline-title">
-          <div className="min-w-[760px] rounded-xl border border-line bg-surface p-5 shadow-card">
+          <div className="min-w-190 rounded-xl border border-line bg-surface p-5 shadow-card">
             <div className="flex items-center justify-between">
               <div>
                 <h2 id="pipeline-title" className="text-[15px] font-extrabold">
@@ -775,7 +775,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-start">
+              <table className="w-full min-w-160 text-start">
                 <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
                   <tr>
                     <th className="px-5 py-3">Order ID</th>
@@ -961,7 +961,7 @@ function OrdersPanel() {
       onRefresh={() => void orders.reload()}
       headerActions={
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex h-9 w-full items-center gap-2 rounded-xl border border-line bg-canvas px-3 text-ink-muted sm:w-[220px]">
+          <label className="flex h-9 w-full items-center gap-2 rounded-xl border border-line bg-canvas px-3 text-ink-muted sm:w-55">
             <Search size={15} />
             <input
               value={search}
@@ -995,7 +995,7 @@ function OrdersPanel() {
       }
     >
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-start">
+        <table className="w-full min-w-180 text-start">
           <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
             <tr>
               <th className="px-5 py-3">Order ID</th>
@@ -1234,7 +1234,7 @@ function UsersPanel() {
       onRefresh={() => void users.reload()}
       headerActions={
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex h-9 w-full items-center gap-2 rounded-xl border border-line bg-canvas px-3 text-ink-muted sm:w-[220px]">
+          <label className="flex h-9 w-full items-center gap-2 rounded-xl border border-line bg-canvas px-3 text-ink-muted sm:w-55">
             <Search size={15} />
             <input
               value={search}
@@ -1296,7 +1296,7 @@ function UsersPanel() {
         </div>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-start">
+        <table className="w-full min-w-190 text-start">
           <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
             <tr>
               <th className="px-3 py-3">
@@ -1762,7 +1762,7 @@ function StoresPanel() {
         </div>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-start">
+        <table className="w-full min-w-225 text-start">
           <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
             <tr>
               <th className="px-3 py-3">
@@ -1829,7 +1829,7 @@ function StoresPanel() {
                               <strong className="block font-bold text-ink">
                                 {store.nameAr}
                                 {store.isRecommended && (
-                                  <span className="ms-1.5 inline-flex translate-y-[-1px] items-center gap-0.5 rounded-full bg-brand-tint px-1.5 py-0.5 text-micro font-bold text-brand-deep">
+                                  <span className="ms-1.5 inline-flex -translate-y-px items-center gap-0.5 rounded-full bg-brand-tint px-1.5 py-0.5 text-micro font-bold text-brand-deep">
                                     <Star size={9} fill="currentColor" />
                                     موصى به
                                   </span>
@@ -2261,7 +2261,7 @@ function CaptainsPanel() {
           >
             <Plus size={14} /> {t('إضافة سائق', 'Add driver')}
           </button>
-          <label className="flex h-9 w-full items-center gap-2 rounded-xl border border-line bg-canvas px-3 text-ink-muted sm:w-[200px]">
+          <label className="flex h-9 w-full items-center gap-2 rounded-xl border border-line bg-canvas px-3 text-ink-muted sm:w-50">
             <Search size={15} />
             <input
               value={search}
@@ -2290,7 +2290,7 @@ function CaptainsPanel() {
         onCreated={() => void captains.reload()}
       />
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[680px] text-start">
+        <table className="w-full min-w-170 text-start">
           <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
             <tr>
               <th className="px-5 py-3">Captain</th>
@@ -2360,7 +2360,7 @@ function CaptainsPanel() {
                                 : 'Captain assigned to general pool'
                             )
                           }
-                          className="max-w-[180px] rounded-lg border border-line bg-surface px-2 py-1.5 text-[11px] font-semibold text-ink-soft outline-none focus:border-brand disabled:opacity-60"
+                          className="max-w-45 rounded-lg border border-line bg-surface px-2 py-1.5 text-[11px] font-semibold text-ink-soft outline-none focus:border-brand disabled:opacity-60"
                         >
                           <option value="">{t('سائق عام', 'General driver')}</option>
                           {(stores.data?.items ?? []).map(store => (
@@ -2688,7 +2688,7 @@ function ZonesPanel() {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] border-collapse text-sm">
+          <table className="w-full min-w-130 border-collapse text-sm">
             <thead>
               <tr className="border-b border-line bg-canvas text-[11px] font-bold uppercase tracking-wide text-ink-muted">
                 <th className="px-4 py-3 text-start">{t('المنطقة', 'Zone')}</th>
@@ -2822,7 +2822,7 @@ function OffersPanel() {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[620px] border-collapse text-sm">
+          <table className="w-full min-w-155 border-collapse text-sm">
             <thead>
               <tr className="border-b border-line bg-canvas text-[11px] font-bold uppercase tracking-wide text-ink-muted">
                 <th className="px-4 py-3 text-start">{t('العرض', 'Offer')}</th>

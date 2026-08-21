@@ -130,6 +130,7 @@ model User {
   supportTickets SupportTicket[]
   wallet Wallet?
   ledgerEntries LedgerEntry[]
+  deviceTokens  DeviceToken[]
 
   @@index([role, isActive])
   @@index([assignedStoreId])
@@ -622,4 +623,22 @@ model PlatformSettings {
   requireOtpForSensitiveActions Boolean @default(false)
   updatedAt DateTime @updatedAt
   @@map("platform_settings")
+}
+
+/// FCM / APNs device token registered by a mobile client. One user may own
+/// many tokens (multiple devices). Stale tokens are cleaned up when sending
+/// fails with a `messaging/registration-token-not-registered` error.
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  /// "android", "ios", or "web" — used to select the right FCM API.
+  platform  String   @db.VarChar(10)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
 }

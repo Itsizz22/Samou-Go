@@ -125,12 +125,13 @@
 }
 
 @theme {
-  /* -- Elevation: neutral, never green-tinted (except the brand glow) ----- */
-  --shadow-card: 0 1px 2px 0 rgb(17 24 39 / 0.05);
-  --shadow-raised: 0 4px 12px -2px rgb(17 24 39 / 0.08);
-  --shadow-overlay: 0 24px 48px -12px rgb(17 24 39 / 0.28);
-  --shadow-nav: 0 -2px 16px -4px rgb(17 24 39 / 0.1);
-  --shadow-brand: 0 8px 20px -4px rgb(16 185 129 / 0.35);
+  /* -- Elevation: tinted to match the emerald brand — cooler than pure black
+     so cards feel grounded in the palette, not floating in a void. */
+  --shadow-card: 0 1px 3px 0 rgb(6 78 59 / 0.06), 0 1px 2px -1px rgb(6 78 59 / 0.04);
+  --shadow-raised: 0 4px 14px -3px rgb(6 78 59 / 0.1), 0 2px 6px -2px rgb(6 78 59 / 0.06);
+  --shadow-overlay: 0 24px 48px -12px rgb(6 78 59 / 0.22), 0 8px 24px -6px rgb(6 78 59 / 0.12);
+  --shadow-nav: 0 -2px 16px -4px rgb(6 78 59 / 0.08);
+  --shadow-brand: 0 8px 24px -4px rgb(16 185 129 / 0.4), 0 2px 8px -2px rgb(16 185 129 / 0.2);
 
   /* -- Layout: shared containers and fixed chrome heights ---------------- */
   --container-app: 32rem; /* phone-first app shell (customer, captain) */
@@ -144,13 +145,22 @@
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-spring-soft: cubic-bezier(0.22, 1.2, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
   --animate-fade-in: fade-in 0.3s var(--ease-out-soft) both;
-  --animate-rise-in: rise-in 0.35s var(--ease-out-soft) both;
-  --animate-pop-in: pop-in 0.4s var(--ease-spring) both;
+  --animate-rise-in: rise-in 0.4s var(--ease-out-expo) both;
+  --animate-pop-in: pop-in 0.45s var(--ease-spring) both;
   --animate-shimmer: shimmer 1.6s linear infinite;
   --animate-pulse-ring: pulse-ring 1.8s var(--ease-in-out-soft) infinite;
   --animate-ride: ride 1.6s var(--ease-in-out-soft) infinite;
+
+  /* Stagger delays for cascading entry animations. */
+  --animate-stagger-1: 0ms;
+  --animate-stagger-2: 50ms;
+  --animate-stagger-3: 100ms;
+  --animate-stagger-4: 150ms;
+  --animate-stagger-5: 200ms;
 }
 
 /* ----------------------------------------------------------------------------
@@ -450,6 +460,7 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
   }
 
   html,
@@ -467,8 +478,23 @@
     font-family: var(--font-body);
     font-feature-settings:
       'rlig' 1,
-      'calt' 1;
+      'calt' 1,
+      'tnum' 1;
     box-sizing: border-box;
+  }
+
+  /* Subtle grain texture on the page canvas — breaks digital flatness
+     without requiring an image asset. The pseudo-element sits behind all
+     content via z-index: -1 and never intercepts pointer events. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
   }
 
   /* Latin islands: prices, codes, English labels, distances. */
@@ -541,68 +567,78 @@
    Skeleton) — the classes stay usable directly for markup that predates them.
    -------------------------------------------------------------------------- */
 @layer components {
-  /* -- Buttons: 44px minimum touch target, press feedback, brand focus ring */
+  /* -- Buttons: 44px minimum touch target, press feedback, brand focus ring.
+     Transitions use spring easing for a weighty, physical feel. */
   .btn-primary {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-field
            bg-brand px-4 py-3 text-sm font-bold text-white shadow-brand
-           transition-all duration-200 ease-out-soft
-           hover:bg-brand-dark hover:shadow-raised active:scale-[0.97]
+           transition-all duration-200
+           hover:bg-brand-dark hover:shadow-raised hover:-translate-y-px
+           active:translate-y-0 active:scale-[0.97]
            focus:outline-none focus:ring-2 focus:ring-brand/40
            disabled:pointer-events-none disabled:opacity-50;
+    transition-timing-function: var(--ease-spring-soft);
   }
 
   .btn-secondary {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-field
            border border-line/80 bg-surface px-4 py-3 text-sm font-bold text-ink-soft
-           transition-all duration-200 ease-out-soft
-           hover:border-brand hover:bg-brand-surface hover:text-brand-deep
-           active:scale-[0.97]
+           transition-all duration-200
+           hover:border-brand hover:bg-brand-surface hover:text-brand-deep hover:-translate-y-px
+           active:translate-y-0 active:scale-[0.97]
            focus:outline-none focus:ring-2 focus:ring-brand/40
            disabled:pointer-events-none disabled:opacity-50;
+    transition-timing-function: var(--ease-spring-soft);
   }
 
   .btn-ghost {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-field
            px-4 py-3 text-sm font-bold text-ink-soft
-           transition-all duration-200 ease-out-soft
-           hover:bg-canvas hover:text-ink active:scale-[0.97]
+           transition-all duration-200
+           hover:bg-canvas hover:text-ink
+           active:scale-[0.97]
            focus:outline-none focus:ring-2 focus:ring-brand/40
            disabled:pointer-events-none disabled:opacity-50;
+    transition-timing-function: var(--ease-spring-soft);
   }
 
   .btn-danger {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-field
            border border-danger/40 bg-surface px-4 py-3 text-sm font-bold text-danger
-           transition-all duration-200 ease-out-soft
-           hover:bg-danger-tint active:scale-[0.97]
+           transition-all duration-200
+           hover:bg-danger-tint hover:-translate-y-px
+           active:translate-y-0 active:scale-[0.97]
            focus:outline-none focus:ring-2 focus:ring-danger/30
            disabled:pointer-events-none disabled:opacity-50;
+    transition-timing-function: var(--ease-spring-soft);
   }
 
   .btn-icon {
     @apply inline-flex size-11 items-center justify-center rounded-field
-           transition-all duration-200 ease-out-soft
-           hover:bg-canvas active:scale-95
+           transition-all duration-200
+           hover:bg-canvas hover:scale-105 active:scale-95
            focus:outline-none focus:ring-2 focus:ring-brand/40;
+    transition-timing-function: var(--ease-spring-soft);
   }
 }
 
 @layer components {
   /* -- Surfaces ---------------------------------------------------------- */
   .card-surface {
-    @apply rounded-card border border-line/80 bg-surface/95 shadow-card backdrop-blur-sm;
+    @apply rounded-card border border-line/80 bg-surface shadow-card backdrop-blur-sm;
   }
 
   /* Hoverable card — for tappable store/product tiles. */
   .card-interactive {
-    @apply rounded-card border border-line/80 bg-surface/95 shadow-card backdrop-blur-sm
-           transition-all duration-200 ease-out-soft
+    @apply rounded-card border border-line/80 bg-surface shadow-card backdrop-blur-sm
+           transition-all duration-250
            hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-raised
            active:translate-y-0 active:scale-[0.99];
+    transition-timing-function: var(--ease-spring-soft);
   }
 
   .panel-surface {
-    @apply rounded-panel border border-line/80 bg-surface/95 shadow-raised backdrop-blur-sm;
+    @apply rounded-panel border border-line/80 bg-surface shadow-raised backdrop-blur-sm;
   }
 
   .surface-sunken {
@@ -612,14 +648,16 @@
   /* -- Fields ------------------------------------------------------------ */
   .input-field {
     @apply h-12 w-full rounded-field border border-line/80 bg-surface px-4 text-sm text-ink
-           transition-all duration-200 ease-out-soft
+           transition-all duration-200
            placeholder:text-ink-subtle
-           focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30
+           focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 focus:shadow-[0_0_0_3px_rgb(16_185_129/0.1)]
            disabled:cursor-not-allowed disabled:opacity-60;
+    transition-timing-function: var(--ease-spring-soft);
   }
 
   .input-field-invalid {
-    @apply border-danger/60 focus:border-danger focus:ring-danger/30;
+    @apply border-danger/60 focus:border-danger focus:ring-danger/20;
+    focus:shadow-[0_0_0_3px_rgb(239_68_68/0.1)];
   }
 
   .field-label {
@@ -636,57 +674,66 @@
 }
 
 @layer components {
-  /* -- Badges: tinted background + matching ink. Each variant repeats the
-        base utilities because Tailwind v4 cannot @apply a custom class. ---- */
+  /* -- Badges: tinted background + matching ink. Squircle shape instead of
+        pure pill for a less generic look. Each variant repeats the base
+        utilities because Tailwind v4 cannot @apply a custom class. ---- */
   .badge-base {
-    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-micro;
+    @apply inline-flex items-center gap-1 px-2.5 py-1 text-micro font-semibold;
+    border-radius: 0.5rem;
   }
   .badge-brand {
-    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-micro
+    @apply inline-flex items-center gap-1 px-2.5 py-1 text-micro font-semibold
            bg-brand-tint text-brand-deep;
+    border-radius: 0.5rem;
   }
   .badge-warning {
-    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-micro
+    @apply inline-flex items-center gap-1 px-2.5 py-1 text-micro font-semibold
            bg-warning-tint text-warning-ink;
+    border-radius: 0.5rem;
   }
   .badge-info {
-    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-micro
+    @apply inline-flex items-center gap-1 px-2.5 py-1 text-micro font-semibold
            bg-info-tint text-info-ink;
+    border-radius: 0.5rem;
   }
   .badge-danger {
-    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-micro
+    @apply inline-flex items-center gap-1 px-2.5 py-1 text-micro font-semibold
            bg-danger-tint text-danger-ink;
+    border-radius: 0.5rem;
   }
   .badge-success {
-    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-micro
+    @apply inline-flex items-center gap-1 px-2.5 py-1 text-micro font-semibold
            bg-success-tint text-success-ink;
+    border-radius: 0.5rem;
   }
   .badge-neutral {
-    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-micro
+    @apply inline-flex items-center gap-1 px-2.5 py-1 text-micro font-semibold
            bg-canvas text-ink-muted;
+    border-radius: 0.5rem;
   }
 
   /* -- Overlay + modal --------------------------------------------------- */
   .modal-overlay {
-    @apply fixed inset-0 z-40 bg-ink/50 backdrop-blur-sm;
+    @apply fixed inset-0 z-40 bg-ink/40 backdrop-blur-md;
   }
 
   .modal-panel {
-    @apply relative z-50 w-full max-w-md rounded-panel border border-line/80
+    @apply relative z-50 w-full max-w-md rounded-panel border border-line/60
            bg-surface p-5 shadow-overlay;
   }
 
   /* Bottom sheet — the mobile default for the phone-first apps. */
   .modal-sheet {
-    @apply relative z-50 w-full rounded-t-panel border border-line/80 border-b-0
+    @apply relative z-50 w-full rounded-t-panel border border-line/60 border-b-0
            bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-overlay;
   }
 }
 
 @layer components {
-  /* -- Loading skeletons: shimmer, not a blunt pulse --------------------- */
+  /* -- Loading skeletons: shimmer with subtle gradient, not a blunt pulse -- */
   .skeleton {
-    @apply relative overflow-hidden rounded-field bg-line-soft;
+    @apply relative overflow-hidden rounded-field;
+    background: linear-gradient(135deg, var(--color-line-soft) 0%, color-mix(in srgb, var(--color-line-soft) 60%, var(--color-canvas)) 50%, var(--color-line-soft) 100%);
   }
 
   .skeleton::after {
@@ -695,19 +742,19 @@
     inset: 0;
     background-image: linear-gradient(
       90deg,
-      transparent,
-      rgb(255 255 255 / 0.45),
-      transparent
+      transparent 0%,
+      rgb(255 255 255 / 0.35) 50%,
+      transparent 100%
     );
-    animation: shimmer 1.6s linear infinite;
+    animation: shimmer 1.8s var(--ease-in-out-soft) infinite;
   }
 
   .dark .skeleton::after {
     background-image: linear-gradient(
       90deg,
-      transparent,
-      rgb(255 255 255 / 0.08),
-      transparent
+      transparent 0%,
+      rgb(255 255 255 / 0.06) 50%,
+      transparent 100%
     );
   }
 
@@ -754,12 +801,12 @@
 
   .app-nav-item {
     @apply flex flex-1 flex-col items-center justify-center gap-0.5
-           text-micro text-ink-muted transition-colors duration-200
-           hover:text-ink active:scale-95;
+           text-micro text-ink-muted transition-all duration-200
+           hover:text-ink active:scale-90;
   }
 
   .app-nav-item-active {
-    @apply text-brand;
+    @apply text-brand font-bold;
   }
 
   .app-footer {
@@ -796,7 +843,8 @@
 
   /* Tap feedback for anything that is not a .btn-* (rows, tiles, chips). */
   .press {
-    @apply transition-transform duration-150 ease-out-soft active:scale-[0.97];
+    @apply transition-transform duration-150 active:scale-[0.97];
+    transition-timing-function: var(--ease-spring-soft);
   }
 
   /* Numerals, prices, phone numbers, order codes: LTR island + tabular figures. */
@@ -806,6 +854,21 @@
     font-variant-numeric: tabular-nums;
     unicode-bidi: isolate;
   }
+
+  /* Stagger entry: applies rise-in animation with a delay based on child index.
+     Usage: class="stagger-entry" on the parent, then CSS custom property
+     --stagger-index on each child (set via inline style or nth-child). */
+  .stagger-entry > * {
+    animation: rise-in 0.4s var(--ease-out-expo) both;
+  }
+  .stagger-entry > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-entry > *:nth-child(2) { animation-delay: 50ms; }
+  .stagger-entry > *:nth-child(3) { animation-delay: 100ms; }
+  .stagger-entry > *:nth-child(4) { animation-delay: 150ms; }
+  .stagger-entry > *:nth-child(5) { animation-delay: 200ms; }
+  .stagger-entry > *:nth-child(6) { animation-delay: 250ms; }
+  .stagger-entry > *:nth-child(7) { animation-delay: 300ms; }
+  .stagger-entry > *:nth-child(8) { animation-delay: 350ms; }
 }
 
 /* ----------------------------------------------------------------------------

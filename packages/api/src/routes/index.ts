@@ -17,6 +17,7 @@ import { favoritesRouter } from '../modules/favorites/favorites.routes';
 import { uploadsRouter } from '../uploads/uploads.routes';
 import { platformRouter } from '../modules/platform/platform.routes';
 import { deliveryZonesRouter } from '../modules/zones/zones.routes';
+import { devicesRouter } from '../modules/devices/devices.routes';
 import {
   customerCustomRequestsRouter,
   storeCustomRequestsRouter,
@@ -56,6 +57,7 @@ apiRouter.use('/admin', adminRouter);
 apiRouter.use('/favorites', favoritesRouter);
 apiRouter.use('/uploads', uploadsRouter);
 apiRouter.use('/platform', platformRouter);
+apiRouter.use('/devices', devicesRouter);
 apiRouter.use('/delivery-zones', deliveryZonesRouter);
 apiRouter.use('/customer/custom-requests', customerCustomRequestsRouter);
 apiRouter.use('/store/custom-requests', storeCustomRequestsRouter);

@@ -27,6 +27,7 @@ import {
 } from "./auth.schemas";
 import * as authService from "./auth.service";
 import * as otpService from "./otp.service";
+import * as firebaseService from "./firebase.service";
 
 /* ---------------------------------------------------------------------------
  * Auth
@@ -128,6 +129,19 @@ export async function updateMyLocationHandler(
  * the client sends one, is revoked server-side so a leaked token cannot be
  * replayed after sign-out.
  */
+/** POST /auth/firebase/verify — exchange a Firebase ID token for a Samou' Go session. */
+export async function verifyFirebaseTokenHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const { idToken, name } = req.body as { idToken?: string; name?: string };
+  if (!idToken || typeof idToken !== 'string') {
+    throw forbidden('Missing idToken');
+  }
+  const result = await firebaseService.verifyFirebaseToken(idToken, name);
+  ok(res, result);
+}
+
 export async function logoutHandler(
   req: Request,
   res: Response,

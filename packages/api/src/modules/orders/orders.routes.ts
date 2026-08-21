@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { UserRole } from '@samou-go/shared-types';
 import { asyncHandler } from '../../lib/async-handler';
 import { authenticate, authorize, optionalAuthenticate } from '../../middleware/authenticate';
+import { orderLimiter, quoteLimiter } from '../../middleware/rate-limit';
 import * as controller from './orders.controller';
 
 export const ordersRouter: Router = Router();
@@ -10,7 +11,7 @@ export const ordersRouter: Router = Router();
  * Quoting is open: the cart summary needs the delivery fee before the visitor
  * has an account. It touches no order rows.
  */
-ordersRouter.post('/quote', optionalAuthenticate, asyncHandler(controller.quoteOrderHandler));
+ordersRouter.post('/quote', optionalAuthenticate, quoteLimiter, asyncHandler(controller.quoteOrderHandler));
 
 /**
  * SSE stream: GET /api/v1/orders/:orderId/events — fires whenever the order's
@@ -38,6 +39,7 @@ ordersRouter.use(authenticate);
 ordersRouter.post(
   '/',
   authorize(UserRole.CUSTOMER, UserRole.ADMIN),
+  orderLimiter,
   asyncHandler(controller.createOrderHandler)
 );
 ordersRouter.get('/', asyncHandler(controller.listOrdersHandler));

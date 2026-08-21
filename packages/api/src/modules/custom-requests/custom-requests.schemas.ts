@@ -61,7 +61,7 @@ export type OfferCustomRequestBody = z.infer<typeof offerCustomRequestSchema>;
 
 /** Listing query for both customer and store endpoints. */
 export const customRequestListQuerySchema = paginationSchema.extend({
-  status: z.nativeEnum(CustomRequestStatus).optional(),
+  status: z.string().optional().transform(val => val?.toUpperCase()).pipe(z.nativeEnum(CustomRequestStatus).optional()),
   /**
    * STORE_MANAGER only: filter by store. The customer endpoint always scopes
    * by `customerId`, so this is ignored for that audience.

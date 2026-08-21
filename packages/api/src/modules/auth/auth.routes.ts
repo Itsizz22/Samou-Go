@@ -37,6 +37,11 @@ authRouter.post(
 );
 authRouter.post("/refresh", authLimiter, asyncHandler(controller.refreshHandler));
 authRouter.post("/logout", asyncHandler(controller.logoutHandler));
+authRouter.post(
+  "/firebase/verify",
+  authLimiter,
+  asyncHandler(controller.verifyFirebaseTokenHandler)
+);
 authRouter.get("/me", authenticate, asyncHandler(controller.meHandler));
 authRouter.patch(
   "/me",

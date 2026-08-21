@@ -28,7 +28,7 @@ const envSchema = z.object({
   /* ---- SMS / OTP --------------------------------------------------------- */
   /** Which gateway dispatches OTP codes. `console` logs codes (dev only), `none` swallows them,
    *  `mock` logs them but reports `dispatched: false` (test-only fallback). */
-  SMS_PROVIDER: z.enum(['twilio', 'generic', 'console', 'mock', 'none']).default('console'),
+  SMS_PROVIDER: z.enum(['twilio', 'infobip', 'generic', 'console', 'mock', 'none']).default('console'),
   /** Country code prepended to local `05XXXXXXXX` numbers before they reach the carrier. */
   SMS_COUNTRY_CODE: z.string().default('+970'),
   /**
@@ -50,6 +50,15 @@ const envSchema = z.object({
    *  Twilio Verify API (managed code lifecycle). When absent, raw SMS via
    *  the Messages API is used (server generates + stores the code). */
   TWILIO_VERIFY_SERVICE_SID: z.string().optional(),
+  /* ---- Infobip SMS gateway --------------------------------------------- */
+  /** Your Infobip base URL (e.g. "https://abc123.api.infobip.com"). */
+  SMS_INFOBIP_BASE_URL: z.string().url().optional(),
+  /** Infobip API key. */
+  SMS_INFOBIP_API_KEY: z.string().optional(),
+  /** Sender name or number (e.g. "SamouGo"). Required for raw SMS mode. */
+  SMS_INFOBIP_SENDER: z.string().optional(),
+  /** 2FA application ID — when set, uses Infobip's managed OTP Verify. */
+  SMS_INFOBIP_2FA_APP_ID: z.string().optional(),
   /** Digits in the OTP code. 6 is the default everywhere else in the stack. */
   OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
   /** OTP validity, in seconds. Requirement: 3 minutes. */
@@ -62,6 +71,14 @@ const envSchema = z.object({
   OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
 
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
+
+  /* ---- Push notifications (Firebase Cloud Messaging) ------------------- */
+  /** Path to the Firebase service-account JSON key file. Empty = push disabled. */
+  FIREBASE_SERVICE_ACCOUNT_PATH: z.string().optional(),
+  /** Inline JSON string of the service-account key — use when file mounting is impractical (e.g. Render). */
+  FIREBASE_SERVICE_ACCOUNT_JSON: z.string().optional(),
+  /** Firebase project ID — derived from the service account when omitted. */
+  FIREBASE_PROJECT_ID: z.string().optional(),
 
   DELIVERY_BASE_FEE: z.coerce.number().nonnegative().default(DEFAULT_DELIVERY_FEE_CONFIG.baseFee),
   DELIVERY_BULK_FEE: z.coerce.number().nonnegative().default(DEFAULT_DELIVERY_FEE_CONFIG.bulkFee),
@@ -166,6 +183,7 @@ export function parseDurationMs(value: string): number {
 export const env = {
   nodeEnv: raw.NODE_ENV,
   isProduction: raw.NODE_ENV === 'production',
+  isDevelopment: raw.NODE_ENV === 'development',
   isTest: raw.NODE_ENV === 'test',
   port: raw.PORT,
   databaseUrl: raw.DATABASE_URL,
@@ -188,6 +206,12 @@ export const env = {
       from: raw.TWILIO_FROM_NUMBER,
       verifyServiceSid: raw.TWILIO_VERIFY_SERVICE_SID,
     },
+    infobip: {
+      baseUrl: raw.SMS_INFOBIP_BASE_URL,
+      apiKey: raw.SMS_INFOBIP_API_KEY,
+      sender: raw.SMS_INFOBIP_SENDER,
+      appId: raw.SMS_INFOBIP_2FA_APP_ID,
+    },
   },
   otp: {
     length: raw.OTP_LENGTH,
@@ -205,6 +229,11 @@ export const env = {
     maxBytes: raw.UPLOAD_MAX_BYTES,
   },
   deliveryFeeConfig,
+  firebase: {
+    serviceAccountPath: raw.FIREBASE_SERVICE_ACCOUNT_PATH,
+    serviceAccountJson: raw.FIREBASE_SERVICE_ACCOUNT_JSON,
+    projectId: raw.FIREBASE_PROJECT_ID,
+  },
 } as const;
 
 export type Env = typeof env;

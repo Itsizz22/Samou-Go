@@ -39,6 +39,12 @@ import type {
   AdminOtpVerifyBody,
 } from "./auth.schemas";
 
+/** Tag thrown on the Twilio Verify path to distinguish "carrier rejected code" from "carrier down". */
+class OtpCodeInvalidError extends Error {
+  readonly isOtpInvalid = true as const;
+  constructor() { super("OTP_INVALID"); }
+}
+
 /** Cost 12 — bcrypt's work factor for the stored code hash. */
 const OTP_BCRYPT_ROUNDS = 12;
 
@@ -110,18 +116,34 @@ async function verifyOtpCode(
   }
 
   // Twilio Verify path: delegate code check to the carrier.
+  // Wrapped in try/catch — a carrier outage must never crash the request;
+  // fall back to local bcrypt comparison on failure.
   const gateway = getSmsGateway();
   if ("check" in gateway && typeof gateway.check === "function") {
     const e164 = toE164(phone, env.sms.countryCode);
-    const result = await gateway.check(e164, code);
-    if (!result.valid) {
-      await prisma.otpRequest.update({
-        where: { phone },
-        data: { attempts: { increment: 1 } },
-      });
-      throw errors.invalid();
+    try {
+      const result = await gateway.check(e164, code);
+      if (!result.valid) {
+        await prisma.otpRequest.update({
+          where: { phone },
+          data: { attempts: { increment: 1 } },
+        });
+        throw new OtpCodeInvalidError();
+      }
+      return;
+    } catch (err) {
+      // If the carrier said "invalid code", re-throw as the caller's error.
+      if (err instanceof OtpCodeInvalidError) throw errors.invalid();
+      // Carrier is down. The stored codeHash is a Twilio Verify sentinel
+      // (not a real code), so local bcrypt comparison cannot succeed — throw
+      // a clear service error instead of burning an attempt on a doomed
+      // comparison.
+      console.error(`[sms] carrier check failed for ${phone}`, err);
+      throw serviceUnavailable(
+        "SMS_VERIFY_UNAVAILABLE",
+        "خدمة التحقق مؤقتاً غير متاحة، يرجى المحاولة بعد قليل / Verification service is temporarily unavailable — please try again shortly",
+      );
     }
-    return;
   }
 
   // Local bcrypt path (console / generic / noop / raw-twilio-messages).
@@ -171,55 +193,56 @@ export async function requestOtp(
       await gateway.verify(to);
       dispatched = true;
     } catch (cause) {
+      // Never let a carrier failure crash the request. Log and fall through
+      // to the local code path so the customer still gets a usable OTP.
       console.error(
-        `[sms] twilio-verify dispatch failed for ${phone} (E.164 ${to})`,
+        `[sms] twilio-verify dispatch failed for ${phone} (E.164 ${to}), falling back to local code`,
         cause,
-      );
-      throw serviceUnavailable(
-        "SMS_DELIVERY_FAILED",
-        "تعذّر إرسال رمز التحقق، حاول مجدداً / Couldn't send the verification code — please try again",
       );
     }
 
-    // Upsert a rate-limit sentinel (no real code hash — Twilio owns the code).
-    const sentinelHash = await bcrypt.hash("__twilio_verify__", OTP_BCRYPT_ROUNDS);
-    const expiresAt = new Date(now.getTime() + env.otp.ttlMs);
+    // If the carrier accepted, store a sentinel hash for rate-limiting only.
+    if (dispatched) {
+      const sentinelHash = await bcrypt.hash("__twilio_verify__", OTP_BCRYPT_ROUNDS);
+      const expiresAt = new Date(now.getTime() + env.otp.ttlMs);
 
-    await prisma.otpRequest.upsert({
-      where: { phone },
-      create: {
-        phone,
-        codeHash: sentinelHash,
-        expiresAt,
-        requests: 1,
-        windowStartsAt: now,
-      },
-      update:
-        existing &&
-        now.getTime() - existing.windowStartsAt.getTime() < env.otp.rateWindowMs
-          ? {
-              codeHash: sentinelHash,
-              expiresAt,
-              attempts: 0,
-              requests: { increment: 1 },
-            }
-          : {
-              codeHash: sentinelHash,
-              expiresAt,
-              attempts: 0,
-              requests: 1,
-              windowStartsAt: now,
-            },
-    });
+      const upserted = await prisma.otpRequest.upsert({
+        where: { phone },
+        create: {
+          phone,
+          codeHash: sentinelHash,
+          expiresAt,
+          requests: 1,
+          windowStartsAt: now,
+        },
+        update:
+          existing &&
+          now.getTime() - existing.windowStartsAt.getTime() < env.otp.rateWindowMs
+            ? {
+                codeHash: sentinelHash,
+                expiresAt,
+                attempts: 0,
+                requests: { increment: 1 },
+              }
+            : {
+                codeHash: sentinelHash,
+                expiresAt,
+                attempts: 0,
+                requests: 1,
+                windowStartsAt: now,
+              },
+      });
 
-    const windowElapsed = now.getTime() - now.getTime();
-    return {
-      retryAfterSeconds: Math.max(
-        0,
-        Math.ceil((env.otp.rateWindowMs - windowElapsed) / 1_000),
-      ),
-      dispatched,
-    };
+      const windowElapsed = now.getTime() - upserted.windowStartsAt.getTime();
+      return {
+        retryAfterSeconds: Math.max(
+          0,
+          Math.ceil((env.otp.rateWindowMs - windowElapsed) / 1_000),
+        ),
+        dispatched,
+      };
+    }
+    // Fall through to local code path when carrier dispatch failed.
   }
 
   // ── Local code path (console / generic / raw-twilio-messages) ───────────
@@ -356,9 +379,11 @@ export async function resetPassword(body: ResetPasswordInput): Promise<void> {
     throw notFound("الحساب غير موجود / Account not found");
   }
 
-  // Reuse the hardened OTP verifier. It consumes the code; its short-lived
-  // session is immediately revoked below, so reset never leaves a login behind.
-  await verifyOtp({ phone: body.phone, code: body.code });
+  // Verify the OTP and consume the code WITHOUT minting a session.
+  // The old path called verifyOtp(), which created a live access token valid
+  // for up to 7 days — even after the password changed. That token was never
+  // revoked, leaving a post-reset window an attacker could exploit.
+  await verifyAndConsumeOtp(body.phone, body.code);
   await prisma.user.update({
     where: { id: existing.id },
     data: { passwordHash: await hashPassword(body.password) },

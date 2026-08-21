@@ -12,7 +12,7 @@ import { env } from '../config/env';
  */
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1_000, // 15 minutes
-  max: 10,
+  max: env.isDevelopment ? 1000 : 10,
   standardHeaders: 'draft-7', // RateLimit-* headers (RFC draft)
   legacyHeaders: false,
   skip: () => env.isTest,
@@ -36,7 +36,7 @@ export const authLimiter = rateLimit({
  */
 export const otpIpLimiter = rateLimit({
   windowMs: 5 * 60 * 1_000, // 5 minutes
-  max: 20,
+  max: env.isDevelopment ? 1000 : 20,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   skip: () => env.isTest,
@@ -46,6 +46,51 @@ export const otpIpLimiter = rateLimit({
       code: 'TOO_MANY_REQUESTS',
       message:
         'طلبات كثيرة جداً، يرجى المحاولة بعد 5 دقائق / Too many requests — try again in 5 minutes',
+    },
+  } satisfies ApiFailure,
+});
+
+/**
+ * Applied to `POST /orders` — order creation.
+ *
+ * A legitimate customer places at most a few orders per session. This
+ * prevents script abuse that could flood the kitchen with fake orders.
+ */
+export const orderLimiter = rateLimit({
+  windowMs: 10 * 60 * 1_000, // 10 minutes
+  max: env.isDevelopment ? 1000 : 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skip: () => env.isTest,
+  message: {
+    success: false,
+    error: {
+      code: 'TOO_MANY_REQUESTS',
+      message:
+        'لقد أرسلت طلبات كثيرة، يرجى الانتظار قليلاً / You placed too many orders — please wait a moment',
+    },
+  } satisfies ApiFailure,
+});
+
+/**
+ * Applied to `POST /orders/quote` — price quoting.
+ *
+ * The checkout debounces on the client (300 ms), but a script could still
+ * hammer this endpoint. Generous limit: a human taps "place order" a few
+ * times; 30 quotes in 5 minutes is more than enough.
+ */
+export const quoteLimiter = rateLimit({
+  windowMs: 5 * 60 * 1_000, // 5 minutes
+  max: env.isDevelopment ? 1000 : 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skip: () => env.isTest,
+  message: {
+    success: false,
+    error: {
+      code: 'TOO_MANY_REQUESTS',
+      message:
+        'طلبات كثيرة جداً، يرجى المحاولة بعد قليل / Too many requests — please wait a moment',
     },
   } satisfies ApiFailure,
 });

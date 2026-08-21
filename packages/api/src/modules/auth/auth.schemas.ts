@@ -202,7 +202,7 @@ export const logoutSchema = z.object({
 export const userListQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
-  role: z.nativeEnum(UserRole).optional(),
+  role: z.string().optional().transform(val => val?.toUpperCase()).pipe(z.nativeEnum(UserRole).optional()),
   isActive: z
     .enum(["true", "false"])
     .optional()

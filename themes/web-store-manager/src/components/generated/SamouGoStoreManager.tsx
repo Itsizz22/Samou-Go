@@ -416,16 +416,16 @@ export function SamouGoStoreManager() {
   /* ---- Render ------------------------------------------------------------ */
 
   return (
-    <main className={`min-h-screen bg-canvas pb-24 font-sans text-ink transition-[padding] duration-300 ${sidebarOpen ? 'md:pe-60' : ''}`}>
+    <main className={`min-h-screen bg-canvas pb-24 font-sans text-ink transition-[padding] duration-300 ${sidebarOpen ? 'md:pr-60' : ''}`}>
       {sidebarOpen && <button type="button" aria-label={t('إغلاق القائمة', 'Close navigation')} onClick={() => setSidebarOpen(false)} className="fixed inset-0 z-20 bg-ink/40 md:hidden" />}
-      <aside className={`fixed inset-y-0 end-0 z-30 flex w-60 flex-col bg-brand-deep px-4 py-6 text-white shadow-overlay transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} aria-label={t('تنقل مدير المتجر', 'Store manager navigation')}>
+      <aside className={`fixed inset-y-0 right-0 z-30 flex w-60 flex-col bg-brand-deep px-4 py-6 text-white shadow-overlay transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} aria-label={t('تنقل مدير المتجر', 'Store manager navigation')}>
         <p className="px-3 text-lg font-extrabold">Samou' Go</p>
         <p className="px-3 text-[11px] text-white/70">مدير المتجر</p>
         <nav className="mt-8 flex-1 space-y-1">
           {BOTTOM_TABS.map((tab) => {
             const Icon = tab.icon;
             const selected = activeTab === tab.id;
-            return <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition ${selected ? 'bg-brand text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'}`}>
+            return <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition-all duration-200 ${selected ? 'bg-brand text-white shadow-brand' : 'text-white/75 hover:bg-white/10 hover:text-white active:scale-[0.97]'}`}>
               <Icon size={18} /><span>{t(tab.ar, tab.en)}</span>
             </button>;
           })}
