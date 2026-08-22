@@ -113,8 +113,8 @@ export function CustomerAuthGate({
       setPinState('idle');
       setStep('code');
       startResendCountdown(DEFAULT_RESEND_SECONDS);
-    } catch (cause: any) {
-      const message = cause?.message ?? String(cause);
+    } catch (cause: unknown) {
+      const message = cause instanceof Error ? cause.message : String(cause);
       // Firebase-specific error mapping
       let localizedMessage = message;
       if (message.includes('auth/too-many-requests')) {
@@ -168,8 +168,8 @@ export function CustomerAuthGate({
         // Biometric/secure storage may not work — non-fatal, app continues.
         console.warn('[auth] Could not save session to secure storage');
       }
-    } catch (cause: any) {
-      const message = cause?.message ?? String(cause);
+    } catch (cause: unknown) {
+      const message = cause instanceof Error ? cause.message : String(cause);
       let localizedMessage = message;
       if (message.includes('auth/wrong-code') || message.includes('invalid-verification-code')) {
         localizedMessage = 'رمز غير صحيح / Incorrect code';

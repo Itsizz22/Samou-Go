@@ -30,12 +30,23 @@ function getPlatform(): 'android' | 'ios' | 'web' {
 }
 
 /**
+ * Guard: prevent duplicate listener registration. Capacitor PushNotifications
+ * accumulates listeners on every `addListener` call — without this guard,
+ * each login/refresh cycle stacks new handlers that never get cleaned up,
+ * leading to memory leaks and duplicate API calls.
+ */
+let listenersRegistered = false;
+
+/**
  * Request permission and register for push notifications.
- * Safe to call multiple times — no-ops if already registered.
+ * Idempotent — only registers listeners once per app lifecycle.
  */
 export async function registerForPushNotifications(accessToken: string): Promise<void> {
   // Only works on native platforms (Android/iOS) via Capacitor.
   if (!Capacitor.isNativePlatform()) return;
+
+  // Already registered — skip to avoid accumulating duplicate listeners.
+  if (listenersRegistered) return;
 
   try {
     // Step 1: Request permission.
@@ -47,6 +58,9 @@ export async function registerForPushNotifications(accessToken: string): Promise
 
     // Step 2: Register for push notifications.
     await PushNotifications.register();
+
+    // Mark as registered before adding listeners to prevent re-entry.
+    listenersRegistered = true;
 
     // Step 3: Listen for registration token.
     PushNotifications.addListener('registration', async (token) => {
@@ -62,8 +76,6 @@ export async function registerForPushNotifications(accessToken: string): Promise
     // Step 5: Handle foreground notifications.
     PushNotifications.addListener('pushNotificationReceived', (notification) => {
       console.log('[push] Foreground notification:', notification);
-      // Show an in-app toast or banner — the app is already open.
-      // For now, just log it. A toast component can be added later.
     });
 
     // Step 6: Handle notification taps (app opened from background).
@@ -71,11 +83,9 @@ export async function registerForPushNotifications(accessToken: string): Promise
       console.log('[push] Notification tapped:', action);
       const data = action.notification.data;
       if (data?.orderId) {
-        // Navigate to the order tracking screen via SPA router.
-        // Falls back to window.location if the router isn't wired yet.
-        if (!globalNavigate(`/orders/${encodeURIComponent(data.orderId)}`)) {
-          window.location.href = `/orders/${encodeURIComponent(data.orderId)}`;
-        }
+        // Navigate via SPA router only — never fall back to window.location.href
+        // which causes a full page reload and "Throttling navigation" crash on Android.
+        globalNavigate(`/orders/${encodeURIComponent(data.orderId)}`);
       }
     });
   } catch (err) {
