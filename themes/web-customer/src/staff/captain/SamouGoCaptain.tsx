@@ -33,7 +33,6 @@ import {
   setOrderDeliveryZone,
   updateOrderStatus,
   updateProfile,
-  useAuth,
   useMutation,
   useOrder,
   useOrders,
@@ -43,6 +42,7 @@ import {
   useWallet,
   connectRealtime,
 } from '@samou-go/api-client';
+import { useAuth } from '@/hooks/useApi';
 import {
   Badge,
   LanguageToggle,
@@ -123,7 +123,7 @@ function mapsDirectionsToAddress(addressText: string): string {
  * ------------------------------------------------------------------------- */
 
 export function SamouGoCaptain() {
-  const auth = useAuth({ allowedRoles: [UserRole.CAPTAIN] });
+  const auth = useAuth();
   const toast = useToast();
   const { t, language } = useLanguage();
   const isArabic = language === 'ar';
