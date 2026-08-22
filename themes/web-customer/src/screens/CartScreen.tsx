@@ -10,7 +10,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Minus, Plus, RefreshCw, ShoppingBag, Store, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCart, type CartStoreGroup } from '@/components/CartProvider';
-import { formatCurrency, calculateDeliveryFee, DEFAULT_DELIVERY_FEE_CONFIG, isFreeDelivery, FREE_DELIVERY_LABEL, DYNAMIC_FEE_LABEL, DYNAMIC_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
+import { formatCurrency, calculateDeliveryFee, DEFAULT_DELIVERY_FEE_CONFIG, DRIVER_FEE_LABEL, DRIVER_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
 import { hapticTap } from '@/lib/haptics';
 import { PageTransition } from '@/components/PageTransition';
 import { SkeletonGrid, ProductRowSkeleton } from '@/components/Skeleton';
@@ -33,7 +33,7 @@ export function CartScreen() {
     meta.data?.deliveryFee ?? DEFAULT_DELIVERY_FEE_CONFIG
   );
   const total = cart.subtotal + deliveryFee;
-  const deliveryFree = !isDynamicFee && isFreeDelivery(deliveryFee);
+
 
   return (
     <PageTransition>
@@ -145,15 +145,13 @@ export function CartScreen() {
                   <span>{deliveryFeeLabel(language)}</span>
                   <span dir="ltr" className="font-bold text-brand-dark">
                     {isDynamicFee
-                      ? (isArabic ? DYNAMIC_FEE_LABEL.ar : DYNAMIC_FEE_LABEL.en)
-                      : deliveryFree ? (isArabic ? FREE_DELIVERY_LABEL.ar : FREE_DELIVERY_LABEL.en) : formatCurrency(deliveryFee)}
+                      ? (isArabic ? DRIVER_FEE_LABEL.ar : DRIVER_FEE_LABEL.en)
+                      : formatCurrency(deliveryFee)}
                   </span>
                 </div>
-                {isDynamicFee && (
-                  <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
-                    {t(DYNAMIC_FEE_NOTICE.ar, DYNAMIC_FEE_NOTICE.en)}
-                  </p>
-                )}
+                <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
+                  {t(DRIVER_FEE_NOTICE.ar, DRIVER_FEE_NOTICE.en)}
+                </p>
                 <div className="mt-3 flex justify-between border-t border-line pt-3 text-sm">
                   <span className="font-extrabold">الإجمالي</span>
                   <span dir="ltr" className="font-extrabold text-brand-dark">{formatCurrency(total)}</span>

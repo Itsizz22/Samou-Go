@@ -5,7 +5,6 @@ import {
   calculateOrderTotals,
   formatCurrency,
   formatDeliveryFee,
-  isFreeDelivery,
   lineTotal,
   roundMoney,
   type DeliveryFeeConfig,
@@ -239,21 +238,4 @@ describe('formatDeliveryFee', () => {
   });
 });
 
-/* ---------------------------------------------------------------------------
- * isFreeDelivery
- * ------------------------------------------------------------------------- */
 
-describe('isFreeDelivery', () => {
-  it('returns true for 0', () => {
-    expect(isFreeDelivery(0)).toBe(true);
-  });
-
-  it('returns true for negative amounts', () => {
-    expect(isFreeDelivery(-1)).toBe(true);
-  });
-
-  it('returns false for positive amounts', () => {
-    expect(isFreeDelivery(3)).toBe(false);
-    expect(isFreeDelivery(0.01)).toBe(false);
-  });
-});

@@ -25,7 +25,7 @@ import { CustomerAuthGate } from '@/components/CustomerAuthGate';
 import { OrderStatusTimeline } from '@/components/OrderStatusTimeline';
 import { PageTransition } from '@/components/PageTransition';
 import { Skeleton } from '@/components/Skeleton';
-import { formatCurrency, FREE_DELIVERY_LABEL, DYNAMIC_FEE_LABEL, DYNAMIC_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
+import { formatCurrency, DRIVER_FEE_LABEL, DRIVER_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
 import { useLanguage } from '@samou-go/ui';
 
 const POLL_MS = 15_000;
@@ -239,15 +239,13 @@ export function OrderTrackingScreen() {
                     <dt>{deliveryFeeLabel(language)}</dt>
                     <dd dir="ltr" className="font-bold text-brand-dark">
                       {isDynamicFee
-                        ? (isArabic ? DYNAMIC_FEE_LABEL.ar : DYNAMIC_FEE_LABEL.en)
-                        : order.data.deliveryFee <= 0
-                          ? (isArabic ? FREE_DELIVERY_LABEL.ar : FREE_DELIVERY_LABEL.en)
-                          : formatCurrency(order.data.deliveryFee)}
+                        ? (isArabic ? DRIVER_FEE_LABEL.ar : DRIVER_FEE_LABEL.en)
+                        : formatCurrency(order.data.deliveryFee)}
                     </dd>
                   </div>
-                  {isDynamicFee && !terminal && (
+                  {!terminal && (
                     <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
-                      {t(DYNAMIC_FEE_NOTICE.ar, DYNAMIC_FEE_NOTICE.en)}
+                      {t(DRIVER_FEE_NOTICE.ar, DRIVER_FEE_NOTICE.en)}
                     </p>
                   )}
                   {order.data.discount > 0 && (

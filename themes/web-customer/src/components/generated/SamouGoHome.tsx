@@ -94,7 +94,7 @@ export function SamouGoHome() {
   });
 
   // GET /api/v1/meta — the tariff the server is actually charging, so the
-  // free-delivery badge cannot drift from `calculateDeliveryFee`.
+  // Delivery fee is determined by the driver upon pickup.
   const meta = useApiMeta();
   const baseFee = meta.data?.deliveryFee.baseFee ?? DEFAULT_DELIVERY_FEE_CONFIG.baseFee;
 
@@ -217,7 +217,7 @@ export function SamouGoHome() {
       <section className="mx-auto max-w-md px-5 pt-5" aria-label="Promotions">
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-dark via-brand to-brand-soft px-5 py-5 text-white shadow-card">
           <div className="relative z-10 flex min-h-[104px] items-center justify-between">
-            <div><p className="mb-2 text-xs font-medium text-white/85">{t('عرض خاص لفترة محدودة', 'Limited-time offer')}</p><h2 className="max-w-[220px] text-[22px] font-extrabold leading-tight">{t(banner === 0 ? 'توصيل مجاني لأول طلب' : 'متاجر جديدة في السموع!', banner === 0 ? 'Free delivery on your first order!' : "New stores in Al-Samou'!")}</h2></div><span className="text-5xl opacity-20">{banner === 0 ? '✦' : '✚'}</span>
+            <div><p className="mb-2 text-xs font-medium text-white/85">{t('عرض خاص لفترة محدودة', 'Limited-time offer')}</p><h2 className="max-w-[220px] text-[22px] font-extrabold leading-tight">{t('رسوم التوصيل يحددها السائق', 'Delivery fee set by driver')}</h2></div><span className="text-5xl opacity-20">✦</span>
           </div>
           {/* Layered decorative circles for depth */}
           <div className="absolute -bottom-10 -start-8 h-32 w-32 rounded-full border-[18px] border-white/10" />
