@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { MotionConfig } from 'framer-motion';
 import { Loader2, MapPin, X } from 'lucide-react';
 import { UserRole, type UserRole as UserRoleValue } from '@samou-go/shared-types';
 import { useLanguage } from '@samou-go/ui';
@@ -109,23 +108,30 @@ function App() {
   });
   const [splashElapsed, setSplashElapsed] = useState(false);
 
+  // Minimum splash duration — show brand moment even if auth resolves fast.
   useEffect(() => {
     const timer = window.setTimeout(() => setSplashElapsed(true), 1_650);
     return () => window.clearTimeout(timer);
   }, []);
 
   // Register for push notifications when the user is authenticated.
+  // Wrapped in try/catch — PushNotifications plugin may not be available
+  // on all platforms or may throw on permission denial.
   useEffect(() => {
     if (auth.ready && auth.user) {
       const token = getToken();
-      if (token) void registerForPushNotifications(token);
+      if (token) {
+        registerForPushNotifications(token).catch((err: unknown) => {
+          console.warn('[app] Push registration failed:', err);
+        });
+      }
     }
   }, [auth.ready, auth.user]);
 
+  // Show splash until BOTH auth is resolved AND minimum duration elapsed.
   if (!auth.ready || !splashElapsed) return <BootScreen />;
 
   return (
-    <MotionConfig reducedMotion="never">
     <ThemeProvider>
       <NavigationDrawerProvider>
         <StartupRoutes auth={auth} />
@@ -133,17 +139,15 @@ function App() {
         <CustomerLocationPrompt auth={auth} />
       </NavigationDrawerProvider>
     </ThemeProvider>
-    </MotionConfig>
   );
 }
 
 function ProtectedRoute({ auth, children }: { auth: Auth; children: React.ReactNode }) {
-  if (!auth.ready) return <BootScreen />;
-  if (!auth.user) return <Navigate to="/login" replace />;
-  // The shopping screens are customer-only. A staff session that reaches a
-  // customer route is sent to its own merged dashboard instead of the feed;
-  // a role the app does not serve at all was already signed out by the
-  // `useAuth` role gate on boot.
+  // Guard: auth must be resolved before any route renders. The App component
+  // already shows BootScreen while auth is loading — returning null here
+  // avoids mounting/unmounting BootScreen inside the route tree (which causes
+  // remount loops and "Throttling navigation" warnings).
+  if (!auth.ready || !auth.user) return <Navigate to="/login" replace />;
   if (auth.user.role !== UserRole.CUSTOMER) {
     return <Navigate to={roleHomePath(auth.user.role)} replace />;
   }
@@ -151,7 +155,7 @@ function ProtectedRoute({ auth, children }: { auth: Auth; children: React.ReactN
 }
 
 function AuthRoute({ auth, children }: { auth: Auth; children: React.ReactNode }) {
-  if (!auth.ready) return <BootScreen />;
+  if (!auth.ready) return null;
   return auth.user ? <Navigate to={roleHomePath(auth.user.role)} replace /> : <>{children}</>;
 }
 
@@ -170,7 +174,7 @@ function RoleGuard({
   role: UserRoleValue;
   children: ReactNode;
 }) {
-  if (!auth.ready) return <BootScreen />;
+  if (!auth.ready) return null;
   if (!auth.user) return <Navigate to="/login" replace />;
   if (auth.user.role !== role) return <Navigate to="/" replace />;
   return <>{children}</>;
@@ -261,7 +265,10 @@ function StartupRoutes({ auth }: { auth: Auth }) {
         }
       />
 
-      <Route path="*" element={<Navigate to={auth.user ? roleHomePath(auth.user.role) : '/login'} replace />} />
+      {/* Catch-all: only redirect if the user is actually logged in. If not,
+          just render null — the /login route already handles the signed-out case.
+          This prevents self-redirect loops (e.g. Navigate('/login') while on /login). */}
+      <Route path="*" element={auth.user ? <Navigate to={roleHomePath(auth.user.role)} replace /> : null} />
     </Routes>
   );
 }

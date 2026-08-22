@@ -171,15 +171,19 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
     };
   }, []);
 
+  // Listen for token lifecycle changes (login / signOut / 401-clear).
+  // IMPORTANT: We must NOT call me() here — it causes a redirect loop when
+  // the server returns 401 (request() clears the token → listener fires →
+  // me() → 401 → clear → listener → …). Instead, just track whether a
+  // token exists; the boot effect above already verified it on mount.
   useEffect(() => {
     return subscribeTokenChange(() => {
       if (!getToken()) {
+        // Token was cleared (signOut, 401, expired refresh).
         setUserState(null);
-        return;
       }
-      void me()
-        .then(applyProfile)
-        .catch(() => setUserState(null));
+      // If a NEW token was set (login), the signIn() callback above already
+      // sets user state — no action needed here.
     });
   }, []);
 
