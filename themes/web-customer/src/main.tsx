@@ -1,5 +1,4 @@
 import { AppErrorBoundary, LanguageProvider, OfflineBanner, bootstrapApp } from '@samou-go/ui';
-import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'sonner';
@@ -14,25 +13,48 @@ import { FavoritesProvider } from './components/FavoritesProvider';
 // light-mode lock — ThemeProvider owns the `.dark` class instead.
 bootstrapApp({ allowDarkMode: true });
 
-  // Register the PWA service worker (public/service-worker.js). Production only:
-// a stale dev-time cache fights Vite HMR. The worker is registered after load
-// so it never delays first paint, and registration failures are logged quietly
-// instead of surfacing an error overlay.
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+// ---------------------------------------------------------------------------
+// Crash protection: catch unhandled promise rejections from Capacitor plugins
+// or third-party SDKs that would otherwise crash the WebView.
+// ---------------------------------------------------------------------------
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[app] Unhandled promise rejection:', event.reason);
+  event.preventDefault(); // Prevent the WebView from crashing.
+});
+
+// ---------------------------------------------------------------------------
+// Service worker: only register on web (Vercel), NOT on Capacitor native.
+// On Android the service worker caches stale index.html with old JS bundle
+// hashes, causing blank screens and infinite reload loops on app reopen.
+// ---------------------------------------------------------------------------
+const isNative =
+  typeof window !== 'undefined' &&
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  (window.location.protocol === 'capacitor:' ||
+    window.location.hostname === 'localhost' && navigator.userAgent.includes('Capacitor'));
+
+if ('serviceWorker' in navigator && import.meta.env.PROD && !isNative) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/service-worker.js', { scope: '/', updateViaCache: 'none' })
       .catch((err: unknown) => {
-        console.warn('SW registration failed: ', err);
+        console.warn('[app] SW registration failed:', err);
       });
   });
 }
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <AppErrorBoundary><OfflineBanner /><LanguageProvider><BrowserRouter>
-      <CartProvider><FavoritesProvider><App /></FavoritesProvider></CartProvider>
-    </BrowserRouter></LanguageProvider></AppErrorBoundary>
+  <AppErrorBoundary>
+    <OfflineBanner />
+    <LanguageProvider>
+      <BrowserRouter>
+        <CartProvider>
+          <FavoritesProvider>
+            <App />
+          </FavoritesProvider>
+        </CartProvider>
+      </BrowserRouter>
+    </LanguageProvider>
     <Toaster />
-  </StrictMode>
+  </AppErrorBoundary>,
 );
