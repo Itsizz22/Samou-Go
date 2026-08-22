@@ -180,27 +180,30 @@ jobs:
 
             export VERCEL_PROJECT_ID="${PROJECT_IDS[$app]}"
 
-            # Run ALL commands from the REPO ROOT — never cd into the theme dir.
-            # Each Vercel project has rootDirectory = "themes/<app>" in the
-            # dashboard. From the repo root, vercel resolves:
-            #   <cwd> + rootDirectory = themes/web-customer  ✓
-            # If we cd into themes/web-customer first, it doubles to:
-            #   themes/web-customer/themes/web-customer  ✗
-            npx --yes vercel@latest pull \
-              --yes \
-              --environment=production \
-              --token "${VERCEL_TOKEN}"
+            # Step 1: Link the project (creates .vercel/project.json in theme dir)
+            (
+              cd "themes/$app"
 
-            npx --yes vercel@latest build \
-              --prod \
-              --yes \
-              --token "${VERCEL_TOKEN}"
+              npx --yes vercel@latest pull \
+                --yes \
+                --environment=production \
+                --token "${VERCEL_TOKEN}"
 
-            npx --yes vercel@latest deploy \
-              --prebuilt \
-              --prod \
-              --yes \
-              --token "${VERCEL_TOKEN}"
+              # Step 2: Skip `vercel build` — it runs the ROOT package.json build
+              # script (tsc -b) instead of the theme's Vite build, producing no
+              # dist/ folder. Instead, package the pre-built dist/ from step 9
+              # into Vercel Build Output API v3 structure (.vercel/output/static/).
+              mkdir -p .vercel/output/static
+              cp -r dist/* .vercel/output/static/
+              echo '{"version":3}' > .vercel/output/config.json
+
+              # Step 3: Deploy the prebuilt output to Vercel.
+              npx --yes vercel@latest deploy \
+                --prebuilt \
+                --prod \
+                --yes \
+                --token "${VERCEL_TOKEN}"
+            )
 
             echo "::endgroup::"
           done
