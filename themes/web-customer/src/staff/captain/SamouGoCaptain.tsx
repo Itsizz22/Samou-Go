@@ -67,7 +67,7 @@ import {
   type UpdateOrderStatusInput,
   type UpdateProfileInput,
 } from '@samou-go/shared-types';
-import { FREE_DELIVERY_LABEL } from '@/lib/delivery';
+import { DRIVER_FEE_LABEL } from '@/lib/delivery';
 import { LeafletMap } from '@samou-go/ui/map';
 
 /* ---------------------------------------------------------------------------
@@ -373,7 +373,7 @@ export function SamouGoCaptain() {
           id: `ready:${order.id}`,
           ar: `طلب جاهز للاستلام — ${order.storeNameAr}`,
           en: 'Order ready for pickup',
-          caption: `${time.ar} · ${FREE_DELIVERY_LABEL.ar}`,
+          caption: `${time.ar} · ${DRIVER_FEE_LABEL.ar}`,
           tone: 'brand',
         };
       }),
@@ -501,7 +501,7 @@ export function SamouGoCaptain() {
                         </p>
                       </div>
                       <span className="rounded-lg bg-brand-tint px-2.5 py-1 text-[12px] font-black text-brand-dark">
-                        {t(FREE_DELIVERY_LABEL.ar, FREE_DELIVERY_LABEL.en)}
+                        {t(DRIVER_FEE_LABEL.ar, DRIVER_FEE_LABEL.en)}
                       </span>
                     </div>
                     <div className="mt-3 flex items-center justify-between text-[11px] text-ink-muted">
@@ -722,7 +722,7 @@ export function SamouGoCaptain() {
                         </div>
                         <div className="text-start">
                           <p className="text-lg font-black text-brand-dark">
-                            {t(FREE_DELIVERY_LABEL.ar, FREE_DELIVERY_LABEL.en)}
+                            {t(DRIVER_FEE_LABEL.ar, DRIVER_FEE_LABEL.en)}
                           </p>
                         </div>
                       </div>

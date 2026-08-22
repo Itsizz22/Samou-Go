@@ -13,8 +13,8 @@ const server: Server = app.listen(env.port, '0.0.0.0', () => {
   // eslint-disable-next-line no-console
   console.log(
     `🚚  Samou' Go API — http://0.0.0.0:${env.port}/api/v1  [${env.nodeEnv}]\n` +
-      `    التوصيل مجاني — رسوم التوصيل 0 ₪، الإجمالي = سعر الأصناف فقط / ` +
-      `Free delivery — fee 0 ₪, total = items subtotal`
+      `    رسوم التوصيل يحددها السائق عند الاستلام / ` +
+      `Delivery fee determined by driver upon delivery`
   );
 });
 attachRealtime(server);

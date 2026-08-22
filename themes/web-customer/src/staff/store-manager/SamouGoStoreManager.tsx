@@ -74,6 +74,7 @@ import { CategoriesPanel } from './CategoriesPanel';
 import { OffersPanel } from './OffersPanel';
 import { ProductCataloguePanel } from './ProductCataloguePanel';
 import { StoreProfilePanel } from './StoreProfilePanel';
+import { CustomRequestsPanel } from './CustomRequestsPanel';
 
 /* ---------------------------------------------------------------------------
  * Presentation helpers
@@ -111,6 +112,7 @@ const BOTTOM_TABS = [
   { id: 'products', icon: ShoppingBag, ar: 'المنتجات', en: 'Products' },
   { id: 'offers', icon: Megaphone, ar: 'العروض', en: 'Offers' },
   { id: 'settings', icon: Settings, ar: 'إعدادات المتجر', en: 'Settings' },
+  { id: 'custom-requests', icon: ClipboardList, ar: 'طلبات مخصصة', en: 'Requests' },
 ] as const;
 
 /* ---------------------------------------------------------------------------
@@ -843,7 +845,9 @@ export function SamouGoStoreManager() {
         </section>
       )}
 
-      {/* Store profile tab */}
+      {/* Custom requests tab */}
+      {activeTab === 'custom-requests' && managedStoreId && <CustomRequestsPanel storeId={managedStoreId} />}
+
       {activeTab === 'settings' && (
         <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="profile-tab-title">
           <div className="mb-5">

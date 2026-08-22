@@ -6,9 +6,8 @@ import {
   CURRENCY,
   DELIVERY_FEE_LABEL,
   DELIVERY_FEE_LABEL_SHORT,
-  FREE_DELIVERY_LABEL,
+  DRIVER_FEE_LABEL,
   formatCurrency,
-  isFreeDelivery,
   type CurrencyOptions,
 } from '../lib/delivery';
 
@@ -50,10 +49,9 @@ export const DeliveryFee: React.FC<DeliveryFeeProps> = ({
   const isArabic = language === 'ar';
   const pick = (ar: string, en: string): string => (isArabic ? ar : en);
 
-  const free = isFreeDelivery(amount);
-  // Language-following free-delivery label vs. a money figure that stays in a
-  // `dir="ltr"` island per DESIGN_SYSTEM.md (numbers/prices never reflow).
-  const freeLabel = pick(FREE_DELIVERY_LABEL.ar, FREE_DELIVERY_LABEL.en);
+  const isDriverFee = amount <= 0;
+  // When fee is undetermined (driver sets it on delivery), show the driver-determined label.
+  const driverLabel = pick(DRIVER_FEE_LABEL.ar, DRIVER_FEE_LABEL.en);
   const price = formatCurrency(amount, currency);
   const priceCode = formatCurrency(amount, { unit: 'code' });
 
@@ -62,14 +60,14 @@ export const DeliveryFee: React.FC<DeliveryFeeProps> = ({
       <span
         className={cn(
           'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold',
-          free ? 'bg-brand text-white' : 'bg-brand-tint text-brand-deep',
+          isDriverFee ? 'bg-brand text-white' : 'bg-brand-tint text-brand-deep',
           className
         )}
         title={pick(DELIVERY_FEE_LABEL.ar, DELIVERY_FEE_LABEL.en)}
       >
         {showIcon && <Truck className="h-3 w-3" aria-hidden="true" />}
         <span>{pick(DELIVERY_FEE_LABEL_SHORT.ar, DELIVERY_FEE_LABEL_SHORT.en)}</span>
-        {free ? freeLabel : <span dir="ltr">{price}</span>}
+        {isDriverFee ? driverLabel : <span dir="ltr">{price}</span>}
       </span>
     );
   }
@@ -81,8 +79,8 @@ export const DeliveryFee: React.FC<DeliveryFeeProps> = ({
       >
         {showIcon && <Truck className="h-3.5 w-3.5 text-brand" aria-hidden="true" />}
         <span>{pick(DELIVERY_FEE_LABEL_SHORT.ar, DELIVERY_FEE_LABEL_SHORT.en)}</span>
-        {free ? (
-          <span className="font-bold text-brand-dark">{freeLabel}</span>
+        {isDriverFee ? (
+          <span className="font-bold text-brand-dark">{driverLabel}</span>
         ) : (
           <span dir="ltr" className="font-bold text-brand-dark">
             {price}
@@ -103,7 +101,7 @@ export const DeliveryFee: React.FC<DeliveryFeeProps> = ({
           {note && <span className="mt-0.5 block text-[11px] text-ink-subtle">{note}</span>}
         </dt>
         <dd className="shrink-0 font-bold text-ink">
-          {free ? freeLabel : <span dir="ltr">{priceCode}</span>}
+          {isDriverFee ? driverLabel : <span dir="ltr">{priceCode}</span>}
         </dd>
       </div>
     );
@@ -116,8 +114,8 @@ export const DeliveryFee: React.FC<DeliveryFeeProps> = ({
         {pick(DELIVERY_FEE_LABEL.ar, DELIVERY_FEE_LABEL.en)}
       </p>
       <p dir="ltr" className="mt-1 text-sm font-extrabold text-brand-dark">
-        {free ? (
-          <span dir={isArabic ? 'rtl' : 'ltr'}>{freeLabel}</span>
+        {isDriverFee ? (
+          <span dir={isArabic ? 'rtl' : 'ltr'}>{driverLabel}</span>
         ) : (
           <>
             {price}

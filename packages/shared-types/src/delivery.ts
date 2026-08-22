@@ -8,9 +8,10 @@
  * string like `'3 ILS'`.
  *
  * Business rule, Samou' / Hebron, as of 2026-08:
- *   DELIVERY IS FREE — every order ships with a 0 ₪ fee, so
- *   totalAmount = subtotal. The tiered tariff below is kept in the types for
- *   the day a fee returns, but `calculateDeliveryFee` never charges today.
+ *   Delivery fee is determined by the driver upon pickup, based on region
+ *   and distance. The UI displays "يحددها السائق عند الاستلام" (Driver
+ *   determines upon delivery). The tiered tariff below is kept in the types
+ *   for possible future use, but `calculateDeliveryFee` always returns 0 today.
  */
 
 export type Locale = 'ar' | 'en';
@@ -34,21 +35,16 @@ export const DELIVERY_FEE_LABEL_SHORT = {
   en: 'Delivery',
 } as const;
 
-export const FREE_DELIVERY_LABEL = {
-  ar: 'توصيل مجاني',
-  en: 'Free delivery',
+/** The delivery fee is always determined by the driver upon pickup. */
+export const DRIVER_FEE_LABEL = {
+  ar: 'يحددها السائق عند الاستلام',
+  en: 'Set by driver upon delivery',
 } as const;
 
-/** When dynamic driver fee is enabled, the captain sets the fee on pickup. */
-export const DYNAMIC_FEE_LABEL = {
-  ar: 'يتم تحديدها بواسطة السائق عند الاستلام',
-  en: 'Set by driver upon pickup',
-} as const;
-
-/** Explanation notice shown below the delivery fee line when dynamic fee is active. */
-export const DYNAMIC_FEE_NOTICE = {
-  ar: 'رسوم التوصيل: يتم تحديدها بواسطة السائق عند الاستلام',
-  en: 'Delivery fee: Set by driver upon pickup',
+/** Explanation notice shown below the delivery fee line. */
+export const DRIVER_FEE_NOTICE = {
+  ar: 'ملاحظة: رسوم التوصيل يحددها السائق عند الاستلام بناءً على المنطقة والمسافة.',
+  en: 'Note: Delivery fee is determined by the driver upon delivery based on region and distance.',
 } as const;
 
 /**
@@ -137,10 +133,6 @@ export function formatDeliveryFee(
   return `${deliveryFeeLabel(locale, short)}: ${formatCurrency(amount, currency)}`;
 }
 
-/** `true` when the order qualifies for free delivery. */
-export function isFreeDelivery(amount: number): boolean {
-  return amount <= 0;
-}
 
 /**
  * Money helper — rounds to 2 decimals without float drift

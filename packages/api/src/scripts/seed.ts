@@ -623,7 +623,7 @@ async function seedOrders(): Promise<void> {
     });
 
     console.log(
-      `✓ ${order.id}: ${totals.itemCount} أصناف، توصيل مجاني (0 ₪)، المجموع ${totals.totalAmount} ₪`
+      `✓ ${order.id}: ${totals.itemCount} أصناف، رسوم التوصيل يحددها السائق، المجموع ${totals.totalAmount} ₪`
     );
   }
 
