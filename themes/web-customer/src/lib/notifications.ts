@@ -14,6 +14,7 @@
 
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
+import { globalNavigate } from './globalNavigate';
 
 /** API base URL — same origin in production, localhost in dev. */
 const API_BASE: string = (
@@ -70,8 +71,11 @@ export async function registerForPushNotifications(accessToken: string): Promise
       console.log('[push] Notification tapped:', action);
       const data = action.notification.data;
       if (data?.orderId) {
-        // Navigate to the order tracking screen.
-        window.location.href = `/orders/${encodeURIComponent(data.orderId)}`;
+        // Navigate to the order tracking screen via SPA router.
+        // Falls back to window.location if the router isn't wired yet.
+        if (!globalNavigate(`/orders/${encodeURIComponent(data.orderId)}`)) {
+          window.location.href = `/orders/${encodeURIComponent(data.orderId)}`;
+        }
       }
     });
   } catch (err) {

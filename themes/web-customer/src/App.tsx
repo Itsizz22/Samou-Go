@@ -24,6 +24,7 @@ import { useAuth, type Auth } from './hooks/useApi';
 import { roleHomePath } from './lib/roles';
 import { registerForPushNotifications } from './lib/notifications';
 import { getToken } from '@samou-go/api-client';
+import { setGlobalNavigate } from './lib/globalNavigate';
 // %IMPORT_STATEMENT
 
 /**
@@ -98,6 +99,7 @@ function useAndroidBackButton() {
 }
 
 function App() {
+  const navigate = useNavigate();
   useAndroidBackButton();
   // The merged app serves the customer storefront plus the Captain and Store
   // Manager dashboards, so those three roles are allowed at the session level.
@@ -107,6 +109,10 @@ function App() {
     allowedRoles: [UserRole.CUSTOMER, UserRole.CAPTAIN, UserRole.STORE_MANAGER],
   });
   const [splashElapsed, setSplashElapsed] = useState(false);
+
+  // Expose navigate globally so Capacitor push-notification listeners can
+  // open the order tracking screen without a full page reload.
+  useEffect(() => { setGlobalNavigate(navigate); }, [navigate]);
 
   // Minimum splash duration — show brand moment even if auth resolves fast.
   useEffect(() => {
