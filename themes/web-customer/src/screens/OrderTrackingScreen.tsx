@@ -127,7 +127,7 @@ export function OrderTrackingScreen() {
             <button
               type="button"
               aria-label={t('رجوع', 'Back')}
-              onClick={() => window.history.length > 1 ? window.history.back() : window.location.assign('/orders')}
+              onClick={() => navigate(-1)}
               className="rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
             >
               <ArrowRight size={22} className="rtl:rotate-180" />

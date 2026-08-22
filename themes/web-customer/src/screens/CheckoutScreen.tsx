@@ -697,7 +697,7 @@ export function CheckoutScreen() {
                 <span>{isArabic ? quoteError.message : quoteError.localizedMessage}</span>
                 <button
                   type="button"
-                  onClick={() => window.location.reload()}
+                  onClick={() => setQuoteRevision((v) => v + 1)}
                   className="inline-flex items-center gap-1 rounded-full bg-danger-tint px-2.5 py-1 font-bold"
                 >
                   <RefreshCw size={12} /> إعادة
