@@ -20,7 +20,8 @@ import { CustomerAuthGate } from './components/CustomerAuthGate';
 import { BootScreen } from './components/BootScreen';
 import { NavigationDrawer, NavigationDrawerProvider } from './components/NavigationDrawer';
 import { ThemeProvider } from './theme/ThemeProvider';
-import { useAuth, type Auth } from './hooks/useApi';
+import { useStandaloneAuth as useAuth, type Auth } from './hooks/useApi';
+import { AuthContext } from './contexts/AuthContext';
 import { roleHomePath } from './lib/roles';
 import { registerForPushNotifications } from './lib/notifications';
 import { getToken } from '@samou-go/api-client';
@@ -138,13 +139,15 @@ function App() {
   if (!auth.ready || !splashElapsed) return <BootScreen />;
 
   return (
-    <ThemeProvider>
-      <NavigationDrawerProvider>
-        <StartupRoutes auth={auth} />
-        <NavigationDrawer />
-        <CustomerLocationPrompt auth={auth} />
-      </NavigationDrawerProvider>
-    </ThemeProvider>
+    <AuthContext.Provider value={auth}>
+      <ThemeProvider>
+        <NavigationDrawerProvider>
+          <StartupRoutes auth={auth} />
+          <NavigationDrawer />
+          <CustomerLocationPrompt auth={auth} />
+        </NavigationDrawerProvider>
+      </ThemeProvider>
+    </AuthContext.Provider>
   );
 }
 

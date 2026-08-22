@@ -303,8 +303,10 @@ const finish = () => {
     setPending(true);
     setError(null);
     void verifyOtp({ phone: normalizedPhone, code })
-      .then(() => {
+      .then(async () => {
         toast.success('تم تفعيل الحساب — أهلاً بك!', 'Account verified — welcome!');
+        // Refresh the shared auth profile so the context picks up the new session.
+        await auth.refresh();
         setStep('location');
       })
       .catch((cause: unknown) => {

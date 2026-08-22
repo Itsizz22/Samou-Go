@@ -42,7 +42,6 @@ import {
   SignInGate,
   updateOrderStatus,
   updateStore,
-  useAuth,
   useMutation,
   useMyStores,
   useOrders,
@@ -50,6 +49,7 @@ import {
   useStoreManager,
   useToast,
 } from '@samou-go/api-client';
+import { useAuth } from '@/hooks/useApi';
 import { playNewOrderChime } from '@samou-go/ui';
 import {
   LanguageToggle,
@@ -118,7 +118,7 @@ const BOTTOM_TABS = [
  * ------------------------------------------------------------------------- */
 
 export function SamouGoStoreManager() {
-  const auth = useAuth({ allowedRoles: [UserRole.STORE_MANAGER] });
+  const auth = useAuth();
   const toast = useToast();
   const { t, language } = useLanguage();
   const isArabic = language === 'ar';

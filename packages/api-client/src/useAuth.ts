@@ -15,8 +15,11 @@
  *   - `signIn` stores the new token (via `login`, which calls `setToken`).
  *   - `signOut` clears it locally and tells the server, which is stateless.
  *
- * There is no refresh-token dance and no context provider. A screen calls
- * `useAuth()` once at the top and renders `<SignInGate />` when `user` is null.
+ * There is no refresh-token dance. A screen calls `useAuth()` once at the top
+ * and renders `<SignInGate />` when `user` is null.
+ *
+ * NOTE: In web-customer, `useAuth` is overridden by a context-aware wrapper
+ * (see `contexts/AuthContext.tsx`) so all screens share a single auth instance.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
