@@ -39,6 +39,18 @@ export const FREE_DELIVERY_LABEL = {
   en: 'Free delivery',
 } as const;
 
+/** When dynamic driver fee is enabled, the captain sets the fee on pickup. */
+export const DYNAMIC_FEE_LABEL = {
+  ar: 'يتم تحديدها بواسطة السائق عند الاستلام',
+  en: 'Set by driver upon pickup',
+} as const;
+
+/** Explanation notice shown below the delivery fee line when dynamic fee is active. */
+export const DYNAMIC_FEE_NOTICE = {
+  ar: 'رسوم التوصيل: يتم تحديدها بواسطة السائق عند الاستلام',
+  en: 'Delivery fee: Set by driver upon pickup',
+} as const;
+
 /**
  * The tariff shape. Stored per-store one day; for now a single platform-wide
  * default. `bulkThreshold` is inclusive of `bulkFee`. Kept so a future fee

@@ -3,15 +3,20 @@ import { Crosshair, Eye, EyeOff, Loader2, LockKeyhole, MapPin, ShoppingCart } fr
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   ApiError,
-  register,
   requestOtp,
   resetPassword,
   setSessionPersistence,
   updateMyLocation,
   useAuth,
   useToast,
-  verifyOtp,
 } from '@/hooks/useApi';
+import {
+  sendFirebaseOtp,
+  verifyFirebaseCode,
+  exchangeFirebaseToken,
+  resetRecaptcha,
+} from '@/lib/firebase-auth';
+import type { ConfirmationResult } from 'firebase/auth';
 import { OtpPinInput } from '@/components/OtpPinInput';
 import { useLanguage } from '@samou-go/ui';
 import { normalizePhone, isValidPalestinianMobile } from '@/lib/phone';
@@ -26,6 +31,13 @@ import {
 } from '@/lib/address-book';
 
 const phoneValid = (phone: string) => isValidPalestinianMobile(phone);
+
+/** Format Palestinian number to E.164 for Firebase. */
+function toE164(localPhone: string): string {
+  const digits = localPhone.replace(/\D/g, '');
+  if (digits.startsWith('05')) return `+970${digits.slice(1)}`;
+  return `+${digits}`;
+}
 const passwordStrong = (password: string) => password.length >= 8;
 
 interface LocalizedText {
@@ -242,93 +254,74 @@ export function RegisterScreen() {
   const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
   if (auth.ready && auth.user) return <Navigate to={roleHomePath(auth.user.role)} replace />;
   const normalizedPhone = normalizePhone(phone);
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
+
+  /**
+   * Step 1: Send OTP via Firebase Phone Auth (not Twilio).
+   * Firebase sends the SMS directly from Google's infrastructure.
+   */
   const sendCode = () => {
     if (pending) return;
     setPending(true);
     setError(null);
-    void requestOtp({ phone: normalizedPhone })
-      .then(() => {
+    const e164 = toE164(normalizedPhone);
+    void sendFirebaseOtp(e164)
+      .then((confirmation) => {
+        confirmationRef.current = confirmation;
         setStep('otp');
         setResendIn(RESEND_COOLDOWN);
       })
       .catch((cause: unknown) => {
-        const apiErr = cause as { code?: string; status?: number } | null;
-        let message: LocalizedText;
-        if (apiErr?.code === 'OTP_RATE_LIMITED') {
-          message = { ar: 'طلبات كثيرة جداً — يرجى الانتظار قبل طلب رمز جديد', en: 'Too many requests — please wait before requesting a new code' };
-        } else if (apiErr?.code === 'SMS_DELIVERY_FAILED') {
-          message = { ar: 'تعذّر إرسال رمز التحقق — يرجى المحاولة مجدداً', en: 'Could not send verification code — please try again' };
-        } else if (apiErr?.status === 429) {
-          message = { ar: 'تم تجاوز حد الطلبات — يرجى المحاولة لاحقاً', en: 'Rate limit exceeded — please try again later' };
-        } else if (apiErr?.status && apiErr?.status >= 500) {
-          message = { ar: 'خطأ في الخادم — يرجى المحاولة لاحقاً', en: 'Server error — please try again later' };
+        const message = cause instanceof Error ? cause.message : String(cause);
+        let localizedMessage: LocalizedText;
+        if (message.includes('auth/too-many-requests')) {
+          localizedMessage = { ar: 'طلبات كثيرة جداً، حاول مجدداً بعد قليل', en: 'Too many requests — try again later' };
+          setResendIn(60);
+        } else if (message.includes('auth/invalid-phone-number')) {
+          localizedMessage = { ar: 'رقم الجوال غير صالح', en: 'Invalid phone number' };
+        } else if (message.includes('auth/quota-exceeded')) {
+          localizedMessage = { ar: 'تم تجاوز حد إرسال الرسائل — يرجى المحاولة لاحقاً', en: 'SMS quota exceeded — please try again later' };
         } else {
-          message = apiErrorMessage(cause, { ar: 'تعذر إرسال الرمز.', en: 'Could not send the code.' });
+          localizedMessage = { ar: 'تعذّر إرسال الرمز — تحقق من رقم الجوال', en: 'Could not send code — check your number' };
         }
-        setError(message);
+        setError(localizedMessage);
+        resetRecaptcha();
       })
       .finally(() => setPending(false));
   };
-  const handleRegister = () => {
-    if (pending) return;
+const finish = async () => {
+    if (code.length !== 6 || pending || !confirmationRef.current) return;
     setPending(true);
     setError(null);
-    void register({ name: name.trim(), phone: normalizedPhone, password })
-      .then(() => {
-        setStep('otp');
-        setResendIn(RESEND_COOLDOWN);
-        toast.success('تم إنشاء الحساب — تم إرسال رمز التحقق', 'Account created — verification code sent');
-      })
-      .catch((cause: unknown) => {
-        const apiErr = cause as { code?: string; status?: number; details?: Array<{ path: string; message: string }> } | null;
-        let message: LocalizedText;
-        if (apiErr?.code === 'CONFLICT') {
-          message = { ar: 'رقم الجوال مسجّل مسبقاً', en: 'This phone number is already registered' };
-        } else if (apiErr?.details?.some(d => d.path === 'password')) {
-          const detail = apiErr.details.find(d => d.path === 'password');
-          message = { ar: detail?.message ?? 'كلمة المرور غير صالحة', en: detail?.message ?? 'Invalid password' };
-        } else if (apiErr?.status === 429) {
-          message = { ar: 'تم تجاوز حد الطلبات — يرجى المحاولة لاحقاً', en: 'Rate limit exceeded — please try again later' };
-        } else if (apiErr?.status && apiErr?.status >= 500) {
-          message = { ar: 'خطأ في الخادم — يرجى المحاولة لاحقاً', en: 'Server error — please try again later' };
-        } else {
-          message = apiErrorMessage(cause, { ar: 'تعذر إنشاء الحساب.', en: 'Could not create account.' });
-        }
-        setError(message);
-      })
-      .finally(() => setPending(false));
-  };
-const finish = () => {
-    if (code.length !== 6 || pending) return;
-    setPending(true);
-    setError(null);
-    void verifyOtp({ phone: normalizedPhone, code })
-      .then(async () => {
-        toast.success('تم تفعيل الحساب — أهلاً بك!', 'Account verified — welcome!');
-        // Refresh the shared auth profile so the context picks up the new session.
-        await auth.refresh();
-        setStep('location');
-      })
-      .catch((cause: unknown) => {
-        const apiErr = cause as { code?: string; status?: number } | null;
-        let message: LocalizedText;
-        if (apiErr?.code === 'INVALID_FEE' || apiErr?.code === 'VOUCHER_NOT_FOUND') {
-          message = { ar: 'رمز التحقق غير صحيح أو منتهي الصلاحية', en: 'Invalid or expired verification code' };
-        } else if (apiErr?.status === 400) {
-          message = { ar: 'رمز التحقق غير صحيح — يرجى طلب رمز جديد', en: 'Invalid verification code — please request a new code' };
-        } else if (apiErr?.status === 404) {
-          message = { ar: 'الحساب غير موجود', en: 'Account not found' };
-        } else if (apiErr?.status && apiErr?.status >= 500) {
-          message = { ar: 'خطأ في الخادم — يرجى المحاولة لاحقاً', en: 'Server error — please try again later' };
-        } else {
-          message = apiErrorMessage(cause, { ar: 'تعذر تفعيل الحساب.', en: 'Could not verify account.' });
-        }
-        setError(message);
-        if (apiErr?.status === 400 || apiErr?.status === 404) {
-          setCode('');
-        }
-      })
-      .finally(() => setPending(false));
+    try {
+      // 1. Verify the code with Firebase → get ID token.
+      const idToken = await verifyFirebaseCode(confirmationRef.current, code);
+      // 2. Exchange ID token for a Samou' Go session (creates account + stores password).
+      await exchangeFirebaseToken(idToken, name.trim(), password);
+      toast.success('تم تفعيل الحساب — أهلاً بك!', 'Account verified — welcome!');
+      // Auth context is already updated by exchangeFirebaseToken (tokens stored).
+      // Refresh to pick up the user profile.
+      await auth.refresh();
+      setStep('location');
+    } catch (cause: unknown) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      let localizedMessage: LocalizedText;
+      if (message.includes('auth/wrong-code') || message.includes('invalid-verification-code')) {
+        localizedMessage = { ar: 'رمز غير صحيح', en: 'Incorrect code' };
+      } else if (message.includes('auth/code-expired')) {
+        localizedMessage = { ar: 'انتهت صلاحية الرمز — أعد الإرسال', en: 'Code expired — resend' };
+      } else if (message.includes('auth/session-expired')) {
+        localizedMessage = { ar: 'انتهت الجلسة — أعد الإرسال', en: 'Session expired — resend' };
+      } else if (message.includes('auth/quota-exceeded')) {
+        localizedMessage = { ar: 'تم تجاوز حد إرسال الرسائل — يرجى المحاولة لاحقاً', en: 'SMS quota exceeded — try again later' };
+      } else {
+        localizedMessage = { ar: 'تعذر تفعيل الحساب.', en: 'Could not verify account.' };
+      }
+      setError(localizedMessage);
+      setCode('');
+    } finally {
+      setPending(false);
+    }
   };
 
   /* ---- Location onboarding (step 3) -------------------------------------- */
@@ -388,10 +381,13 @@ const finish = () => {
 
   const resend = () => {
     if (pending || resendIn > 0) return;
+    resetRecaptcha();
     sendCode();
   };
   return (
     <AuthShell>
+      {/* Invisible reCAPTCHA container — required by Firebase Phone Auth */}
+      <div id="recaptcha-container" />
       <h1 className="text-xl font-extrabold">{t('إنشاء حساب', 'Create your account')}</h1>
       {step === 'form' && (
         <form
@@ -487,7 +483,13 @@ const finish = () => {
             <OtpPinInput
               length={6}
               value={code}
-              onChange={setCode}
+              onChange={(next) => {
+                setCode(next);
+                if (next.length === 6) {
+                  // Auto-submit when all digits are entered.
+                  setTimeout(() => void finish(), 100);
+                }
+              }}
               state="idle"
               autoFocus
               label="رمز التحقق"

@@ -8,6 +8,6 @@
 
 export * from './components';
 export * from './lib';
-export { playNewOrderChime } from './chime';
+export { playNewOrderChime, createLoopingAlert } from './chime';
 export { bootstrapApp, setAppLanguage, setBrandTheme } from './bootstrap';
 export type { BootstrapOptions, AppLanguage, BrandTheme } from './bootstrap';

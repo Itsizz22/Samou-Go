@@ -25,12 +25,15 @@ import { toProduct } from '../stores/stores.mapper';
 import { creditDeliveredOrder } from '../platform/platform.service';
 import type {
   AssignCaptainBody,
+  CheckoutBody,
   CreateOrderBody,
   OrderListQuery,
   QuoteOrderBody,
   SetDeliveryFeeBody,
   SetReviewBody,
   UpdateOrderStatusBody,
+  CheckoutResult,
+  CheckoutStoreResult,
 } from './orders.schemas';
 
 /** The relation graph `toOrderDetail` expects. */
@@ -348,6 +351,121 @@ function modifierSummary(modifiers: readonly { labelAr: string; labelEn: string;
     }
   }
   return parts.join(' / ') || 'مخصص';
+}
+
+/* ---------------------------------------------------------------------------
+ * Multi-store cart checkout
+ * ------------------------------------------------------------------------- */
+
+/**
+ * POST /orders/checkout — splits a multi-store basket into independent
+ * sub-orders, each with its own pricing, delivery fee, voucher, and state
+ * machine. All sub-orders share the same `cartCheckoutId` for grouped display.
+ *
+ * Each sub-order is independently priced from the DB (the `priceBasket`
+ * security boundary), and the entire batch is wrapped in a single transaction
+ * so a failure on any store rolls back everything.
+ *
+ * Vouchers are intentionally excluded from multi-store checkout: each sub-order
+ * is fully independent, and applying a voucher across stores creates ambiguous
+ * redemption semantics. The customer may use a voucher on a single-store order
+ * via `POST /orders`.
+ */
+export async function createCheckoutOrders(
+  customerId: string,
+  body: CheckoutBody,
+): Promise<CheckoutResult> {
+  const checkoutId = body.cartCheckoutId ?? (await import('node:crypto')).randomUUID();
+  const results: CheckoutStoreResult[] = [];
+
+  return prisma.$transaction(async tx => {
+    const now = new Date();
+    // Shared sequence bump: one sequence row per day, incremented once per
+    // store group. This gives each sub-order a unique order number.
+    const sequence = await tx.dailyOrderSequence.upsert({
+      where: { date: startOfDay(now) },
+      update: { sequence: { increment: body.stores.length } },
+      create: { date: startOfDay(now), sequence: body.stores.length },
+    });
+
+    let seqCursor = sequence.sequence - body.stores.length + 1;
+
+    for (const storeGroup of body.stores) {
+      const lines = await priceBasket(tx, storeGroup.storeId, storeGroup.items);
+      const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, body.deliveryRegion);
+
+      if (totals.subtotal <= 0) {
+        throw unprocessable('EMPTY_BASKET', 'السلة فارغة / The basket is empty');
+      }
+
+      const orderNumber = formatOrderNumber(now, seqCursor++);
+
+      const order = await tx.order.create({
+        data: {
+          orderNumber,
+          customerId,
+          storeId: storeGroup.storeId,
+          cartCheckoutId: checkoutId,
+          status: OrderStatus.PENDING,
+          customerAddressText: body.customerAddressText,
+          addressNote: body.addressNote ?? null,
+          orderNote: body.orderNote ?? null,
+          deliveryPreset: body.deliveryPreset ?? null,
+          latitude: body.latitude ?? null,
+          longitude: body.longitude ?? null,
+          subtotal: totals.subtotal,
+          deliveryFee: totals.deliveryFee,
+          discount: 0,
+          totalAmount: totals.totalAmount,
+          voucherId: null,
+          paymentMethod: PaymentMethod.COD,
+          items: {
+            create: lines.map(line => {
+              const itemSource = storeGroup.items.find(it => it.productId === line.productId);
+              return {
+                productId: line.productId,
+                quantity: line.quantity,
+                unitPrice: line.unitPrice,
+                totalPrice: lineTotal(line.unitPrice, line.quantity),
+                note: itemSource?.note ?? null,
+                ...(itemSource?.modifiers
+                  ? itemSource?.note
+                    ? { note: `${itemSource.note} | ${modifierSummary(itemSource.modifiers)}` }
+                    : { note: modifierSummary(itemSource.modifiers) }
+                  : {}),
+              };
+            }),
+          },
+          statusHistory: {
+            create: {
+              status: OrderStatus.PENDING,
+              changedByUserId: customerId,
+              note: 'تم إنشاء الطلب / Order created',
+            },
+          },
+        },
+        include: DETAIL_INCLUDE,
+      });
+
+      results.push({
+        storeId: storeGroup.storeId,
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        subtotal: decimalToNumber(order.subtotal),
+        deliveryFee: decimalToNumber(order.deliveryFee),
+        totalAmount: decimalToNumber(order.totalAmount),
+        itemCount: order.items.length,
+      });
+    }
+
+    return {
+      cartCheckoutId: checkoutId,
+      orders: results,
+      grandTotal: results.reduce((sum, r) => sum + r.totalAmount, 0),
+      totalDeliveryFee: results.reduce((sum, r) => sum + r.deliveryFee, 0),
+      totalItemCount: results.reduce((sum, r) => sum + r.itemCount, 0),
+    };
+  });
 }
 
 /* ---------------------------------------------------------------------------
