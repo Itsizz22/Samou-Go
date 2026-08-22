@@ -180,23 +180,27 @@ jobs:
 
             export VERCEL_PROJECT_ID="${PROJECT_IDS[$app]}"
 
-            # cd into the app dir, then let Vercel itself produce its own
-            # `.vercel/output` build artifact (vercel build) from the local,
-            # already-installed workspace — no network install, no ambiguity
-            # about paths. `deploy --prebuilt` then uploads that artifact
-            # verbatim with zero rebuilding on Vercel's side.
-            (
-              cd "themes/$app"
+            # Run ALL commands from the REPO ROOT — never cd into the theme dir.
+            # Each Vercel project has rootDirectory = "themes/<app>" in the
+            # dashboard. From the repo root, vercel resolves:
+            #   <cwd> + rootDirectory = themes/web-customer  ✓
+            # If we cd into themes/web-customer first, it doubles to:
+            #   themes/web-customer/themes/web-customer  ✗
+            npx --yes vercel@latest pull \
+              --yes \
+              --environment=production \
+              --token "${VERCEL_TOKEN}"
 
-              npx --yes vercel@latest pull --yes --environment=production --token "${VERCEL_TOKEN}"
+            npx --yes vercel@latest build \
+              --prod \
+              --yes \
+              --token "${VERCEL_TOKEN}"
 
-              npx --yes vercel@latest build --prod --token "${VERCEL_TOKEN}"
-
-              npx --yes vercel@latest deploy --prebuilt \
-                --prod \
-                --yes \
-                --token "${VERCEL_TOKEN}"
-            )
+            npx --yes vercel@latest deploy \
+              --prebuilt \
+              --prod \
+              --yes \
+              --token "${VERCEL_TOKEN}"
 
             echo "::endgroup::"
           done
