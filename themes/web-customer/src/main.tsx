@@ -6,6 +6,9 @@ import './index.css';
 import App from './App.tsx';
 import { CartProvider } from './components/CartProvider';
 import { FavoritesProvider } from './components/FavoritesProvider';
+import { AuthContext } from './contexts/AuthContext';
+import { useStandaloneAuth as useAuth } from './hooks/useApi';
+import { UserRole } from '@samou-go/shared-types';
 
 // Handles: light-mode lock, Framer Motion skip-animations in editable mode,
 // and global broken-image fallback. Single source of truth in @samou-go/ui.
@@ -43,16 +46,31 @@ if ('serviceWorker' in navigator && import.meta.env.PROD && !isNative) {
   });
 }
 
+/**
+ * Creates the shared auth instance and provides it via context.
+ * This MUST wrap ALL providers that use useAuth (FavoritesProvider, etc.).
+ * Previously the provider was inside App.tsx, which meant FavoritesProvider
+ * (a sibling rendered before App) called useAuth() with no context — crash.
+ */
+function AuthProvider({ children }: { children: React.ReactNode }) {
+  const auth = useAuth({
+    allowedRoles: [UserRole.CUSTOMER, UserRole.CAPTAIN, UserRole.STORE_MANAGER],
+  });
+  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
+}
+
 createRoot(document.getElementById('root')!).render(
   <AppErrorBoundary>
     <OfflineBanner />
     <LanguageProvider>
       <BrowserRouter>
-        <CartProvider>
-          <FavoritesProvider>
-            <App />
-          </FavoritesProvider>
-        </CartProvider>
+        <AuthProvider>
+          <CartProvider>
+            <FavoritesProvider>
+              <App />
+            </FavoritesProvider>
+          </CartProvider>
+        </AuthProvider>
       </BrowserRouter>
     </LanguageProvider>
     <Toaster />

@@ -20,8 +20,7 @@ import { CustomerAuthGate } from './components/CustomerAuthGate';
 import { BootScreen } from './components/BootScreen';
 import { NavigationDrawer, NavigationDrawerProvider } from './components/NavigationDrawer';
 import { ThemeProvider } from './theme/ThemeProvider';
-import { useStandaloneAuth as useAuth, type Auth } from './hooks/useApi';
-import { AuthContext } from './contexts/AuthContext';
+import { useAuth, type Auth } from './hooks/useApi';
 import { roleHomePath } from './lib/roles';
 import { registerForPushNotifications } from './lib/notifications';
 import { getToken } from '@samou-go/api-client';
@@ -106,9 +105,7 @@ function App() {
   // Manager dashboards, so those three roles are allowed at the session level.
   // An ADMIN (or any other role) token on this origin is a foreign session and
   // is signed out by the gate instead of rendering a wrong-role UI.
-  const auth = useAuth({
-    allowedRoles: [UserRole.CUSTOMER, UserRole.CAPTAIN, UserRole.STORE_MANAGER],
-  });
+  const auth = useAuth();
   const [splashElapsed, setSplashElapsed] = useState(false);
 
   // Expose navigate globally so Capacitor push-notification listeners can
@@ -139,15 +136,13 @@ function App() {
   if (!auth.ready || !splashElapsed) return <BootScreen />;
 
   return (
-    <AuthContext.Provider value={auth}>
-      <ThemeProvider>
-        <NavigationDrawerProvider>
-          <StartupRoutes auth={auth} />
-          <NavigationDrawer />
-          <CustomerLocationPrompt auth={auth} />
-        </NavigationDrawerProvider>
-      </ThemeProvider>
-    </AuthContext.Provider>
+    <ThemeProvider>
+      <NavigationDrawerProvider>
+        <StartupRoutes auth={auth} />
+        <NavigationDrawer />
+        <CustomerLocationPrompt auth={auth} />
+      </NavigationDrawerProvider>
+    </ThemeProvider>
   );
 }
 

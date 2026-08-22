@@ -88,10 +88,12 @@ export async function verifyFirebaseCode(
  * @param name - Optional display name for new accounts
  * @returns Samou' Go auth response (accessToken, refreshToken, user)
  */
+import type { AuthResponse } from '@samou-go/shared-types';
+
 export async function exchangeFirebaseToken(
   idToken: string,
   name?: string
-): Promise<{ accessToken: string; refreshToken: string; expiresIn: number; user: any }> {
+): Promise<AuthResponse> {
   const response = await fetch(`${API_BASE}/api/v1/auth/firebase/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -105,7 +107,7 @@ export async function exchangeFirebaseToken(
 
   const envelope = await response.json();
   // Server wraps in { success: true, data: { accessToken, refreshToken, user } }
-  const data = envelope.data ?? envelope;
+  const data = envelope.data ?? envelope as AuthResponse;
 
   // Store tokens in the API client's token layer (same as verifyOtp).
   const { setToken, setRefreshToken } = await import('@samou-go/api-client');
