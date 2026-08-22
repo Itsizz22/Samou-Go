@@ -282,6 +282,10 @@ model Order {
   storeId    String
   /// Null until an admin or the captain themselves takes the job.
   captainId  String?
+  /// Links sub-orders from a multi-store cart checkout.  Null for legacy
+  /// single-store orders; set to the same CUID across all sub-orders when
+  /// a customer checks out items from multiple stores in one session.
+  cartCheckoutId String?
 
   status OrderStatus @default(PENDING)
 
@@ -326,6 +330,7 @@ model Order {
   @@index([captainId, status])
   @@index([status, createdAt])
   @@index([deliveryZoneId])
+  @@index([cartCheckoutId])
   @@map("orders")
 }
 

@@ -42,6 +42,12 @@ ordersRouter.post(
   orderLimiter,
   asyncHandler(controller.createOrderHandler)
 );
+ordersRouter.post(
+  '/checkout',
+  authorize(UserRole.CUSTOMER, UserRole.ADMIN),
+  orderLimiter,
+  asyncHandler(controller.checkoutHandler)
+);
 ordersRouter.get('/', asyncHandler(controller.listOrdersHandler));
 ordersRouter.get('/:orderId', asyncHandler(controller.getOrderHandler));
 

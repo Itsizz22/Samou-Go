@@ -9,7 +9,7 @@
  * → DELIVERED. The captain may also cancel an active order.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Check,
@@ -48,6 +48,7 @@ import {
   LanguageToggle,
   NotificationBell,
   ThemeToggle,
+  createLoopingAlert,
   useLanguage,
   type BellNotification,
 } from '@samou-go/ui';
@@ -210,12 +211,14 @@ export function SamouGoCaptain() {
     return todayDeliveries * captainRate;
   }, [todayDeliveries, captainRate]);
 
-  /* ---- New available-order toast ------------------------------------------ */
+  /* ---- New available-order toast + looping alert ------------------------- */
 
   // Announce a READY_FOR_PICKUP order the captain has not seen yet, once per
   // order, so the first poll does not toast a backlog of history.
   const announcedAvailableIds = useRef<Set<string>>(new Set());
   const availableLoadedOnce = useRef(false);
+  // Looping alert — plays until the captain accepts or 10 s elapse.
+  const stopAlertRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (availableOrders.loading || !isCaptain || !auth.user) return;
@@ -230,6 +233,9 @@ export function SamouGoCaptain() {
 
     if (fresh.length > 0) {
       for (const order of fresh) announcedAvailableIds.current.add(order.id);
+      // Looping alert (10 s max).
+      stopAlertRef.current?.();
+      stopAlertRef.current = createLoopingAlert();
       const first = fresh[0];
       toast.info(
         `🛵 طلب جديد جاهز للاستلام من ${first?.storeNameAr ?? ''}`,
@@ -238,6 +244,9 @@ export function SamouGoCaptain() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableItems, availableOrders.loading, isCaptain, auth.user]);
+
+  /** Stop the looping alert (called when captain taps Accept). */
+  const stopAlert = useCallback(() => { stopAlertRef.current?.(); stopAlertRef.current = null; }, []);
 
   /* ---- Mutations --------------------------------------------------------- */
 
@@ -256,6 +265,7 @@ export function SamouGoCaptain() {
   );
 
   const handleAccept = async (orderId: string) => {
+    stopAlert();
     const result = await acceptMutation.run({ orderId, status: OrderStatus.ON_THE_WAY });
     if (result) {
       toast.success('تم استلام الطلب للتوصيل', 'Order picked up — heading to the customer');

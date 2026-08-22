@@ -81,7 +81,8 @@ async function getFirebaseAdmin(): Promise<any> {
  */
 export async function verifyFirebaseToken(
   idToken: string,
-  name?: string
+  name?: string,
+  password?: string,
 ): Promise<AuthResponse> {
   const admin = await getFirebaseAdmin();
   if (!admin) {
@@ -106,7 +107,7 @@ export async function verifyFirebaseToken(
   const localPhone = fromE164(phone, env.sms.countryCode);
 
   // Find or create the user account.
-  const user = await findOrCreateCustomer(localPhone, name);
+  const user = await findOrCreateCustomer(localPhone, name, password);
 
   // Issue Samou' Go session tokens.
   const { accessToken, expiresIn } = signAccessToken({
@@ -129,7 +130,7 @@ export async function verifyFirebaseToken(
  * Identical logic to the server-side OTP flow — this ensures consistent
  * account provisioning regardless of which auth method was used.
  */
-async function findOrCreateCustomer(phone: string, name?: string) {
+async function findOrCreateCustomer(phone: string, name?: string, password?: string) {
   const existing = await prisma.user.findUnique({ where: { phone } });
   if (existing) {
     if (!existing.isActive) {
@@ -138,14 +139,20 @@ async function findOrCreateCustomer(phone: string, name?: string) {
     return existing;
   }
 
+  // When a password is provided (registration), use it.
+  // Otherwise fall back to a random hash (OTP-only sign-in where no
+  // password was ever set — e.g. an old Firebase exchange without a
+  // password field).
+  const passwordHash = password
+    ? await hashPassword(password)
+    : await hashPassword(`otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`);
+
   return prisma.user.create({
     data: {
       name: name?.trim() || 'عميل / Customer',
       phone,
       isVerified: true,
-      passwordHash: await hashPassword(
-        `otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`
-      ),
+      passwordHash,
       role: UserRole.CUSTOMER,
     },
   });

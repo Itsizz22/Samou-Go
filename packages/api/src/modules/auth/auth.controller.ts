@@ -134,11 +134,15 @@ export async function verifyFirebaseTokenHandler(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const { idToken, name } = req.body as { idToken?: string; name?: string };
+  const { idToken, name, password } = req.body as {
+    idToken?: string;
+    name?: string;
+    password?: string;
+  };
   if (!idToken || typeof idToken !== 'string') {
     throw forbidden('Missing idToken');
   }
-  const result = await firebaseService.verifyFirebaseToken(idToken, name);
+  const result = await firebaseService.verifyFirebaseToken(idToken, name, password);
   ok(res, result);
 }
 

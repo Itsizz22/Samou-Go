@@ -17,7 +17,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, Banknote, CheckCircle2, Loader2, MapPin, RefreshCw, RotateCw, ShoppingCart, StickyNote } from 'lucide-react';
 import { PaymentMethod, OrderStatus } from '@samou-go/shared-types';
 import { useAuth } from '@/hooks/useApi';
-import { useOrder, useToast, reorderOrder } from '@/hooks/useApi';
+import { useOrder, useToast, reorderOrder, usePlatformSettings } from '@/hooks/useApi';
 import { connectRealtime } from '@samou-go/api-client';
 import { LeafletMap } from '@samou-go/ui/map';
 import { useCart } from '@/components/CartProvider';
@@ -25,7 +25,7 @@ import { CustomerAuthGate } from '@/components/CustomerAuthGate';
 import { OrderStatusTimeline } from '@/components/OrderStatusTimeline';
 import { PageTransition } from '@/components/PageTransition';
 import { Skeleton } from '@/components/Skeleton';
-import { formatCurrency, FREE_DELIVERY_LABEL, deliveryFeeLabel } from '@/lib/delivery';
+import { formatCurrency, FREE_DELIVERY_LABEL, DYNAMIC_FEE_LABEL, DYNAMIC_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
 import { useLanguage } from '@samou-go/ui';
 
 const POLL_MS = 15_000;
@@ -49,6 +49,8 @@ export function OrderTrackingScreen() {
   const auth = useAuth();
   const { t, language } = useLanguage();
   const isArabic = language === 'ar';
+  const platformSettings = usePlatformSettings();
+  const isDynamicFee = platformSettings.data?.isDriverDynamicFeeEnabled ?? false;
   // Terminal orders have nothing left to follow — `stopWhen` halts the polling.
   const order = useOrder(orderId, {
     pollMs: POLL_MS,
@@ -77,8 +79,7 @@ export function OrderTrackingScreen() {
         toast.error('لا يمكن إعادة الطلب — كل المنتجات غير متاحة حالياً', 'Nothing left to reorder');
         return;
       }
-      cart.setStore(result.storeId, result.storeNameAr);
-      result.items.forEach((item) => cart.addItem(item.product, item.quantity));
+      result.items.forEach((item) => cart.addItem(item.product, item.quantity, '', result.storeNameAr));
       if (result.skipped > 0) {
         toast.info(
           `أُضيفت ${result.items.length} أصناف. ${result.skipped} منتجات لم تعد متاحة وتم تخطّيها`,
@@ -237,14 +238,16 @@ export function OrderTrackingScreen() {
                   <div className="flex justify-between text-ink-muted">
                     <dt>{deliveryFeeLabel(language)}</dt>
                     <dd dir="ltr" className="font-bold text-brand-dark">
-                      {order.data.deliveryFee <= 0
-                        ? (isArabic ? FREE_DELIVERY_LABEL.ar : FREE_DELIVERY_LABEL.en)
-                        : formatCurrency(order.data.deliveryFee)}
+                      {isDynamicFee
+                        ? (isArabic ? DYNAMIC_FEE_LABEL.ar : DYNAMIC_FEE_LABEL.en)
+                        : order.data.deliveryFee <= 0
+                          ? (isArabic ? FREE_DELIVERY_LABEL.ar : FREE_DELIVERY_LABEL.en)
+                          : formatCurrency(order.data.deliveryFee)}
                     </dd>
                   </div>
-                  {order.data.deliveryFee <= 0 && !terminal && (
+                  {isDynamicFee && !terminal && (
                     <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
-                      {t('رسوم التوصيل: سيتم تحديدها بواسطة السائق عند الاستلام', 'Delivery fee: Will be set by driver upon pickup')}
+                      {t(DYNAMIC_FEE_NOTICE.ar, DYNAMIC_FEE_NOTICE.en)}
                     </p>
                   )}
                   {order.data.discount > 0 && (
@@ -312,6 +315,15 @@ export function OrderTrackingScreen() {
                   )}
                 </p>
               </section>
+
+              {/* Back to home */}
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface py-3 text-sm font-bold text-ink transition hover:bg-canvas active:scale-[0.98]"
+              >
+                {t('العودة للمتاجر', 'Back to home')}
+              </button>
 
               {terminal ? (
                 <p className="flex items-center justify-center gap-1.5 pb-4 text-micro text-ink-muted">

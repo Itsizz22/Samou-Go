@@ -12,7 +12,7 @@
  * for any active order.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   BarChart3,
@@ -50,7 +50,7 @@ import {
   useToast,
 } from '@samou-go/api-client';
 import { useAuth } from '@/hooks/useApi';
-import { playNewOrderChime } from '@samou-go/ui';
+import { createLoopingAlert } from '@samou-go/ui';
 import {
   LanguageToggle,
   NotificationBell,
@@ -231,6 +231,8 @@ export function SamouGoStoreManager() {
   // does not re-chime on every poll while it sits in the inbox.
   const announcedIds = useRef<Set<string>>(new Set());
   const hasLoadedOnce = useRef(false);
+  // Looping alert — plays until the user accepts/taps an order or 10 s elapse.
+  const stopAlertRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (incoming.loading || !isManager || !auth.user) return;
@@ -246,13 +248,17 @@ export function SamouGoStoreManager() {
 
     if (fresh.length > 0) {
       for (const order of fresh) announcedIds.current.add(order.id);
-      // One chime + one toast per poll batch, not per order.
-      playNewOrderChime();
+      // Looping alert (10 s max) + one toast per poll batch, not per order.
+      stopAlertRef.current?.();
+      stopAlertRef.current = createLoopingAlert();
       const orderLabel = fresh.length === 1 ? `طلب ${fresh[0].orderNumber}` : `${fresh.length} طلبات جديدة`;
       toast.info(`🔔 ${orderLabel} جديد`, `${fresh.length} new order${fresh.length === 1 ? '' : 's'} arrived`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingItems, incoming.loading, isManager, auth.user]);
+
+  // Stop the looping alert when any order action is taken (accept, reject, etc.).
+  const stopAlert = useCallback(() => { stopAlertRef.current?.(); stopAlertRef.current = null; }, []);
   const inbox: OrderSummary[] = useMemo(
     // Kitchen inbox in lifecycle order: PENDING first (needs a decision),
     // then ACCEPTED (start cooking), PREPARING (in progress), READY_FOR_PICKUP
@@ -305,14 +311,18 @@ export function SamouGoStoreManager() {
     }
   };
 
-  const handleAccept = (orderId: string) =>
+  const handleAccept = (orderId: string) => {
+    stopAlert();
     void runTransition(orderId, OrderStatus.ACCEPTED, 'تم قبول الطلب بنجاح', 'Order accepted successfully', prepMinutes);
+  };
   const handleStartPreparing = (orderId: string) =>
     void runTransition(orderId, OrderStatus.PREPARING, 'بدأ التحضير', 'Preparation started');
   const handleReadyForPickup = (orderId: string) =>
     void runTransition(orderId, OrderStatus.READY_FOR_PICKUP, 'الطلب جاهز للاستلام', 'Order ready for pickup');
-  const handleReject = (orderId: string) =>
+  const handleReject = (orderId: string) => {
+    stopAlert();
     void runTransition(orderId, OrderStatus.CANCELLED, 'تم رفض الطلب', 'Order rejected');
+  };
 
   /* ---- Recent activity (from PENDING order history) -------------------- */
 

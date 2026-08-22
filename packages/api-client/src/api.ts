@@ -741,6 +741,53 @@ export function createOrder(
   });
 }
 
+/** Multi-store cart checkout — splits basket into per-store sub-orders. */
+export interface StoreCheckoutGroup {
+  storeId: string;
+  items: { productId: string; quantity: number; note?: string }[];
+}
+
+export interface CheckoutInput {
+  cartCheckoutId?: string;
+  stores: StoreCheckoutGroup[];
+  customerAddressText: string;
+  deliveryRegion?: 'central' | 'outer' | 'remote';
+  addressNote?: string;
+  orderNote?: string;
+  deliveryPreset?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface CheckoutStoreResult {
+  storeId: string;
+  orderId: string;
+  orderNumber: string;
+  subtotal: number;
+  deliveryFee: number;
+  totalAmount: number;
+  itemCount: number;
+}
+
+export interface CheckoutResult {
+  cartCheckoutId: string;
+  orders: CheckoutStoreResult[];
+  grandTotal: number;
+  totalDeliveryFee: number;
+  totalItemCount: number;
+}
+
+export function checkoutOrders(
+  input: CheckoutInput,
+  signal?: AbortSignal,
+): Promise<CheckoutResult> {
+  return request<CheckoutResult>("POST", "/orders/checkout", {
+    body: input,
+    auth: true,
+    signal,
+  });
+}
+
 /** `GET /orders/:id` — the tracking screen's poll target. Role-scoped server side. */
 export function getOrder(
   orderId: string,

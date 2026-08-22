@@ -107,8 +107,64 @@ export const setDeliveryFeeSchema = z.object({
   deliveryFee: z.number().min(0).max(1000, 'رسوم التوصيل يجب أن تكون بين 0 و 1000 ₪ / Delivery fee must be between 0 and 1000 ₪'),
 });
 
+/**
+ * Multi-store cart checkout — one API call splits a multi-store basket into
+ * independent sub-orders, each with its own pricing, delivery fee, and
+ * state machine. All sub-orders share the same `cartCheckoutId` for grouped
+ * display. Vouchers are NOT supported in multi-store checkout (each sub-order
+ * is fully independent; applying a voucher across stores creates ambiguous
+ * redemption semantics).
+ */
+const storeCheckoutItemSchema = z.object({
+  storeId: z.string().min(1, 'معرّف المتجر مطلوب / storeId is required'),
+  items: z
+    .array(orderItemInputSchema)
+    .min(1, 'السلة فارغة / The basket is empty')
+    .max(60, 'عدد المنتجات كبير جداً / Too many distinct products'),
+});
+
+export const checkoutSchema = z.object({
+  cartCheckoutId: z.string().min(1).optional(),
+  stores: z
+    .array(storeCheckoutItemSchema)
+    .min(2, 'يتطلب سلة متعددة المتاجر / Multi-store cart requires at least 2 stores')
+    .max(10, 'حد أقصى 10 متاجر / Maximum 10 stores'),
+  customerAddressText: z
+    .string()
+    .trim()
+    .min(5, 'العنوان قصير جداً / Address is too short')
+    .max(500),
+  deliveryRegion: z.enum(['central', 'outer', 'remote']).optional(),
+  addressNote: z.string().trim().max(500).optional(),
+  orderNote: z.string().trim().max(500).optional(),
+  deliveryPreset: z.string().trim().max(50).optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+});
+
+/** Individual store result within a multi-store checkout. */
+export interface CheckoutStoreResult {
+  storeId: string;
+  orderId: string;
+  orderNumber: string;
+  subtotal: number;
+  deliveryFee: number;
+  totalAmount: number;
+  itemCount: number;
+}
+
+/** Full response of POST /orders/checkout. */
+export interface CheckoutResult {
+  cartCheckoutId: string;
+  orders: CheckoutStoreResult[];
+  grandTotal: number;
+  totalDeliveryFee: number;
+  totalItemCount: number;
+}
+
 export type CreateOrderBody = z.infer<typeof createOrderSchema>;
 export type QuoteOrderBody = z.infer<typeof quoteOrderSchema>;
+export type CheckoutBody = z.infer<typeof checkoutSchema>;
 export type UpdateOrderStatusBody = z.infer<typeof updateOrderStatusSchema>;
 export type AssignCaptainBody = z.infer<typeof assignCaptainSchema>;
 export type OrderListQuery = z.infer<typeof orderListQuerySchema>;

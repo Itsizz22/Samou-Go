@@ -115,19 +115,7 @@ export function StoreDetailScreen() {
       void hapticConfirm();
       return;
     }
-    const result = cart.addItem(product, 1);
-    if (result === 'store-mismatch') {
-      // Never destroy a basket from another store on a stray tap — ask first.
-      const ok = window.confirm(
-        t(
-          'سلتك تحتوي عناصر من متجر آخر. استبدالها بهذا المتجر؟',
-          'Your cart has items from another store. Replace them?'
-        )
-      );
-      if (!ok) return;
-      cart.setStore(current.id, current.nameAr);
-      cart.addItem(product, 1);
-    }
+    cart.addItem(product, 1, '', current.nameAr);
     void hapticConfirm();
   };
 

@@ -92,12 +92,13 @@ import type { AuthResponse } from '@samou-go/shared-types';
 
 export async function exchangeFirebaseToken(
   idToken: string,
-  name?: string
+  name?: string,
+  password?: string,
 ): Promise<AuthResponse> {
   const response = await fetch(`${API_BASE}/api/v1/auth/firebase/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idToken, name }),
+    body: JSON.stringify({ idToken, name, password }),
   });
 
   if (!response.ok) {

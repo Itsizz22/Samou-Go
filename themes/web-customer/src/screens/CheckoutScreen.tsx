@@ -26,13 +26,13 @@ import {
   Ticket,
 } from 'lucide-react';
 import type { ApiError } from '@samou-go/api-client';
-import { createOrder, quoteOrder, getPlatformSettings } from '@/hooks/useApi';
+import { createOrder, checkoutOrders, quoteOrder, getPlatformSettings } from '@/hooks/useApi';
 import { OrderSuccess, Button, useLanguage } from '@samou-go/ui';
 import { useCart } from '@/components/CartProvider';
 import { MapPicker } from '@/components/MapPicker';
 import { CustomerAuthGate } from '@/components/CustomerAuthGate';
 import { useAuth } from '@/hooks/useApi';
-import { formatCurrency, FREE_DELIVERY_LABEL, deliveryFeeLabel } from '@/lib/delivery';
+import { formatCurrency, FREE_DELIVERY_LABEL, DYNAMIC_FEE_LABEL, DYNAMIC_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
 import { hapticError, hapticSuccess } from '@/lib/haptics';
 import {
   ADDRESS_TAGS,
@@ -46,6 +46,7 @@ import {
 } from '@/lib/address-book';
 import { PageTransition } from '@/components/PageTransition';
 import type { DeliveryRegion, OrderDetail } from '@samou-go/shared-types';
+import type { CheckoutResult } from '@samou-go/api-client';
 
 /**
  * Server codes that mean "the basket you are looking at is no longer current" —
@@ -105,6 +106,8 @@ export function CheckoutScreen() {
   const [submitError, setSubmitError] = useState<ApiError | null>(null);
   /** The order just created — when set, the form gives way to the success scene. */
   const [placedOrder, setPlacedOrder] = useState<OrderDetail | null>(null);
+  /** Multi-store checkout result — when set, renders the grouped success view. */
+  const [placedCheckout, setPlacedCheckout] = useState<CheckoutResult | null>(null);
   /** Re-fetches the live quote — bumped when a stale-basket error is caught. */
   const [quoteRevision, setQuoteRevision] = useState(0);
   /** Platform settings — used to check if dynamic driver fee is enabled. */
@@ -245,6 +248,48 @@ export function CheckoutScreen() {
     );
   }
 
+  // Multi-store checkout success — grouped sub-orders.
+  if (placedCheckout) {
+    return (
+      <PageTransition>
+        <main className="flex min-h-screen flex-col bg-canvas text-ink">
+          <div className="safe-top bg-brand px-5 pb-4 pt-4 text-white">
+            <div className="mx-auto flex max-w-md items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Check size={22} />
+                <span className="text-lg font-bold">{t('تم الطلب بنجاح', 'Order placed')}</span>
+              </div>
+            </div>
+          </div>
+          <div className="mx-auto max-w-md space-y-4 px-4 py-6">
+            <div className="rounded-2xl bg-surface p-4 shadow-card">
+              <h2 className="text-sm font-extrabold">{t('ملخص الطلب', 'Order summary')}</h2>
+              {placedCheckout.orders.map(sub => (
+                <div key={sub.orderId} className="mt-3 rounded-xl border border-line p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold">#{sub.orderNumber}</span>
+                    <button type="button" onClick={() => navigate(`/orders/${sub.orderId}`)} className="text-xs font-bold text-brand">{t('تتبع', 'Track')}</button>
+                  </div>
+                  <div className="mt-1 flex justify-between text-xs text-ink-muted">
+                    <span>{sub.itemCount} {t('منتج', 'items')}</span>
+                    <span dir="ltr" className="font-bold text-ink">{formatCurrency(sub.totalAmount)}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="mt-3 border-t border-line pt-3">
+                <div className="flex justify-between text-sm font-extrabold">
+                  <span>{t('الإجمالي', 'Total')}</span>
+                  <span dir="ltr">{formatCurrency(placedCheckout.grandTotal)}</span>
+                </div>
+              </div>
+            </div>
+            <Button block onClick={() => navigate('/')}>{t('العودة للمتاجر', 'Back to stores')}</Button>
+          </div>
+        </main>
+      </PageTransition>
+    );
+  }
+
   const handleSubmit = async () => {
     // Double-tap guard: only one placement in flight, ever. The latch lives in
     // a try/finally so EVERY exit path — validation short-circuits included —
@@ -290,21 +335,48 @@ export function CheckoutScreen() {
       }
 
       setPlacing(true);
-      const created = await createOrder({
-        storeId: cart.storeId,
-        items,
-        customerAddressText: finalText,
-        deliveryRegion,
-        addressNote: addressNote.trim() || useSavedAddress?.addressNote || undefined,
-        orderNote: orderNote.trim() || undefined,
-        deliveryPreset: deliveryPreset || undefined,
-        latitude: pickedLat,
-        longitude: pickedLng,
-        voucherCode: appliedVoucher || undefined,
-      });
-      await hapticSuccess();
-      cart.clear();
-      setPlacedOrder(created);
+
+      if (cart.isMultiStore) {
+        // Multi-store: split into per-store sub-orders.
+        const storeGroups = cart.storeGroups.map(group => ({
+          storeId: group.storeId,
+          items: group.lines.map(line => ({
+            productId: line.productId,
+            quantity: line.quantity,
+            ...(line.note.trim() ? { note: line.note.trim() } : {}),
+          })),
+        }));
+        const result = await checkoutOrders({
+          stores: storeGroups,
+          customerAddressText: finalText,
+          deliveryRegion,
+          addressNote: addressNote.trim() || useSavedAddress?.addressNote || undefined,
+          orderNote: orderNote.trim() || undefined,
+          deliveryPreset: deliveryPreset || undefined,
+          latitude: pickedLat,
+          longitude: pickedLng,
+        });
+        await hapticSuccess();
+        cart.clear();
+        setPlacedCheckout(result);
+      } else {
+        // Single-store: existing flow.
+        const created = await createOrder({
+          storeId: cart.storeId!,
+          items,
+          customerAddressText: finalText,
+          deliveryRegion,
+          addressNote: addressNote.trim() || useSavedAddress?.addressNote || undefined,
+          orderNote: orderNote.trim() || undefined,
+          deliveryPreset: deliveryPreset || undefined,
+          latitude: pickedLat,
+          longitude: pickedLng,
+          voucherCode: appliedVoucher || undefined,
+        });
+        await hapticSuccess();
+        cart.clear();
+        setPlacedOrder(created);
+      }
     } catch (cause) {
       const apiError =
         cause instanceof Error && 'code' in (cause as ApiError)
@@ -593,7 +665,8 @@ export function CheckoutScreen() {
             </div>
           </section>
 
-          {/* Voucher */}
+          {/* Voucher — disabled for multi-store carts */}
+          {!cart.isMultiStore && (
           <section className="rounded-2xl bg-surface p-4 shadow-card">
             <h2 className="flex items-center gap-2 text-sm font-extrabold">
               <Ticket size={16} className="text-brand" /> {t('كوبون خصم', 'Voucher')}
@@ -650,8 +723,38 @@ export function CheckoutScreen() {
               </>
             )}
           </section>
+          )}
 
-          {/* Quote */}
+          {/* Quote — multi-store: local summary from cart */}
+          {cart.isMultiStore ? (
+          <section className="rounded-2xl bg-surface p-4 shadow-card">
+            <h2 className="text-sm font-extrabold">{t('ملخص الطلب', 'Order summary')}</h2>
+            {cart.storeGroups.map(group => (
+              <div key={group.storeId} className="mt-3 rounded-xl border border-line p-3">
+                <h3 className="text-xs font-bold text-ink-muted">{group.storeNameAr || t('المتجر', 'Store')}</h3>
+                <div className="mt-1.5 space-y-1 text-xs">
+                  {group.lines.map(line => (
+                    <div key={line.productId} className="flex justify-between">
+                      <span className="text-ink-muted">{line.product.nameAr} × {line.quantity}</span>
+                      <span dir="ltr" className="font-semibold text-ink">{formatCurrency(line.quantity * line.product.price)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 flex justify-between border-t border-line pt-2 text-xs">
+                  <span className="font-extrabold">{t('المجموع', 'Subtotal')}</span>
+                  <span dir="ltr" className="font-extrabold text-ink">{formatCurrency(group.subtotal)}</span>
+                </div>
+              </div>
+            ))}
+            <div className="mt-3 border-t border-line pt-3">
+              <div className="flex justify-between text-sm font-extrabold">
+                <span>{t('الإجمالي', 'Total')}</span>
+                <span dir="ltr" className="text-brand-dark">{formatCurrency(cart.subtotal)}</span>
+              </div>
+              <p className="mt-1 text-[10px] text-ink-muted text-center">{t('رسوم التوصيل تُحدّد بواسطة السائق', 'Delivery fee set by driver')}</p>
+            </div>
+          </section>
+          ) : (
           <section className="rounded-2xl bg-surface p-4 shadow-card">
             <h2 className="text-sm font-extrabold">ملخص الطلب</h2>
             {quotePending && !quote ? (
@@ -669,7 +772,7 @@ export function CheckoutScreen() {
                     <span>{deliveryFeeLabel(language)}</span>
                     <span dir="ltr" className="font-bold text-brand-dark">
                       {platformSettings?.isDriverDynamicFeeEnabled
-                        ? (isArabic ? 'يتم تحديدها بواسطة السائق عند الاستلام' : 'Set by driver upon pickup')
+                        ? (isArabic ? DYNAMIC_FEE_LABEL.ar : DYNAMIC_FEE_LABEL.en)
                         : quote.deliveryFee <= 0
                         ? (isArabic ? FREE_DELIVERY_LABEL.ar : FREE_DELIVERY_LABEL.en)
                         : formatCurrency(quote.deliveryFee)}
@@ -677,7 +780,7 @@ export function CheckoutScreen() {
                   </div>
                   {platformSettings?.isDriverDynamicFeeEnabled && (
                     <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
-                      {t('رسوم التوصيل: يتم تحديدها بواسطة السائق عند الاستلام', 'Delivery fee: Set by driver upon pickup')}
+                      {t(DYNAMIC_FEE_NOTICE.ar, DYNAMIC_FEE_NOTICE.en)}
                     </p>
                   )}
                   {quote.discount > 0 && (
@@ -707,6 +810,7 @@ export function CheckoutScreen() {
               <p className="mt-3 text-xs text-ink-muted">أضف أصنافاً لعرض السعر</p>
             )}
           </section>
+          )}
 
           {fieldError && (
             <p className="flex items-start gap-2 rounded-xl bg-danger-tint p-3 text-[11px] font-semibold text-danger-ink" role="alert">

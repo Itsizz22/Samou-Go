@@ -210,6 +210,12 @@ export interface Order {
   customerId: string;
   storeId: string;
   captainId: string | null;
+  /**
+   * Links sub-orders created from a multi-store cart checkout.  Null for
+   * legacy single-store orders; set to the same CUID across all sub-orders
+   * when a customer checks out items from multiple stores in one session.
+   */
+  cartCheckoutId: string | null;
   status: OrderStatus;
   /**
    * Free-text destination — neighbourhood, street, landmark.
@@ -267,6 +273,8 @@ export interface OrderSummary {
   status: OrderStatus;
   /** Assigned captain (`null` = still in the unclaimed pool). */
   captainId: string | null;
+  /** Links sub-orders from a multi-store cart checkout. */
+  cartCheckoutId: string | null;
   itemCount: number;
   totalAmount: number;
   deliveryFee: number;

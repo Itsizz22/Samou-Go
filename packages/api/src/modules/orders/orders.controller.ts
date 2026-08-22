@@ -6,6 +6,7 @@ import { forbidden } from '../../lib/http-error';
 import { requireAuth } from '../../middleware/authenticate';
 import {
   assignCaptainSchema,
+  checkoutSchema,
   createOrderSchema,
   orderIdParamsSchema,
   orderListQuerySchema,
@@ -117,6 +118,43 @@ export async function createOrderHandler(req: Request, res: Response): Promise<v
           body: `طلب جديد #${result.orderNumber} من ${result.customer.name}`,
           data: { orderId: result.id, screen: 'order' },
         });
+      }
+    } catch {
+      // Push failure must never break the order flow.
+    }
+  })();
+
+  created(res, result);
+}
+
+/** POST /api/v1/orders/checkout — multi-store cart checkout. */
+export async function checkoutHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  if (auth.role !== UserRole.CUSTOMER && auth.role !== UserRole.ADMIN) {
+    throw forbidden('الطلبات يُنشئها الزبائن فقط / Only customers may place orders');
+  }
+  const body = parseWith(checkoutSchema, req.body);
+  const result = await ordersService.createCheckoutOrders(auth.sub, body);
+
+  // Push: notify each store manager of their sub-order.
+  void (async () => {
+    try {
+      const storeIds = result.orders.map(o => o.storeId);
+      const stores = await prisma.store.findMany({
+        where: { id: { in: storeIds } },
+        select: { id: true, managerId: true, nameAr: true },
+      });
+      const storeMap = new Map(stores.map(s => [s.id, s]));
+      for (const sub of result.orders) {
+        const store = storeMap.get(sub.storeId);
+        if (store) {
+          await sendPushToUser(store.managerId, {
+            title: 'طلب جديد 🛒',
+            body: `طلب جديد #${sub.orderNumber} من متجر ${store.nameAr}`,
+            data: { orderId: sub.orderId, screen: 'order' },
+          });
+        }
+        emitPlatformEvent('order:created', { orderId: sub.orderId, storeId: sub.storeId, status: 'PENDING' as OrderStatus });
       }
     } catch {
       // Push failure must never break the order flow.
