@@ -27,6 +27,8 @@ const h = vi.hoisted(() => {
       totalAmount: 115,
       voucherId: null,
       paymentMethod: 'COD',
+      deliveryPin: '1234',
+      deliveryPinAttempts: 0,
       createdAt: new Date('2026-08-16T10:00:00.000Z'),
       updatedAt: new Date('2026-08-16T10:00:00.000Z'),
       items: [],
@@ -84,7 +86,7 @@ describe('updateOrderStatus → DELIVERED wallet credits (P0-2)', () => {
   const captain = { sub: 'captain-1', role: UserRole.CAPTAIN };
 
   it('credits both wallets inside the same transaction as the status change', async () => {
-    const result = await updateOrderStatus(captain, 'order-1', { status: OrderStatus.DELIVERED });
+    const result = await updateOrderStatus(captain, 'order-1', { status: OrderStatus.DELIVERED, deliveryPin: '1234' });
 
     expect(result.status).toBe(OrderStatus.DELIVERED);
     expect(h.tx.order.update).toHaveBeenCalledTimes(1);

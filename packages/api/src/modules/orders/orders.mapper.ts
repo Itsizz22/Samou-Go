@@ -51,6 +51,7 @@ export function toOrder(order: PrismaOrder): Order {
     latitude: order.latitude,
     longitude: order.longitude,
     estimatedPrepMinutes: order.estimatedPrepMinutes,
+    deliveryPin: order.deliveryPin ?? null,
     subtotal: decimalToNumber(order.subtotal),
     deliveryFee: decimalToNumber(order.deliveryFee),
     discount: decimalToNumber(order.discount),
@@ -95,9 +96,13 @@ function toContact(user: PrismaUser): { id: string; name: string; phone: string 
   return { id: user.id, name: user.name, phone: user.phone };
 }
 
-export function toOrderDetail(order: OrderWithRelations): OrderDetail {
+export function toOrderDetail(order: OrderWithRelations, viewerRole?: string): OrderDetail {
+  const base = toOrder(order);
+  // The delivery PIN is only exposed to the customer who placed the order.
+  // Captains and store managers must never see it in the API response.
   return {
-    ...toOrder(order),
+    ...base,
+    deliveryPin: viewerRole === 'CUSTOMER' ? base.deliveryPin : null,
     items: order.items.map(toOrderItem),
     customer: toContact(order.customer),
     store: {

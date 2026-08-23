@@ -52,6 +52,16 @@ ordersRouter.get('/', asyncHandler(controller.listOrdersHandler));
 ordersRouter.get('/:orderId', asyncHandler(controller.getOrderHandler));
 
 /**
+ * GET /orders/:orderId/pin — returns only the delivery PIN.
+ * Customer-only: captains and store managers must never see the PIN.
+ */
+ordersRouter.get(
+  '/:orderId/pin',
+  authorize(UserRole.CUSTOMER),
+  asyncHandler(controller.getOrderPinHandler)
+);
+
+/**
  * Re-order is a customer convenience: clone a past basket at current prices.
  * The ownership check runs in the service (`assertCanView`), so admins can
  * reach it too.

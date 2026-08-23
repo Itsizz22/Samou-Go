@@ -4,21 +4,31 @@
  * Shown as a persistent FAB in the bottom-right corner of customer and captain
  * apps. Opens WhatsApp click-to-chat to the support number. The button is
  * deliberately non-obtrusive — small green circle with the WhatsApp glyph.
+ *
+ * The support number is read from PlatformSettings (admin-configurable via the
+ * admin dashboard). If the number is not set or not yet loaded, the button is
+ * hidden rather than rendering a broken link.
  */
 
 import { MessageCircle } from 'lucide-react';
 import { useLanguage } from '@samou-go/ui';
 import { formatWhatsAppLink, WHATSAPP_MESSAGES } from '@samou-go/shared-types';
+import { usePlatformSettings } from '@/hooks/useApi';
 
-/** Support phone number — Palestinian mobile in local format. */
-const SUPPORT_PHONE = '0590000000';
+/** Fallback number used when PlatformSettings has not been provisioned yet. */
+const DEFAULT_SUPPORT_PHONE = '0590000000';
 
 export function SupportWhatsAppButton() {
   const { t, language } = useLanguage();
   const isArabic = language === 'ar';
+  const platformSettings = usePlatformSettings();
+
+  const phone = platformSettings.data?.whatsappSupportNumber || DEFAULT_SUPPORT_PHONE;
+
+  if (!phone) return null;
 
   const message = WHATSAPP_MESSAGES.generic(isArabic ? 'الدعم الفني' : 'Support');
-  const href = formatWhatsAppLink(SUPPORT_PHONE, message);
+  const href = formatWhatsAppLink(phone, message);
 
   if (!href) return null;
 

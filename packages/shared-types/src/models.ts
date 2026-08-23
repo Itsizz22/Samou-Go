@@ -235,6 +235,8 @@ export interface Order {
   longitude: number | null;
   /** Kitchen estimate selected when the store accepts the order. */
   estimatedPrepMinutes: number | null;
+  /** 4-digit PIN the customer shares with the captain on delivery. */
+  deliveryPin: string | null;
   subtotal: number;
   /** Fee from the captain-selected `deliveryZone`, or 0 before one is set. */
   deliveryFee: number;

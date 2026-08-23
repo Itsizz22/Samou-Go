@@ -310,6 +310,7 @@ export async function createOrder(
         totalAmount: roundMoney(totals.totalAmount - discount),
         voucherId: voucher?.id ?? null,
         paymentMethod: PaymentMethod.COD,
+        deliveryPin: generateDeliveryPin(),
         items: {
           create: lines.map(line => {
             const itemSource = body.items.find((it: CreateOrderBody['items'][number]) => it.productId === line.productId);
@@ -337,10 +338,14 @@ export async function createOrder(
         },
       },
       include: DETAIL_INCLUDE,
-    });
-
-    return toOrderDetail(order);
+    });    return toOrderDetail(order, 'CUSTOMER');
   });
+}
+
+
+/** Generate a random 4-digit PIN for delivery verification. */
+function generateDeliveryPin(): string {
+  return String(Math.floor(1000 + Math.random() * 9000));
 }
 
 /** Reduce modifier groups to a short Arabic/English summary string. */
@@ -422,6 +427,7 @@ export async function createCheckoutOrders(
           totalAmount: totals.totalAmount,
           voucherId: null,
           paymentMethod: PaymentMethod.COD,
+          deliveryPin: generateDeliveryPin(),
           items: {
             create: lines.map(line => {
               const itemSource = storeGroup.items.find(it => it.productId === line.productId);
@@ -577,7 +583,7 @@ export async function getOrder(
 ): Promise<OrderDetail> {
   const order = await loadOrderOrThrow(orderId);
   await assertCanView(order, actor);
-  return toOrderDetail(order);
+  return toOrderDetail(order, actor.role);
 }
 
 /**
@@ -750,6 +756,33 @@ export async function updateOrderStatus(
 
   const assignCaptainOnClaim = isClaimAttempt;
 
+  // Delivery PIN validation: when a captain transitions to DELIVERED,
+  // they must provide the correct 4-digit PIN that the customer shares.
+  // Rate-limited to 5 attempts per order to prevent brute-force.
+  if (actor.role === UserRole.CAPTAIN && next === OrderStatus.DELIVERED) {
+    const MAX_PIN_ATTEMPTS = 5;
+    if ((order.deliveryPinAttempts ?? 0) >= MAX_PIN_ATTEMPTS) {
+      throw badState(
+        'PIN_LOCKED',
+        'تم قفل رمز التوصيل due to too many failed attempts / Delivery PIN locked'
+      );
+    }
+    if (!body.deliveryPin || body.deliveryPin !== order.deliveryPin) {
+      // Increment attempts atomically
+      await prisma.order.update({
+        where: { id: orderId },
+        data: { deliveryPinAttempts: { increment: 1 } },
+      });
+      const remaining = MAX_PIN_ATTEMPTS - ((order.deliveryPinAttempts ?? 0) + 1);
+      throw badState(
+        'INVALID_PIN',
+        remaining > 0
+          ? `رمز التوصيل خاطئ — متبقي ${remaining} محاولات / Incorrect PIN — ${remaining} attempts remaining`
+          : 'تم قفل رمز التوصيل due to too many failed attempts / Delivery PIN locked'
+      );
+    }
+  }
+
   let updated;
   try {
     updated = await prisma.$transaction(async tx => {
@@ -822,7 +855,7 @@ export async function updateOrderStatus(
     throw err;
   }
 
-  return toOrderDetail(updated);
+  return toOrderDetail(updated, actor.role);
 }
 
 /** Admin (or a store manager for their own shop) hands a job to a captain. */
@@ -881,7 +914,7 @@ export async function assignCaptain(
     include: DETAIL_INCLUDE,
   });
 
-  return toOrderDetail(updated);
+  return toOrderDetail(updated, actor.role);
 }
 
 /* ---------------------------------------------------------------------------
@@ -952,7 +985,7 @@ export async function setOrderDeliveryZone(
       include: DETAIL_INCLUDE,
     });
 
-    return toOrderDetail(updated);
+    return toOrderDetail(updated, actor.role);
   } catch (err) {
     if (
       err instanceof Error &&
@@ -1039,7 +1072,7 @@ export async function setOrderReview(
       include: DETAIL_INCLUDE,
     });
 
-    return toOrderDetail(updated);
+    return toOrderDetail(updated, actor.role);
   } catch (err) {
     if (
       err instanceof Error &&
@@ -1126,7 +1159,7 @@ export async function setOrderDeliveryFee(
       include: DETAIL_INCLUDE,
     });
 
-    return toOrderDetail(updated);
+    return toOrderDetail(updated, actor.role);
   } catch (err) {
     if (
       err instanceof Error &&

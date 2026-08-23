@@ -291,6 +291,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [captainRate, setCaptainRate] = useState('0');
   const [isDriverDynamicFeeEnabled, setIsDriverDynamicFeeEnabled] = useState(false);
   const [requireOtpForSensitiveActions, setRequireOtpForSensitiveActions] = useState(false);
+  const [whatsappSupportNumber, setWhatsappSupportNumber] = useState('');
   const [name, setName] = useState(auth.user?.name ?? '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -309,6 +310,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
         setCaptainRate(String(settings.captainDeliveryRate));
         setIsDriverDynamicFeeEnabled(settings.isDriverDynamicFeeEnabled);
         setRequireOtpForSensitiveActions(settings.requireOtpForSensitiveActions);
+        setWhatsappSupportNumber(settings.whatsappSupportNumber ?? '');
       })
       .catch(() => {
         /* Server unreachable — the defaults remain; the API is still authoritative. */
@@ -330,7 +332,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
       return;
     }
     try {
-      await updatePlatformSettings({ autoAssign, captainDeliveryRate, storeCommissionRate, isDriverDynamicFeeEnabled, requireOtpForSensitiveActions });
+      await updatePlatformSettings({ autoAssign, captainDeliveryRate, storeCommissionRate, isDriverDynamicFeeEnabled, requireOtpForSensitiveActions, whatsappSupportNumber: whatsappSupportNumber.trim() || null });
       toast.success('تم حفظ إعدادات النظام على الخادم', 'System settings saved on the server');
     } catch (cause) {
       toast.error('تعذّر حفظ الإعدادات', cause instanceof Error ? cause.message : 'Save failed');
@@ -488,6 +490,23 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
               />
             </label>
           </div>
+        </section>
+        <section className="rounded-2xl border border-line bg-surface p-4">
+          <h2 className="text-sm font-extrabold">{t('الدعم الفني', 'Support')}</h2>
+          <label className="mt-3 block text-[11px] font-bold">
+            {t('رقم واتساب للدعم الفني', 'WhatsApp support number')}
+            <input
+              dir="ltr"
+              inputMode="tel"
+              value={whatsappSupportNumber}
+              onChange={event => setWhatsappSupportNumber(event.target.value)}
+              placeholder="059XXXXXXX"
+              className="input-field mt-1"
+            />
+          </label>
+          <p className="mt-1 text-[11px] text-ink-muted">
+            {t('الرقم الظاهر في زر الدعم العائم لجميع التطبيقات. اتركه فارغاً للإخفاء.', 'The number shown in the floating support button across all apps. Leave empty to hide.')}
+          </p>
         </section>
       </div>
       <div className="px-5 pb-5">

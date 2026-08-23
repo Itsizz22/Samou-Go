@@ -146,6 +146,7 @@ export async function getPlatformSettings() {
     autoAssign: row.autoAssign,
     isDriverDynamicFeeEnabled: row.isDriverDynamicFeeEnabled,
     requireOtpForSensitiveActions: row.requireOtpForSensitiveActions,
+    whatsappSupportNumber: row.whatsappSupportNumber ?? null,
     updatedAt: row.updatedAt,
   };
 }
@@ -161,6 +162,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
       ...(body.autoAssign !== undefined ? { autoAssign: body.autoAssign } : {}),
       ...(body.isDriverDynamicFeeEnabled !== undefined ? { isDriverDynamicFeeEnabled: body.isDriverDynamicFeeEnabled } : {}),
       ...(body.requireOtpForSensitiveActions !== undefined ? { requireOtpForSensitiveActions: body.requireOtpForSensitiveActions } : {}),
+      ...(body.whatsappSupportNumber !== undefined && body.whatsappSupportNumber !== null ? { whatsappSupportNumber: body.whatsappSupportNumber } : {}),
     },
     update: {
       ...(body.captainDeliveryRate !== undefined ? { captainDeliveryRate: body.captainDeliveryRate } : {}),
@@ -168,6 +170,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
       ...(body.autoAssign !== undefined ? { autoAssign: body.autoAssign } : {}),
       ...(body.isDriverDynamicFeeEnabled !== undefined ? { isDriverDynamicFeeEnabled: body.isDriverDynamicFeeEnabled } : {}),
       ...(body.requireOtpForSensitiveActions !== undefined ? { requireOtpForSensitiveActions: body.requireOtpForSensitiveActions } : {}),
+      ...(body.whatsappSupportNumber !== undefined ? { whatsappSupportNumber: body.whatsappSupportNumber ?? undefined } : {}),
     },
   });
   return {
@@ -177,6 +180,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
     autoAssign: row.autoAssign,
     isDriverDynamicFeeEnabled: row.isDriverDynamicFeeEnabled,
     requireOtpForSensitiveActions: row.requireOtpForSensitiveActions,
+    whatsappSupportNumber: row.whatsappSupportNumber ?? null,
     updatedAt: row.updatedAt,
   };
 }

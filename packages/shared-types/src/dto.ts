@@ -586,6 +586,8 @@ export interface PlatformSettings {
   isDriverDynamicFeeEnabled: boolean;
   /** When enabled, sensitive actions (first order, password reset, phone change) require OTP verification. */
   requireOtpForSensitiveActions: boolean;
+  /** WhatsApp support phone number shown in the floating support button across all apps. */
+  whatsappSupportNumber: string | null;
   updatedAt: string;
 }
 
@@ -596,6 +598,7 @@ export interface UpdatePlatformSettingsInput {
   autoAssign?: boolean;
   isDriverDynamicFeeEnabled?: boolean;
   requireOtpForSensitiveActions?: boolean;
+  whatsappSupportNumber?: string | null;
 }
 
 /* ---------------------------------------------------------------------------

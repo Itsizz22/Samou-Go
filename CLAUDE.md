@@ -88,6 +88,11 @@ Android (Capacitor, `android/` at root, `appId com.samougo.customer`): `npm run 
 
 **Realtime** — Socket.IO attached in `src/realtime.ts`, JWT-authenticated in the handshake, room per order (`order:<id>`); handlers (`order:join`, `captain:location`, `chat:send`) are split into `src/realtime-handlers.ts` and unit-tested there. Services emit through `emitOrderStatus` / `emitPlatformEvent`.
 
+**Backend infrastructure with no frontend consumer.** `SupportTicket` and `ChatMessage` are fully modeled in both Prisma schemas with relations, CRUD routes, and realtime handlers (`chat:send`), but no theme currently renders a ticketing or chat UI. WhatsApp is the support channel for now. A future session should wire these into a dashboard rather than rebuilding the models from scratch. Specifically, what exists and what's needed:
+  - `SupportTicket` model + `POST /support/tickets` endpoint (create only, no list/read/resolve). Needs: admin panel to list/filter/respond/resolve tickets; customer + captain screens to submit tickets and view history.
+  - `ChatMessage` model + `GET/POST /orders/:orderId/chat` + Socket.IO `chat:send` handler (all tested). Needs: order-level chat UI in customer tracking screen and captain active-order screen, using the existing real-time channel.
+  - The 4 pieces to build when ready: (1) admin ticket dashboard, (2) customer support screen, (3) captain support screen, (4) order-level chat UI via the existing Socket.IO infrastructure.
+
 **`@samou-go/api-client` hook primitives.** The client exposes `useResource` (string key, not a dep array), `useMutation`, and `useOrderEvent` (SSE + 15s polling fallback — SSE uses `optionalAuthenticate` on the server because `EventSource` cannot send `Authorization` headers). No react-query or SWR. Key convention: `JSON.stringify` or a template string of inputs.
 
 **Dual Prisma schemas.** `prisma/schema.prisma` is the production PostgreSQL schema (native `@db.*` types, `env("DATABASE_URL")`) — the only one CI validates and `migrate deploy` applies. `prisma/schema.sqlite.prisma` is the local-dev variant (`file:./dev.db`, native types stripped). Keep both in sync on any model change, and keep enums byte-for-byte identical to `packages/shared-types/src/enums.ts`. Prisma CLI config: `packages/api/prisma.config.ts`.
