@@ -17,7 +17,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, Banknote, CheckCircle2, Loader2, MapPin, RefreshCw, RotateCw, ShoppingCart, StickyNote, XCircle } from 'lucide-react';
 import { PaymentMethod, OrderStatus } from '@samou-go/shared-types';
 import { useAuth } from '@/hooks/useApi';
-import { useOrder, useToast, reorderOrder, usePlatformSettings } from '@/hooks/useApi';
+import { useOrder, useToast, reorderOrder } from '@/hooks/useApi';
 import { updateOrderStatus } from '@samou-go/api-client';
 import { connectRealtime } from '@samou-go/api-client';
 import { LeafletMap } from '@samou-go/ui/map';
@@ -50,8 +50,7 @@ export function OrderTrackingScreen() {
   const auth = useAuth();
   const { t, language } = useLanguage();
   const isArabic = language === 'ar';
-  const platformSettings = usePlatformSettings();
-  const isDynamicFee = platformSettings.data?.isDriverDynamicFeeEnabled ?? false;
+
   // Terminal orders have nothing left to follow — `stopWhen` halts the polling.
   const order = useOrder(orderId, {
     pollMs: POLL_MS,
@@ -278,16 +277,12 @@ export function OrderTrackingScreen() {
                   <div className="flex justify-between text-ink-muted">
                     <dt>{deliveryFeeLabel(language)}</dt>
                     <dd dir="ltr" className="font-bold text-brand-dark">
-                      {isDynamicFee
-                        ? (isArabic ? DRIVER_FEE_LABEL.ar : DRIVER_FEE_LABEL.en)
-                        : formatCurrency(order.data.deliveryFee)}
+                      {isArabic ? DRIVER_FEE_LABEL.ar : DRIVER_FEE_LABEL.en}
                     </dd>
                   </div>
-                  {!terminal && (
-                    <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
-                      {t(DRIVER_FEE_NOTICE.ar, DRIVER_FEE_NOTICE.en)}
-                    </p>
-                  )}
+                  <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
+                    {t(DRIVER_FEE_NOTICE.ar, DRIVER_FEE_NOTICE.en)}
+                  </p>
                   {order.data.cartCheckoutId && (
                     <div className="mt-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-center">
                       <p className="text-[10px] font-semibold text-amber-800">
@@ -305,8 +300,8 @@ export function OrderTrackingScreen() {
                     </div>
                   )}
                   <div className="flex justify-between pt-1 text-xs">
-                    <dt className="font-extrabold">الإجمالي</dt>
-                    <dd dir="ltr" className="font-extrabold text-brand-dark">{formatCurrency(order.data.totalAmount)}</dd>
+                    <dt className="font-extrabold">المجموع الفرعي</dt>
+                    <dd dir="ltr" className="font-extrabold text-brand-dark">{formatCurrency(order.data.subtotal)}</dd>
                   </div>
                 </dl>
               </section>

@@ -26,7 +26,7 @@ import {
   Ticket,
 } from 'lucide-react';
 import type { ApiError } from '@samou-go/api-client';
-import { createOrder, checkoutOrders, quoteOrder, getPlatformSettings } from '@/hooks/useApi';
+import { createOrder, checkoutOrders, quoteOrder } from '@/hooks/useApi';
 import { OrderSuccess, Button, useLanguage } from '@samou-go/ui';
 import { useCart } from '@/components/CartProvider';
 import { MapPicker } from '@/components/MapPicker';
@@ -111,7 +111,6 @@ export function CheckoutScreen() {
   /** Re-fetches the live quote — bumped when a stale-basket error is caught. */
   const [quoteRevision, setQuoteRevision] = useState(0);
   /** Platform settings — used to check if dynamic driver fee is enabled. */
-  const [platformSettings, setPlatformSettings] = useState<{ isDriverDynamicFeeEnabled: boolean } | null>(null);
   /**
    * Belt-and-suspenders against double-submit. The button is also disabled
    * while `placing`, but `disabled` cannot protect against two rapid taps that
@@ -136,23 +135,6 @@ export function CheckoutScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved.length]);
-
-  // Fetch platform settings to check if dynamic driver fee is enabled.
-  useEffect(() => {
-    let cancelled = false;
-    getPlatformSettings()
-      .then((settings) => {
-        if (!cancelled) {
-          setPlatformSettings({ isDriverDynamicFeeEnabled: settings.isDriverDynamicFeeEnabled });
-        }
-      })
-      .catch(() => {
-        // Ignore errors — if we can't fetch settings, assume dynamic fee is disabled.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Live quote — re-priced whenever the basket, the voucher, or the session
   // changes shape. The voucher is only sent to the server once the customer
@@ -272,15 +254,16 @@ export function CheckoutScreen() {
                   </div>
                   <div className="mt-1 flex justify-between text-xs text-ink-muted">
                     <span>{sub.itemCount} {t('منتج', 'items')}</span>
-                    <span dir="ltr" className="font-bold text-ink">{formatCurrency(sub.totalAmount)}</span>
+                    <span dir="ltr" className="font-bold text-ink">{formatCurrency(sub.subtotal)}</span>
                   </div>
                 </div>
               ))}
               <div className="mt-3 border-t border-line pt-3">
                 <div className="flex justify-between text-sm font-extrabold">
-                  <span>{t('الإجمالي', 'Total')}</span>
-                  <span dir="ltr">{formatCurrency(placedCheckout.grandTotal)}</span>
+                  <span>{t('المجموع الفرعي', 'Subtotal')}</span>
+                  <span dir="ltr">{formatCurrency(placedCheckout.orders.reduce((sum, sub) => sum + sub.subtotal, 0))}</span>
                 </div>
+                <p className="mt-1 text-center text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1">{t(DRIVER_FEE_NOTICE.ar, DRIVER_FEE_NOTICE.en)}</p>
               </div>
             </div>
             <Button block onClick={() => navigate('/')}>{t('العودة للمتاجر', 'Back to stores')}</Button>
@@ -780,9 +763,7 @@ export function CheckoutScreen() {
                   <div className="flex justify-between text-ink-muted">
                     <span>{deliveryFeeLabel(language)}</span>
                     <span dir="ltr" className="font-bold text-brand-dark">
-                      {platformSettings?.isDriverDynamicFeeEnabled
-                        ? (isArabic ? DRIVER_FEE_LABEL.ar : DRIVER_FEE_LABEL.en)
-                        : formatCurrency(quote.deliveryFee)}
+                      {isArabic ? DRIVER_FEE_LABEL.ar : DRIVER_FEE_LABEL.en}
                     </span>
                   </div>
                   <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
@@ -796,8 +777,8 @@ export function CheckoutScreen() {
                   )}
                 </div>
                 <div className="mt-2 flex justify-between border-t border-line pt-2.5 text-sm">
-                  <span className="font-extrabold">الإجمالي</span>
-                  <span dir="ltr" className="font-extrabold text-brand-dark">{formatCurrency(quote.totalAmount)}</span>
+                  <span className="font-extrabold">المجموع الفرعي</span>
+                  <span dir="ltr" className="font-extrabold text-brand-dark">{formatCurrency(quote.subtotal)}</span>
                 </div>
               </>
             ) : quoteError ? (
