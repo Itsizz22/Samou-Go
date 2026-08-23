@@ -80,6 +80,8 @@ export const updateOrderStatusSchema = z.object({
   status: z.nativeEnum(OrderStatus),
   note: z.string().trim().max(500).optional(),
   estimatedPrepMinutes: z.number().int().min(5).max(180).optional(),
+  /** 4-digit delivery PIN — required when captain transitions to DELIVERED. */
+  deliveryPin: z.string().length(4, 'رمز التوصيل يجب أن يكون 4 أرقام / Delivery PIN must be 4 digits').optional(),
 });
 
 /** Rating and comment for an order review. */

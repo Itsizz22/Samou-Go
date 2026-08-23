@@ -251,14 +251,14 @@ export function SamouGoCaptain() {
 
   /* ---- Mutations --------------------------------------------------------- */
 
-  interface TransitionInput { orderId: string; status: OrderStatus }
+  interface TransitionInput { orderId: string; status: OrderStatus; deliveryPin?: string }
 
   const acceptMutation = useMutation<TransitionInput, OrderDetail>(
     (input, signal) => updateOrderStatus(input.orderId, { status: input.status }, signal)
   );
 
   const deliverMutation = useMutation<TransitionInput, OrderDetail>(
-    (input, signal) => updateOrderStatus(input.orderId, { status: input.status }, signal)
+    (input, signal) => updateOrderStatus(input.orderId, { status: input.status, ...(input.deliveryPin ? { deliveryPin: input.deliveryPin } : {}) }, signal)
   );
 
   const cancelMutation = useMutation<TransitionInput, OrderDetail>(
@@ -284,8 +284,11 @@ export function SamouGoCaptain() {
     }
   };
 
-  const handleDeliver = async (orderId: string) => {
-    const result = await deliverMutation.run({ orderId, status: OrderStatus.DELIVERED });
+  const [pinModalOrderId, setPinModalOrderId] = useState<string | null>(null);
+  const [pinInput, setPinInput] = useState('');
+
+  const handleDeliver = async (orderId: string, pin: string) => {
+    const result = await deliverMutation.run({ orderId, status: OrderStatus.DELIVERED, deliveryPin: pin });
     if (result) {
       toast.success('تم توصيل الطلب بنجاح', 'Order delivered successfully');
     } else if (deliverMutation.error) {
@@ -805,7 +808,7 @@ export function SamouGoCaptain() {
                         <button
                           type="button"
                           disabled={deliverMutation.pending}
-                          onClick={() => handleDeliver(order.id)}
+                          onClick={() => { setPinModalOrderId(order.id); setPinInput(''); }}
                           className="flex flex-[1.35] items-center justify-center gap-1.5 rounded-xl bg-brand py-2.5 text-[11px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
                         >
                           {deliverMutation.pending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
@@ -946,6 +949,44 @@ export function SamouGoCaptain() {
           })}
         </div>
       </nav>
+      {/* Delivery PIN modal */}
+      {pinModalOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-5">
+          <div className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-raised">
+            <h3 className="text-center text-sm font-extrabold">{t('أدخل رمز التوصيل', 'Enter delivery PIN')}</h3>
+            <p className="mt-1 text-center text-[11px] text-ink-muted">
+              {t('اطلب الرمز من العميل', 'Ask the customer for the code')}
+            </p>
+            <input
+              type="tel"
+              inputMode="numeric"
+              maxLength={4}
+              autoFocus
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              className="mx-auto mt-4 block w-32 rounded-xl border border-line bg-canvas py-3 text-center text-2xl font-black tracking-[0.3em] text-ink outline-none focus:border-brand"
+              placeholder="----"
+            />
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => { setPinModalOrderId(null); setPinInput(''); }}
+                className="rounded-xl border border-line py-2.5 text-xs font-bold text-ink-soft transition hover:bg-canvas"
+              >
+                {t('إلغاء', 'Cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={pinInput.length !== 4 || deliverMutation.pending}
+                onClick={() => { void handleDeliver(pinModalOrderId, pinInput); setPinModalOrderId(null); setPinInput(''); }}
+                className="rounded-xl bg-brand py-2.5 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
+              >
+                {deliverMutation.pending ? <Loader2 size={14} className="mx-auto animate-spin" /> : t('تأكيد التسليم', 'Confirm delivery')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <SupportWhatsAppButton />
     </main>
   );

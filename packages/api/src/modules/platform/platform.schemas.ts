@@ -52,6 +52,7 @@ export const platformSettingsSchema = z.object({
   autoAssign: z.boolean().optional(),
   isDriverDynamicFeeEnabled: z.boolean().optional(),
   requireOtpForSensitiveActions: z.boolean().optional(),
+  whatsappSupportNumber: z.string().max(20).nullable().optional(),
 });
 
 export type LocationBody = z.infer<typeof locationSchema>;

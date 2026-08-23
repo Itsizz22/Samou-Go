@@ -311,6 +311,12 @@ model Order {
   longitude           Float?
   estimatedPrepMinutes Int?
 
+  /// 4-digit PIN the customer shares with the captain on delivery.
+  /// Stored as plaintext (4 digits, low entropy, rate-limited).
+  deliveryPin String?  @db.VarChar(4)
+  /// Failed PIN validation attempts — locked after 5 to prevent brute-force.
+  deliveryPinAttempts Int @default(0)
+
   subtotal      Decimal       @db.Decimal(10, 2)
   deliveryFee   Decimal       @db.Decimal(10, 2)
   /// Voucher savings, in ILS — 0 when no voucher was applied.
@@ -635,6 +641,8 @@ model PlatformSettings {
   isDriverDynamicFeeEnabled Boolean @default(false)
   /// When enabled, sensitive actions (first order, password reset, phone change) require OTP verification.
   requireOtpForSensitiveActions Boolean @default(false)
+  /// WhatsApp support phone number shown in the floating support button across all apps.
+  whatsappSupportNumber String? @db.VarChar(20)
   updatedAt DateTime @updatedAt
   @@map("platform_settings")
 }

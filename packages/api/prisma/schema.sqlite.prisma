@@ -316,6 +316,11 @@ model Order {
   longitude           Float?
   estimatedPrepMinutes Int?
 
+  /// 4-digit PIN the customer shares with the captain on delivery.
+  deliveryPin String?
+  /// Failed PIN validation attempts — locked after 5.
+  deliveryPinAttempts Int @default(0)
+
   subtotal      Decimal      
   deliveryFee   Decimal      
   /// Voucher savings, in ILS — 0 when no voucher was applied.
@@ -647,6 +652,8 @@ model PlatformSettings {
   isDriverDynamicFeeEnabled Boolean @default(false)
   /// When enabled, sensitive actions (first order, password reset, phone change) require OTP verification.
   requireOtpForSensitiveActions Boolean @default(false)
+  /// WhatsApp support phone number shown in the floating support button across all apps.
+  whatsappSupportNumber String?
   updatedAt DateTime @updatedAt
   @@map("platform_settings")
 }

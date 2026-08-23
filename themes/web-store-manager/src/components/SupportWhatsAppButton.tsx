@@ -1,20 +1,28 @@
 /**
  * Floating WhatsApp support button for the standalone store manager app.
+ *
+ * The support number is read from PlatformSettings (admin-configurable).
  */
 
 import { MessageCircle } from 'lucide-react';
 import { useLanguage } from '@samou-go/ui';
 import { formatWhatsAppLink, WHATSAPP_MESSAGES } from '@samou-go/shared-types';
+import { usePlatformSettings } from '@samou-go/api-client';
 
-/** Support phone number — Palestinian mobile in local format. */
-const SUPPORT_PHONE = '0590000000';
+/** Fallback number used when PlatformSettings has not been provisioned yet. */
+const DEFAULT_SUPPORT_PHONE = '0590000000';
 
 export function SupportWhatsAppButton() {
   const { t, language } = useLanguage();
   const isArabic = language === 'ar';
+  const platformSettings = usePlatformSettings();
+
+  const phone = platformSettings.data?.whatsappSupportNumber || DEFAULT_SUPPORT_PHONE;
+
+  if (!phone) return null;
 
   const message = WHATSAPP_MESSAGES.generic(isArabic ? 'الدعم الفني' : 'Support');
-  const href = formatWhatsAppLink(SUPPORT_PHONE, message);
+  const href = formatWhatsAppLink(phone, message);
 
   if (!href) return null;
 

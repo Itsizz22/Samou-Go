@@ -198,6 +198,21 @@ export async function claimOrderHandler(req: Request, res: Response): Promise<vo
   ok(res, result);
 }
 
+/**
+ * GET /api/v1/orders/:orderId/pin — returns the delivery PIN.
+ * Customer-only: the PIN is the shared secret between customer and captain.
+ */
+export async function getOrderPinHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const { orderId } = parseWith(orderIdParamsSchema, req.params);
+  const order = await ordersService.loadOrderOrThrow(orderId);
+  await ordersService.assertCanView(order, auth);
+  if (auth.role !== UserRole.CUSTOMER || order.customerId !== auth.sub) {
+    throw forbidden('فقط العميل يمكنه رؤية رمز التوصيل / Only the customer may view the delivery PIN');
+  }
+  ok(res, { deliveryPin: order.deliveryPin ?? null });
+}
+
 /** PATCH /api/v1/orders/:orderId/status */
 export async function updateOrderStatusHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);

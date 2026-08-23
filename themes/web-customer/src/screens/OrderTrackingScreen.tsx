@@ -209,6 +209,18 @@ export function OrderTrackingScreen() {
                 <OrderStatusTimeline status={order.data.status} />
               </section>
 
+              {/* Delivery PIN — shown only when the captain is on the way */}
+              {order.data.status === OrderStatus.ON_THE_WAY && order.data.deliveryPin && (
+                <section className="rounded-2xl border-2 border-brand bg-brand-surface p-4 text-center shadow-card">
+                  <p className="text-[11px] font-bold text-brand-dark">
+                    {t('شارك هذا الرمز مع الكابتن عند التسليم', 'Share this code with the captain on delivery')}
+                  </p>
+                  <p dir="ltr" className="mt-2 text-4xl font-black tracking-[0.3em] text-brand-deep">
+                    {order.data.deliveryPin}
+                  </p>
+                </section>
+              )}
+
               {/* Store + delivery model */}
               <section className="flex items-center gap-3 rounded-2xl bg-surface p-4 shadow-card">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">

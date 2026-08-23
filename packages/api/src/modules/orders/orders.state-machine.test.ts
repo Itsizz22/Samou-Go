@@ -30,6 +30,8 @@ const h = vi.hoisted(() => {
       totalAmount: 30,
       voucherId: null,
       paymentMethod: 'COD',
+      deliveryPin: '1234',
+      deliveryPinAttempts: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
       items: [],
@@ -171,7 +173,7 @@ describe('legal transitions', () => {
   it('assigned captain may deliver ON_THE_WAY -> DELIVERED', async () => {
     h.state.order = h.buildOrder({ status: OrderStatus.ON_THE_WAY, captainId: 'captain-1' });
 
-    const result = await set(captain, OrderStatus.DELIVERED);
+    const result = await updateOrderStatus(captain, 'order-1', { status: OrderStatus.DELIVERED, deliveryPin: '1234' });
     expect(result.status).toBe(OrderStatus.DELIVERED);
   });
 
