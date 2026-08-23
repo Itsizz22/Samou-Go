@@ -21,6 +21,7 @@ export const createCustomRequestSchema = z.object({
     .trim()
     .min(1, 'الوصف مطلوب / Description is required')
     .max(1000, 'الوصف طويل جداً / Description is too long'),
+  imageUrl: z.string().url().max(500).optional(),
 });
 export type CreateCustomRequestBody = z.infer<typeof createCustomRequestSchema>;
 

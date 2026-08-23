@@ -542,6 +542,8 @@ export interface CreateCustomRequestInput {
   storeId: string;
   /** What the customer wants, e.g. "كيلو كبدة طازجة قبل العيد". */
   description: string;
+  /** Optional photo URL attached by the customer. */
+  imageUrl?: string;
 }
 
 export interface CustomRequestListQuery extends PaginationQuery {
