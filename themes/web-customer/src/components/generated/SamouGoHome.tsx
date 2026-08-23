@@ -79,6 +79,14 @@ export function SamouGoHome() {
   // permanently expanded on wider viewports where horizontal scroll is usable.
   const [categoriesCollapsed, setCategoriesCollapsed] = useState(false);
 
+  // Auto-rotate the banner carousel every 5 seconds.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setBanner(prev => (prev === 0 ? 1 : 0));
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Every keystroke would otherwise be a round-trip over Samou' mobile data.
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), SEARCH_DEBOUNCE_MS);
@@ -214,16 +222,83 @@ export function SamouGoHome() {
         </Link>
       </section>
 
-      <section className="mx-auto max-w-md px-5 pt-5" aria-label="Promotions">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-dark via-brand to-brand-soft px-5 py-5 text-white shadow-card">
-          <div className="relative z-10 flex min-h-[104px] items-center justify-between">
-            <div><p className="mb-2 text-xs font-medium text-white/85">{t('عرض خاص لفترة محدودة', 'Limited-time offer')}</p><h2 className="max-w-[220px] text-[22px] font-extrabold leading-tight">{t('رسوم التوصيل يحددها السائق', 'Delivery fee set by driver')}</h2></div><span className="text-5xl opacity-20">✦</span>
+      {/* Multi-banner carousel */}
+      <section className="mx-auto max-w-md px-5 pt-5" aria-label="Feature banners">
+        <div className="relative overflow-hidden rounded-2xl shadow-card">
+          {/* Banner container with smooth transition */}
+          <div
+            className="flex transition-transform duration-500 ease-out"
+            style={{ transform: `translateX(${banner === 0 ? '0%' : '-100%'})` }}
+          >
+            {/* Banner 1 — Multi-Vendor Cart */}
+            <div className="min-w-full rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-400 to-teal-400 px-5 py-6 text-white">
+              <div className="flex min-h-[100px] items-center justify-between">
+                <div className="flex-1 text-end">
+                  <p className="mb-1 text-xs font-medium text-white/80">{t('اطلب من عدة متاجر', 'Order from multiple stores')}</p>
+                  <h2 className="text-[20px] font-extrabold leading-tight">{t('سلة مشتركة.. فاتورة واحدة', 'Shared cart.. one invoice')}</h2>
+                </div>
+                {/* Cart icon with store boxes */}
+                <div className="ms-4 shrink-0">
+                  <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                    <circle cx="40" cy="40" r="36" fill="rgba(255,255,255,0.15)" />
+                    {/* Cart body */}
+                    <path d="M20 28h8l4 20h24l4-16H28" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    {/* Wheels */}
+                    <circle cx="33" cy="52" r="3" fill="white" />
+                    <circle cx="49" cy="52" r="3" fill="white" />
+                    {/* Store box 1 */}
+                    <rect x="30" y="20" width="10" height="12" rx="2" fill="rgba(255,255,255,0.85)" />
+                    <text x="35" y="28" textAnchor="middle" fontSize="7" fill="#059669">🏪</text>
+                    {/* Store box 2 */}
+                    <rect x="42" y="16" width="10" height="14" rx="2" fill="rgba(255,255,255,0.85)" />
+                    <text x="47" y="26" textAnchor="middle" fontSize="7" fill="#059669">🍞</text>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            {/* Banner 2 — Post-Checkout Tracking */}
+            <div className="min-w-full rounded-2xl bg-gradient-to-br from-teal-500 via-emerald-500 to-green-400 px-5 py-6 text-white">
+              <div className="flex min-h-[100px] items-center justify-between">
+                <div className="flex-1 text-end">
+                  <p className="mb-1 text-xs font-medium text-white/80">{t('العودة للصفحة الرئيسية', 'Back to home page')}</p>
+                  <h2 className="text-[20px] font-extrabold leading-tight">{t('تابع طلبك مباشرة', 'Track your order live')}</h2>
+                </div>
+                {/* Map pin with tracking path */}
+                <div className="ms-4 shrink-0">
+                  <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                    <circle cx="40" cy="40" r="36" fill="rgba(255,255,255,0.15)" />
+                    {/* Winding path */}
+                    <path d="M25 55 Q30 45 35 50 Q42 56 45 42 Q48 32 55 28" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 3" fill="none" />
+                    {/* Map pin */}
+                    <circle cx="55" cy="24" r="8" fill="white" />
+                    <circle cx="55" cy="24" r="4" fill="#059669" />
+                    <path d="M55 32 L52 26 L58 26 Z" fill="white" />
+                    {/* Start dot */}
+                    <circle cx="25" cy="55" r="4" fill="white" opacity="0.8" />
+                    <circle cx="25" cy="55" r="2" fill="#059669" />
+                  </svg>
+                </div>
+              </div>
+            </div>
           </div>
-          {/* Layered decorative circles for depth */}
-          <div className="absolute -bottom-10 -start-8 h-32 w-32 rounded-full border-[18px] border-white/10" />
-          <div className="absolute -top-6 -end-6 h-24 w-24 rounded-full bg-white/5" />
         </div>
-        <div className="mt-3 flex items-center justify-center gap-1.5"><button type="button" aria-label="Promotion one" onClick={() => setBanner(0)} className="-m-2.5 p-2.5"><span className={`block h-1.5 rounded-full transition-all ${banner === 0 ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`} /></button><button type="button" aria-label="Promotion two" onClick={() => setBanner(1)} className="-m-2.5 p-2.5"><span className={`block h-1.5 rounded-full transition-all ${banner === 1 ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`} /></button></div>
+        {/* Pagination dots + swipe hint */}
+        <div className="mt-3 flex flex-col items-center gap-1.5">
+          <div className="flex items-center gap-1.5">
+            {[0, 1].map(i => (
+              <button
+                key={i}
+                type="button"
+                aria-label={i === 0 ? 'Multi-vendor banner' : 'Tracking banner'}
+                onClick={() => setBanner(i)}
+                className="-m-2.5 p-2.5"
+              >
+                <span className={`block h-1.5 rounded-full transition-all ${banner === i ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`} />
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-ink-subtle">{t('سحب لليمين', 'Swipe right')}</p>
+        </div>
       </section>
 
       <section className="mx-auto max-w-md px-5 pt-7" aria-labelledby="categories-title">

@@ -66,6 +66,17 @@ ordersRouter.post(
  * The fine-grained rules live in the service (state machine × role × ownership).
  * `authorize` here is only a coarse first gate.
  */
+/**
+ * POST /:orderId/claim — atomic captain claim. Transitions READY_FOR_PICKUP →
+ * ON_THE_WAY and assigns the caller as captain in a single optimistic-lock
+ * write. The first captain to claim wins; concurrent claimants get 409.
+ */
+ordersRouter.post(
+  '/:orderId/claim',
+  authorize(UserRole.CAPTAIN),
+  asyncHandler(controller.claimOrderHandler)
+);
+
 ordersRouter.patch(
   '/:orderId/status',
   authorize(UserRole.CUSTOMER, UserRole.STORE_MANAGER, UserRole.CAPTAIN, UserRole.ADMIN),

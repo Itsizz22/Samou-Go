@@ -11,8 +11,6 @@ import {
   captainIdParamsSchema,
   loginSchema,
   logoutSchema,
-  otpRequestSchema,
-  otpVerifySchema,
   refreshTokenSchema,
   resetPasswordSchema,
   registerSchema,
@@ -21,13 +19,9 @@ import {
   updateProfileSchema,
   userIdParamsSchema,
   userListQuerySchema,
-  adminStoreOtpRequestSchema,
-  adminCaptainOtpRequestSchema,
-  adminOtpVerifySchema,
 } from "./auth.schemas";
 import * as authService from "./auth.service";
 import * as otpService from "./otp.service";
-import * as firebaseService from "./firebase.service";
 
 /* ---------------------------------------------------------------------------
  * Auth
@@ -48,24 +42,6 @@ export async function registerHandler(
 export async function loginHandler(req: Request, res: Response): Promise<void> {
   const body = parseWith(loginSchema, req.body);
   ok(res, await authService.login(body));
-}
-
-/** POST /api/v1/auth/otp/request — dispatch a one-time code (rate-limited). */
-export async function requestOtpHandler(
-  req: Request,
-  res: Response,
-): Promise<void> {
-  const body = parseWith(otpRequestSchema, req.body);
-  ok(res, await otpService.requestOtp(body));
-}
-
-/** POST /api/v1/auth/otp/verify — exchange the code for a session. */
-export async function verifyOtpHandler(
-  req: Request,
-  res: Response,
-): Promise<void> {
-  const body = parseWith(otpVerifySchema, req.body);
-  ok(res, await otpService.verifyOtp(body));
 }
 
 /** POST /api/v1/auth/password/reset */
@@ -129,23 +105,6 @@ export async function updateMyLocationHandler(
  * the client sends one, is revoked server-side so a leaked token cannot be
  * replayed after sign-out.
  */
-/** POST /auth/firebase/verify — exchange a Firebase ID token for a Samou' Go session. */
-export async function verifyFirebaseTokenHandler(
-  req: Request,
-  res: Response,
-): Promise<void> {
-  const { idToken, name, password } = req.body as {
-    idToken?: string;
-    name?: string;
-    password?: string;
-  };
-  if (!idToken || typeof idToken !== 'string') {
-    throw forbidden('Missing idToken');
-  }
-  const result = await firebaseService.verifyFirebaseToken(idToken, name, password);
-  ok(res, result);
-}
-
 export async function logoutHandler(
   req: Request,
   res: Response,
@@ -228,50 +187,4 @@ export async function adminDeleteUserHandler(
   if (auth.role !== UserRole.ADMIN) throw forbidden();
   const { userId } = parseWith(userIdParamsSchema, req.params);
   ok(res, await authService.adminDeleteUser(userId, auth.sub));
-}
-
-/* ---------------------------------------------------------------------------
- * Admin store/captain creation via OTP
- * ------------------------------------------------------------------------- */
-
-/** POST /api/v1/auth/admin/stores/otp/request */
-export async function adminCreateStoreOtpRequestHandler(
-  req: Request,
-  res: Response,
-): Promise<void> {
-  // Route-level `authorize(ADMIN)` should already block others; explicit guard
-  // here prevents any future mis-wiring (same pattern as `updateUserHandler`).
-  if (requireAuth(req).role !== UserRole.ADMIN) throw forbidden();
-  const body = parseWith(adminStoreOtpRequestSchema, req.body);
-  ok(res, await otpService.requestOtp(body));
-}
-
-/** POST /api/v1/auth/admin/stores/otp/verify */
-export async function adminVerifyStoreOtpHandler(
-  req: Request,
-  res: Response,
-): Promise<void> {
-  if (requireAuth(req).role !== UserRole.ADMIN) throw forbidden();
-  const body = parseWith(adminOtpVerifySchema, req.body);
-  ok(res, await otpService.adminVerifyStoreOtp(body));
-}
-
-/** POST /api/v1/auth/admin/captains/otp/request */
-export async function adminCreateCaptainOtpRequestHandler(
-  req: Request,
-  res: Response,
-): Promise<void> {
-  if (requireAuth(req).role !== UserRole.ADMIN) throw forbidden();
-  const body = parseWith(adminCaptainOtpRequestSchema, req.body);
-  ok(res, await otpService.requestOtp(body));
-}
-
-/** POST /api/v1/auth/admin/captains/otp/verify */
-export async function adminVerifyCaptainOtpHandler(
-  req: Request,
-  res: Response,
-): Promise<void> {
-  if (requireAuth(req).role !== UserRole.ADMIN) throw forbidden();
-  const body = parseWith(adminOtpVerifySchema, req.body);
-  ok(res, await otpService.adminVerifyCaptainOtp(body));
 }

@@ -2,24 +2,13 @@
  * One-off migration for the real (PostgreSQL / Neon) database —
  * `npm run db:migrate-demo-passwords`
  *
- * Unlike `db:demo-passwords` (which binds the SQLite client in dev), this
- * script connects through the Postgres-generated client using `DATABASE_URL`
- * from the environment, so it works against Neon directly. It re-hashes every
- * demo account's password to `samou1234` — non-destructive (only touches
- * users, never other tables).
- *
- * Safety:
+ * Re-hashes the admin account's password. Safety:
  *  - Refuses to run without `DATABASE_URL`.
- *  - Refuses to run without the explicit `--yes` flag, because these demo
- *    credentials are public knowledge and this script changes real users'
- *    password hashes.
- *
- * Usage:
- *   $env:DATABASE_URL="postgresql://..." ; npm run db:migrate-demo-passwords -- --yes
+ *  - Refuses to run without the explicit `--yes` flag.
  */
 import { PrismaClient } from '../../generated/prisma-postgres';
 import bcrypt from 'bcryptjs';
-import { DEMO_PASSWORD, DEMO_USERS } from './demo-users';
+import { ADMIN_PASSWORD, SEED_USERS } from './demo-users';
 import { phoneSchema } from '../modules/auth/auth.schemas';
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -31,17 +20,16 @@ async function main(): Promise<void> {
   }
   if (!confirmed) {
     throw new Error(
-      'Refusing to run without --yes: this re-hashes real users to a public demo password. ' +
-        'Re-run with --yes to confirm you understand.'
+      'Refusing to run without --yes. Re-run with --yes to confirm.'
     );
   }
 
   const prisma = new PrismaClient();
 
-  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
+  const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
 
   let upserted = 0;
-  for (const user of DEMO_USERS) {
+  for (const user of SEED_USERS) {
     const phone = phoneSchema.parse(user.phone);
     const existing = await prisma.user.findUnique({ where: { phone } });
     await prisma.user.upsert({
@@ -52,8 +40,7 @@ async function main(): Promise<void> {
         passwordHash,
         role: user.role,
         isActive: user.isActive ?? true,
-        isVerified: user.isVerified ?? false,
-        isAvailable: user.isAvailable ?? false,
+        isVerified: user.isVerified ?? true,
       },
       create: {
         id: existing?.id ?? user.id,
@@ -61,8 +48,7 @@ async function main(): Promise<void> {
         phone,
         role: user.role,
         isActive: user.isActive ?? true,
-        isVerified: user.isVerified ?? false,
-        isAvailable: user.isAvailable ?? false,
+        isVerified: user.isVerified ?? true,
         passwordHash,
       },
     });
@@ -70,7 +56,7 @@ async function main(): Promise<void> {
     console.log(`✓ ${user.role.padEnd(14)} ${phone}`);
   }
 
-  console.log(`\nDone: ${upserted}/${DEMO_USERS.length} demo users now authenticate as "${DEMO_PASSWORD}".`);
+  console.log(`\nDone: ${upserted}/${SEED_USERS.length} users seeded.`);
 
   await prisma.$disconnect();
 }
