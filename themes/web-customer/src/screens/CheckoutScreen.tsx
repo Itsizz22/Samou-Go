@@ -746,6 +746,15 @@ export function CheckoutScreen() {
                 </div>
               </div>
             ))}
+            {/* Split-delivery notice for multi-store orders */}
+            <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-center">
+              <p className="text-[11px] font-semibold text-amber-800">
+                {t(
+                  'ملاحظة: رسوم التوصيل تُحدَّد لكل متجر بشكل مستقل من السائق عند الاستلام.',
+                  'Note: delivery fee is set independently per store by the driver upon delivery.'
+                )}
+              </p>
+            </div>
             <div className="mt-3 border-t border-line pt-3">
               <div className="flex justify-between text-sm font-extrabold">
                 <span>{t('الإجمالي', 'Total')}</span>

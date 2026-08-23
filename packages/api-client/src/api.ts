@@ -914,15 +914,14 @@ export async function login(
 
 /**
  * Self-service registration. The server forces `CUSTOMER`; staff roles need an
- * admin. Registration never returns a session — it creates the account and
- * dispatches a one-time code, so the caller must complete `/auth/otp/verify`
- * before any token exists.
+ * admin. Returns a full session (access + refresh tokens) so the user can
+ * enter the app immediately after registering.
  */
 export async function register(
   input: RegisterInput,
   signal?: AbortSignal,
-): Promise<RegisterPendingResponse> {
-  return request<RegisterPendingResponse>("POST", "/auth/register", {
+): Promise<AuthResponse> {
+  return request<AuthResponse>("POST", "/auth/register", {
     body: input,
     signal,
   });

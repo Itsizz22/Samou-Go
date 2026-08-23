@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Crosshair, Eye, EyeOff, Loader2, LockKeyhole, MapPin, ShoppingCart } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   ApiError,
+  register,
   requestOtp,
   resetPassword,
   setSessionPersistence,
@@ -10,13 +11,6 @@ import {
   useAuth,
   useToast,
 } from '@/hooks/useApi';
-import {
-  sendFirebaseOtp,
-  verifyFirebaseCode,
-  exchangeFirebaseToken,
-  resetRecaptcha,
-} from '@/lib/firebase-auth';
-import type { ConfirmationResult } from 'firebase/auth';
 import { OtpPinInput } from '@/components/OtpPinInput';
 import { useLanguage } from '@samou-go/ui';
 import { normalizePhone, isValidPalestinianMobile } from '@/lib/phone';
@@ -32,12 +26,6 @@ import {
 
 const phoneValid = (phone: string) => isValidPalestinianMobile(phone);
 
-/** Format Palestinian number to E.164 for Firebase. */
-function toE164(localPhone: string): string {
-  const digits = localPhone.replace(/\D/g, '');
-  if (digits.startsWith('05')) return `+970${digits.slice(1)}`;
-  return `+${digits}`;
-}
 const passwordStrong = (password: string) => password.length >= 8;
 
 interface LocalizedText {
@@ -210,11 +198,6 @@ export function LoginScreen() {
           تسجيل الدخول
         </button>
       </form>
-      <div className="mt-4 text-center">
-        <Link to="/otp-login" className="text-sm font-bold text-brand">
-          تسجيل الدخول برمز التحقق
-        </Link>
-      </div>
       <p className="mt-4 text-center text-sm text-ink-muted">
         ليس لديك حساب؟{' '}
         <Link to="/register" className="font-bold text-brand">
@@ -230,7 +213,7 @@ export function RegisterScreen() {
   const navigate = useNavigate();
   const toast = useToast();
   const { t } = useLanguage();
-  const [step, setStep] = useState<'form' | 'otp' | 'location'>('form');
+  const [step, setStep] = useState<'form' | 'location'>('form');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -238,14 +221,6 @@ export function RegisterScreen() {
   const [accepted, setAccepted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<LocalizedText | null>(null);
-  const [code, setCode] = useState('');
-  const [resendIn, setResendIn] = useState(0);
-  const RESEND_COOLDOWN = 60;
-  useEffect(() => {
-    if (!resendIn) return;
-    const timer = window.setTimeout(() => setResendIn(resendIn - 1), 1000);
-    return () => window.clearTimeout(timer);
-  }, [resendIn]);
   const valid = name.trim().length >= 2 && phoneValid(phone) && password.length >= 8 && password === confirmPassword && accepted;
   const [locationText, setLocationText] = useState('');
   const [locationTag, setLocationTag] = useState<AddressTag>('home');
@@ -253,85 +228,51 @@ export function RegisterScreen() {
   const [geoApplied, setGeoApplied] = useState(false);
   const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
   if (auth.ready && auth.user) return <Navigate to={roleHomePath(auth.user.role)} replace />;
-  const normalizedPhone = normalizePhone(phone);
-  const confirmationRef = useRef<ConfirmationResult | null>(null);
 
   /**
-   * Step 1: Send OTP via Firebase Phone Auth (not Twilio).
-   * Firebase sends the SMS directly from Google's infrastructure.
+   * Direct registration — no OTP. The server creates the account, hashes
+   * the password, marks the user verified, and returns access + refresh
+   * tokens so we can enter the app immediately.
    */
-  const sendCode = () => {
-    if (pending) return;
-    setPending(true);
-    setError(null);
-    const e164 = toE164(normalizedPhone);
-    void sendFirebaseOtp(e164)
-      .then((confirmation) => {
-        confirmationRef.current = confirmation;
-        setStep('otp');
-        setResendIn(RESEND_COOLDOWN);
-      })
-      .catch((cause: unknown) => {
-        const message = cause instanceof Error ? cause.message : String(cause);
-        let localizedMessage: LocalizedText;
-        if (message.includes('auth/too-many-requests')) {
-          localizedMessage = { ar: 'طلبات كثيرة جداً، حاول مجدداً بعد قليل', en: 'Too many requests — try again later' };
-          setResendIn(60);
-        } else if (message.includes('auth/invalid-phone-number')) {
-          localizedMessage = { ar: 'رقم الجوال غير صالح', en: 'Invalid phone number' };
-        } else if (message.includes('auth/quota-exceeded')) {
-          localizedMessage = { ar: 'تم تجاوز حد إرسال الرسائل — يرجى المحاولة لاحقاً', en: 'SMS quota exceeded — please try again later' };
-        } else {
-          localizedMessage = { ar: 'تعذّر إرسال الرمز — تحقق من رقم الجوال', en: 'Could not send code — check your number' };
-        }
-        setError(localizedMessage);
-        resetRecaptcha();
-      })
-      .finally(() => setPending(false));
-  };
-const finish = async () => {
-    if (code.length !== 6 || pending || !confirmationRef.current) return;
+  const handleRegister = async () => {
+    if (!valid || pending) return;
     setPending(true);
     setError(null);
     try {
-      // 1. Verify the code with Firebase → get ID token.
-      const idToken = await verifyFirebaseCode(confirmationRef.current, code);
-      // 2. Exchange ID token for a Samou' Go session (creates account + stores password).
-      await exchangeFirebaseToken(idToken, name.trim(), password);
-      toast.success('تم تفعيل الحساب — أهلاً بك!', 'Account verified — welcome!');
-      // Auth context is already updated by exchangeFirebaseToken (tokens stored).
-      // Refresh to pick up the user profile.
+      const result = await register({
+        name: name.trim(),
+        phone: normalizePhone(phone),
+        password,
+      });
+      // Store tokens via the API client's token layer.
+      const { setToken, setRefreshToken } = await import('@samou-go/api-client');
+      setToken(result.accessToken);
+      setRefreshToken(result.refreshToken ?? null);
+      // Refresh auth context to pick up the user profile.
       await auth.refresh();
+      toast.success('تم إنشاء الحساب — أهلاً بك!', 'Account created — welcome!');
       setStep('location');
     } catch (cause: unknown) {
       const message = cause instanceof Error ? cause.message : String(cause);
       let localizedMessage: LocalizedText;
-      if (message.includes('auth/wrong-code') || message.includes('invalid-verification-code')) {
-        localizedMessage = { ar: 'رمز غير صحيح', en: 'Incorrect code' };
-      } else if (message.includes('auth/code-expired')) {
-        localizedMessage = { ar: 'انتهت صلاحية الرمز — أعد الإرسال', en: 'Code expired — resend' };
-      } else if (message.includes('auth/session-expired')) {
-        localizedMessage = { ar: 'انتهت الجلسة — أعد الإرسال', en: 'Session expired — resend' };
-      } else if (message.includes('auth/quota-exceeded')) {
-        localizedMessage = { ar: 'تم تجاوز حد إرسال الرسائل — يرجى المحاولة لاحقاً', en: 'SMS quota exceeded — try again later' };
+      if (message.includes('already registered') || message.includes('مسجّل مسبقاً')) {
+        localizedMessage = { ar: 'رقم الجوال مسجّل مسبقاً', en: 'This phone number is already registered' };
       } else {
-        localizedMessage = { ar: 'تعذر تفعيل الحساب.', en: 'Could not verify account.' };
+        localizedMessage = apiErrorMessage(cause, { ar: 'تعذر إنشاء الحساب.', en: 'Could not create account.' });
       }
       setError(localizedMessage);
-      setCode('');
     } finally {
       setPending(false);
     }
   };
 
-  /* ---- Location onboarding (step 3) -------------------------------------- */
+  /* ---- Location onboarding (step 2) -------------------------------------- */
 
   const saveLocationAndEnter = () => {
     if (pending) return;
     setError(null);
     const text = locationText.trim();
     if (!text) {
-      // Skipping is allowed — the address book is a convenience, not a wall.
       navigate('/', { replace: true });
       return;
     }
@@ -348,9 +289,6 @@ const finish = async () => {
       ...(geoCoords ? { lat: geoCoords.lat, lng: geoCoords.lng } : {}),
     };
     writeSavedAddresses(upsertAddress(saved, address));
-    // Persist GPS coordinates to the server profile (fire-and-forget — the
-    // localStorage address book is the primary UX; a network failure here
-    // must not block the user from entering the app).
     if (geoCoords) {
       void updateMyLocation(geoCoords.lat, geoCoords.lng).catch(() => undefined);
     }
@@ -379,23 +317,15 @@ const finish = async () => {
     );
   };
 
-  const resend = () => {
-    if (pending || resendIn > 0) return;
-    resetRecaptcha();
-    sendCode();
-  };
   return (
     <AuthShell>
-      {/* Invisible reCAPTCHA container — required by Firebase Phone Auth */}
-      <div id="recaptcha-container" />
       <h1 className="text-xl font-extrabold">{t('إنشاء حساب', 'Create your account')}</h1>
       {step === 'form' && (
         <form
           noValidate
           onSubmit={event => {
             event.preventDefault();
-            if (!valid) return;
-            sendCode();
+            void handleRegister();
           }}
         >
           <label className="mt-5 block text-sm font-bold">
@@ -472,47 +402,6 @@ const finish = async () => {
             {pending && <Loader2 className="animate-spin" size={18} />} إنشاء الحساب
           </button>
         </form>
-      )}
-      {step === 'otp' && (
-        <div>
-          <p className="mt-5 text-sm text-ink-muted">
-            أدخل الرمز المكوّن من 6 أرقام الذي أرسلناه إلى <span dir="ltr">{normalizedPhone}</span>{' '}
-            لتفعيل حسابك.
-          </p>
-          <div className="mt-5">
-            <OtpPinInput
-              length={6}
-              value={code}
-              onChange={(next) => {
-                setCode(next);
-                if (next.length === 6) {
-                  // Auto-submit when all digits are entered.
-                  setTimeout(() => void finish(), 100);
-                }
-              }}
-              state="idle"
-              autoFocus
-              label="رمز التحقق"
-            />
-          </div>
-          <ErrorBanner error={error} />
-          <button
-            type="button"
-            onClick={finish}
-            disabled={code.length !== 6 || pending}
-            className="btn-primary mt-5 w-full justify-center"
-          >
-            {pending && <Loader2 className="animate-spin" size={18} />}تفعيل الحساب
-          </button>
-          <button
-            type="button"
-            onClick={resend}
-            disabled={resendIn > 0 || pending}
-            className="mt-4 w-full text-sm font-bold text-brand"
-          >
-            {resendIn ? `${t('إعادة الإرسال خلال', 'Resend in')} ${resendIn}${t('ث', 's')}` : t('إعادة إرسال الرمز', 'Resend code')}
-          </button>
-        </div>
       )}
       {step === 'location' && (
         <div>

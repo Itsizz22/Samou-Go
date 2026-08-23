@@ -5,7 +5,6 @@ import type {
   AuthResponse,
   Paginated,
   PublicUser,
-  RegisterPendingResponse,
 } from '@samou-go/shared-types';
 import { UserRole } from '@samou-go/shared-types';
 import { prisma, caseInsensitiveContains } from '../../lib/prisma';
@@ -14,7 +13,7 @@ import { signAccessToken } from '../../lib/jwt';
 import { hashPassword, verifyPassword } from '../../lib/password';
 import { fromE164, toE164 } from '../../lib/sms/phone';
 import { toPublicUser } from './auth.mapper';
-import { requestOtp, verifyAndConsumeOtp } from './otp.service';
+import { verifyAndConsumeOtp } from './otp.service';
 import { issueRefreshToken, revokeAllUserRefreshTokens, rotateRefreshToken } from './refresh-token';
 import type {
   AdminCreateCaptainBody,
@@ -45,7 +44,7 @@ async function buildAuthResponse(user: User): Promise<AuthResponse> {
 export async function register(
   body: RegisterBody,
   callerRole?: UserRole
-): Promise<RegisterPendingResponse> {
+): Promise<AuthResponse> {
   const requestedRole = body.role ?? UserRole.CUSTOMER;
 
   // Only an admin may mint a STORE_MANAGER, CAPTAIN or another ADMIN.
@@ -60,31 +59,20 @@ export async function register(
     throw conflict('رقم الجوال مسجّل مسبقاً / This phone number is already registered');
   }
 
-  // Dispatch the verification code BEFORE creating the account. If the SMS
-  // carrier is down, `requestOtp` now throws a clean 503 (SMS_DELIVERY_FAILED)
-  // and NO account row exists yet — so a retry is not a confusing 409, and a
-  // failed registration never orphans an unverified account.
-  let otp: { retryAfterSeconds: number; dispatched: boolean } | null = null;
-  let verified = false;
-  try {
-    otp = await requestOtp({ phone: body.phone });
-  } catch {
-    // SMS provider is down — auto-verify so users can still register
-    // and log in with password. The OTP flow is optional, not a wall.
-    verified = true;
-  }
-
+  // Registration is password-based — no OTP step. Create the account,
+  // mark it verified, and issue tokens immediately so the user can
+  // enter the app without an extra verification wall.
   const user = await prisma.user.create({
     data: {
       name: body.name,
       phone: body.phone,
       passwordHash: await hashPassword(body.password),
       role: requestedRole,
-      isVerified: verified,
+      isVerified: true,
     },
   });
 
-  return { user: toPublicUser(user), verificationRequired: !verified, otp };
+  return buildAuthResponse(user);
 }
 
 export async function login(body: LoginBody): Promise<AuthResponse> {

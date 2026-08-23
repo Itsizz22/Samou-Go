@@ -185,6 +185,19 @@ export async function reorderOrderHandler(req: Request, res: Response): Promise<
   ok(res, await ordersService.reorderOrder(auth, orderId));
 }
 
+/**
+ * POST /api/v1/orders/:orderId/claim — atomic captain claim.
+ * Transitions READY_FOR_PICKUP → ON_THE_WAY and assigns the captain.
+ * Uses optimistic locking: exactly one captain wins concurrent claims.
+ */
+export async function claimOrderHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const { orderId } = parseWith(orderIdParamsSchema, req.params);
+  const result = await ordersService.updateOrderStatus(auth, orderId, { status: OrderStatus.ON_THE_WAY });
+  emitOrderStatus(orderId, { status: result.status, orderId, timestamp: new Date().toISOString() });
+  ok(res, result);
+}
+
 /** PATCH /api/v1/orders/:orderId/status */
 export async function updateOrderStatusHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);
