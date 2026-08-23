@@ -157,8 +157,10 @@ export function CategoriesPanel({ storeId }: Props) {
       let finalImageUrl = form.imageUrl.trim() || undefined;
       if (imageFile) {
         const { presignUpload, uploadRawFile, finalizeUpload } = await import('@samou-go/api-client');
-        const presign = await presignUpload({ kind: 'category', resourceId: editTarget?.id ?? 'new', purpose: 'image', contentType: imageFile.type });
-        await uploadRawFile(presign.key, imageFile);
+        const { compressImage } = await import('@samou-go/api-client');
+        const compressed = await compressImage(imageFile);
+        const presign = await presignUpload({ kind: 'category', resourceId: editTarget?.id ?? 'new', purpose: 'image', contentType: compressed.type || imageFile.type });
+        await uploadRawFile(presign.key, compressed);
         const finalized = await finalizeUpload(presign.key, 'category');
         finalImageUrl = finalized.url;
       }

@@ -493,6 +493,8 @@ model CustomRequest {
   storeId     String
   /// What the customer wants, free text.
   description String   @db.VarChar(1000)
+  /// Optional photo attached by the customer.
+  imageUrl    String?  @db.VarChar(500)
   status      CustomRequestStatus @default(PENDING)
   /// The store's quote in ILS — null until an offer is made.
   offeredPrice Decimal? @db.Decimal(10, 2)

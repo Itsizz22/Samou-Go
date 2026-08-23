@@ -9,6 +9,7 @@
  */
 
 export * from './api';
+export { compressImage } from './compressImage';
 export * from './language';
 export * from './useApi';
 export * from './useAuth';

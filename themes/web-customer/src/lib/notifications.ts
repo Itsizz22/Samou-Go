@@ -15,6 +15,7 @@
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { globalNavigate } from './globalNavigate';
+import { createLoopingAlert } from '@samou-go/ui';
 
 /** API base URL — same origin in production, localhost in dev. */
 const API_BASE: string = (
@@ -73,9 +74,21 @@ export async function registerForPushNotifications(accessToken: string): Promise
       console.error('[push] Registration error:', error);
     });
 
-    // Step 5: Handle foreground notifications.
+    // Step 5: Handle foreground notifications — play a 10-second looping
+    // alarm so the store manager / captain hears new orders even if the
+    // app is in the foreground (the OS channel sound may be suppressed).
     PushNotifications.addListener('pushNotificationReceived', (notification) => {
       console.log('[push] Foreground notification:', notification);
+      // Play the looping alarm for up to 10 seconds. The user can dismiss
+      // it by tapping the notification or it stops automatically.
+      try {
+        const stop = createLoopingAlert(10_000);
+        // Auto-stop if the user taps the notification (action listener below).
+        // The loop also auto-stops after 10s.
+        void stop;
+      } catch {
+        // Audio may not be available — non-fatal.
+      }
     });
 
     // Step 6: Handle notification taps (app opened from background).

@@ -413,7 +413,7 @@ export interface UploadImageInput {
   kind: UploadKind;
   resourceId?: string;
   /** `store` kind only — which image slot the upload targets. */
-  purpose?: 'logo' | 'cover';
+  purpose?: 'logo' | 'cover' | 'image';
   file: Blob;
 }
 

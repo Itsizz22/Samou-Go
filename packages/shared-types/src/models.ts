@@ -161,6 +161,8 @@ export interface CustomRequest {
   storeId: string;
   /** What the customer wants — free text, e.g. "كيلو كبدة طازجة". */
   description: string;
+  /** Optional photo attached by the customer. */
+  imageUrl: string | null;
   status: CustomRequestStatus;
   /** The store's quote in ILS — `null` until the store makes an offer. */
   offeredPrice: number | null;

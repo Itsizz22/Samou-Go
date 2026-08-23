@@ -497,6 +497,8 @@ model CustomRequest {
   storeId     String
   /// What the customer wants, free text.
   description String
+  /// Optional photo attached by the customer.
+  imageUrl    String?
   status      CustomRequestStatus @default(PENDING)
   /// The store's quote in ILS — null until an offer is made.
   offeredPrice Decimal?

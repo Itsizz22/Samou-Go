@@ -1150,20 +1150,24 @@ export async function removeCurrentImage(
  * is not JPEG/PNG/WebP.
  */
 export async function uploadImage(
-  input: { kind: UploadKind; resourceId?: string; purpose?: 'logo' | 'cover'; contentType?: string },
+  input: { kind: UploadKind; resourceId?: string; purpose?: 'logo' | 'cover' | 'image'; contentType?: string },
   file: Blob,
   signal?: AbortSignal,
 ): Promise<FinalizeUploadResult> {
+  // Compress the image on-device before uploading (no server load, faster on mobile).
+  const { compressImage } = await import('./compressImage');
+  const compressed = await compressImage(file);
+
   const prepared = await presignUpload(
     {
       kind: input.kind,
       resourceId: input.resourceId,
       purpose: input.purpose,
-      contentType: input.contentType ?? (file.type || "application/octet-stream"),
+      contentType: input.contentType ?? (compressed.type || file.type || "application/octet-stream"),
     },
     signal,
   );
-  await uploadRawFile(prepared.key, file, signal);
+  await uploadRawFile(prepared.key, compressed, signal);
   return finalizeUpload(prepared.key, input.kind, signal);
 }
 

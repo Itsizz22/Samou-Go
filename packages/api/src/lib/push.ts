@@ -106,12 +106,15 @@ export async function sendPushToUser(
       body: payload.body,
     },
     data: payload.data ?? {},
-    // Android: use the "notification" channel for heads-up display.
+    // Android: use the "orders_high_priority" channel for urgent order alerts.
+    // IMPORTANCE_HIGH + custom ringtone ensures the alarm plays even when the
+    // app is killed, with heads-up display on lockscreen.
     android: {
       priority: 'high' as const,
       notification: {
-        channelId: 'samou-go-orders',
+        channelId: 'orders_high_priority',
         clickAction: 'OPEN_APP',
+        sound: 'order_alarm',
       },
     },
     // iOS: critical alert for delivery updates.
