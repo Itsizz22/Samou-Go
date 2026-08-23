@@ -59,12 +59,12 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   const StatusIcon = STATUS_ICONS[status];
   const toneClass = TONE_CLASSES[ORDER_STATUS_TONES[status]];
   const { t } = useLanguage();
-  return <div onClick={() => onDetailsClick?.(id)} className="p-4 transition-all bg-surface border border-line rounded-xl shadow-card hover:shadow-raised active:scale-[0.98] cursor-pointer">
-      <div className="flex items-center justify-between mb-3">
+  return <div onClick={() => onDetailsClick?.(id)} className="p-3 transition-all bg-surface border border-line rounded-xl shadow-card hover:shadow-raised active:scale-[0.98] cursor-pointer">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex flex-col">
-          <h3 className="font-bold text-ink">{arabicStoreName ? t(arabicStoreName, storeName) : storeName}</h3>
+          <h3 className="text-xs font-bold text-ink leading-relaxed">{arabicStoreName ? t(arabicStoreName, storeName) : storeName}</h3>
         </div>
-        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${toneClass}`}>
+        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${toneClass}`}>
           <StatusIcon className="w-3.5 h-3.5" />
           <div className="flex flex-col items-start leading-none">
             <span>{t(label.ar, label.en)}</span>
@@ -72,9 +72,9 @@ export const OrderCard: React.FC<OrderCardProps> = ({
         </div>
       </div>
 
-      <div className="flex items-end justify-between pt-3 border-t border-line-soft">
+      <div className="flex items-end justify-between pt-2 border-t border-line-soft">
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-1.5 text-sm text-ink-muted">
+          <div className="flex items-center gap-1.5 text-xs text-ink-muted">
             <Package className="w-4 h-4" />
             <span>{t(`${itemsCount} ${itemsCount === 1 ? 'صنف' : 'أصناف'}`, `${itemsCount} ${itemsCount === 1 ? 'item' : 'items'}`)}</span>
           </div>
@@ -82,7 +82,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
         </div>
 
         <div className="flex flex-col items-end">
-          <div dir="ltr" className="text-lg font-black text-brand-dark">
+          <div dir="ltr" className="text-sm font-black text-brand-dark">
             {formatCurrency(totalPrice, {
             unit: 'code',
             decimals: 2

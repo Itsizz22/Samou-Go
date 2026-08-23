@@ -162,7 +162,7 @@ export function OrderTrackingScreen() {
               <ArrowRight size={22} className="rtl:rotate-180" />
             </button>
             <div className="flex-1 text-end">
-              <h1 className="text-lg font-extrabold">{t('تتبع الطلب', 'Order tracking')}</h1>
+              <h1 className="text-sm font-extrabold leading-relaxed">{t('تتبع الطلب', 'Order tracking')}</h1>
             </div>
             {order.data && (
               <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-micro font-bold">
@@ -212,31 +212,31 @@ export function OrderTrackingScreen() {
               {/* Delivery PIN — shown only when the captain is on the way */}
               {order.data.status === OrderStatus.ON_THE_WAY && order.data.deliveryPin && (
                 <section className="rounded-2xl border-2 border-brand bg-brand-surface p-4 text-center shadow-card">
-                  <p className="text-[11px] font-bold text-brand-dark">
+                  <p className="text-[11px] font-bold text-brand-dark leading-relaxed">
                     {t('شارك هذا الرمز مع الكابتن عند التسليم', 'Share this code with the captain on delivery')}
                   </p>
-                  <p dir="ltr" className="mt-2 text-4xl font-black tracking-[0.3em] text-brand-deep">
+                  <p dir="ltr" className="mt-2 text-2xl font-black tracking-[0.25em] text-brand-deep">
                     {order.data.deliveryPin}
                   </p>
                 </section>
               )}
 
               {/* Store + delivery model */}
-              <section className="flex items-center gap-3 rounded-2xl bg-surface p-4 shadow-card">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
-                  <MapPin size={18} />
+              <section className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
+                  <MapPin size={16} />
                 </span>
                 <div className="min-w-0 flex-1 text-end">
-                  <h2 className="truncate text-sm font-extrabold">{t(order.data.store.nameAr, order.data.store.nameEn)}</h2>
-                  <p className="text-[11px] text-ink-muted">{order.data.customerAddressText}</p>
+                  <h2 className="truncate text-xs font-extrabold leading-relaxed">{t(order.data.store.nameAr, order.data.store.nameEn)}</h2>
+                  <p className="text-[10px] text-ink-muted leading-relaxed">{order.data.customerAddressText}</p>
                 </div>
               </section>
               {order.data.store.latitude !== null && order.data.store.longitude !== null && <section className="rounded-2xl bg-surface p-2 shadow-card"><LeafletMap center={captainLocation ? [captainLocation.lat, captainLocation.lng] : [order.data.store.latitude, order.data.store.longitude]} markers={[{ position: [order.data.store.latitude, order.data.store.longitude], label: t(order.data.store.nameAr, order.data.store.nameEn) }, ...(captainLocation ? [{ position: [captainLocation.lat, captainLocation.lng] as [number, number], label: t('السائق', 'Captain') }] : [])]} /></section>}
 
               {/* Items */}
-              <section className="rounded-2xl bg-surface p-4 shadow-card">
-                <h2 className="text-sm font-extrabold">تفاصيل الطلب</h2>
-                <ul className="mt-3 space-y-2.5">
+              <section className="rounded-2xl bg-surface p-3 shadow-card">
+                <h2 className="text-xs font-extrabold leading-relaxed">تفاصيل الطلب</h2>
+                <ul className="mt-2 space-y-2">
                   {order.data.items.map((item) => (
                     <li key={item.id} className="flex items-center gap-3">
                       {item.product.imageUrl ? (
@@ -252,7 +252,7 @@ export function OrderTrackingScreen() {
                         </span>
                       )}
                       <div className="min-w-0 flex-1 text-end">
-                        <p className="truncate text-xs font-bold">{item.product.nameAr}</p>
+                        <p className="truncate text-[11px] font-bold leading-relaxed">{item.product.nameAr}</p>
                         <p className="text-micro text-ink-muted" dir="ltr">
                           {item.quantity} × {formatCurrency(item.unitPrice)}
                         </p>
@@ -270,7 +270,7 @@ export function OrderTrackingScreen() {
                   ))}
                 </ul>
 
-                <dl className="mt-4 space-y-1.5 border-t border-line pt-3 text-xs">
+                <dl className="mt-3 space-y-1.5 border-t border-line pt-3 text-[11px]">
                   <div className="flex justify-between text-ink-muted">
                     <dt>المجموع الفرعي</dt>
                     <dd dir="ltr" className="font-bold text-ink">{formatCurrency(order.data.subtotal)}</dd>
@@ -304,7 +304,7 @@ export function OrderTrackingScreen() {
                       <dd dir="ltr" className="font-bold">− {formatCurrency(order.data.discount)}</dd>
                     </div>
                   )}
-                  <div className="flex justify-between pt-1 text-sm">
+                  <div className="flex justify-between pt-1 text-xs">
                     <dt className="font-extrabold">الإجمالي</dt>
                     <dd dir="ltr" className="font-extrabold text-brand-dark">{formatCurrency(order.data.totalAmount)}</dd>
                   </div>
@@ -315,7 +315,7 @@ export function OrderTrackingScreen() {
               {canCancel && (
                 <section className="rounded-2xl bg-surface p-4 shadow-card">
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="text-[11px] font-bold text-danger">
+                    <p className="text-[10px] font-bold text-danger leading-relaxed">
                       {t(`متبقي ${cancelTimeRemaining} ثانية`, `${cancelTimeRemaining}s remaining`)}
                     </p>
                   </div>
@@ -323,7 +323,7 @@ export function OrderTrackingScreen() {
                     type="button"
                     onClick={() => void handleCancel()}
                     disabled={cancelling}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-danger bg-danger-tint py-3 text-sm font-extrabold text-danger transition hover:bg-danger hover:text-white active:scale-[0.98] disabled:opacity-60"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-danger bg-danger-tint py-2.5 text-xs font-extrabold text-danger transition hover:bg-danger hover:text-white active:scale-[0.98] disabled:opacity-60"
                   >
                     {cancelling ? (
                       <Loader2 size={16} className="animate-spin" />
@@ -341,7 +341,7 @@ export function OrderTrackingScreen() {
                   type="button"
                   onClick={() => void handleReorder()}
                   disabled={reordering}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-extrabold text-white transition active:scale-[0.98] disabled:opacity-60"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-xs font-extrabold text-white transition active:scale-[0.98] disabled:opacity-60"
                 >
                   {reordering ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -354,12 +354,12 @@ export function OrderTrackingScreen() {
 
               {/* Payment + address note */}
               <section className="space-y-2">
-                <div className="flex items-center gap-3 rounded-2xl bg-surface p-4 shadow-card">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
-                    <Banknote size={16} />
+                <div className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
+                    <Banknote size={14} />
                   </span>
                   <div className="flex-1 text-end">
-                    <p className="text-xs font-extrabold">
+                    <p className="text-[11px] font-extrabold">
                       {order.data.paymentMethod === PaymentMethod.COD ? t('الدفع عند الاستلام', 'Cash on delivery') : order.data.paymentMethod}
                     </p>
                   </div>
@@ -379,8 +379,8 @@ export function OrderTrackingScreen() {
               </section>
 
               {/* Captain note */}
-              <section className="rounded-2xl border border-line bg-brand-surface p-4 text-center">
-                <p className="text-[11px] leading-relaxed text-ink-soft">
+              <section className="rounded-2xl border border-line bg-brand-surface p-3 text-center">
+                <p className="text-[10px] leading-relaxed text-ink-soft">
                   {t(
                     'الكابتن سيتصل بك عند وصوله — السائق لا يمتلك إحداثيات GPS.',
                     "The captain will call you on arrival — Samou' has no street GPS."
@@ -392,7 +392,7 @@ export function OrderTrackingScreen() {
               <button
                 type="button"
                 onClick={() => navigate('/')}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface py-3 text-sm font-bold text-ink transition hover:bg-canvas active:scale-[0.98]"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface py-2.5 text-xs font-bold text-ink transition hover:bg-canvas active:scale-[0.98]"
               >
                 {t('العودة للمتاجر', 'Back to home')}
               </button>
