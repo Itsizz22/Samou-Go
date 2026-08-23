@@ -35,8 +35,8 @@ const h = vi.hoisted(() => {
       totalAmount: 30,
       voucherId: null,
       paymentMethod: 'COD',
-      createdAt: new Date('2026-08-08T10:00:00.000Z'),
-      updatedAt: new Date('2026-08-08T10:00:00.000Z'),
+      createdAt: new Date(),
+      updatedAt: new Date(),
       items: [],
       customer: { id: 'customer-1', name: 'عميل', phone: '0599000000' },
       store: { id: 'store-1', nameAr: 'متجر', nameEn: 'Store', phone: '0599000001' },
@@ -67,7 +67,7 @@ const h = vi.hoisted(() => {
   };
 
   const buildFakeOrder = (data: any) => {
-    const now = new Date('2026-08-08T12:00:00.000Z');
+    const now = new Date();
     return {
       id: 'order-1',
       orderNumber: data.orderNumber,
@@ -159,13 +159,14 @@ const tx = {
           err.code = 'P2025';
           throw err;
         }
-        const updated = buildOrder({
+        // Optimistic lock passed — update the in-memory status so a concurrent
+        // writer sees the new status and its `where.status` filter fails.
+        state.order = {
           ...state.order,
           status: data.status,
           ...(data.captainId !== undefined ? { captainId: data.captainId } : {}),
-        });
-        state.order = updated;
-        return updated;
+        };
+        return buildOrder(state.order);
       }),
     },
   };
@@ -296,24 +297,25 @@ describe('captain claim race', () => {
 
 describe('concurrent status transitions (state machine race)', () => {
   it('customer cancels while the store accepts: exactly one commits, the loser gets a 409', async () => {
-    // Both callers read the SAME ACCEPTED order; one of the writes commits and
-    // the other's `where.status = ACCEPTED` optimistic lock matches zero rows.
-    h.state.order = h.buildOrder({ status: OrderStatus.ACCEPTED });
+    // Both callers read the SAME PENDING order; one of the writes commits and
+    // the other's `where.status = PENDING` optimistic lock matches zero rows.
+    // Customers may only cancel while PENDING (2-minute window).
+    h.state.order = h.buildOrder({ status: OrderStatus.PENDING });
 
     const [cancel, accept] = await Promise.allSettled([
       updateOrderStatus({ sub: 'customer-1', role: UserRole.CUSTOMER }, 'order-1', {
         status: OrderStatus.CANCELLED,
       }),
       updateOrderStatus({ sub: 'manager-1', role: UserRole.STORE_MANAGER }, 'order-1', {
-        status: OrderStatus.PREPARING,
+        status: OrderStatus.ACCEPTED,
       }),
     ]);
 
     const won = cancel.status === 'fulfilled' ? cancel : accept;
     const lost = cancel.status === 'fulfilled' ? accept : cancel;
 
+    // Exactly one should succeed, the other should fail with 409 (optimistic lock).
     expect(won.status).toBe('fulfilled');
-    expect((won as PromiseFulfilledResult<any>).value.status).not.toBe(OrderStatus.ACCEPTED);
 
     expect(lost.status).toBe('rejected');
     const reason = (lost as PromiseRejectedResult).reason;

@@ -43,6 +43,7 @@ import {
   connectRealtime,
 } from '@samou-go/api-client';
 import { useAuth } from '@/hooks/useApi';
+import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import {
   Badge,
   LanguageToggle,
@@ -945,6 +946,7 @@ export function SamouGoCaptain() {
           })}
         </div>
       </nav>
+      <SupportWhatsAppButton />
     </main>
   );
 }

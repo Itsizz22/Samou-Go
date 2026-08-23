@@ -12,12 +12,13 @@
  * (`DELIVERED` or `CANCELLED`) — there is nothing left to follow, so the
  * screen stops hitting the API until the user leaves.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, Banknote, CheckCircle2, Loader2, MapPin, RefreshCw, RotateCw, ShoppingCart, StickyNote } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Banknote, CheckCircle2, Loader2, MapPin, RefreshCw, RotateCw, ShoppingCart, StickyNote, XCircle } from 'lucide-react';
 import { PaymentMethod, OrderStatus } from '@samou-go/shared-types';
 import { useAuth } from '@/hooks/useApi';
 import { useOrder, useToast, reorderOrder, usePlatformSettings } from '@/hooks/useApi';
+import { updateOrderStatus } from '@samou-go/api-client';
 import { connectRealtime } from '@samou-go/api-client';
 import { LeafletMap } from '@samou-go/ui/map';
 import { useCart } from '@/components/CartProvider';
@@ -61,6 +62,33 @@ export function OrderTrackingScreen() {
   const toast = useToast();
   const [reordering, setReordering] = useState(false);
   const [captainLocation, setCaptainLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  // 2-minute cancellation window: remaining time in seconds.
+  const cancelTimeRemaining = useMemo(() => {
+    if (!order.data || order.data.status !== OrderStatus.PENDING) return 0;
+    const elapsed = Date.now() - new Date(order.data.createdAt).getTime();
+    const remaining = Math.max(0, Math.ceil((2 * 60 * 1000 - elapsed) / 1000));
+    return remaining;
+  }, [order.data]);
+  const canCancel = cancelTimeRemaining > 0 && order.data?.status === OrderStatus.PENDING;
+
+  const handleCancel = async () => {
+    if (!order.data || cancelling) return;
+    setCancelling(true);
+    try {
+      await updateOrderStatus(order.data.id, { status: OrderStatus.CANCELLED });
+      toast.success('تم إلغاء الطلب', 'Order cancelled');
+      void order.refresh();
+    } catch (err) {
+      toast.error(
+        'تعذّر إلغاء الطلب',
+        err instanceof Error ? err.message : String(err)
+      );
+    } finally {
+      setCancelling(false);
+    }
+  };
   useEffect(() => {
     if (!orderId) return;
     const socket = connectRealtime();
@@ -270,6 +298,30 @@ export function OrderTrackingScreen() {
                   </div>
                 </dl>
               </section>
+
+              {/* Cancel button — only visible within 2-minute window */}
+              {canCancel && (
+                <section className="rounded-2xl bg-surface p-4 shadow-card">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-danger">
+                      {t(`متبقي ${cancelTimeRemaining} ثانية`, `${cancelTimeRemaining}s remaining`)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleCancel()}
+                    disabled={cancelling}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-danger bg-danger-tint py-3 text-sm font-extrabold text-danger transition hover:bg-danger hover:text-white active:scale-[0.98] disabled:opacity-60"
+                  >
+                    {cancelling ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <XCircle size={16} />
+                    )}
+                    {t('إلغاء الطلب', 'Cancel order')}
+                  </button>
+                </section>
+              )}
 
               {/* Re-order this basket */}
               <section className="rounded-2xl bg-surface p-4 shadow-card">

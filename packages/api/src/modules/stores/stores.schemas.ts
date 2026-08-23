@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { StoreStatus } from '@samou-go/shared-types';
 
 export const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -96,6 +97,8 @@ export const updateStoreSchema = z
     isApproved: z.boolean().optional(),
     /** Manager instant toggle — customers see "closed" banner. */
     isAcceptingOrders: z.boolean().optional(),
+    /** Three-state store status: OPEN, BUSY, CLOSED. */
+    storeStatus: z.nativeEnum(StoreStatus).optional(),
     /** Store opening hour (HH:mm). */
     openingTime: z.string().trim().max(5).optional().nullable(),
     /** Store closing hour (HH:mm). */

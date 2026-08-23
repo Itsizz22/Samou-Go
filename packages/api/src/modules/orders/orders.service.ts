@@ -152,10 +152,13 @@ async function priceBasket(
 ): Promise<PricedLine[]> {
   const store = await db.store.findUnique({
     where: { id: storeId },
-    select: { id: true, isActive: true, isApproved: true },
+    select: { id: true, isActive: true, isApproved: true, storeStatus: true },
   });
   if (!store) throw notFound('المتجر غير موجود / Store not found');
   if (!store.isActive) {
+    throw unprocessable('STORE_CLOSED', 'المتجر مغلق حالياً / This store is currently closed');
+  }
+  if (store.storeStatus === 'CLOSED') {
     throw unprocessable('STORE_CLOSED', 'المتجر مغلق حالياً / This store is currently closed');
   }
   // An unapproved store has no public page, so it must not accept orders either.
@@ -687,6 +690,18 @@ export async function updateOrderStatus(
   if (actor.role === UserRole.CUSTOMER) {
     if (order.customerId !== actor.sub) {
       throw forbidden('هذا ليس طلبك / Not your order');
+    }
+    // Time-bound cancellation window: customers may cancel within 2 minutes
+    // of placing the order, while it is still PENDING.
+    if (next === OrderStatus.CANCELLED) {
+      const elapsed = Date.now() - new Date(order.createdAt).getTime();
+      const twoMinutesMs = 2 * 60 * 1000;
+      if (current !== OrderStatus.PENDING || elapsed >= twoMinutesMs) {
+        throw badState(
+          'CANCEL_WINDOW_CLOSED',
+          'لا يمكن إلغاء الطلب بعد مرور دقيقتين / Cannot cancel after 2 minutes'
+        );
+      }
     }
   }
 

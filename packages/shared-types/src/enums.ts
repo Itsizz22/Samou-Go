@@ -81,6 +81,20 @@ export const SettlementMethod = {
 } as const;
 export type SettlementMethod = (typeof SettlementMethod)[keyof typeof SettlementMethod];
 
+/** Store availability status — the three-state toggle. */
+export const StoreStatus = {
+  OPEN: 'OPEN',
+  BUSY: 'BUSY',
+  CLOSED: 'CLOSED',
+} as const;
+export type StoreStatus = (typeof StoreStatus)[keyof typeof StoreStatus];
+
+export const STORE_STATUS_LABELS: Record<StoreStatus, { ar: string; en: string }> = {
+  [StoreStatus.OPEN]: { ar: 'مفتوح', en: 'Open' },
+  [StoreStatus.BUSY]: { ar: 'مشغول', en: 'Busy' },
+  [StoreStatus.CLOSED]: { ar: 'مغلق', en: 'Closed' },
+};
+
 /** Type of a wallet ledger movement (earnings in, settlements out). */
 export const LedgerEntryType = {
   COMMISSION: 'COMMISSION',
@@ -245,10 +259,9 @@ export function canRoleTransitionOrderStatus(
     case UserRole.ADMIN:
       return true;
     case UserRole.CUSTOMER:
-      return (
-        to === OrderStatus.CANCELLED &&
-        (from === OrderStatus.PENDING || from === OrderStatus.ACCEPTED)
-      );
+      // Customers may cancel only while the order is still PENDING.
+      // Once accepted by the store, the cancel window closes.
+      return to === OrderStatus.CANCELLED && from === OrderStatus.PENDING;
     case UserRole.STORE_MANAGER:
       if (to === OrderStatus.CANCELLED) {
         return from !== OrderStatus.ON_THE_WAY;

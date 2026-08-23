@@ -8,6 +8,7 @@ import type {
   CategoryWithProducts,
   Product,
   Store,
+  StoreStatus,
   StoreWithCatalogue,
 } from '@samou-go/shared-types';
 import { decimalToNumber } from '../../lib/decimal';
@@ -24,6 +25,7 @@ export function toStore(store: PrismaStore): Store {
     isActive: store.isActive,
     isApproved: store.isApproved,
     isAcceptingOrders: store.isAcceptingOrders,
+    storeStatus: store.storeStatus as StoreStatus,
     openingTime: store.openingTime ?? null,
     closingTime: store.closingTime ?? null,
     managerId: store.managerId,

@@ -8,13 +8,14 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, ArrowRight, Clock3, FolderOpen, Heart, Loader2, Minus, Plus, RefreshCw, ShoppingCart, Star } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Clock3, FolderOpen, Heart, Loader2, Minus, Plus, RefreshCw, ShoppingCart, Star, Store } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
 import { useFavorites } from '@/components/FavoritesProvider';
 import { useStore, useOffersForStore } from '@/hooks/useApi';
 import { HorizontalScrollGallery, useLanguage } from '@samou-go/ui';
 import { ProductRowSkeleton, Skeleton } from '@/components/Skeleton';
 import { formatCurrency } from '@/lib/delivery';
+import { StoreStatus, STORE_STATUS_LABELS } from '@samou-go/shared-types';
 import { hapticConfirm, hapticTap } from '@/lib/haptics';
 import { PageTransition } from '@/components/PageTransition';
 
@@ -180,15 +181,15 @@ export function StoreDetailScreen() {
           </div>
         </header>
 
-        {/* Store closed banner — shown when the manager toggled "accepting orders" off */}
-        {!current.isAcceptingOrders && (
+        {/* Store status banner — shows when store is not OPEN */}
+        {(current.storeStatus === StoreStatus.CLOSED || !current.isAcceptingOrders) && (
           <div className="mx-auto max-w-md px-5 pt-4">
-            <div className="flex items-center gap-3 rounded-2xl border border-warning bg-warning-tint px-4 py-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-warning text-white">
+            <div className="flex items-center gap-3 rounded-2xl border border-danger bg-danger-tint px-4 py-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-danger text-white">
                 <Clock3 size={18} />
               </span>
               <div className="flex-1 text-end">
-                <p className="text-xs font-extrabold text-warning-dark">
+                <p className="text-xs font-extrabold text-danger-dark">
                   {t('المتجر مغلق حالياً', 'Store is currently closed')}
                 </p>
                 {current.openingTime && current.closingTime && (
@@ -196,6 +197,20 @@ export function StoreDetailScreen() {
                     {t(`يفتح الساعة ${current.openingTime} ويسغل ${current.closingTime}`, `Opens at ${current.openingTime}, closes at ${current.closingTime}`)}
                   </p>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+        {current.storeStatus === StoreStatus.BUSY && current.isAcceptingOrders && (
+          <div className="mx-auto max-w-md px-5 pt-4">
+            <div className="flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
+                <Clock3 size={18} />
+              </span>
+              <div className="flex-1 text-end">
+                <p className="text-xs font-extrabold text-amber-700">
+                  {t('المتجر مشغول حالياً — قد يكون هناك تأخير', 'Store is busy — there may be a delay')}
+                </p>
               </div>
             </div>
           </div>

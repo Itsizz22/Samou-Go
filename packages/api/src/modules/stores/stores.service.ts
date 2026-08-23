@@ -5,10 +5,11 @@ import type {
   Paginated,
   Product,
   Store,
+  StoreStatus,
   StoreWithCatalogue,
   UserRole,
 } from '@samou-go/shared-types';
-import { UserRole as UserRoleEnum } from '@samou-go/shared-types';
+import { StoreStatus as StoreStatusEnum, UserRole as UserRoleEnum } from '@samou-go/shared-types';
 import { prisma, caseInsensitiveContains } from '../../lib/prisma';
 import { conflict, forbidden, notFound } from '../../lib/http-error';
 import { toProduct, toStore, toStoreWithCatalogue } from './stores.mapper';
@@ -63,7 +64,7 @@ export async function listStores(
     ...(isAdminFullList ? {} : { isApproved: true }),
     // `activeOnly` only relaxes the filter for staff. Customers are always
     // pinned to live, approved shops — a disabled store is invisible to them.
-    ...(canSeeInactive ? {} : { isActive: true }),
+    ...(canSeeInactive ? {} : { isActive: true, storeStatus: { not: 'CLOSED' } }),
     ...(query.search
       ? {
           OR: [
@@ -229,6 +230,7 @@ export async function updateStore(storeId: string, body: UpdateStoreBody): Promi
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
       ...(body.isApproved !== undefined ? { isApproved: body.isApproved } : {}),
       ...(body.isAcceptingOrders !== undefined ? { isAcceptingOrders: body.isAcceptingOrders } : {}),
+      ...(body.storeStatus !== undefined ? { storeStatus: body.storeStatus } : {}),
       ...(body.openingTime !== undefined ? { openingTime: body.openingTime } : {}),
       ...(body.closingTime !== undefined ? { closingTime: body.closingTime } : {}),
       ...(body.latitude !== undefined ? { latitude: body.latitude } : {}),
