@@ -1,6 +1,7 @@
 package com.samougo.customer;
 
 import android.app.NotificationChannel;
+import android.app.Notification;
 import android.app.NotificationManager;
 import android.media.AudioAttributes;
 import android.net.Uri;
@@ -50,7 +51,7 @@ public class MainActivity extends BridgeActivity {
       NotificationManager.IMPORTANCE_HIGH
     );
     highChannel.setDescription("High-priority order alerts with alarm ringtone");
-    highChannel.setLockscreenVisibility(NotificationManager.VISIBILITY_PUBLIC);
+    highChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
     highChannel.enableVibration(true);
     highChannel.setVibrationPattern(new long[]{0, 300, 200, 300});
     highChannel.setSound(alarmUri, audioAttr);
