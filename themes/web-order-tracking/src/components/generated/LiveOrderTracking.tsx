@@ -296,14 +296,14 @@ export const LiveOrderTracking = () => {
                   <Loader2 size={13} className="animate-spin" aria-label="Refreshing" />
                 )}
               </p>
-              <h2 id="tracking-heading" className="text-2xl font-black tracking-tight text-ink">
+              <h2 id="tracking-heading" className="text-base font-extrabold leading-relaxed text-ink">
                 {detail
                   ? t(ORDER_STATUS_LABELS[detail.status].ar, ORDER_STATUS_LABELS[detail.status].en)
                   : 'تتبّع طلبك'}
               </h2>
             </div>
             {detail && (
-              <span dir="ltr" className="rounded-full bg-brand-tint px-3 py-1 text-xs font-bold text-brand-deep">
+              <span dir="ltr" className="rounded-full bg-brand-tint px-2 py-0.5 text-[10px] font-bold text-brand-deep">
                 #{detail.orderNumber}
               </span>
             )}
@@ -317,7 +317,7 @@ export const LiveOrderTracking = () => {
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
                 <AlertTriangle size={22} />
               </span>
-              <h3 className="mt-3 text-sm font-extrabold">{t('تعذّر تحميل حالة الطلب', 'Could not load the order status')}</h3>
+              <h3 className="mt-3 text-xs font-extrabold leading-relaxed">{t('تعذّر تحميل حالة الطلب', 'Could not load the order status')}</h3>
               <p className="mt-2 text-xs text-ink-soft">
                 {language === 'ar' ? error.message : error.localizedMessage}
               </p>
@@ -345,7 +345,7 @@ export const LiveOrderTracking = () => {
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-surface text-brand">
                 <Package size={22} />
               </span>
-              <h3 className="mt-3 text-sm font-extrabold">{t('لا توجد طلبات لتتبّعها', 'You have no orders to track yet')}</h3>
+              <h3 className="mt-3 text-xs font-extrabold leading-relaxed">{t('لا توجد طلبات لتتبّعها', 'You have no orders to track yet')}</h3>
             </div>
           )}
 
@@ -381,7 +381,7 @@ export const LiveOrderTracking = () => {
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
               <XCircle size={26} />
             </span>
-            <h2 className="mt-3 text-lg font-extrabold">
+            <h2 className="mt-3 text-sm font-extrabold leading-relaxed">
               {t(ORDER_STATUS_LABELS.CANCELLED.ar, ORDER_STATUS_LABELS.CANCELLED.en)}
             </h2>
             {detail.statusHistory[detail.statusHistory.length - 1]?.note && (
@@ -395,9 +395,9 @@ export const LiveOrderTracking = () => {
             aria-labelledby="timeline-heading"
             className="mt-7 rounded-xl border border-line bg-surface p-5 shadow-raised"
           >
-            <div className="mb-5 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 id="timeline-heading" className="text-lg font-extrabold text-ink">
+                <h2 id="timeline-heading" className="text-sm font-extrabold leading-relaxed text-ink">
                   {t('تقدم الطلب', 'Order progress')}
                 </h2>
               </div>
@@ -413,7 +413,7 @@ export const LiveOrderTracking = () => {
               {timeline.map((step, stepIndex) => {
                 const label = ORDER_STATUS_LABELS[step.status];
                 return (
-                  <li key={step.status} className="relative flex min-h-[62px] gap-3">
+                  <li key={step.status} className="relative flex min-h-[48px] gap-3">
                     <div className="flex w-7 shrink-0 flex-col items-center">
                       <span
                         className={`z-10 flex h-7 w-7 items-center justify-center rounded-full border-2 ${
@@ -445,7 +445,7 @@ export const LiveOrderTracking = () => {
                     <div className={`pb-5 ${step.state === 'pending' ? 'opacity-55' : ''}`}>
                       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                         <h3
-                          className={`text-sm font-extrabold ${step.state === 'active' ? 'text-brand-deep' : 'text-ink'}`}
+                          className={`text-xs font-extrabold leading-relaxed ${step.state === 'active' ? 'text-brand-deep' : 'text-ink'}`}
                         >
                           {t(label.ar, label.en)}
                         </h3>
@@ -467,10 +467,9 @@ export const LiveOrderTracking = () => {
           <section
             aria-labelledby="address-heading"
             className="mt-5 rounded-xl border border-line bg-surface p-5 shadow-raised"
-          >
-            <div className="mb-3 flex items-start justify-between">
+          >              <div className="mb-3 flex items-start justify-between">
               <div>
-                <h2 id="address-heading" className="text-lg font-extrabold text-ink">
+                <h2 id="address-heading" className="text-sm font-extrabold leading-relaxed text-ink">
                   {t('عنوان التوصيل', 'Delivery address')}
                 </h2>
               </div>
@@ -497,14 +496,14 @@ export const LiveOrderTracking = () => {
 
         {detail && (
           <section aria-labelledby="contact-heading" className="mt-5">
-            <h2 id="contact-heading" className="mb-3 text-base font-extrabold text-ink">
+            <h2 id="contact-heading" className="mb-3 text-sm font-extrabold leading-relaxed text-ink">
               {t('تحتاج مساعدة؟', 'Need help?')}
             </h2>
             <div className={`grid gap-3 ${detail.captain ? 'grid-cols-2' : 'grid-cols-1'}`}>
               <button
                 type="button"
                 onClick={() => handleCall(detail.store.phone)}
-                className="flex h-12 items-center justify-center gap-2 rounded-xl border border-brand-tint bg-brand-surface text-sm font-extrabold text-brand-deep transition hover:bg-brand-tint focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
+                className="flex h-10 items-center justify-center gap-2 rounded-xl border border-brand-tint bg-brand-surface text-xs font-extrabold text-brand-deep transition hover:bg-brand-tint focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
               >
                 <Phone className="h-4 w-4" aria-hidden="true" />
                 <span>Call Store</span>
@@ -513,7 +512,7 @@ export const LiveOrderTracking = () => {
                 <button
                   type="button"
                   onClick={() => handleCall(detail.captain!.phone)}
-                  className="flex h-12 items-center justify-center gap-2 rounded-xl bg-brand text-sm font-extrabold text-white shadow-card transition hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
+                  className="flex h-10 items-center justify-center gap-2 rounded-xl bg-brand text-xs font-extrabold text-white shadow-card transition hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
                 >
                   <Phone className="h-4 w-4" aria-hidden="true" />
                   <span>Call Captain</span>
@@ -536,13 +535,13 @@ export const LiveOrderTracking = () => {
             )}
             {confirmingCancel ? (
               <div className="rounded-xl border border-danger-tint bg-surface p-4 text-center shadow-card">
-                <p className="text-sm font-extrabold text-ink">{t('إلغاء هذا الطلب؟', 'Cancel this order? This cannot be undone.')}</p>
+                <p className="text-xs font-extrabold text-ink leading-relaxed">{t('إلغاء هذا الطلب؟', 'Cancel this order? This cannot be undone.')}</p>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setConfirmingCancel(false)}
                     disabled={cancel.pending}
-                    className="h-11 rounded-xl border border-line bg-surface text-sm font-bold text-ink-soft transition hover:bg-canvas disabled:opacity-60"
+                    className="h-9 rounded-xl border border-line bg-surface text-xs font-bold text-ink-soft transition hover:bg-canvas disabled:opacity-60"
                   >
                     {t('تراجع', 'Keep')}
                   </button>
@@ -550,7 +549,7 @@ export const LiveOrderTracking = () => {
                     type="button"
                     onClick={() => void handleCancel()}
                     disabled={cancel.pending}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl bg-danger text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-60"
+                    className="flex h-9 items-center justify-center gap-2 rounded-xl bg-danger text-xs font-bold text-white transition hover:opacity-90 disabled:opacity-60"
                   >
                     {cancel.pending && <Loader2 size={14} className="animate-spin" />}
                     {t('تأكيد الإلغاء', 'Cancel')}
@@ -561,7 +560,7 @@ export const LiveOrderTracking = () => {
               <button
                 type="button"
                 onClick={() => setConfirmingCancel(true)}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-danger-tint bg-surface text-sm font-extrabold text-danger-ink transition hover:bg-danger-tint"
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-danger-tint bg-surface text-xs font-extrabold text-danger-ink transition hover:bg-danger-tint"
               >
                 <XCircle className="h-4 w-4" aria-hidden="true" />
                 {t('إلغاء الطلب', 'Cancel order')}

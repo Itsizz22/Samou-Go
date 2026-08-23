@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ChevronDown,
@@ -26,7 +26,7 @@ import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import { useDrawer } from '@/components/NavigationDrawer';
 import { DeliveryFee } from '@samou-go/ui';
 import { API_URL } from '@/hooks/useApi';
-import { useApiMeta, useOrders, useStores, useAuth } from '@/hooks/useApi';
+import { useApiMeta, useOrders, useStores, useAuth, useAllOffers } from '@/hooks/useApi';
 import { useFavorites } from '@/components/FavoritesProvider';
 import { Link, useNavigate } from 'react-router-dom';
 import { DEFAULT_DELIVERY_FEE_CONFIG } from '@/lib/delivery';
@@ -88,6 +88,49 @@ export function SamouGoHome() {
     return () => clearInterval(timer);
   }, []);
 
+  // Touch swipe support for banner carousel.
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const [touchDelta, setTouchDelta] = useState(0);
+  const isDragging = useRef(false);
+  const BANNER_COUNT = 2;
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    isDragging.current = true;
+    setTouchDelta(0);
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging.current) return;
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    // Only handle horizontal swipes (ignore vertical scrolling)
+    if (Math.abs(dy) > Math.abs(dx)) {
+      isDragging.current = false;
+      return;
+    }
+    setTouchDelta(dx);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    const threshold = 50;
+    if (Math.abs(touchDelta) > threshold) {
+      // In RTL, swipe direction is inverted
+      const isRTL = document.documentElement.dir === 'rtl';
+      const swipeLeft = touchDelta < 0;
+      const shouldAdvance = isRTL ? !swipeLeft : swipeLeft;
+      setBanner(prev => {
+        if (shouldAdvance) return prev === 0 ? 1 : 0;
+        return prev === 1 ? 0 : 1;
+      });
+    }
+    setTouchDelta(0);
+  }, [touchDelta]);
+
   // Every keystroke would otherwise be a round-trip over Samou' mobile data.
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), SEARCH_DEBOUNCE_MS);
@@ -134,6 +177,10 @@ export function SamouGoHome() {
       .map(toStoreCardModel);
   }, [stores.data, activeCategory, availabilityFilter]);
 
+  // Store-wide active offers feed.
+  const offers = useAllOffers();
+  const activeOffers = useMemo(() => (offers.data?.items ?? []).slice(0, 6), [offers.data]);
+
   const featured = cards.slice(0, FEATURED_COUNT);
   const showEmpty = !stores.loading && !stores.error && cards.length === 0;
 
@@ -153,13 +200,13 @@ export function SamouGoHome() {
   }, [auth.user, orders.data]);
 
   return <main className="min-h-screen bg-canvas pb-24 text-ink">
-      <header className="bg-brand px-5 pb-6 pt-4 text-white safe-top">
-        <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Main navigation">
+      <header className="bg-brand px-4 pb-6 pt-[max(1rem,env(safe-area-inset-top))] text-white safe-top">
+        <nav className="mx-auto flex max-w-md items-center justify-between gap-2" aria-label="Main navigation">
           <button
             type="button"
             aria-label={t('القائمة', 'Menu')}
             onClick={openDrawer}
-            className="rounded-full p-2 transition hover:bg-surface/15"
+            className="me-2 shrink-0 rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
           >
             <Menu size={22} />
           </button>
@@ -167,7 +214,7 @@ export function SamouGoHome() {
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-brand"><ShoppingCart size={19} strokeWidth={2.5} /></span>
             <span className="text-[17px] font-bold tracking-tight">Samou' Go</span>
           </div>
-          <div className="flex items-center gap-1" dir="ltr">
+          <div className="flex shrink-0 items-center gap-0.5" dir="ltr">
             <NotificationBell
               notifications={bellNotifications}
               storageKey="customer"
@@ -225,11 +272,17 @@ export function SamouGoHome() {
 
       {/* Multi-banner carousel */}
       <section className="mx-auto max-w-md px-5 pt-5" aria-label="Feature banners">
-        <div className="relative overflow-hidden rounded-2xl shadow-card">
+        <div
+          className="relative overflow-hidden rounded-2xl shadow-card"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{ touchAction: 'pan-y' }}
+        >
           {/* Banner container with smooth transition */}
           <div
             className="flex transition-transform duration-500 ease-out"
-            style={{ transform: `translateX(${banner === 0 ? '0%' : '-100%'})` }}
+            style={{ transform: `translateX(${banner === 0 ? '0%' : '-100%'})`, '--tw-translate-x': touchDelta ? `${touchDelta}px` : undefined } as React.CSSProperties}
           >
             {/* Banner 1 — Multi-Vendor Cart */}
             <div className="min-w-full rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-400 to-teal-400 px-5 py-6 text-white">
@@ -344,6 +397,60 @@ export function SamouGoHome() {
             <button key={value} type="button" onClick={() => setAvailabilityFilter(value)} aria-pressed={availabilityFilter === value} className={`rounded-full px-3 py-1.5 text-micro font-bold ${availabilityFilter === value ? 'bg-brand text-white' : 'bg-surface text-ink-muted shadow-card'}`}>{label}</button>
           ))}
         </div>
+      </section>
+
+      {/* Store Ads & Offers Feed */}
+      <section className="mx-auto max-w-md px-5 pt-7" aria-labelledby="offers-title">
+        <div className="mb-4 flex items-end justify-between">
+          <h2 id="offers-title" className="text-lg font-extrabold">{t('عروض وإعلانات المتاجر', 'Store offers & ads')}</h2>
+        </div>
+        {offers.loading ? (
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {[0, 1, 2].map(index => (
+              <div key={index} className="skeleton min-w-[220px] overflow-hidden rounded-2xl shadow-card" aria-hidden="true">
+                <div className="h-28 bg-line-soft" />
+                <div className="space-y-2 p-3">
+                  <div className="ms-auto h-3 w-2/3 rounded bg-line-soft" />
+                  <div className="ms-auto h-2.5 w-1/2 rounded bg-line-soft" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : activeOffers.length > 0 ? (
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {activeOffers.map((offer) => (
+              <Link
+                key={offer.id}
+                to={`/stores/${encodeURIComponent(offer.storeId)}`}
+                className="min-w-[220px] overflow-hidden rounded-2xl bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40"
+              >
+                {offer.imageUrl ? (
+                  <img
+                    src={offer.imageUrl}
+                    alt=""
+                    className="h-28 w-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="flex h-28 items-center justify-center bg-gradient-to-br from-brand/10 to-brand/5">
+                    <Star size={28} className="text-brand/30" />
+                  </div>
+                )}
+                <div className="p-3 text-end">
+                  <p className="truncate text-sm font-extrabold">{t(offer.titleAr, offer.titleEn)}</p>
+                  <p className="mt-1 line-clamp-2 text-micro text-ink-muted">{t(offer.descriptionAr, offer.descriptionEn)}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-line bg-surface p-5 text-center shadow-card">
+            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-brand-surface text-brand">
+              <Star size={18} />
+            </span>
+            <p className="mt-2 text-xs font-bold text-ink-muted">{t('لا توجد عروض حالياً — تابع المتاجر للحصول على أحدث العروض', 'No offers yet — follow stores for the latest deals')}</p>
+          </div>
+        )}
       </section>
 
       {stores.error && <section className="mx-auto max-w-md px-5 pt-8" aria-live="assertive">

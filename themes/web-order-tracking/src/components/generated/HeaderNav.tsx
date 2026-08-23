@@ -28,13 +28,13 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   onNotificationNavigate
 }) => {
   const { t } = useLanguage();
-  return <header className="sticky top-0 z-50 flex items-center justify-between w-full h-16 px-4 bg-surface border-b border-line shadow-card">
+  return <header className="sticky top-0 z-50 flex items-center justify-between w-full h-14 px-4 bg-surface border-b border-line shadow-card">
       <div className="flex items-center gap-3">
         {showBack && <button onClick={onBack} className="p-2 transition-colors rounded-full hover:bg-canvas active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={t('رجوع', 'Go back')}>
             <ChevronLeft className="w-6 h-6 text-ink-soft rtl:rotate-180" />
           </button>}
         <div className="flex flex-col">
-          <h1 className="text-lg font-bold text-ink leading-tight">
+          <h1 className="text-sm font-bold text-ink leading-relaxed">
             {t(arabicTitle ?? title, title)}
           </h1>
         </div>
