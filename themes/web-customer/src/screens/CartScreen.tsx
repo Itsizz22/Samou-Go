@@ -7,15 +7,15 @@
  * matching what the server will confirm.
  */
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, Minus, Plus, RefreshCw, ShoppingBag, Store, Trash2 } from 'lucide-react';
+import { ArrowRight, Minus, Plus, ShoppingBag, Store, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCart, type CartStoreGroup } from '@/components/CartProvider';
-import { formatCurrency, calculateDeliveryFee, DEFAULT_DELIVERY_FEE_CONFIG, DRIVER_FEE_LABEL, DRIVER_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
+import { formatCurrency, DRIVER_FEE_LABEL, DRIVER_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
 import { hapticTap } from '@/lib/haptics';
 import { PageTransition } from '@/components/PageTransition';
 import { SkeletonGrid, ProductRowSkeleton } from '@/components/Skeleton';
 import { useLanguage } from '@samou-go/ui';
-import { useApiMeta, usePlatformSettings } from '@/hooks/useApi';
+import { usePlatformSettings } from '@/hooks/useApi';
 
 export function CartScreen() {
   const cart = useCart();
@@ -25,14 +25,7 @@ export function CartScreen() {
 
   // Estimate with the server's live tariff, falling back to the vendored copy
   // only while the meta call is in flight — same pattern as the home badge.
-  const meta = useApiMeta();
   const platformSettings = usePlatformSettings();
-  const isDynamicFee = platformSettings.data?.isDriverDynamicFeeEnabled ?? false;
-  const deliveryFee = isDynamicFee ? 0 : calculateDeliveryFee(
-    cart.itemCount,
-    meta.data?.deliveryFee ?? DEFAULT_DELIVERY_FEE_CONFIG
-  );
-  const total = cart.subtotal + deliveryFee;
 
 
   return (
@@ -144,17 +137,15 @@ export function CartScreen() {
                 <div className="mt-2 flex justify-between text-xs text-ink-muted">
                   <span>{deliveryFeeLabel(language)}</span>
                   <span dir="ltr" className="font-bold text-brand-dark">
-                    {isDynamicFee
-                      ? (isArabic ? DRIVER_FEE_LABEL.ar : DRIVER_FEE_LABEL.en)
-                      : formatCurrency(deliveryFee)}
+                    {isArabic ? DRIVER_FEE_LABEL.ar : DRIVER_FEE_LABEL.en}
                   </span>
                 </div>
                 <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
                   {t(DRIVER_FEE_NOTICE.ar, DRIVER_FEE_NOTICE.en)}
                 </p>
                 <div className="mt-3 flex justify-between border-t border-line pt-3 text-sm">
-                  <span className="font-extrabold">الإجمالي</span>
-                  <span dir="ltr" className="font-extrabold text-brand-dark">{formatCurrency(total)}</span>
+                  <span className="font-extrabold">المجموع الفرعي</span>
+                  <span dir="ltr" className="font-extrabold text-brand-dark">{formatCurrency(cart.subtotal)}</span>
                 </div>
               </div>
 
