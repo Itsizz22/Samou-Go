@@ -73,6 +73,7 @@ import {
   WHATSAPP_MESSAGES,
 } from '@samou-go/shared-types';
 import { DRIVER_FEE_LABEL } from '@/lib/delivery';
+import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import { LeafletMap } from '@samou-go/ui/map';
 
 /* ---------------------------------------------------------------------------
@@ -1047,6 +1048,7 @@ export function SamouGoCaptain() {
           })}
         </div>
       </nav>
+      <SupportWhatsAppButton />
       {/* Dynamic Fee Modal */}
       {dynamicFeeOrderId && (
         <DynamicFeeModal

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { NotificationBell, useLanguage, type BellNotification } from '@samou-go/ui';
 import { BottomNav } from '@/components/BottomNav';
+import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import { useDrawer } from '@/components/NavigationDrawer';
 import { DeliveryFee } from '@samou-go/ui';
 import { API_URL } from '@/hooks/useApi';
@@ -406,5 +407,6 @@ export function SamouGoHome() {
       </section>}
 
       <BottomNav />
+      <SupportWhatsAppButton />
     </main>;
 }

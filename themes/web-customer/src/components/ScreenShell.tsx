@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Menu } from 'lucide-react';
 import { useLanguage } from '@samou-go/ui';
 import { BottomNav } from '@/components/BottomNav';
+import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import { useDrawer } from '@/components/NavigationDrawer';
 
 interface ScreenShellProps {
@@ -41,6 +42,7 @@ export function ScreenShell({ title, subtitle, children }: ScreenShellProps) {
       <div className="mx-auto max-w-md px-5 pt-6">{children}</div>
 
       <BottomNav />
+      <SupportWhatsAppButton />
     </main>
   );
 }

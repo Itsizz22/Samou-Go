@@ -63,6 +63,8 @@ import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_TONES,
   OrderStatus,
+  StoreStatus,
+  STORE_STATUS_LABELS,
   UserRole,
   canRoleTransitionOrderStatus,
   type OrderDetail,
@@ -75,6 +77,7 @@ import { OffersPanel } from './OffersPanel';
 import { ProductCataloguePanel } from './ProductCataloguePanel';
 import { StoreProfilePanel } from './StoreProfilePanel';
 import { CustomRequestsPanel } from './CustomRequestsPanel';
+import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 
 /* ---------------------------------------------------------------------------
  * Presentation helpers
@@ -143,7 +146,7 @@ export function SamouGoStoreManager() {
   const managedStoreId: string | null = managedStores.data?.[0]?.id ?? null;
   const managedStore = useStoreManager(managedStoreId, { enabled: isManager });
 
-  const [isOpen, setIsOpen] = useState(true);
+  const [storeStatus, setStoreStatus] = useState<StoreStatus>(StoreStatus.OPEN);
   const [prepMinutes, setPrepMinutes] = useState(25);
   const [storeTogglePending, setStoreTogglePending] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('home');
@@ -156,23 +159,22 @@ export function SamouGoStoreManager() {
   // from the fetched store whenever the data changes (the optimistic flip in
   // `handleToggleStore` is never overwritten because the resource does not
   // refetch on toggle).
-  const managedIsActive = managedStore.data?.isActive;
+  const managedStoreStatus = managedStore.data?.storeStatus ?? StoreStatus.OPEN;
   useEffect(() => {
-    if (managedIsActive !== undefined) setIsOpen(managedIsActive);
-  }, [managedIsActive]);
+    setStoreStatus(managedStoreStatus);
+  }, [managedStoreStatus]);
 
   /* -- /Role gate --------------------------------------------------------- */
 
-  const handleToggleStore = async () => {
-    if (!managedStoreId || storeTogglePending) return;
-    const next = !isOpen;
-    setIsOpen(next);
+  const handleSetStoreStatus = async (next: StoreStatus) => {
+    if (!managedStoreId || storeTogglePending || next === storeStatus) return;
     setStoreTogglePending(true);
     try {
-      await updateStore(managedStoreId, { isActive: next });
-      toast.success(next ? 'تم فتح المتجر ✅' : 'تم إغلاق المتجر', next ? 'Store is now open' : 'Store is now closed');
+      await updateStore(managedStoreId, { storeStatus: next });
+      setStoreStatus(next);
+      const label = t(STORE_STATUS_LABELS[next].ar, STORE_STATUS_LABELS[next].en);
+      toast.success(`تم تغيير الحالة إلى: ${label}`, `Store status: ${label}`);
     } catch (err) {
-      setIsOpen(!next);
       toast.error('تعذّر تحديث حالة المتجر', err instanceof ApiError ? err.localizedMessage : err instanceof Error ? err.message : String(err));
     } finally {
       setStoreTogglePending(false);
@@ -454,26 +456,33 @@ export function SamouGoStoreManager() {
             </button>
           </div>
         </nav>
-        <div className="mx-auto mt-3 flex max-w-md items-center justify-between rounded-xl bg-brand-dark px-3 py-2">
-          <div className="flex items-center gap-2">
-            <span className={`h-2 w-2 rounded-full ${isOpen ? 'bg-brand-tint' : 'bg-white/40'}`} />
-            <span className="text-xs font-bold">
-              {t(isOpen ? 'متجر مفتوح' : 'متجر مغلق', isOpen ? 'Open' : 'Closed')}
-            </span>
+        <div className="mx-auto mt-3 max-w-md rounded-xl bg-brand-dark px-3 py-2.5">
+          <div className="flex items-center gap-2 text-[11px] font-bold text-white/90">
+            <Store size={13} />
+            <span>{t('حالة المتجر', 'Store Status')}</span>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={isOpen}
-            aria-label="تبديل حالة المتجر"
-            disabled={storeTogglePending || !managedStoreId}
-            onClick={() => void handleToggleStore()}
-            className={`flex h-6 w-11 items-center rounded-full p-1 transition ${
-              isOpen ? 'bg-surface/90 justify-end' : 'bg-black/25 justify-start'
-            }`}
-          >
-            <span className={`h-4 w-4 rounded-full ${isOpen ? 'bg-brand' : 'bg-surface'}`} />
-          </button>
+          <div className="mt-2 grid grid-cols-3 gap-1">
+            {([
+              { status: StoreStatus.OPEN, color: 'bg-green-500 hover:bg-green-600', label: 'مفتوح' },
+              { status: StoreStatus.BUSY, color: 'bg-amber-500 hover:bg-amber-600', label: 'مشغول' },
+              { status: StoreStatus.CLOSED, color: 'bg-red-500 hover:bg-red-600', label: 'مغلق' },
+            ] as const).map(({ status, color, label }) => (
+              <button
+                key={status}
+                type="button"
+                disabled={storeTogglePending || !managedStoreId}
+                onClick={() => void handleSetStoreStatus(status)}
+                className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition active:scale-95 disabled:opacity-60 ${
+                  storeStatus === status
+                    ? `${color} text-white shadow-sm`
+                    : 'bg-white/10 text-white/70 hover:bg-white/20'
+                }`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${storeStatus === status ? 'bg-white' : 'bg-white/40'}`} />
+                {t(label, STORE_STATUS_LABELS[status].en)}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -905,6 +914,7 @@ export function SamouGoStoreManager() {
           ))}
         </div>
       </nav>
+      <SupportWhatsAppButton />
     </main>
   );
 }

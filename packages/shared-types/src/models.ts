@@ -6,7 +6,7 @@
  * `prisma/schema.prisma` one-for-one, minus anything secret.
  */
 
-import type { CustomRequestStatus, OrderStatus, PaymentMethod, UserRole } from './enums';
+import type { CustomRequestStatus, OrderStatus, PaymentMethod, StoreStatus, UserRole } from './enums';
 
 /** ISO-8601 timestamp, e.g. `"2026-07-28T09:14:00.000Z"`. */
 export type IsoDateTime = string;
@@ -64,6 +64,8 @@ export interface Store {
   isRecommended: boolean;
   /** Instant toggle: false = customers see "closed" banner but store stays visible. */
   isAcceptingOrders: boolean;
+  /** Three-state store status: OPEN, BUSY, CLOSED. */
+  storeStatus: StoreStatus;
   /** Store opening hour (HH:mm format, e.g. "08:00"). */
   openingTime: string | null;
   /** Store closing hour (HH:mm format, e.g. "23:00"). */

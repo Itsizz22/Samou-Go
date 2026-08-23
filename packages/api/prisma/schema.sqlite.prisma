@@ -90,6 +90,13 @@ enum CustomRequestStatus {
   CANCELLED
 }
 
+/// Three-state store availability toggle.
+enum StoreStatus {
+  OPEN
+  BUSY
+  CLOSED
+}
+
 // =============================================================================
 // Models
 // =============================================================================
@@ -206,6 +213,8 @@ model Store {
   /// Instant toggle: when false, customers see "closed" but the store stays
   /// visible in the catalogue. Manager flips this without touching `isActive`.
   isAcceptingOrders Boolean @default(true)
+  /// Three-state availability: OPEN = accepting, BUSY = prep delay, CLOSED = not accepting.
+  storeStatus StoreStatus @default(OPEN)
   /// Store operating hours (HH:mm format, e.g. "08:00", "23:00").
   openingTime String?
   closingTime String?

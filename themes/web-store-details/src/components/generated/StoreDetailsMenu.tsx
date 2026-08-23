@@ -27,6 +27,7 @@ import { formatCurrency } from '@/lib/delivery';
 import { HeaderNav } from './HeaderNav';
 import { BottomTabs } from './BottomTabs';
 import type { CategoryWithProducts } from '@samou-go/shared-types';
+import { StoreStatus } from '@samou-go/shared-types';
 import { useLanguage } from '@samou-go/ui';
 
 /** Where the checkout app is served. Override with VITE_CHECKOUT_URL in .env (same-origin relative in production). */
@@ -151,7 +152,10 @@ export const StoreDetailsMenu = () => {
                 alt={store.data.nameEn}
               />
               <figcaption className="absolute bottom-3 end-4 rounded-full bg-surface/95 px-3 py-1 text-xs font-semibold text-brand-deep shadow-card">
-                {store.data.isAcceptingOrders ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}
+                {t(
+                  store.data.storeStatus === StoreStatus.BUSY ? 'مشغول' : store.data.isAcceptingOrders ? 'مفتوح' : 'مغلق',
+                  store.data.storeStatus === StoreStatus.BUSY ? 'Busy' : store.data.isAcceptingOrders ? 'Open' : 'Closed'
+                )}
               </figcaption>
             </figure>
           ) : (
@@ -160,7 +164,10 @@ export const StoreDetailsMenu = () => {
                 {store.data?.nameAr.slice(0, 1) ?? ''}
               </span>
               <span className="absolute bottom-3 end-4 rounded-full bg-surface/95 px-3 py-1 text-xs font-semibold text-brand-deep shadow-card">
-                {store.data?.isAcceptingOrders ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}
+                {store.data ? t(
+                  store.data.storeStatus === StoreStatus.BUSY ? 'مشغول' : store.data.isAcceptingOrders ? 'مفتوح' : 'مغلق',
+                  store.data.storeStatus === StoreStatus.BUSY ? 'Busy' : store.data.isAcceptingOrders ? 'Open' : 'Closed'
+                ) : ''}
               </span>
             </div>
           )}
@@ -208,10 +215,10 @@ export const StoreDetailsMenu = () => {
           </div>
         </section>
 
-        {/* Store closed banner — shown when the manager toggled "accepting orders" off */}
-        {store.data && !store.data.isAcceptingOrders && (
+        {/* Store closed/busy banner */}
+        {store.data && (store.data.storeStatus === StoreStatus.CLOSED || !store.data.isAcceptingOrders) && (
           <div className="px-5 pt-4">
-            <div className="flex items-center gap-3 rounded-2xl border border-warning bg-warning-tint px-4 py-3">
+            <div className="flex items-center gap-3 rounded-2xl border border-danger bg-danger-tint px-4 py-3">
               <div className="flex-1 text-end">
                 <p className="text-xs font-extrabold text-warning-dark">
                   {t('المتجر مغلق حالياً — يمكنك تصفح القائمة فقط', 'Store is currently closed — browsing only')}

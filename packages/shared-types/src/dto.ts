@@ -8,6 +8,7 @@
 import type {
   CustomRequestStatus,
   OrderStatus,
+  StoreStatus,
   UserRole,
   VoucherDiscountType,
 } from "./enums";
@@ -346,6 +347,8 @@ export interface UpdateStoreInput {
   isApproved?: boolean;
   /** Manager instant toggle — customers see "closed" banner. */
   isAcceptingOrders?: boolean;
+  /** Three-state store status: OPEN, BUSY, CLOSED. */
+  storeStatus?: StoreStatus;
   /** Store opening hour (HH:mm). */
   openingTime?: string | null;
   /** Store closing hour (HH:mm). */
