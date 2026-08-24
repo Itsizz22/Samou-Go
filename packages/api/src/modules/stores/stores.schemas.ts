@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { StoreStatus } from '@samou-go/shared-types';
+import { StoreStatus, StoreType } from '@samou-go/shared-types';
 
 export const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -13,6 +13,8 @@ export const storeListQuerySchema = paginationSchema.extend({
     .enum(['true', 'false'])
     .default('true')
     .transform(value => value === 'true'),
+  /** Optional filter by store category. */
+  storeType: z.nativeEnum(StoreType).optional(),
 });
 
 export const productListQuerySchema = paginationSchema.extend({
@@ -99,6 +101,8 @@ export const updateStoreSchema = z
     isAcceptingOrders: z.boolean().optional(),
     /** Three-state store status: OPEN, BUSY, CLOSED. */
     storeStatus: z.nativeEnum(StoreStatus).optional(),
+    /** Store category — drives the customer home filter bar. */
+    storeType: z.nativeEnum(StoreType).optional().nullable(),
     /** Store opening hour (HH:mm). */
     openingTime: z.string().trim().max(5).optional().nullable(),
     /** Store closing hour (HH:mm). */

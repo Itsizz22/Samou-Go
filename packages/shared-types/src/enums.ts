@@ -95,6 +95,27 @@ export const STORE_STATUS_LABELS: Record<StoreStatus, { ar: string; en: string }
   [StoreStatus.CLOSED]: { ar: 'مغلق', en: 'Closed' },
 };
 
+export const StoreType = {
+  RESTAURANT: 'RESTAURANT',
+  CAFE: 'CAFE',
+  SUPERMARKET: 'SUPERMARKET',
+  STORE: 'STORE',
+  BAKERY_SWEETS: 'BAKERY_SWEETS',
+  BUTCHERY: 'BUTCHERY',
+  VEGETABLES_FRUITS: 'VEGETABLES_FRUITS',
+} as const;
+export type StoreType = (typeof StoreType)[keyof typeof StoreType];
+
+export const STORE_TYPE_LABELS: Record<StoreType, { ar: string; en: string }> = {
+  [StoreType.RESTAURANT]: { ar: 'مطاعم', en: 'Restaurants' },
+  [StoreType.CAFE]: { ar: 'مقاهي وكافيهات', en: 'Cafés' },
+  [StoreType.SUPERMARKET]: { ar: 'سوبرماركت وبقالة', en: 'Supermarkets' },
+  [StoreType.STORE]: { ar: 'محلات وتجارة عامة', en: 'Local Stores' },
+  [StoreType.BAKERY_SWEETS]: { ar: 'حلويات ومخابز', en: 'Bakeries & Sweets' },
+  [StoreType.BUTCHERY]: { ar: 'لحوم ودواجن', en: 'Butcheries' },
+  [StoreType.VEGETABLES_FRUITS]: { ar: 'خضار وفواكه', en: 'Fruits & Vegetables' },
+};
+
 /** Type of a wallet ledger movement (earnings in, settlements out). */
 export const LedgerEntryType = {
   COMMISSION: 'COMMISSION',

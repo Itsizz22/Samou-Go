@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { UserRole } from "@samou-go/shared-types";
+import { StoreType, UserRole } from "@samou-go/shared-types";
 
 /**
  * Palestinian mobile, stored canonically as `05XXXXXXXX`.
@@ -235,6 +235,8 @@ export const adminCreateStoreSchema = z.object({
    * OTP/phone flow; when present the owner can use phone + password too.
    */
   password: passwordSchema.optional(),
+  /** Store category — drives the customer home filter bar. */
+  storeType: z.nativeEnum(StoreType).optional().nullable(),
   /** Admin sets the initial availability. */
   isActive: z.boolean().default(true),
 });

@@ -10,7 +10,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, Plus, Trash2, X } from 'lucide-react';
 import { useCreateCaptain, useCreateStore, useStores, useToast } from '@/hooks/useApi';
-import type { AdminCreateCaptainInput, AdminCreateStoreInput } from '@samou-go/shared-types';
+import type { AdminCreateCaptainInput, AdminCreateStoreInput, StoreType } from '@samou-go/shared-types';
+import { STORE_TYPE_LABELS } from '@samou-go/shared-types';
 import { useLanguage } from '@samou-go/ui';
 
 /* ---------------------------------------------------------------------------
@@ -197,6 +198,7 @@ export function CreateStoreDialog({
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
   const [phone, setPhone] = useState('');
+  const [storeType, setStoreType] = useState<StoreType | ''>('');
   const [managerName, setManagerName] = useState('');
   const [password, setPassword] = useState('');
   const [isActive, setIsActive] = useState(true);
@@ -218,6 +220,7 @@ export function CreateStoreDialog({
       nameEn: nameEn.trim(),
       phone: phone.trim(),
       isActive,
+      ...(storeType ? { storeType: storeType as StoreType } : {}),
       ...(managerName.trim() ? { managerName: managerName.trim() } : {}),
       ...(password ? { password } : {}),
     };
@@ -276,6 +279,21 @@ export function CreateStoreDialog({
             placeholder={t('رقم الجوال', 'Phone')}
             aria-label="Store phone"
           />
+        </FieldLabel>
+        <FieldLabel hint={t('نوع المتجر', 'Store type')}>
+          <select
+            className={inputClass}
+            value={storeType}
+            onChange={e => setStoreType(e.target.value as StoreType | '')}
+            aria-label="Store type"
+          >
+            <option value="">{t('— اختر النوع —', '— Select type —')}</option>
+            {Object.entries(STORE_TYPE_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {t(label.ar, label.en)}
+              </option>
+            ))}
+          </select>
         </FieldLabel>
         <FieldLabel hint="Manager display name (optional)">
           <input

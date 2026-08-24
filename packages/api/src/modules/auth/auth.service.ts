@@ -335,6 +335,7 @@ export async function adminCreateStore(
       isActive: body.isActive,
       isApproved: true,
       managerId: user.id,
+      ...(body.storeType ? { storeType: body.storeType } : {}),
     },
   });
 

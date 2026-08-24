@@ -65,6 +65,7 @@ export async function listStores(
     // `activeOnly` only relaxes the filter for staff. Customers are always
     // pinned to live, approved shops — a disabled store is invisible to them.
     ...(canSeeInactive ? {} : { isActive: true, storeStatus: { not: 'CLOSED' } }),
+    ...(query.storeType ? { storeType: query.storeType } : {}),
     ...(query.search
       ? {
           OR: [
@@ -231,6 +232,7 @@ export async function updateStore(storeId: string, body: UpdateStoreBody): Promi
       ...(body.isApproved !== undefined ? { isApproved: body.isApproved } : {}),
       ...(body.isAcceptingOrders !== undefined ? { isAcceptingOrders: body.isAcceptingOrders } : {}),
       ...(body.storeStatus !== undefined ? { storeStatus: body.storeStatus } : {}),
+      ...(body.storeType !== undefined ? { storeType: body.storeType } : {}),
       ...(body.openingTime !== undefined ? { openingTime: body.openingTime } : {}),
       ...(body.closingTime !== undefined ? { closingTime: body.closingTime } : {}),
       ...(body.latitude !== undefined ? { latitude: body.latitude } : {}),

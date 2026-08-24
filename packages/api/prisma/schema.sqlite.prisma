@@ -97,6 +97,16 @@ enum StoreStatus {
   CLOSED
 }
 
+enum StoreType {
+  RESTAURANT
+  CAFE
+  SUPERMARKET
+  STORE
+  BAKERY_SWEETS
+  BUTCHERY
+  VEGETABLES_FRUITS
+}
+
 // =============================================================================
 // Models
 // =============================================================================
@@ -215,6 +225,8 @@ model Store {
   isAcceptingOrders Boolean @default(true)
   /// Three-state availability: OPEN = accepting, BUSY = prep delay, CLOSED = not accepting.
   storeStatus StoreStatus @default(OPEN)
+  /// Store category — drives the customer home filter bar.
+  storeType   StoreType?
   /// Store operating hours (HH:mm format, e.g. "08:00", "23:00").
   openingTime String?
   closingTime String?

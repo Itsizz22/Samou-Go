@@ -3,20 +3,16 @@
  *
  * `GET /api/v1/stores` returns exactly what the database holds: names, phone,
  * logo, `isActive`. The home screen also wants a monogram, a colour and a
- * category chip. Rather than invent those on the server or hardcode them per
- * store, they are derived here — deterministically, so a store looks the same on
- * every device and every reload.
+ * category chip.
  *
- * SCHEMA GAP, deliberately not faked: there is no `storeType` column and no
- * ratings table. `classifyStore` reads the store's own name, which is how a
- * shopkeeper in Samou' already advertises what they are ("صيدلية السموع"). When
- * `Store.storeType` lands in Prisma, delete `CATEGORY_KEYWORDS` and read the
- * column. Ratings are simply not displayed — an invented 4.8 is worse than none.
+ * Uses `Store.storeType` (the Prisma enum column) when set. Falls back to
+ * keyword-based classification from the store name for legacy stores that
+ * were created before `storeType` existed.
  */
 
-import type { Store } from '@samou-go/shared-types';
+import type { Store, StoreType } from '@samou-go/shared-types';
 
-export type StoreCategoryKey = 'all' | 'restaurant' | 'supermarket' | 'pharmacy' | 'cafe' | 'shop';
+export type StoreCategoryKey = 'all' | 'restaurant' | 'cafe' | 'supermarket' | 'shop' | 'bakery_sweets' | 'butchery' | 'vegetables_fruits';
 
 export interface StoreCategory {
   key: StoreCategoryKey;
@@ -28,25 +24,48 @@ export interface StoreCategory {
 export const STORE_CATEGORIES: readonly StoreCategory[] = [
   { key: 'all', ar: 'الكل', en: 'All' },
   { key: 'restaurant', ar: 'مطاعم', en: 'Restaurants' },
-  { key: 'supermarket', ar: 'سوبرماركت', en: 'Supermarkets' },
-  { key: 'pharmacy', ar: 'صيدليات', en: 'Pharmacies' },
-  { key: 'cafe', ar: 'مقاهي', en: 'Cafés' },
-  { key: 'shop', ar: 'محلات', en: 'Local Stores' },
+  { key: 'cafe', ar: 'مقاهي وكافيهات', en: 'Cafés' },
+  { key: 'supermarket', ar: 'سوبرماركت وبقالة', en: 'Supermarkets' },
+  { key: 'shop', ar: 'محلات وتجارة عامة', en: 'Local Stores' },
+  { key: 'bakery_sweets', ar: 'حلويات ومخابز', en: 'Bakeries & Sweets' },
+  { key: 'butchery', ar: 'لحوم ودواجن', en: 'Butcheries' },
+  { key: 'vegetables_fruits', ar: 'خضار وفواكه', en: 'Fruits & Vegetables' },
 ];
 
 /**
+ * Maps the Prisma `StoreType` enum to the local `StoreCategoryKey`.
+ */
+const STORE_TYPE_TO_CATEGORY: Record<StoreType, StoreCategoryKey> = {
+  RESTAURANT: 'restaurant',
+  CAFE: 'cafe',
+  SUPERMARKET: 'supermarket',
+  STORE: 'shop',
+  BAKERY_SWEETS: 'bakery_sweets',
+  BUTCHERY: 'butchery',
+  VEGETABLES_FRUITS: 'vegetables_fruits',
+};
+
+/**
+ * Keyword fallback for legacy stores without `storeType` set.
  * Arabic first — that is what the stores actually call themselves.
  * `shop` is the fallback and therefore carries no keywords.
  */
 const CATEGORY_KEYWORDS: Record<Exclude<StoreCategoryKey, 'all' | 'shop'>, readonly string[]> = {
   restaurant: ['مطعم', 'مطاعم', 'شاورما', 'فلافل', 'مشاوي', 'بروست', 'برجر', 'restaurant', 'shawarma', 'grill', 'burger'],
   supermarket: ['سوبرماركت', 'ماركت', 'بقالة', 'تسوق', 'ميني', 'supermarket', 'market', 'grocery', 'mart'],
-  pharmacy: ['صيدلية', 'صيدليات', 'pharmacy', 'pharma'],
   cafe: ['مقهى', 'مقاهي', 'كافيه', 'قهوة', 'café', 'cafe', 'coffee'],
+  bakery_sweets: ['حلويات', 'مخابز', 'حلوى', 'كيك', 'بسكويت', 'bakery', 'sweets', 'pastry', 'cake'],
+  butchery: ['لحوم', 'دواجن', 'جزار', 'لحم', 'دجاج', 'meat', 'butchery', 'poultry', 'chicken'],
+  vegetables_fruits: ['خضار', 'فواكه', 'خضراوات', 'فاكهة', 'فطير', 'vegetables', 'fruits', 'produce'],
 };
 
-/** Best-effort category for a store, from its own bilingual name. */
-export function classifyStore(store: Pick<Store, 'nameAr' | 'nameEn'>): StoreCategoryKey {
+/** Best-effort category for a store. Uses `storeType` when set, falls back to keywords. */
+export function classifyStore(store: Pick<Store, 'nameAr' | 'nameEn'> & { storeType?: StoreType | null }): StoreCategoryKey {
+  // Prefer the database column when available.
+  if (store.storeType && store.storeType in STORE_TYPE_TO_CATEGORY) {
+    return STORE_TYPE_TO_CATEGORY[store.storeType as keyof typeof STORE_TYPE_TO_CATEGORY];
+  }
+  // Keyword fallback for legacy stores without storeType.
   const haystack = `${store.nameAr} ${store.nameEn}`.toLowerCase();
   for (const [key, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
     if (keywords.some((keyword) => haystack.includes(keyword.toLowerCase()))) {
@@ -81,10 +100,12 @@ const STOP_WORDS = new Set(['al', 'al-', 'the', 'and', 'of', '&', 'abu', 'أبو
 const CATEGORY_PALETTE: Record<StoreCategoryKey, { gradient: string; tint: string }> = {
   all: { gradient: 'from-brand-dark to-brand-soft', tint: 'bg-brand-tint text-brand-deep' },
   restaurant: { gradient: 'from-warning to-warning-tint', tint: 'bg-warning-tint text-warning-ink' },
-  supermarket: { gradient: 'from-brand-dark to-brand-soft', tint: 'bg-brand-tint text-brand-deep' },
-  pharmacy: { gradient: 'from-info to-info-tint', tint: 'bg-info-tint text-info-ink' },
   cafe: { gradient: 'from-warning-ink to-warning', tint: 'bg-warning-tint text-warning-ink' },
+  supermarket: { gradient: 'from-brand-dark to-brand-soft', tint: 'bg-brand-tint text-brand-deep' },
   shop: { gradient: 'from-brand-deep to-brand', tint: 'bg-canvas text-ink-soft' },
+  bakery_sweets: { gradient: 'from-amber-500 to-amber-100', tint: 'bg-warning-tint text-warning-ink' },
+  butchery: { gradient: 'from-red-600 to-red-200', tint: 'bg-danger-tint text-danger-ink' },
+  vegetables_fruits: { gradient: 'from-green-600 to-green-200', tint: 'bg-brand-tint text-brand-deep' },
 };
 
 export function storeGradient(key: StoreCategoryKey): string {
