@@ -645,14 +645,18 @@ export function getMeta(signal?: AbortSignal): Promise<ApiMeta> {
  * GET /api/v1/stores — catalogue
  * ------------------------------------------------------------------------- */
 
-/** Paginated store list. Inactive stores are hidden unless `activeOnly: false`. */
+/** Paginated store list. Inactive stores are hidden unless `activeOnly: false`.
+ * Pass `auth: true` when the caller is authenticated (admin / store-manager)
+ * so the server can relax the `isActive` filter based on role. */
 export function getStores(
   query: StoreListQuery = {},
   signal?: AbortSignal,
+  auth = false,
 ): Promise<Paginated<Store>> {
   return request<Paginated<Store>>("GET", "/stores", {
     query: { ...query },
     signal,
+    auth,
   });
 }
 

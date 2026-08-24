@@ -8,14 +8,14 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, ArrowRight, Clock3, FolderOpen, Heart, Loader2, Minus, Plus, RefreshCw, ShoppingCart, Star, Store } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Clock3, FolderOpen, Heart, Loader2, MessageCircle, Minus, Plus, RefreshCw, ShoppingCart, Star, Store } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
 import { useFavorites } from '@/components/FavoritesProvider';
 import { useStore, useOffersForStore } from '@/hooks/useApi';
 import { HorizontalScrollGallery, useLanguage } from '@samou-go/ui';
 import { ProductRowSkeleton, Skeleton } from '@/components/Skeleton';
 import { formatCurrency } from '@/lib/delivery';
-import { StoreStatus, STORE_STATUS_LABELS } from '@samou-go/shared-types';
+import { StoreStatus, STORE_STATUS_LABELS, formatWhatsAppLink } from '@samou-go/shared-types';
 import { hapticConfirm, hapticTap } from '@/lib/haptics';
 import { PageTransition } from '@/components/PageTransition';
 
@@ -144,6 +144,17 @@ export function StoreDetailScreen() {
               <p className="truncate text-[11px] text-white/80" dir="ltr">
                 {current.phone}
               </p>
+              {current.phone && (
+                <a
+                  href={formatWhatsAppLink(current.phone, `مرحباً، أريد الاستفسار عن متجر ${current.nameAr}`)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-micro font-bold text-white transition hover:bg-white/25 active:scale-95"
+                >
+                  <MessageCircle size={10} />
+                  {t('تواصل عبر واتساب', 'WhatsApp')}
+                </a>
+              )}
             </div>
             <button
               type="button"
