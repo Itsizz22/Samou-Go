@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
+  Apple,
+  Beef,
+  Cake,
   ChevronDown,
   ChevronLeft,
   Coffee,
@@ -10,7 +13,6 @@ import {
   MapPin,
   Menu,
   MessageSquarePlus,
-  Pill,
   RefreshCw,
   Search,
   ShoppingBag,
@@ -43,10 +45,12 @@ import {
 const CATEGORY_ICONS: Record<StoreCategoryKey, LucideIcon> = {
   all: LayoutGrid,
   restaurant: Utensils,
-  supermarket: ShoppingBag,
-  pharmacy: Pill,
   cafe: Coffee,
+  supermarket: ShoppingBag,
   shop: StoreIcon,
+  bakery_sweets: Cake,
+  butchery: Beef,
+  vegetables_fruits: Apple,
 };
 
 /** How many stores head the horizontal strip before the full list repeats them. */

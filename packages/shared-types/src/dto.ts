@@ -9,6 +9,7 @@ import type {
   CustomRequestStatus,
   OrderStatus,
   StoreStatus,
+  StoreType,
   UserRole,
   VoucherDiscountType,
 } from "./enums";
@@ -401,6 +402,8 @@ export interface AdminCreateStoreInput {
   nameEn: string;
   /** `05XXXXXXXX` — Palestinian mobile. Becomes the manager account's phone. */
   phone: string;
+  /** Store category — drives the customer home filter bar. */
+  storeType?: StoreType | null;
   /** Display name for the STORE_MANAGER account; defaults to `nameAr`. */
   managerName?: string;
   /**
