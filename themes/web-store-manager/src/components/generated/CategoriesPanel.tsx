@@ -168,7 +168,7 @@ export function CategoriesPanel({ storeId }: Props) {
       if (modal === 'create') {
         await createCategory(storeId, {
           nameAr,
-          nameEn: form.nameEn.trim() || undefined,
+          nameEn: nameAr,
           imageUrl: finalImageUrl,
           sortOrder,
         });
@@ -176,7 +176,7 @@ export function CategoriesPanel({ storeId }: Props) {
       } else if (modal === 'edit' && editTarget) {
         await updateCategory(storeId, editTarget.id, {
           nameAr,
-          nameEn: form.nameEn.trim() || undefined,
+          nameEn: nameAr,
           imageUrl: finalImageUrl ?? null,
           sortOrder,
         });
@@ -351,9 +351,6 @@ export function CategoriesPanel({ storeId }: Props) {
                       )}
                       <div>
                         <span className="block font-bold text-ink">{c.nameAr}</span>
-                        <span className="block text-[11px] text-ink-muted" dir="ltr">
-                          {c.nameEn}
-                        </span>
                       </div>
                     </div>
                   </td>
@@ -451,24 +448,6 @@ export function CategoriesPanel({ storeId }: Props) {
                   placeholder={t('مثال: مشروبات', 'Drinks')}
                   className="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
                 />
-              </label>
-
-              {/* English name */}
-              <label className="block">
-                <span className="mb-1 block text-xs font-bold text-ink">
-                  {t('الاسم باللاتينية', 'Latin name')} <span className="font-normal text-ink-muted">({t('اختياري', 'optional')})</span>
-                </span>
-                <input
-                  type="text"
-                  value={form.nameEn}
-                  onChange={e => setForm(f => ({ ...f, nameEn: e.target.value }))}
-                  placeholder="drinks"
-                  dir="ltr"
-                  className="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-                />
-                <span className="mt-1 block text-[11px] text-ink-muted">
-                  {t('يُترك فارغاً ليتم توليده تلقائياً. يجب أن يكون فريداً داخل المتجر.', 'Leave empty to auto-generate. Must be unique within the store.')}
-                </span>
               </label>
 
               {/* Image upload */}

@@ -841,6 +841,17 @@
     display: none;
   }
 
+  /* Product card entrance animation — replaces Framer Motion to avoid
+     transform-based compositing layers that break overflow-x scrolling
+     on Android WebView. */
+  .product-card-enter {
+    animation: productCardIn 0.3s ease-out both;
+  }
+  @keyframes productCardIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
   /* Tap feedback for anything that is not a .btn-* (rows, tiles, chips). */
   .press {
     @apply transition-transform duration-150 active:scale-[0.97];

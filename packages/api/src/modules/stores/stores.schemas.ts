@@ -3,7 +3,7 @@ import { StoreStatus } from '@samou-go/shared-types';
 
 export const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(100).default(20),
+  pageSize: z.coerce.number().int().positive().max(250).default(20),
 });
 
 export const storeListQuerySchema = paginationSchema.extend({

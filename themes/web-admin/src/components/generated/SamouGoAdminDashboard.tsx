@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   ArrowUpDown,
   BadgeCheck,
+  Ban,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -33,6 +34,7 @@ import {
   Package,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
   Star,
   Trash2,
@@ -60,8 +62,6 @@ import {
   useAdminStats,
   useAllOffers,
   useAuth,
-  useDeleteDriver,
-  useDeleteStore,
   useDeleteUser,
   useMutation,
   useOrders,
@@ -1559,7 +1559,7 @@ function StoresPanel() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const productImages = useResource(
     `admin-store-products:${expandedId ?? ''}`,
-    signal => getStoreProducts(expandedId as string, { page: 1, pageSize: 200 }, signal),
+    signal => getStoreProducts(expandedId as string, { page: 1, pageSize: 250 }, signal),
     { enabled: expandedId !== null }
   );
 
@@ -1641,28 +1641,6 @@ function StoresPanel() {
     }
   };
 
-  /* ---- Deletion (soft: closes the shopfront + deactivates the owner) ------- */
-  const [deleteTarget, setDeleteTarget] = useState<StoreModel | null>(null);
-  const deleteMutation = useDeleteStore();
-
-  const runDelete = async () => {
-    if (!deleteTarget) return;
-    const result = await deleteMutation.run(deleteTarget.id);
-    if (result) {
-      toast.success(
-        `تم حذف المتجر «${deleteTarget.nameAr}»`,
-        `Store "${deleteTarget.nameEn}" removed`
-      );
-      setDeleteTarget(null);
-      void stores.reload();
-      void captains.reload();
-    } else {
-      toast.error('تعذّر حذف المتجر', deleteMutation.error?.message ?? 'Delete failed', {
-        duration: 5_000,
-      });
-    }
-  };
-
   /* ---- Bulk selection (approve / open / close) ------------------------------ */
   const [selectedStores, setSelectedStores] = useState<ReadonlySet<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -1738,21 +1716,7 @@ function StoresPanel() {
         onClose={() => setCreateOpen(false)}
         onCreated={() => void stores.reload()}
       />
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        title="حذف المتجر"
-        en="Delete store"
-        message={
-          deleteTarget
-            ? `سيتم إغلاق متجر «${deleteTarget.nameAr}» نهائياً وإيقاف حساب مديره، وسيختفي من التطبيق فوراً.`
-            : ''
-        }
-        confirmLabelAr="حذف"
-        confirmLabelEn="Delete"
-        pending={deleteMutation.pending}
-        onConfirm={() => void runDelete()}
-        onClose={() => setDeleteTarget(null)}
-      />
+
       {selectedStores.size > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft bg-brand-surface/60 px-5 py-2.5">
           <span className="text-[11px] font-bold text-brand-deep">
@@ -1890,13 +1854,14 @@ function StoresPanel() {
                         </td>
                         <td className="px-3 py-3">
                           <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-micro font-bold ${
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-micro font-bold ${
                               store.isActive
                                 ? 'bg-brand-tint text-brand-deep'
-                                : 'bg-canvas text-ink-muted'
+                                : 'bg-danger-tint text-danger-ink'
                             }`}
                           >
-                            {store.isActive ? 'مفتوح' : 'مغلق'}
+                            <span className={`h-1.5 w-1.5 rounded-full ${store.isActive ? 'bg-brand' : 'bg-danger'}`} />
+                            {store.isActive ? 'مفتوح' : 'معطل'}
                           </span>
                         </td>
                         <td className="px-5 py-3">
@@ -2057,12 +2022,23 @@ function StoresPanel() {
                             <button
                               type="button"
                               disabled={busy}
-                              onClick={() => setDeleteTarget(store)}
-                              className="flex items-center gap-1 rounded-lg border border-line px-2 py-1.5 text-[11px] font-bold text-ink-soft transition hover:border-danger hover:bg-danger-tint hover:text-danger-ink disabled:opacity-50"
-                              aria-label={`Delete store ${store.nameAr}`}
+                              onClick={() =>
+                                void runAction(
+                                  store.id,
+                                  () => toggleMutation.run({ isActive: !store.isActive }),
+                                  store.isActive ? 'تم تعطيل المتجر' : 'تم تفعيل المتجر',
+                                  store.isActive ? 'Store deactivated' : 'Store activated'
+                                )
+                              }
+                              className={`flex items-center gap-1 rounded-lg border px-2 py-1.5 text-[11px] font-bold transition disabled:opacity-50 ${
+                                store.isActive
+                                  ? 'border-line text-ink-soft hover:border-danger hover:bg-danger-tint hover:text-danger-ink'
+                                  : 'border-brand bg-brand-tint text-brand-deep hover:bg-brand-soft'
+                              }`}
+                              aria-label={`${store.isActive ? 'Deactivate' : 'Activate'} store ${store.nameAr}`}
                             >
-                              <Trash2 size={12} />
-                              <span className="hidden sm:inline">حذف</span>
+                              {store.isActive ? <Ban size={12} /> : <RotateCcw size={12} />}
+                              <span className="hidden sm:inline">{store.isActive ? 'تعطيل' : 'تفعيل'}</span>
                             </button>
                           </div>
                         </td>
@@ -2256,27 +2232,6 @@ function CaptainsPanel() {
     }
   };
 
-  /* ---- Deletion (removes the driver + their profile data) ------------------ */
-  const [deleteTarget, setDeleteTarget] = useState<PublicUser | null>(null);
-  const deleteMutation = useDeleteDriver();
-
-  const runDelete = async () => {
-    if (!deleteTarget) return;
-    const result = await deleteMutation.run(deleteTarget.id);
-    if (result) {
-      toast.success(
-        `تم حذف السائق «${deleteTarget.name}»`,
-        `Driver "${deleteTarget.name}" removed`
-      );
-      setDeleteTarget(null);
-      void captains.reload();
-      void stores.reload();
-    } else {
-      toast.error('تعذّر حذف السائق', deleteMutation.error?.message ?? 'Delete failed', {
-        duration: 5_000,
-      });
-    }
-  };
 
   const onlineCount = rows.filter(c => c.isActive && c.isAvailable).length;
 
@@ -2409,15 +2364,21 @@ function CaptainsPanel() {
                       <td className="px-3 py-3">
                         <span
                           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-micro font-bold ${
-                            captain.isActive && captain.isAvailable
-                              ? 'bg-brand-tint text-brand-deep'
-                              : 'bg-canvas text-ink-muted'
+                            !captain.isActive
+                              ? 'bg-danger-tint text-danger-ink'
+                              : captain.isAvailable
+                                ? 'bg-brand-tint text-brand-deep'
+                                : 'bg-canvas text-ink-muted'
                           }`}
                         >
                           <span
-                            className={`h-1.5 w-1.5 rounded-full ${captain.isActive && captain.isAvailable ? 'bg-brand' : 'bg-ink-subtle'}`}
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              !captain.isActive ? 'bg-danger'
+                              : captain.isAvailable ? 'bg-brand'
+                              : 'bg-ink-subtle'
+                            }`}
                           />
-                          {!captain.isActive ? 'موقوف' : captain.isAvailable ? 'متاح' : 'غير متاح'}
+                          {!captain.isActive ? 'معطل' : captain.isAvailable ? 'متاح' : 'غير متاح'}
                         </span>
                       </td>
                       <td className="px-5 py-3">
@@ -2468,15 +2429,7 @@ function CaptainsPanel() {
                               'إعادة تفعيل'
                             )}
                           </button>
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => setDeleteTarget(captain)}
-                            className="rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition hover:border-danger hover:bg-danger-tint hover:text-danger-ink disabled:opacity-50"
-                            aria-label={`Delete driver ${captain.name}`}
-                          >
-                            <Trash2 size={12} />
-                          </button>
+
                         </div>
                       </td>
                     </tr>
@@ -2488,21 +2441,7 @@ function CaptainsPanel() {
           <p className="py-8 text-center text-xs text-ink-muted">لا يوجد كابتن</p>
         )}
       </div>
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        title="حذف السائق"
-        en="Delete driver"
-        message={
-          deleteTarget
-            ? `سيتم حذف حساب السائق «${deleteTarget.name}» (${deleteTarget.phone}) وبياناته المرتبطة نهائياً.`
-            : ''
-        }
-        confirmLabelAr="حذف"
-        confirmLabelEn="Delete"
-        pending={deleteMutation.pending}
-        onConfirm={() => void runDelete()}
-        onClose={() => setDeleteTarget(null)}
-      />
+
     </PanelShell>
   );
 }

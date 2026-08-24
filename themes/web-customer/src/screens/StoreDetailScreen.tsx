@@ -294,26 +294,26 @@ export function StoreDetailScreen() {
           );
         })()}
 
-        <div className="mx-auto max-w-md px-5 pt-5">
+        <div className="mx-auto max-w-md px-5 pt-5 min-w-0">
           {products.length === 0 ? (
             <p className="py-12 text-center text-xs text-ink-muted">
               لا توجد منتجات في هذه الفئة حالياً
             </p>
           ) : (
-            <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 snap-x snap-mandatory -mx-5 px-5 md:mx-0 md:px-0 md:flex-col md:overflow-visible md:snap-none"
-              style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin' }}
+            <div
+              className="flex flex-nowrap gap-3 overflow-x-auto overflow-y-hidden py-2 px-1 -mx-1 scrollbar-none md:grid md:grid-cols-2 lg:grid-cols-3 md:overflow-visible md:gap-3 md:mx-0 md:px-0"
+              style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x', overscrollBehaviorX: 'contain' }}
+              data-swipe-back="true"
             >
               {products
                 .filter((product) => product.isAvailable)
                 .map((product, index) => {
                   const line = cart.lineFor(product.id);
                   return (
-                    <motion.article
+                    <article
                       key={product.id}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: Math.min(index * 0.04, 0.4) }}
-                      className="relative flex min-w-[85vw] shrink-0 items-center gap-3 rounded-2xl bg-surface p-3 shadow-card snap-start md:min-w-0 md:shrink md:snap-none"
+                      className="relative flex shrink-0 w-[82vw] max-w-[320px] min-w-[270px] items-center gap-3 rounded-2xl bg-surface p-3 shadow-card product-card-enter md:w-auto md:shrink"
+                      style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }}
                     >
                       {/* Offer badge */}
                       {offerProductIds.has(product.id) && (
@@ -382,7 +382,7 @@ export function StoreDetailScreen() {
                           <Plus size={18} strokeWidth={2.5} />
                         </button>
                       )}
-                    </motion.article>
+                    </article>
                   );
                 })}
             </div>
@@ -390,7 +390,7 @@ export function StoreDetailScreen() {
           {/* Horizontal scroll hint — visible only on mobile when there are multiple products */}
           {products.filter(p => p.isAvailable).length > 1 && (
             <p className="mt-2 text-center text-[10px] text-ink-muted md:hidden">
-              {t('اسحب لليمين للتصفح', 'Swipe to browse')}
+              {t('اسحب للتصفح ⟵', 'Swipe to browse ⟵')}
             </p>
           )}
         </div>

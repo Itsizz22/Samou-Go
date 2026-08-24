@@ -201,7 +201,7 @@ export const logoutSchema = z.object({
 /** GET /users — admin list query. */
 export const userListQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(100).default(20),
+  pageSize: z.coerce.number().int().positive().max(250).default(20),
   role: z.string().optional().transform(val => val?.toUpperCase()).pipe(z.nativeEnum(UserRole).optional()),
   isActive: z
     .enum(["true", "false"])
