@@ -652,6 +652,9 @@ model PlatformSettings {
   autoAssign Boolean @default(false)
   /// When enabled, the driver sets the delivery fee per order upon acceptance.
   isDriverDynamicFeeEnabled Boolean @default(false)
+  /// When enabled, admin-configured delivery zones are available for captain selection.
+  /// When disabled (default), captains set the delivery fee manually.
+  enableDeliveryZones Boolean @default(false)
   /// When enabled, sensitive actions (first order, password reset, phone change) require OTP verification.
   requireOtpForSensitiveActions Boolean @default(false)
   /// WhatsApp support phone number shown in the floating support button across all apps.

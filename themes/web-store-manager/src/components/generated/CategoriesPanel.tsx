@@ -322,7 +322,7 @@ export function CategoriesPanel({ storeId }: Props) {
 
       {/* Section list */}
       {!catalogue.loading && categories.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+        <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-card" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin' }}>
           <table className="w-full text-sm">
             <thead className="bg-canvas text-micro font-bold uppercase tracking-wide text-ink-muted">
               <tr>

@@ -51,6 +51,7 @@ export const platformSettingsSchema = z.object({
   storeCommissionRate: z.number().min(0).max(1).optional(),
   autoAssign: z.boolean().optional(),
   isDriverDynamicFeeEnabled: z.boolean().optional(),
+  enableDeliveryZones: z.boolean().optional(),
   requireOtpForSensitiveActions: z.boolean().optional(),
   whatsappSupportNumber: z.string().max(20).nullable().optional(),
 });
