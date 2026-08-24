@@ -1521,9 +1521,15 @@ function StoresPanel() {
   const toast = useToast();
   const { t } = useLanguage();
   const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const stores = useStores({ activeOnly: false, page, pageSize: 50 });
   const captains = useUsers({ role: UserRole.CAPTAIN, pageSize: 100 });
-  const rows = stores.data?.items ?? [];
+  const allRows = stores.data?.items ?? [];
+  const rows = useMemo(() => {
+    if (statusFilter === 'ACTIVE') return allRows.filter(s => s.isActive);
+    if (statusFilter === 'INACTIVE') return allRows.filter(s => !s.isActive);
+    return allRows;
+  }, [allRows, statusFilter]);
   const [createOpen, setCreateOpen] = useState(false);
 
   const pendingIdRef = useRef<string | null>(null);
@@ -1761,6 +1767,32 @@ function StoresPanel() {
           </div>
         </div>
       )}
+      <div className="flex flex-wrap items-center gap-2 border-b border-line-soft px-5 py-2.5">
+        <span className="text-[11px] font-bold text-ink-muted">{t('الحالة', 'Status')}:</span>
+        {(['ALL', 'ACTIVE', 'INACTIVE'] as const).map((filter) => {
+          const labels = { ALL: 'الكل', ACTIVE: 'النشطة', INACTIVE: 'المعطلة' } as const;
+          const labelsEn = { ALL: 'All', ACTIVE: 'Active', INACTIVE: 'Inactive' } as const;
+          const counts = {
+            ALL: allRows.length,
+            ACTIVE: allRows.filter(s => s.isActive).length,
+            INACTIVE: allRows.filter(s => !s.isActive).length,
+          };
+          return (
+            <button
+              key={filter}
+              type="button"
+              onClick={() => setStatusFilter(filter)}
+              className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
+                statusFilter === filter
+                  ? 'bg-brand text-white shadow-brand'
+                  : 'border border-line bg-canvas text-ink-soft hover:border-brand hover:bg-brand-surface'
+              }`}
+            >
+              {t(labels[filter], labelsEn[filter])} ({counts[filter]})
+            </button>
+          );
+        })}
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-225 text-start">
           <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">

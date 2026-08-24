@@ -52,7 +52,7 @@ export const categoryIdParamsSchema = z.object({
  */
 export const createCategorySchema = z.object({
   nameAr: z.string().trim().min(1, 'اسم القسم مطلوب / Section name required').max(120),
-  nameEn: z.string().trim().min(1).max(120).optional(),
+  nameEn: z.string().trim().max(120).optional().default(''),
   imageUrl: z.string().url('رابط الصورة غير صالح / Invalid image URL').optional(),
   sortOrder: z.number().int().min(0).max(9999).optional(),
 });
@@ -60,7 +60,7 @@ export const createCategorySchema = z.object({
 export const updateCategorySchema = z
   .object({
     nameAr: z.string().trim().min(1).max(120).optional(),
-    nameEn: z.string().trim().min(1).max(120).optional(),
+    nameEn: z.string().trim().max(120).optional(),
     imageUrl: z.string().url('رابط الصورة غير صالح / Invalid image URL').nullable().optional(),
     sortOrder: z.number().int().min(0).max(9999).optional(),
   })

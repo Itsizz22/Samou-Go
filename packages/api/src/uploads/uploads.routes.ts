@@ -15,20 +15,20 @@ function callerOf(req: Request): UploadCaller {
 
 const presignSchema = z.object({
   contentType: z.string().min(1),
-  kind: z.enum(['user', 'product', 'store', 'offer']),
+  kind: z.enum(['user', 'product', 'store', 'offer', 'category']),
   resourceId: z.string().optional(),
-  purpose: z.enum(['logo', 'cover']).optional(),
+  purpose: z.enum(['logo', 'cover', 'image']).optional(),
 });
 
 const finalizeSchema = z.object({
   key: z.string().min(1),
-  kind: z.enum(['user', 'product', 'store', 'offer']),
+  kind: z.enum(['user', 'product', 'store', 'offer', 'category']),
 });
 
 const removeCurrentSchema = z.object({
-  kind: z.enum(['user', 'product', 'store', 'offer']),
+  kind: z.enum(['user', 'product', 'store', 'offer', 'category']),
   resourceId: z.string().optional(),
-  purpose: z.enum(['logo', 'cover']).optional(),
+  purpose: z.enum(['logo', 'cover', 'image']).optional(),
 });
 
 export const uploadsRouter: Router = Router();

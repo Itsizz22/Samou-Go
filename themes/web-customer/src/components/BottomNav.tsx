@@ -3,7 +3,7 @@ import { Home, Heart, Package, Search, User, type LucideIcon } from 'lucide-reac
 import { NavLink } from 'react-router-dom';
 import { useLanguage } from '@samou-go/ui';
 import { useAuth } from '@/hooks/useApi';
-import { API_URL, getToken } from '@samou-go/api-client';
+import { API_URL, getToken, clearToken } from '@samou-go/api-client';
 import { OrderStatus } from '@samou-go/shared-types';
 
 /**
@@ -59,6 +59,7 @@ function useActiveOrderCount(): number {
         const res = await fetch(`${API_URL}/api/v1/orders?pageSize=50`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+        if (res.status === 401) { clearToken(); auth.setUser(null); return; }
         if (!res.ok || cancelled) return;
         const json = await res.json() as { data?: { items?: Array<{ status: string }> } };
         const items = json.data?.items ?? [];

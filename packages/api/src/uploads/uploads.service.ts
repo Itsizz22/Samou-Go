@@ -347,7 +347,7 @@ export async function removeCurrentImage(
   caller: UploadCaller,
   kind: UploadKind,
   resourceId?: string,
-  purpose?: 'logo' | 'cover'
+  purpose?: 'logo' | 'cover' | 'image'
 ): Promise<void> {
   if (kind === 'user') {
     const user = await prisma.user.findUnique({
