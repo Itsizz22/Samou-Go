@@ -78,6 +78,8 @@ import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_TONES,
   ORDER_STATUS_TRANSITIONS,
+  STORE_STATUS_LABELS,
+  StoreStatus,
   USER_ROLE_LABELS,
   OrderStatus,
   UserRole,
@@ -1147,7 +1149,7 @@ function UsersPanel() {
     ...(debounced ? { search: debounced } : {}),
   });
   const rows = users.data?.items ?? [];
-  const stores = useStores({ activeOnly: false, page: 1, pageSize: 100 });
+  const stores = useStores({ activeOnly: false, page: 1, pageSize: 100 }, undefined, true);
 
   const pendingIdRef = useRef<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -1522,12 +1524,12 @@ function StoresPanel() {
   const { t } = useLanguage();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
-  const stores = useStores({ activeOnly: false, page, pageSize: 50 });
+  const stores = useStores({ activeOnly: false, page, pageSize: 50 }, undefined, true);
   const captains = useUsers({ role: UserRole.CAPTAIN, pageSize: 100 });
   const allRows = stores.data?.items ?? [];
   const rows = useMemo(() => {
-    if (statusFilter === 'ACTIVE') return allRows.filter(s => s.isActive);
-    if (statusFilter === 'INACTIVE') return allRows.filter(s => !s.isActive);
+    if (statusFilter === 'ACTIVE') return allRows.filter(s => s.isActive && s.storeStatus !== StoreStatus.CLOSED);
+    if (statusFilter === 'INACTIVE') return allRows.filter(s => !s.isActive || s.storeStatus === StoreStatus.CLOSED);
     return allRows;
   }, [allRows, statusFilter]);
   const [createOpen, setCreateOpen] = useState(false);
@@ -1774,8 +1776,8 @@ function StoresPanel() {
           const labelsEn = { ALL: 'All', ACTIVE: 'Active', INACTIVE: 'Inactive' } as const;
           const counts = {
             ALL: allRows.length,
-            ACTIVE: allRows.filter(s => s.isActive).length,
-            INACTIVE: allRows.filter(s => !s.isActive).length,
+            ACTIVE: allRows.filter(s => s.isActive && s.storeStatus !== StoreStatus.CLOSED).length,
+            INACTIVE: allRows.filter(s => !s.isActive || s.storeStatus === StoreStatus.CLOSED).length,
           };
           return (
             <button
@@ -1887,13 +1889,32 @@ function StoresPanel() {
                         <td className="px-3 py-3">
                           <span
                             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-micro font-bold ${
-                              store.isActive
-                                ? 'bg-brand-tint text-brand-deep'
-                                : 'bg-danger-tint text-danger-ink'
+                              !store.isActive
+                                ? 'bg-danger-tint text-danger-ink'
+                                : store.storeStatus === StoreStatus.CLOSED
+                                  ? 'bg-danger-tint text-danger-ink'
+                                  : store.storeStatus === StoreStatus.BUSY
+                                    ? 'bg-warning-tint text-warning-ink'
+                                    : 'bg-brand-tint text-brand-deep'
                             }`}
                           >
-                            <span className={`h-1.5 w-1.5 rounded-full ${store.isActive ? 'bg-brand' : 'bg-danger'}`} />
-                            {store.isActive ? 'مفتوح' : 'معطل'}
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                !store.isActive || store.storeStatus === StoreStatus.CLOSED
+                                  ? 'bg-danger'
+                                  : store.storeStatus === StoreStatus.BUSY
+                                    ? 'bg-warning'
+                                    : 'bg-brand'
+                              }`}
+                            />
+                            {!store.isActive
+                              ? 'معطل'
+                              : store.storeStatus === StoreStatus.CLOSED
+                                ? 'مغلق'
+                                : store.storeStatus === StoreStatus.BUSY
+                                  ? 'مشغول'
+                                  : 'مفتوح'
+                            }
                           </span>
                         </td>
                         <td className="px-5 py-3">
@@ -2214,7 +2235,7 @@ function CaptainsPanel() {
   const [availability, setAvailability] = useState<'ALL' | 'ONLINE' | 'OFFLINE'>('ALL');
   const [createOpen, setCreateOpen] = useState(false);
   const captains = useUsers({ role: UserRole.CAPTAIN, pageSize: 50 });
-  const stores = useStores({ activeOnly: false, page: 1, pageSize: 100 });
+  const stores = useStores({ activeOnly: false, page: 1, pageSize: 100 }, undefined, true);
   const storeNames = useMemo(
     () => new Map((stores.data?.items ?? []).map(store => [store.id, store.nameAr])),
     [stores.data?.items]
@@ -2789,7 +2810,7 @@ function ZonesPanel() {
 function OffersPanel() {
   const { t, language } = useLanguage();
   const offers = useAllOffers({ pollMs: 30_000 });
-  const stores = useStores({ pageSize: 100 });
+  const stores = useStores({ pageSize: 100 }, undefined, true);
 
   const storeNames = useMemo(() => {
     const map = new Map<string, string>();

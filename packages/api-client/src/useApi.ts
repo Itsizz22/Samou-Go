@@ -252,10 +252,11 @@ export function useMutation<TInput, TResult>(
 /** `GET /stores` — the home screen's store list. */
 export function useStores(
   query: StoreListQuery = {},
-  options?: ResourceOptions<Paginated<Store>>
+  options?: ResourceOptions<Paginated<Store>>,
+  auth = false,
 ): Resource<Paginated<Store>> {
-  const key = `stores:${JSON.stringify(query)}`;
-  return useResource(key, (signal) => getStores(query, signal), options);
+  const key = `stores:${auth ? 'auth:' : ''}${JSON.stringify(query)}`;
+  return useResource(key, (signal) => getStores(query, signal, auth), options);
 }
 
 /** `GET /stores/:id` — store detail with categories and products. */

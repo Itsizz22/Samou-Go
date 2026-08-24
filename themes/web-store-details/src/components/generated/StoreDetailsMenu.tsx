@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Loader2,
   MapPin,
+  MessageCircle,
   Minus,
   Package,
   Plus,
@@ -27,7 +28,7 @@ import { formatCurrency } from '@/lib/delivery';
 import { HeaderNav } from './HeaderNav';
 import { BottomTabs } from './BottomTabs';
 import type { CategoryWithProducts } from '@samou-go/shared-types';
-import { StoreStatus } from '@samou-go/shared-types';
+import { StoreStatus, formatWhatsAppLink } from '@samou-go/shared-types';
 import { useLanguage } from '@samou-go/ui';
 
 /** Where the checkout app is served. Override with VITE_CHECKOUT_URL in .env (same-origin relative in production). */
@@ -206,6 +207,17 @@ export const StoreDetailsMenu = () => {
                         dir="ltr"
                       >
                         {store.data.phone}
+                      </a>
+                    )}
+                    {store.data.phone && (
+                      <a
+                        href={formatWhatsAppLink(store.data.phone, `مرحباً، أريد الاستفسار عن متجر ${store.data.nameAr}`)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 font-semibold text-green-600 hover:underline"
+                      >
+                        <MessageCircle size={14} />
+                        {t('واتساب', 'WhatsApp')}
                       </a>
                     )}
                   </div>

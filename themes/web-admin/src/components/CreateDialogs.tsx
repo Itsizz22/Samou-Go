@@ -344,7 +344,7 @@ export function CreateCaptainDialog({
   const toast = useToast();
   const create = useCreateCaptain();
   const { t } = useLanguage();
-  const stores = useStores({ activeOnly: false, page: 1, pageSize: 100 });
+  const stores = useStores({ activeOnly: false, page: 1, pageSize: 100 }, undefined, true);
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
   const [phone, setPhone] = useState('');
