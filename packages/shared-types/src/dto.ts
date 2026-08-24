@@ -586,6 +586,8 @@ export interface PlatformSettings {
   autoAssign: boolean;
   /** When enabled, the driver sets the delivery fee per order upon acceptance. */
   isDriverDynamicFeeEnabled: boolean;
+  /** When enabled, admin-configured delivery zones are available for captain selection. */
+  enableDeliveryZones: boolean;
   /** When enabled, sensitive actions (first order, password reset, phone change) require OTP verification. */
   requireOtpForSensitiveActions: boolean;
   /** WhatsApp support phone number shown in the floating support button across all apps. */
@@ -599,6 +601,7 @@ export interface UpdatePlatformSettingsInput {
   storeCommissionRate?: number;
   autoAssign?: boolean;
   isDriverDynamicFeeEnabled?: boolean;
+  enableDeliveryZones?: boolean;
   requireOtpForSensitiveActions?: boolean;
   whatsappSupportNumber?: string | null;
 }

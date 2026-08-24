@@ -279,8 +279,8 @@ export function SamouGoCaptain() {
 
   const handleAccept = async (orderId: string) => {
     // Check if dynamic fee mode is enabled
-    const isDynamicFeeEnabled = platformSettings.data?.isDriverDynamicFeeEnabled;
-    if (isDynamicFeeEnabled) {
+    const zonesEnabled = platformSettings.data?.enableDeliveryZones;
+    if (!zonesEnabled) {
       // Open the dynamic fee modal instead of directly accepting
       setDynamicFeeOrderId(orderId);
       setDynamicFeeValue('');
@@ -847,8 +847,8 @@ export function SamouGoCaptain() {
                               ))}
                           </div>
                         )}
-                      {/* Delivery zone picker */}
-                      {zones.length > 0 && (
+                      {/* Delivery zone picker — only shown when zones are enabled */}
+                      {platformSettings.data?.enableDeliveryZones && zones.length > 0 && (
                         <OrderZonePicker
                           zones={zones}
                           orderId={order.id}

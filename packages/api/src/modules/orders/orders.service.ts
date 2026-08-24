@@ -1107,10 +1107,11 @@ export async function setOrderDeliveryFee(
 ): Promise<OrderDetail> {
   const order = await loadOrderOrThrow(orderId);
 
-  // Check platform setting for dynamic fee mode
+  // Check platform setting: fee entry is allowed when zones are disabled
+  // (captain sets fee manually) OR when dynamic fee mode is explicitly enabled.
   const settings = await prisma.platformSettings.findUnique({ where: { id: 'platform' } });
-  if (!settings?.isDriverDynamicFeeEnabled) {
-    throw forbidden('وضع الرسوم الديناميكي غير مفعل / Dynamic fee mode is not enabled');
+  if (settings?.enableDeliveryZones && !settings?.isDriverDynamicFeeEnabled) {
+    throw forbidden('نظام مناطق التوصيل مفعل — اختر منطقة بدلاً من تحديد الرسوم يدوياً / Delivery zones are enabled — pick a zone instead of setting fee manually');
   }
 
   if (actor.role === UserRole.CAPTAIN) {

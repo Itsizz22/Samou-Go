@@ -300,7 +300,9 @@ export function StoreDetailScreen() {
               لا توجد منتجات في هذه الفئة حالياً
             </p>
           ) : (
-            <div className="space-y-3">
+            <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 snap-x snap-mandatory -mx-5 px-5 md:mx-0 md:px-0 md:flex-col md:overflow-visible md:snap-none"
+              style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin' }}
+            >
               {products
                 .filter((product) => product.isAvailable)
                 .map((product, index) => {
@@ -311,7 +313,7 @@ export function StoreDetailScreen() {
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: Math.min(index * 0.04, 0.4) }}
-                      className="relative flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card"
+                      className="relative flex min-w-[85vw] shrink-0 items-center gap-3 rounded-2xl bg-surface p-3 shadow-card snap-start md:min-w-0 md:shrink md:snap-none"
                     >
                       {/* Offer badge */}
                       {offerProductIds.has(product.id) && (
@@ -384,6 +386,12 @@ export function StoreDetailScreen() {
                   );
                 })}
             </div>
+          )}
+          {/* Horizontal scroll hint — visible only on mobile when there are multiple products */}
+          {products.filter(p => p.isAvailable).length > 1 && (
+            <p className="mt-2 text-center text-[10px] text-ink-muted md:hidden">
+              {t('اسحب لليمين للتصفح', 'Swipe to browse')}
+            </p>
           )}
         </div>
 

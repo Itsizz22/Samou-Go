@@ -290,6 +290,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [baseStoreRate, setBaseStoreRate] = useState('10');
   const [captainRate, setCaptainRate] = useState('0');
   const [isDriverDynamicFeeEnabled, setIsDriverDynamicFeeEnabled] = useState(false);
+  const [enableDeliveryZones, setEnableDeliveryZones] = useState(false);
   const [requireOtpForSensitiveActions, setRequireOtpForSensitiveActions] = useState(false);
   const [whatsappSupportNumber, setWhatsappSupportNumber] = useState('');
   const [name, setName] = useState(auth.user?.name ?? '');
@@ -309,6 +310,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
         setBaseStoreRate(String(Math.round(settings.storeCommissionRate * 100)));
         setCaptainRate(String(settings.captainDeliveryRate));
         setIsDriverDynamicFeeEnabled(settings.isDriverDynamicFeeEnabled);
+        setEnableDeliveryZones(settings.enableDeliveryZones);
         setRequireOtpForSensitiveActions(settings.requireOtpForSensitiveActions);
         setWhatsappSupportNumber(settings.whatsappSupportNumber ?? '');
       })
@@ -332,7 +334,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
       return;
     }
     try {
-      await updatePlatformSettings({ autoAssign, captainDeliveryRate, storeCommissionRate, isDriverDynamicFeeEnabled, requireOtpForSensitiveActions, whatsappSupportNumber: whatsappSupportNumber.trim() || null });
+      await updatePlatformSettings({ autoAssign, captainDeliveryRate, storeCommissionRate, isDriverDynamicFeeEnabled, enableDeliveryZones, requireOtpForSensitiveActions, whatsappSupportNumber: whatsappSupportNumber.trim() || null });
       toast.success('تم حفظ إعدادات النظام على الخادم', 'System settings saved on the server');
     } catch (cause) {
       toast.error('تعذّر حفظ الإعدادات', cause instanceof Error ? cause.message : 'Save failed');
@@ -400,6 +402,21 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
           </label>
           <p className="mt-1 text-[11px] text-ink-muted">
             {t('عند التفعيل، يحدد السائق رسوم التوصيل يدوياً عند قبول الطلب', 'When enabled, the driver manually sets the delivery fee upon accepting an order')}
+          </p>
+          <label className="mt-3 flex items-center justify-between gap-3 text-sm font-bold">
+            <span>{t('تفعيل نظام مناطق التوصيل التلقائي', 'Enable automated delivery zones')}</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={enableDeliveryZones}
+              onClick={() => setEnableDeliveryZones(value => !value)}
+              className={`flex h-7 w-12 items-center rounded-full p-1 bg-surface transition-colors ${enableDeliveryZones ? 'justify-end bg-brand' : 'justify-start bg-line'}`}
+            >
+              <span className="h-5 w-5 rounded-full bg-white" />
+            </button>
+          </label>
+          <p className="mt-1 text-[11px] text-ink-muted">
+            {t('عند التفعيل، يمكن للكابتن اختيار منطقة التوصيل من القائمة. عند التعطيل، يُحدد السائق الرسوم يدوياً', 'When enabled, captains select delivery zones from a list. When disabled, captains set the fee manually')}
           </p>
           <label className="mt-3 flex items-center justify-between gap-3 text-sm font-bold">
             <span>{t('طلب التحقق OTP للإجراءات الحساسة', 'Require OTP for sensitive actions')}</span>

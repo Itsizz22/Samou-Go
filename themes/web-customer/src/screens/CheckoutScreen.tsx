@@ -26,7 +26,7 @@ import {
   Ticket,
 } from 'lucide-react';
 import type { ApiError } from '@samou-go/api-client';
-import { createOrder, checkoutOrders, quoteOrder } from '@/hooks/useApi';
+import { createOrder, checkoutOrders, quoteOrder, getPlatformSettings } from '@/hooks/useApi';
 import { OrderSuccess, Button, useLanguage } from '@samou-go/ui';
 import { useCart } from '@/components/CartProvider';
 import { MapPicker } from '@/components/MapPicker';
@@ -111,6 +111,8 @@ export function CheckoutScreen() {
   /** Re-fetches the live quote — bumped when a stale-basket error is caught. */
   const [quoteRevision, setQuoteRevision] = useState(0);
   /** Platform settings — used to check if dynamic driver fee is enabled. */
+  /** Whether automated delivery zones are enabled (controls region selector visibility). */
+  const [zonesEnabled, setZonesEnabled] = useState(false);
   /**
    * Belt-and-suspenders against double-submit. The button is also disabled
    * while `placing`, but `disabled` cannot protect against two rapid taps that
@@ -135,6 +137,17 @@ export function CheckoutScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved.length]);
+
+  // Fetch delivery zone setting to control region selector visibility.
+  useEffect(() => {
+    let cancelled = false;
+    getPlatformSettings()
+      .then((settings) => {
+        if (!cancelled) setZonesEnabled(settings.enableDeliveryZones);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   // Live quote — re-priced whenever the basket, the voucher, or the session
   // changes shape. The voucher is only sent to the server once the customer
@@ -478,6 +491,7 @@ export function CheckoutScreen() {
                   className="input-field mt-1.5 w-full"
                 />
               </label>
+              {zonesEnabled && (
               <label className="block">
                 <span className="text-[11px] font-bold text-ink-muted">{t('منطقة التوصيل', 'Delivery region')}</span>
                 <select
@@ -491,6 +505,7 @@ export function CheckoutScreen() {
                   <option value="remote">{t('منطقة بعيدة', 'Remote area')}</option>
                 </select>
               </label>
+              )}
               <label className="block">
                 <span className="text-[11px] font-bold text-ink-muted">ملاحظات إضافية</span>
                 <input

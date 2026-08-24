@@ -21,6 +21,7 @@ import {
   Plus,
   RefreshCw,
   Trash2,
+  Upload,
   X,
 } from 'lucide-react';
 import {
@@ -82,6 +83,9 @@ export function CategoriesPanel({ storeId }: Props) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (modal) setTimeout(() => firstInputRef.current?.focus(), 60);
@@ -89,9 +93,10 @@ export function CategoriesPanel({ storeId }: Props) {
 
   const openCreate = () => {
     setEditTarget(null);
-    // New sections append at the end of the current menu order.
     setForm({ ...emptyForm(), sortOrder: String(Math.max(0, ...categories.map(c => c.sortOrder)) + 1) });
     setFormError(null);
+    setImagePreview(null);
+    setImageFile(null);
     setModal('create');
   };
 
@@ -99,6 +104,8 @@ export function CategoriesPanel({ storeId }: Props) {
     setEditTarget(c);
     setForm(formFromCategory(c));
     setFormError(null);
+    setImagePreview(c.imageUrl ?? null);
+    setImageFile(null);
     setModal('edit');
   };
 
@@ -106,6 +113,30 @@ export function CategoriesPanel({ storeId }: Props) {
     setModal(null);
     setEditTarget(null);
     setFormError(null);
+    setImagePreview(null);
+    setImageFile(null);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Validate file type
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      setFormError(t('يرجى اختيار صورة JPEG أو PNG أو WebP', 'Please select a JPEG, PNG, or WebP image'));
+      return;
+    }
+    // Validate file size (2MB max)
+    if (file.size > 2 * 1024 * 1024) {
+      setFormError(t('حجم الصورة يجب أن يكون أقل من 2 ميغابايت', 'Image size must be under 2MB'));
+      return;
+    }
+    setImageFile(file);
+    setFormError(null);
+    // Create preview URL
+    const reader = new FileReader();
+    reader.onload = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
   };
 
   /* ---- Save (create / update) ------------------------------------------- */
@@ -122,11 +153,23 @@ export function CategoriesPanel({ storeId }: Props) {
     setFormError(null);
 
     try {
+      // If a new file was selected, upload it first to get a URL.
+      let finalImageUrl = form.imageUrl.trim() || undefined;
+      if (imageFile) {
+        const { presignUpload, uploadRawFile, finalizeUpload } = await import('@samou-go/api-client');
+        const { compressImage } = await import('@samou-go/api-client');
+        const compressed = await compressImage(imageFile);
+        const presign = await presignUpload({ kind: 'category', resourceId: editTarget?.id ?? 'new', purpose: 'image', contentType: compressed.type || imageFile.type });
+        await uploadRawFile(presign.key, compressed);
+        const finalized = await finalizeUpload(presign.key, 'category');
+        finalImageUrl = finalized.url;
+      }
+
       if (modal === 'create') {
         await createCategory(storeId, {
           nameAr,
           nameEn: form.nameEn.trim() || undefined,
-          imageUrl: form.imageUrl.trim() || undefined,
+          imageUrl: finalImageUrl,
           sortOrder,
         });
         toast.success('تم إنشاء القسم', 'Section created');
@@ -134,7 +177,7 @@ export function CategoriesPanel({ storeId }: Props) {
         await updateCategory(storeId, editTarget.id, {
           nameAr,
           nameEn: form.nameEn.trim() || undefined,
-          imageUrl: form.imageUrl.trim() || null,
+          imageUrl: finalImageUrl ?? null,
           sortOrder,
         });
         toast.success('تم تحديث القسم', 'Section updated');
@@ -279,7 +322,7 @@ export function CategoriesPanel({ storeId }: Props) {
 
       {/* Section list */}
       {!catalogue.loading && categories.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+        <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-card" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin' }}>
           <table className="w-full text-sm">
             <thead className="bg-canvas text-micro font-bold uppercase tracking-wide text-ink-muted">
               <tr>
@@ -428,30 +471,46 @@ export function CategoriesPanel({ storeId }: Props) {
                 </span>
               </label>
 
-              {/* Image URL */}
+              {/* Image upload */}
               <label className="block">
                 <span className="mb-1 block text-xs font-bold text-ink">
-                  {t('رابط صورة القسم', 'Section image URL')} <span className="font-normal text-ink-muted">({t('اختياري', 'optional')})</span>
+                  {t('صورة القسم', 'Section image')} <span className="font-normal text-ink-muted">({t('اختياري', 'optional')})</span>
                 </span>
                 <input
-                  type="url"
-                  value={form.imageUrl}
-                  onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))}
-                  placeholder="https://example.com/image.jpg"
-                  dir="ltr"
-                  className="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleFileSelect}
+                  className="hidden"
                 />
-                <span className="mt-1 block text-[11px] text-ink-muted">
-                  {t('رابط صورة للقسم تظهر للعملاء.', 'An image URL that customers will see for this section.')}
-                </span>
-                {form.imageUrl.trim() && (
-                  <img
-                    src={form.imageUrl.trim()}
-                    alt={t('معاينة الصورة', 'Image preview')}
-                    className="mt-2 h-16 w-16 rounded-xl object-cover"
-                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
+                {imagePreview ? (
+                  <div className="relative mt-1">
+                    <img
+                      src={imagePreview}
+                      alt={t('معاينة الصورة', 'Image preview')}
+                      className="h-20 w-20 rounded-xl object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setImagePreview(null); setImageFile(null); setForm(f => ({ ...f, imageUrl: '' })); }}
+                      className="absolute -top-2 -start-2 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line bg-canvas px-4 py-6 text-ink-muted transition hover:border-brand hover:bg-brand-surface"
+                  >
+                    <Upload size={18} />
+                    <span className="text-xs font-bold">{t('اختر صورة', 'Choose image')}</span>
+                  </button>
                 )}
+                <span className="mt-1 block text-[11px] text-ink-muted">
+                  {t('JPEG أو PNG أو WebP — حد أقصى 2 ميغابايت', 'JPEG, PNG, or WebP — max 2MB')}
+                </span>
               </label>
 
               {/* Sort order */}
