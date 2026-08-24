@@ -371,8 +371,8 @@ export async function adminCreateCaptain(body: AdminCreateCaptainBody): Promise<
 }
 
 /* ---------------------------------------------------------------------------
- * Admin deletion — soft delete everywhere, with a hard-delete attempt for
- * drivers whose profile data can be removed without breaking the audit trail.
+ * Admin deactivation — soft-delete only. Never hard-delete:
+ * order history, ratings, and chat messages form an audit trail that must be preserved.
  * ------------------------------------------------------------------------- */
 
 /**
@@ -405,11 +405,10 @@ export async function adminDeleteStore(storeId: string): Promise<{ removed: bool
 }
 
 /**
- * DELETE /admin/drivers/:id — removes the captain and their profile data.
- * Tries a hard delete first (captain location, refresh tokens, favorites and
- * wallets cascade). Falls back to a deactivation + profile clear when referential
- * history (chat messages, ratings) blocks removal — the account is then
- * unusable, offline, and unassigned.
+ * DELETE /admin/drivers/:id — soft-deactivates the captain.
+ * Sets isActive=false, isAvailable=false, clears their dedicated store
+ * assignment, removes their location data, and revokes all sessions.
+ * The account can be re-activated later from the admin dashboard.
  */
 export async function adminDeleteDriver(userId: string): Promise<{ removed: boolean }> {
   const driver = await prisma.user.findUnique({ where: { id: userId } });
@@ -418,17 +417,10 @@ export async function adminDeleteDriver(userId: string): Promise<{ removed: bool
     throw unprocessable('NOT_A_CAPTAIN', 'المستخدم ليس سائق توصيل / User is not a driver');
   }
 
-  try {
-    await prisma.user.delete({ where: { id: userId } });
-    return { removed: true };
-  } catch (cause) {
-    // P2003 = foreign-key constraint (orders/chat/rating history that must not
-    // be destroyed). Deactivate instead of breaking the audit trail.
-    if (!(cause instanceof Error) || !('code' in cause) || (cause as { code?: string }).code !== 'P2003') {
-      throw cause;
-    }
-  }
-
+  // Always soft-deactivate — never hard-delete. The captain may have order
+  // history, ratings, or chat messages that form an audit trail. Setting
+  // isActive=false blocks login and dispatch immediately; the admin can
+  // re-activate later from the dashboard.
   await prisma.$transaction([
     prisma.user.update({
       where: { id: userId },
