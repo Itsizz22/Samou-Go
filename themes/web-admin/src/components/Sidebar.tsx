@@ -64,8 +64,8 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
           <ShoppingBag size={22} strokeWidth={2.6} />
         </span>
         <span>
-          <strong className="block text-[18px] tracking-[-0.03em]">Samou' Go</strong>
-          <span className="block text-micro font-medium text-white/70">السموع جو · ADMIN</span>
+          <strong className="block text-[18px] tracking-[-0.03em]">Samou Quick</strong>
+          <span className="block text-micro font-medium text-white/70">Samou Quick · ADMIN</span>
         </span>
         <button
           type="button"

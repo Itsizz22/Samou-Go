@@ -18,9 +18,9 @@ const envSchema = z.object({
   JWT_SECRET: z
     .string()
     .min(32, 'JWT_SECRET must be at least 32 characters. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'base64url\'))"'),
-  /** Access-token lifetime. Legacy name kept for compatibility with existing `.env`s. */
-  JWT_EXPIRES_IN: z.string().default('7d'),
-  /** Overrides `JWT_EXPIRES_IN` for the access token — prefer a short value (e.g. 15m) in production. */
+  /** Access-token lifetime. Default 15 minutes; override with JWT_ACCESS_EXPIRES_IN. */
+  JWT_EXPIRES_IN: z.string().default('15m'),
+  /** Overrides `JWT_EXPIRES_IN` for the access token. */
   JWT_ACCESS_EXPIRES_IN: z.string().optional(),
   /** Refresh-token lifetime. Rotated on use; stored hashed. */
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),

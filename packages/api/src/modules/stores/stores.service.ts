@@ -47,6 +47,74 @@ function canSeeInactiveStores(auth: JwtPayload | null): boolean {
 }
 
 /* ---------------------------------------------------------------------------
+ * Smart Store Badges
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Compute badges for a batch of stores:
+ * - badge_popular: highest completed order count in last 30 days
+ * - badge_fast: average prep time under 20 minutes
+ * - badge_has_offers: has at least one active standalone offer
+ */
+async function computeStoreBadges(storeIds: string[]): Promise<Map<string, string[]>> {
+  if (storeIds.length === 0) return new Map();
+
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const [completedOrders, avgPrepTimes, activeOffers] = await Promise.all([
+    // Count completed orders per store in last 30 days
+    prisma.order.groupBy({
+      by: ['storeId'],
+      where: {
+        storeId: { in: storeIds },
+        status: 'DELIVERED',
+        createdAt: { gte: thirtyDaysAgo },
+      },
+      _count: { id: true },
+    }),
+    // Average estimated prep time per store
+    prisma.order.groupBy({
+      by: ['storeId'],
+      where: {
+        storeId: { in: storeIds },
+        estimatedPrepMinutes: { not: null },
+        createdAt: { gte: thirtyDaysAgo },
+      },
+      _avg: { estimatedPrepMinutes: true },
+    }),
+    // Stores with at least one active standalone offer (price > 0)
+    prisma.offer.groupBy({
+      by: ['storeId'],
+      where: {
+        storeId: { in: storeIds },
+        isActive: true,
+        // @ts-expect-error stale Prisma client — Offer.price
+        price: { gt: 0 },
+      },
+    }),
+  ]);
+
+  // Find the max order count to determine "popular"
+  const maxOrders = Math.max(0, ...completedOrders.map(r => r._count.id));
+  const popularThreshold = Math.max(5, maxOrders * 0.7); // at least 5 orders or top 30%
+
+  const orderCountMap = new Map(completedOrders.map(r => [r.storeId, r._count.id]));
+  const prepTimeMap = new Map(avgPrepTimes.map(r => [r.storeId, r._avg.estimatedPrepMinutes]));
+  const offersSet = new Set(activeOffers.map(r => r.storeId));
+
+  const result = new Map<string, string[]>();
+  for (const id of storeIds) {
+    const badges: string[] = [];
+    if ((orderCountMap.get(id) ?? 0) >= popularThreshold) badges.push('badge_popular');
+    if ((prepTimeMap.get(id) ?? 999) < 20) badges.push('badge_fast');
+    if (offersSet.has(id)) badges.push('badge_has_offers');
+    result.set(id, badges);
+  }
+  return result;
+}
+
+/* ---------------------------------------------------------------------------
  * Public reads
  * ------------------------------------------------------------------------- */
 
@@ -86,7 +154,16 @@ export async function listStores(
     prisma.store.count({ where }),
   ]);
 
-  return paginate(rows.map(toStore), total, query.page, query.pageSize);
+  // Compute smart badges for each store (only for customer-facing lists).
+  const storeIds = rows.map(r => r.id);
+  const badgesMap = await computeStoreBadges(storeIds);
+
+  return paginate(
+    rows.map(r => ({ ...toStore(r), badges: badgesMap.get(r.id) ?? [] })),
+    total,
+    query.page,
+    query.pageSize,
+  );
 }
 
 /**

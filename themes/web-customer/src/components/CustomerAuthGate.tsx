@@ -52,7 +52,7 @@ export function CustomerAuthGate({
             <ShoppingCart size={26} strokeWidth={2.5} />
           </span>
           <p className="text-lg font-extrabold tracking-tight" dir="ltr">
-            Samou' Go
+            Samou Quick
           </p>
         </div>
 

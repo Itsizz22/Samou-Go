@@ -2,8 +2,8 @@ import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'rea
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Loader2, MapPin, X } from 'lucide-react';
 import { UserRole, type UserRole as UserRoleValue } from '@samou-go/shared-types';
-import { useLanguage } from '@samou-go/ui';
-import { updateMyLocation } from '@samou-go/api-client';
+import { useLanguage, OfflineBanner } from '@samou-go/ui';
+import { updateMyLocation, usePlatformSettings } from '@samou-go/api-client';
 import { SamouGoHome } from './components/generated/SamouGoHome';
 import { OrdersScreen } from './screens/OrdersScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
@@ -15,6 +15,7 @@ import { CartScreen } from './screens/CartScreen';
 import { CheckoutScreen } from './screens/CheckoutScreen';
 import { OrderTrackingScreen } from './screens/OrderTrackingScreen';
 import { CustomRequestsScreen } from './screens/CustomRequestsScreen';
+import { OffersScreen } from './screens/OffersScreen';
 import { ForgotPasswordScreen, LoginScreen, RegisterScreen } from './screens/AuthScreens';
 
 import { BootScreen } from './components/BootScreen';
@@ -107,6 +108,8 @@ function App() {
   // is signed out by the gate instead of rendering a wrong-role UI.
   const auth = useAuth();
   const [splashElapsed, setSplashElapsed] = useState(false);
+  const platformSettings = usePlatformSettings();
+  const gpsCaptureEnabled = platformSettings.data?.gpsCaptureEnabled ?? false;
 
   // Expose navigate globally so Capacitor push-notification listeners can
   // open the order tracking screen without a full page reload.
@@ -138,9 +141,12 @@ function App() {
   return (
     <ThemeProvider>
       <NavigationDrawerProvider>
+        <OfflineBanner />
         <StartupRoutes auth={auth} />
         <NavigationDrawer />
-        <CustomerLocationPrompt auth={auth} />
+        {gpsCaptureEnabled && auth.user?.role === UserRole.CUSTOMER && (
+          <CustomerLocationPrompt auth={auth} />
+        )}
       </NavigationDrawerProvider>
     </ThemeProvider>
   );
@@ -201,6 +207,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
       <Route path="/orders/:orderId" element={<ProtectedRoute auth={auth}><OrderTrackingScreen /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute auth={auth}><ProfileScreen /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute auth={auth}><SettingsScreen /></ProtectedRoute>} />
+      <Route path="/offers" element={<ProtectedRoute auth={auth}><OffersScreen /></ProtectedRoute>} />
       <Route path="/favorites" element={<ProtectedRoute auth={auth}><FavoritesScreen /></ProtectedRoute>} />
       <Route path="/search" element={<ProtectedRoute auth={auth}><SearchScreen /></ProtectedRoute>} />
       <Route path="/custom-requests" element={<ProtectedRoute auth={auth}><CustomRequestsScreen /></ProtectedRoute>} />

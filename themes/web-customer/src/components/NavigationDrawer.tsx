@@ -32,14 +32,13 @@ import {
   Palette,
   Search,
   Settings,
-  ShoppingCart,
   Store,
   Sun,
   Truck,
   UserRound,
   X,
 } from 'lucide-react';
-import { LanguageToggle, useLanguage } from '@samou-go/ui';
+import { BrandLogo, LanguageToggle, useLanguage } from '@samou-go/ui';
 import { useAuth } from '@/hooks/useApi';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ACCENT_OPTIONS } from '@/theme/presets';
@@ -160,11 +159,9 @@ export function NavigationDrawer() {
             {/* Brand + close */}
             <header className="flex items-center justify-between bg-brand px-5 py-5 text-white safe-top">
               <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
-                  <ShoppingCart size={18} />
-                </span>
+                <BrandLogo size={36} />
                 <div className="leading-tight">
-                  <p className="text-sm font-extrabold">Samou' Go</p>
+                  <p className="text-sm font-extrabold">Samou Quick</p>
                   <p className="text-micro text-white/80">{t('القائمة', 'Menu')}</p>
                 </div>
               </div>

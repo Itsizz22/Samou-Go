@@ -16,6 +16,7 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { globalNavigate } from './globalNavigate';
 import { createLoopingAlert } from '@samou-go/ui';
+import { stopOrderAlarm } from './orderAlarm';
 
 /** API base URL — same origin in production, localhost in dev. */
 const API_BASE: string = (
@@ -94,6 +95,9 @@ export async function registerForPushNotifications(accessToken: string): Promise
     // Step 6: Handle notification taps (app opened from background).
     PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
       console.log('[push] Notification tapped:', action);
+      // Stop the native alarm service — the app is now in the foreground
+      // and JS-based looping alert will take over if needed.
+      stopOrderAlarm().catch(() => {});
       const data = action.notification.data;
       if (data?.orderId) {
         // Navigate via SPA router only — never fall back to window.location.href

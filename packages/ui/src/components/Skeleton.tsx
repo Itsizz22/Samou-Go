@@ -23,7 +23,7 @@ export function Skeleton({ shape = 'block', className, ...rest }: SkeletonProps)
   return (
     <div
       aria-hidden="true"
-      className={cn('skeleton', SHAPE_CLASS[shape], className)}
+      className={cn('skeleton skeleton-shimmer', SHAPE_CLASS[shape], className)}
       {...rest}
     />
   );

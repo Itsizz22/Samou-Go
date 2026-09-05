@@ -48,9 +48,12 @@ import {
   useRoleRedirect,
   useStoreManager,
   useToast,
+  usePlatformSettings,
 } from '@samou-go/api-client';
 import { useAuth } from '@/hooks/useApi';
-import { createLoopingAlert } from '@samou-go/ui';
+import { createLoopingAlert, AccountStatement } from '@samou-go/ui';
+import { getWalletStatement } from '@samou-go/api-client';
+import { stopOrderAlarm } from '@/lib/orderAlarm';
 import {
   LanguageToggle,
   NotificationBell,
@@ -116,6 +119,7 @@ const BOTTOM_TABS = [
   { id: 'offers', icon: Megaphone, ar: 'العروض', en: 'Offers' },
   { id: 'settings', icon: Settings, ar: 'إعدادات المتجر', en: 'Settings' },
   { id: 'custom-requests', icon: ClipboardList, ar: 'طلبات مخصصة', en: 'Requests' },
+  { id: 'statement', icon: BarChart3, ar: 'كشف حساب', en: 'Statement' },
 ] as const;
 
 /* ---------------------------------------------------------------------------
@@ -145,6 +149,8 @@ export function SamouGoStoreManager() {
   });
   const managedStoreId: string | null = managedStores.data?.[0]?.id ?? null;
   const managedStore = useStoreManager(managedStoreId, { enabled: isManager });
+  const platformSettings = usePlatformSettings();
+  const gpsCaptureEnabled = platformSettings.data?.gpsCaptureEnabled ?? false;
 
   const [storeStatus, setStoreStatus] = useState<StoreStatus>(StoreStatus.OPEN);
   const [prepMinutes, setPrepMinutes] = useState(25);
@@ -262,7 +268,7 @@ export function SamouGoStoreManager() {
   }, [incomingItems, incoming.loading, isManager, auth.user]);
 
   // Stop the looping alert when any order action is taken (accept, reject, etc.).
-  const stopAlert = useCallback(() => { stopAlertRef.current?.(); stopAlertRef.current = null; }, []);
+  const stopAlert = useCallback(() => { stopAlertRef.current?.(); stopAlertRef.current = null; stopOrderAlarm().catch(() => {}); }, []);
   const inbox: OrderSummary[] = useMemo(
     // Kitchen inbox in lifecycle order: PENDING first (needs a decision),
     // then ACCEPTED (start cooking), PREPARING (in progress), READY_FOR_PICKUP
@@ -323,6 +329,8 @@ export function SamouGoStoreManager() {
     void runTransition(orderId, OrderStatus.PREPARING, 'بدأ التحضير', 'Preparation started');
   const handleReadyForPickup = (orderId: string) =>
     void runTransition(orderId, OrderStatus.READY_FOR_PICKUP, 'الطلب جاهز للاستلام', 'Order ready for pickup');
+  const handleMarkDelivered = (orderId: string) =>
+    void runTransition(orderId, OrderStatus.DELIVERED, 'تم التسليم للزبون', 'Delivered to customer');
   const handleReject = (orderId: string) => {
     stopAlert();
     void runTransition(orderId, OrderStatus.CANCELLED, 'تم رفض الطلب', 'Order rejected');
@@ -398,7 +406,7 @@ export function SamouGoStoreManager() {
   return (
     <main className="min-h-screen bg-canvas pb-24 font-sans text-ink md:pr-60">
       <aside className="fixed inset-y-0 right-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل مدير المتجر">
-        <p className="px-3 text-lg font-extrabold">Samou' Go</p>
+        <p className="px-3 text-lg font-extrabold">Samou Quick</p>
         <p className="px-3 text-[11px] text-white/70">مدير المتجر</p>
         <nav className="mt-8 flex-1 space-y-1">
           {BOTTOM_TABS.map((tab) => {
@@ -486,12 +494,8 @@ export function SamouGoStoreManager() {
         </div>
       </header>
 
-      {managedStore.data && (
-        <StoreLocationPrompt
-          store={managedStore.data}
-          storeId={managedStoreId}
-          onSaved={() => void managedStore.reload()}
-        />
+      {gpsCaptureEnabled && managedStore.data && !managedStore.data.latitude && (
+        <StoreLocationPrompt store={managedStore.data} storeId={managedStore.data.id} onSaved={() => managedStore.refresh()} />
       )}
 
       {managedStore.data?.dedicatedCaptains && (
@@ -529,7 +533,7 @@ export function SamouGoStoreManager() {
 
       {/* KPIs */}
       <section className="mx-auto max-w-md px-4 pt-5" aria-label="ملخص الأداء">
-        <div className="flex gap-3 overflow-x-auto pb-1">
+        <div className="scrollbar-none flex gap-3 overflow-x-auto overflow-y-hidden pb-1" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
           <KpiTile
             icon={<span className="text-lg">₪</span>}
             labelAr="الطلبات النشطة"
@@ -636,6 +640,7 @@ export function SamouGoStoreManager() {
                     onAccept={() => handleAccept(order.id)}
                     onStartPreparing={() => handleStartPreparing(order.id)}
                     onReadyForPickup={() => handleReadyForPickup(order.id)}
+                    onMarkDelivered={() => handleMarkDelivered(order.id)}
                     onReject={() => handleReject(order.id)}
                   />
                 ))}
@@ -741,6 +746,7 @@ export function SamouGoStoreManager() {
                   onAccept={() => handleAccept(order.id)}
                   onStartPreparing={() => handleStartPreparing(order.id)}
                   onReadyForPickup={() => handleReadyForPickup(order.id)}
+                  onMarkDelivered={() => handleMarkDelivered(order.id)}
                   onReject={() => handleReject(order.id)}
                 />
               ))}
@@ -857,6 +863,13 @@ export function SamouGoStoreManager() {
       {/* Custom requests tab */}
       {activeTab === 'custom-requests' && managedStoreId && <CustomRequestsPanel storeId={managedStoreId} />}
 
+      {activeTab === 'statement' && (
+        <section className="mx-auto max-w-md px-4 pt-5">
+          <h2 className="mb-3 text-lg font-extrabold">{t('كشف حساب', 'Account Statement')}</h2>
+          <StoreStatement />
+        </section>
+      )}
+
       {activeTab === 'settings' && (
         <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="profile-tab-title">
           <div className="mb-5">
@@ -959,10 +972,11 @@ interface OrderRowProps {
   onAccept: () => void;
   onStartPreparing: () => void;
   onReadyForPickup: () => void;
+  onMarkDelivered: () => void;
   onReject: () => void;
 }
 
-function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup, onReject }: OrderRowProps) {
+function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup, onMarkDelivered, onReject }: OrderRowProps) {
   const { t } = useLanguage();
   const time = relativeTime(order.createdAt);
   const itemCount = order.itemCount;
@@ -986,6 +1000,11 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
         return { labelAr: 'بدء التحضير', labelEn: 'Start Cooking', icon: UtensilsCrossed, handler: onStartPreparing, color: 'bg-warning hover:bg-warning-dark focus:ring-warning/40 text-white' };
       case OrderStatus.PREPARING:
         return { labelAr: 'جاهز للاستلام', labelEn: 'Mark Ready', icon: PackageCheck, handler: onReadyForPickup, color: 'bg-info hover:bg-info-dark focus:ring-info/40 text-white' };
+      case OrderStatus.READY_FOR_PICKUP:
+        if (order.fulfillmentType === 'PICKUP') {
+          return { labelAr: 'تم التسليم للزبون', labelEn: 'Delivered', icon: Check, handler: onMarkDelivered, color: 'bg-success hover:bg-success-dark focus:ring-success/40 text-white' };
+        }
+        return null;
       default:
         return null;
     }
@@ -1061,8 +1080,14 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
         )}
       </div>
 
-      {/* READY_FOR_PICKUP: informational — captain is expected to claim it */}
-      {order.status === OrderStatus.READY_FOR_PICKUP && (
+      {/* READY_FOR_PICKUP: show pickup or delivery status */}
+      {order.status === OrderStatus.READY_FOR_PICKUP && order.fulfillmentType === 'PICKUP' && (
+        <p className="mb-2 flex items-center gap-1.5 rounded-xl bg-success-tint px-3 py-2 text-[11px] font-semibold text-success-ink">
+          <PackageCheck size={14} className="shrink-0" />
+          <span>{t('جاهز للاستلام من الفرع — في انتظار الزبون', 'Ready for customer pickup')}</span>
+        </p>
+      )}
+      {order.status === OrderStatus.READY_FOR_PICKUP && order.fulfillmentType !== 'PICKUP' && (
         <p className="mb-2 flex items-center gap-1.5 rounded-xl bg-info-tint px-3 py-2 text-[11px] font-semibold text-info-ink">
           <ChevronRight size={14} className="shrink-0 rtl:rotate-180" />
           <span>{t('جاهز — بانتظار كابتن التوصيل', 'Waiting for a captain')}</span>
@@ -1242,5 +1267,54 @@ function StoreLocationPrompt({
         </div>
       </div>
     </section>
+  );
+}
+
+/** Store manager's account statement — shows ledger entries with balance. */
+function StoreStatement() {
+  const { t } = useLanguage();
+  const [page, setPage] = useState(1);
+  const [data, setData] = useState<{ balance: number; entries: Array<{ id: string; amount: number; type: string; description: string | null; createdAt: string }>; total: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  const load = (p: number) => {
+    setLoading(true);
+    getWalletStatement(p)
+      .then((d) => { setData(d); setLoaded(true); })
+      .catch(() => {})
+      .finally(() => { setLoading(false); });
+  };
+
+  return (
+    <>
+      {!loaded && !loading && (
+        <button
+          type="button"
+          onClick={() => load(1)}
+          className="rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white active:scale-95"
+        >
+          {t('عرض كشف الحساب', 'View Statement')}
+        </button>
+      )}
+      {loading && (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="skeleton h-16 rounded-xl" />
+          ))}
+        </div>
+      )}
+      {data && (
+        <AccountStatement
+          balance={data.balance}
+          entries={data.entries}
+          total={data.total}
+          loading={false}
+          currentPage={page}
+          onPageChange={(p) => { setPage(p); load(p); }}
+          ownerLabel="store"
+        />
+      )}
+    </>
   );
 }

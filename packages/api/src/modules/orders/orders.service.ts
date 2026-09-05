@@ -148,7 +148,7 @@ async function resolveVoucher(db: OrderDb, code: string, subtotal: number): Prom
 async function priceBasket(
   db: OrderDb,
   storeId: string,
-  items: readonly { productId: string; quantity: number }[]
+  items: readonly { productId: string; quantity: number; isOfferItem?: boolean; offerId?: string; offerTitle?: string }[]
 ): Promise<PricedLine[]> {
   const store = await db.store.findUnique({
     where: { id: storeId },
@@ -166,9 +166,21 @@ async function priceBasket(
     throw unprocessable('STORE_NOT_APPROVED', 'المتجر غير معتمد بعد / This store is not approved yet');
   }
 
-  const merged = new Map<string, number>();
+  // Collect offer IDs for standalone offer items.
+  const offerIds = items.filter(it => it.isOfferItem && it.offerId).map(it => it.offerId!);
+  const offers = offerIds.length > 0
+    ? ((await db.offer.findMany({ where: { id: { in: offerIds }, storeId, isActive: true }, select: { id: true, titleAr: true } } as any)) as any) as any
+    : [];
+  const offerById = new Map<string, any>(offers.map((o: any) => [o.id, o]));
+
+  const merged = new Map<string, { quantity: number; offerItem?: typeof items[number] }>();
   for (const item of items) {
-    merged.set(item.productId, (merged.get(item.productId) ?? 0) + item.quantity);
+    const existing = merged.get(item.productId);
+    if (existing) {
+      existing.quantity += item.quantity;
+    } else {
+      merged.set(item.productId, { quantity: item.quantity, offerItem: item });
+    }
   }
 
   const products = await db.product.findMany({
@@ -179,7 +191,19 @@ async function priceBasket(
   const byId = new Map(products.map(product => [product.id, product]));
 
   const lines: PricedLine[] = [];
-  for (const [productId, quantity] of merged) {
+  for (const [productId, { quantity, offerItem }] of merged) {
+    // For standalone offer items, use the offer's DB price.
+    if (offerItem?.isOfferItem && offerItem.offerId) {
+      const offer = offerById.get(offerItem.offerId!) as any;
+      if (!offer || !(offer as any).price) {
+        throw unprocessable(
+          'OFFER_NOT_FOUND',
+          `العرض غير موجود أو بدون سعر / Offer not found or has no price: ${offerItem.offerId}`
+        );
+      }
+      lines.push({ productId, quantity, unitPrice: Number((offer as any).price) });
+      continue;
+    }
     const product = byId.get(productId);
     if (!product) {
       throw unprocessable(
@@ -292,12 +316,13 @@ export async function createOrder(
       }
     }
 
-    const order = await tx.order.create({
+        const order = await tx.order.create({
       data: {
         orderNumber: formatOrderNumber(now, sequence.sequence),
         customerId,
         storeId: body.storeId,
         status: OrderStatus.PENDING,
+        fulfillmentType: body.fulfillmentType ?? 'DELIVERY',
         customerAddressText: body.customerAddressText,
         addressNote: body.addressNote ?? null,
         orderNote: body.orderNote ?? null,
@@ -305,12 +330,17 @@ export async function createOrder(
         latitude: body.latitude ?? null,
         longitude: body.longitude ?? null,
         subtotal: totals.subtotal,
-        deliveryFee: totals.deliveryFee,
+        // PICKUP orders have no delivery fee and no delivery PIN.
+        deliveryFee: body.fulfillmentType === 'PICKUP' ? 0 : totals.deliveryFee,
         discount,
-        totalAmount: roundMoney(totals.totalAmount - discount),
+        totalAmount: body.fulfillmentType === 'PICKUP'
+          ? roundMoney(totals.subtotal - discount)
+          : roundMoney(totals.totalAmount - discount),
         voucherId: voucher?.id ?? null,
         paymentMethod: PaymentMethod.COD,
-        deliveryPin: generateDeliveryPin(),
+        deliveryPin: body.fulfillmentType === 'PICKUP' ? null : generateDeliveryPin(),
+        voiceNoteUrl: (body as any).voiceNoteUrl ?? null,
+        voiceNoteDuration: (body as any).voiceNoteDuration ?? null,
         items: {
           create: lines.map(line => {
             const itemSource = body.items.find((it: CreateOrderBody['items'][number]) => it.productId === line.productId);
@@ -320,6 +350,9 @@ export async function createOrder(
               unitPrice: line.unitPrice,
               totalPrice: lineTotal(line.unitPrice, line.quantity),
               note: itemSource?.note ?? null,
+              isOfferItem: itemSource?.isOfferItem ?? false,
+              offerTitle: itemSource?.offerTitle ?? null,
+              offerId: itemSource?.offerId ?? null,
               // Append modifier summary to note if present, for display in order detail
               ...(itemSource?.modifiers
                 ? itemSource?.note
@@ -336,9 +369,10 @@ export async function createOrder(
             note: 'تم إنشاء الطلب / Order created',
           },
         },
-      },
+      } as any,
       include: DETAIL_INCLUDE,
-    });    return toOrderDetail(order, 'CUSTOMER');
+    });
+    return toOrderDetail(order as any, 'CUSTOMER');
   });
 }
 
@@ -415,6 +449,7 @@ export async function createCheckoutOrders(
           storeId: storeGroup.storeId,
           cartCheckoutId: checkoutId,
           status: OrderStatus.PENDING,
+          fulfillmentType: storeGroup.fulfillmentType ?? 'DELIVERY',
           customerAddressText: body.customerAddressText,
           addressNote: body.addressNote ?? null,
           orderNote: body.orderNote ?? null,
@@ -422,12 +457,15 @@ export async function createCheckoutOrders(
           latitude: body.latitude ?? null,
           longitude: body.longitude ?? null,
           subtotal: totals.subtotal,
-          deliveryFee: totals.deliveryFee,
+          // PICKUP orders have no delivery fee.
+          deliveryFee: storeGroup.fulfillmentType === 'PICKUP' ? 0 : totals.deliveryFee,
           discount: 0,
-          totalAmount: totals.totalAmount,
+          totalAmount: storeGroup.fulfillmentType === 'PICKUP'
+            ? totals.subtotal
+            : totals.totalAmount,
           voucherId: null,
           paymentMethod: PaymentMethod.COD,
-          deliveryPin: generateDeliveryPin(),
+          deliveryPin: storeGroup.fulfillmentType === 'PICKUP' ? null : generateDeliveryPin(),
           items: {
             create: lines.map(line => {
               const itemSource = storeGroup.items.find(it => it.productId === line.productId);
@@ -495,12 +533,13 @@ async function visibilityScope(
     case UserRole.STORE_MANAGER:
       return { storeId: { in: await storeIdsManagedBy(actor.sub) } };
     case UserRole.CAPTAIN:
-      // Own jobs, plus the unclaimed pool a captain is allowed to pick from.
+      // Own jobs, plus the unclaimed DELIVERY pool a captain is allowed to pick from.
+      // PICKUP orders are excluded — the store manager handles them directly.
       return {
         OR: [
           { captainId: actor.sub },
-          { captainId: null, status: { in: [OrderStatus.READY_FOR_PICKUP] }, store: { dedicatedCaptains: { none: {} } } },
-          { captainId: null, status: { in: [OrderStatus.READY_FOR_PICKUP] }, store: { dedicatedCaptains: { some: { id: actor.sub } } } },
+          { captainId: null, status: { in: [OrderStatus.READY_FOR_PICKUP] }, fulfillmentType: 'DELIVERY', store: { dedicatedCaptains: { none: {} } } },
+          { captainId: null, status: { in: [OrderStatus.READY_FOR_PICKUP] }, fulfillmentType: 'DELIVERY', store: { dedicatedCaptains: { some: { id: actor.sub } } } },
         ],
       };
     case UserRole.ADMIN:
@@ -537,7 +576,7 @@ export async function listOrders(
   ]);
 
   return {
-    items: rows.map(toOrderSummary),
+    items: rows.map((r: any) => toOrderSummary(r)),
     page: query.page,
     pageSize: query.pageSize,
     total,
@@ -657,7 +696,7 @@ export async function updateOrderStatus(
     );
   }
 
-  if (!canTransitionOrderStatus(current, next)) {
+  if (!canTransitionOrderStatus(current, next, order.fulfillmentType)) {
     throw badState(
       'ILLEGAL_TRANSITION',
       `لا يمكن الانتقال من "${ORDER_STATUS_LABELS[current as OrderStatus].ar}" إلى "${ORDER_STATUS_LABELS[next as OrderStatus].ar}" / Illegal transition ${current} → ${next}`
@@ -675,7 +714,7 @@ export async function updateOrderStatus(
   // store may not abandon an order mid-route; a captain may not abandon after
   // pickup). A closed cancel window is a bad *request* (400) — the caller
   // reached for a legal target but from the wrong current state.
-  if (!canRoleTransitionOrderStatus(actor.role, current, next)) {
+  if (!canRoleTransitionOrderStatus(actor.role, current, next, order.fulfillmentType)) {
     if (next === OrderStatus.CANCELLED) {
       throw badState(
         'CANCEL_WINDOW_CLOSED',
@@ -755,6 +794,11 @@ export async function updateOrderStatus(
   }
 
   const assignCaptainOnClaim = isClaimAttempt;
+
+  // PICKUP orders cannot be claimed by captains — the store manager handles them.
+  if (assignCaptainOnClaim && order.fulfillmentType === 'PICKUP') {
+    throw forbidden('طلبات الاستلام لا يحتاجون كابتن / Pickup orders do not need a captain');
+  }
 
   // Delivery PIN validation: when a captain transitions to DELIVERED,
   // they must provide the correct 4-digit PIN that the customer shares.
@@ -855,7 +899,7 @@ export async function updateOrderStatus(
     throw err;
   }
 
-  return toOrderDetail(updated, actor.role);
+  return toOrderDetail(updated as any, actor.role);
 }
 
 /** Admin (or a store manager for their own shop) hands a job to a captain. */
@@ -914,7 +958,7 @@ export async function assignCaptain(
     include: DETAIL_INCLUDE,
   });
 
-  return toOrderDetail(updated, actor.role);
+  return toOrderDetail(updated as any, actor.role);
 }
 
 /* ---------------------------------------------------------------------------
@@ -985,7 +1029,7 @@ export async function setOrderDeliveryZone(
       include: DETAIL_INCLUDE,
     });
 
-    return toOrderDetail(updated, actor.role);
+    return toOrderDetail(updated as any, actor.role);
   } catch (err) {
     if (
       err instanceof Error &&
@@ -1072,7 +1116,7 @@ export async function setOrderReview(
       include: DETAIL_INCLUDE,
     });
 
-    return toOrderDetail(updated, actor.role);
+    return toOrderDetail(updated as any, actor.role);
   } catch (err) {
     if (
       err instanceof Error &&
@@ -1160,7 +1204,7 @@ export async function setOrderDeliveryFee(
       include: DETAIL_INCLUDE,
     });
 
-    return toOrderDetail(updated, actor.role);
+    return toOrderDetail(updated as any, actor.role);
   } catch (err) {
     if (
       err instanceof Error &&

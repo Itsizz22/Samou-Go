@@ -12,6 +12,8 @@ export const createOfferSchema = z.object({
   titleEn: z.string().trim().min(1, 'English title is required').max(160),
   descriptionAr: z.string().trim().min(1, 'وصف العرض بالعربية مطلوب / Arabic description is required').max(500),
   descriptionEn: z.string().trim().min(1, 'English description is required').max(500),
+  /** Standalone purchase price — when set, customers can order this offer directly. */
+  price: z.number().min(0).max(10000).optional(),
   startsAt: offerWindowField,
   expiresAt: offerWindowField,
   isActive: z.boolean().optional(),

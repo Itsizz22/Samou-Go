@@ -10,3 +10,15 @@
    ========================================================================== */
 
 @import '@samou-go/ui/styles';
+
+/* Confetti burst keyframe for delivered-order celebration. */
+@keyframes confetti-burst {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg) scale(var(--scale, 1));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift-x), var(--drift-y)) rotate(720deg) scale(0.2);
+  }
+}

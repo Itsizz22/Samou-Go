@@ -2,7 +2,7 @@
   "name": "samou-go",
   "version": "0.1.0",
   "private": true,
-  "description": "Samou' Go — hyper-local delivery platform for Samou', Hebron, Palestine",
+  "description": "Samou Quick — hyper-local delivery platform for Samou', Hebron, Palestine",
   "license": "UNLICENSED",
   "workspaces": [
     "packages/*",
@@ -44,6 +44,9 @@
     "db:seed": "npm run prisma:seed --workspace @samou-go/api",
     "db:demo-passwords": "npm run demo:passwords --workspace @samou-go/api",
     "db:migrate-demo-passwords": "npm run migrate:demo-passwords --workspace @samou-go/api",
+    "db:create-admin": "npx tsx packages/api/src/scripts/create-admin.ts",
+    "db:deactivate-demo": "npx tsx packages/api/src/scripts/deactivate-demo-users.ts",
+    "db:clean-demo": "npx tsx packages/api/src/scripts/clean-demo-data.ts",
     "test:e2e": "npm run test:e2e --workspace @samou-go/api",
     "test": "npm run test --workspace @samou-go/shared-types"
   },

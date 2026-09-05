@@ -53,6 +53,14 @@ export async function getWalletHandler(req: Request, res: Response): Promise<voi
   ok(res, await platformService.getWallet(auth));
 }
 
+/** GET /api/v1/platform/wallet/statement */
+export async function getWalletStatementHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const page = Number(req.query.page) || 1;
+  const pageSize = Math.min(Number(req.query.pageSize) || 50, 100);
+  ok(res, await platformService.getWalletStatement(auth, page, pageSize));
+}
+
 /** GET /api/v1/platform/admin/financials */
 export async function getAdminFinancialsHandler(_req: Request, res: Response): Promise<void> {
   ok(res, await platformService.getAdminFinancials());

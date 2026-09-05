@@ -29,6 +29,7 @@ platformRouter.post('/orders/:orderId/chat', asyncHandler(controller.sendOrderCh
 platformRouter.post('/support/tickets', asyncHandler(controller.createSupportTicketHandler));
 
 platformRouter.get('/wallet', asyncHandler(controller.getWalletHandler));
+platformRouter.get('/wallet/statement', asyncHandler(controller.getWalletStatementHandler));
 
 platformRouter.get('/admin/financials', authorize(UserRole.ADMIN), asyncHandler(controller.getAdminFinancialsHandler));
 

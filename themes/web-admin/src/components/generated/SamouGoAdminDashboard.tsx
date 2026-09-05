@@ -295,6 +295,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [enableDeliveryZones, setEnableDeliveryZones] = useState(false);
   const [requireOtpForSensitiveActions, setRequireOtpForSensitiveActions] = useState(false);
   const [whatsappSupportNumber, setWhatsappSupportNumber] = useState('');
+  const [gpsCaptureEnabled, setGpsCaptureEnabled] = useState(false);
   const [name, setName] = useState(auth.user?.name ?? '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -315,6 +316,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
         setEnableDeliveryZones(settings.enableDeliveryZones);
         setRequireOtpForSensitiveActions(settings.requireOtpForSensitiveActions);
         setWhatsappSupportNumber(settings.whatsappSupportNumber ?? '');
+        setGpsCaptureEnabled(settings.gpsCaptureEnabled);
       })
       .catch(() => {
         /* Server unreachable — the defaults remain; the API is still authoritative. */
@@ -336,7 +338,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
       return;
     }
     try {
-      await updatePlatformSettings({ autoAssign, captainDeliveryRate, storeCommissionRate, isDriverDynamicFeeEnabled, enableDeliveryZones, requireOtpForSensitiveActions, whatsappSupportNumber: whatsappSupportNumber.trim() || null });
+      await updatePlatformSettings({ autoAssign, captainDeliveryRate, storeCommissionRate, isDriverDynamicFeeEnabled, enableDeliveryZones, requireOtpForSensitiveActions, whatsappSupportNumber: whatsappSupportNumber.trim() || null, gpsCaptureEnabled });
       toast.success('تم حفظ إعدادات النظام على الخادم', 'System settings saved on the server');
     } catch (cause) {
       toast.error('تعذّر حفظ الإعدادات', cause instanceof Error ? cause.message : 'Save failed');
@@ -376,144 +378,84 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
       onRefresh={() => undefined}
     >
       <div className="grid gap-4 p-5 lg:grid-cols-2">
+        {/* ── Card Group A: Feature Toggles ──────────────────────────────────── */}
         <section className="rounded-2xl border border-line bg-surface p-4">
-          <h2 className="text-sm font-extrabold">{t('إعدادات النظام', 'System controls')}</h2>
-          <label className="mt-3 flex items-center justify-between gap-3 text-sm font-bold">
-            <span>التوزيع التلقائي للسائقين</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={autoAssign}
-              onClick={() => setAutoAssign(value => !value)}
-              className={`flex h-7 w-12 items-center rounded-full p-1 bg-surface transition-colors ${autoAssign ? 'justify-end bg-brand' : 'justify-start bg-line'}`}
-            >
-              <span className="h-5 w-5 rounded-full bg-white" />
-            </button>
-          </label>
-          <label className="mt-3 flex items-center justify-between gap-3 text-sm font-bold">
-            <span>{t('تمكين تحديد رسوم التوصيل بواسطة السائق', 'Enable driver-set delivery fee')}</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={isDriverDynamicFeeEnabled}
-              onClick={() => setIsDriverDynamicFeeEnabled(value => !value)}
-              className={`flex h-7 w-12 items-center rounded-full p-1 bg-surface transition-colors ${isDriverDynamicFeeEnabled ? 'justify-end bg-brand' : 'justify-start bg-line'}`}
-            >
-              <span className="h-5 w-5 rounded-full bg-white" />
-            </button>
-          </label>
-          <p className="mt-1 text-[11px] text-ink-muted">
-            {t('عند التفعيل، يحدد السائق رسوم التوصيل يدوياً عند قبول الطلب', 'When enabled, the driver manually sets the delivery fee upon accepting an order')}
-          </p>
-          <label className="mt-3 flex items-center justify-between gap-3 text-sm font-bold">
-            <span>{t('تفعيل نظام مناطق التوصيل التلقائي', 'Enable automated delivery zones')}</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={enableDeliveryZones}
-              onClick={() => setEnableDeliveryZones(value => !value)}
-              className={`flex h-7 w-12 items-center rounded-full p-1 bg-surface transition-colors ${enableDeliveryZones ? 'justify-end bg-brand' : 'justify-start bg-line'}`}
-            >
-              <span className="h-5 w-5 rounded-full bg-white" />
-            </button>
-          </label>
-          <p className="mt-1 text-[11px] text-ink-muted">
-            {t('عند التفعيل، يمكن للكابتن اختيار منطقة التوصيل من القائمة. عند التعطيل، يُحدد السائق الرسوم يدوياً', 'When enabled, captains select delivery zones from a list. When disabled, captains set the fee manually')}
-          </p>
-          <label className="mt-3 flex items-center justify-between gap-3 text-sm font-bold">
-            <span>{t('طلب التحقق OTP للإجراءات الحساسة', 'Require OTP for sensitive actions')}</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={requireOtpForSensitiveActions}
-              onClick={() => setRequireOtpForSensitiveActions(value => !value)}
-              className={`flex h-7 w-12 items-center rounded-full p-1 bg-surface transition-colors ${requireOtpForSensitiveActions ? 'justify-end bg-brand' : 'justify-start bg-line'}`}
-            >
-              <span className="h-5 w-5 rounded-full bg-white" />
-            </button>
-          </label>
-          <p className="mt-1 text-[11px] text-ink-muted">
-            {t('عند التفعيل، يتطلب طلب أول طلب أو تغيير رقم الجوال أو إعادة تعيين كلمة المرور التحقق عبر OTP', 'When enabled, first order, phone change, or password reset require OTP verification')}
-          </p>
-        </section>
-        <section className="rounded-2xl border border-line bg-surface p-4">
-          <h2 className="text-sm font-extrabold">{t('المظهر والنسق', 'Appearance & dark mode')}</h2>
-          <div className="mt-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold">الوضع الداكن</span>
-              <ThemeToggle className="border border-line" />
+          <h2 className="text-sm font-extrabold">{t('مفاتيح الميزات التشغيلية', 'Operational Feature Toggles')}</h2>
+
+          {/* GPS Capture */}
+          <label className="mt-3 flex items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-bold">{t('نظام التقاط إحداثيات GPS', 'GPS capture system')}</span>
+              <p className="text-[11px] text-ink-muted">{t('نوافذ طلب الموقع للعملاء والمديرين', 'Location prompts for customers and managers')}</p>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold">{t('اللغة', 'Language')}</span>
-              <LanguageToggle className="border border-line" />
+            <div className="flex items-center gap-2">
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${gpsCaptureEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{gpsCaptureEnabled ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
+              <button type="button" role="switch" aria-checked={gpsCaptureEnabled} onClick={() => setGpsCaptureEnabled(v => !v)} className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${gpsCaptureEnabled ? 'justify-end bg-brand' : 'justify-start bg-line'}`}><span className="h-5 w-5 rounded-full bg-white" /></button>
             </div>
-          </div>
+          </label>
+
+          <hr className="my-2 border-line" />
+
+          {/* Driver Dynamic Fee */}
+          <label className="flex items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-bold">{t('نظام تسعير الكباتن الديناميكي', 'Dynamic captain pricing')}</span>
+              <p className="text-[11px] text-ink-muted">{t('يحدد السائق الرسوم يدوياً', 'Captain sets fee manually upon acceptance')}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${isDriverDynamicFeeEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{isDriverDynamicFeeEnabled ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
+              <button type="button" role="switch" aria-checked={isDriverDynamicFeeEnabled} onClick={() => setIsDriverDynamicFeeEnabled(v => !v)} className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${isDriverDynamicFeeEnabled ? 'justify-end bg-brand' : 'justify-start bg-line'}`}><span className="h-5 w-5 rounded-full bg-white" /></button>
+            </div>
+          </label>
+
+          <hr className="my-2 border-line" />
+
+          {/* Delivery Zones */}
+          <label className="flex items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-bold">{t('مناطق التوصيل التلقائي', 'Automated delivery zones')}</span>
+              <p className="text-[11px] text-ink-muted">{t('اختيار منطقة من القائمة عند التعطيل يحدد يدوياً', 'Select zone from list (when off, captain sets manually)')}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${enableDeliveryZones ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{enableDeliveryZones ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
+              <button type="button" role="switch" aria-checked={enableDeliveryZones} onClick={() => setEnableDeliveryZones(v => !v)} className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${enableDeliveryZones ? 'justify-end bg-brand' : 'justify-start bg-line'}`}><span className="h-5 w-5 rounded-full bg-white" /></button>
+            </div>
+          </label>
+
+          <hr className="my-2 border-line" />
+
+          {/* Auto Assign */}
+          <label className="flex items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-bold">{t('التوزيع التلقائي للسائقين', 'Auto-assign to captains')}</span>
+              <p className="text-[11px] text-ink-muted">{t('تعيين الطلبات تلقائياً لأقرب سائق', 'Reserve for a future auto-assignment engine')}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${autoAssign ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{autoAssign ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
+              <button type="button" role="switch" aria-checked={autoAssign} onClick={() => setAutoAssign(v => !v)} className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${autoAssign ? 'justify-end bg-brand' : 'justify-start bg-line'}`}><span className="h-5 w-5 rounded-full bg-white" /></button>
+            </div>
+          </label>
+
+          <hr className="my-2 border-line" />
+
+          {/* OTP for sensitive actions */}
+          <label className="flex items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-bold">{t('التحقق OTP للإجراءات الحساسة', 'OTP for sensitive actions')}</span>
+              <p className="text-[11px] text-ink-muted">{t('طلب أول أو تغيير هاتف أو إعادة تعيين كلمة المرور', 'First order, phone change, or password reset')}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${requireOtpForSensitiveActions ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{requireOtpForSensitiveActions ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
+              <button type="button" role="switch" aria-checked={requireOtpForSensitiveActions} onClick={() => setRequireOtpForSensitiveActions(v => !v)} className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${requireOtpForSensitiveActions ? 'justify-end bg-brand' : 'justify-start bg-line'}`}><span className="h-5 w-5 rounded-full bg-white" /></button>
+            </div>
+          </label>
         </section>
+
+        {/* ── Card Group B: Support & Contact ─────────────────────────────────── */}
         <section className="rounded-2xl border border-line bg-surface p-4">
-          <h2 className="text-sm font-extrabold">{t('الحساب والأمان', 'Account & security')}</h2>
-          <div className="mt-3 space-y-2">
-            <input
-              value={name}
-              onChange={event => setName(event.target.value)}
-              placeholder="اسم العرض"
-              aria-label="Display name"
-              className="input-field"
-            />
-            <input
-              value={currentPassword}
-              onChange={event => setCurrentPassword(event.target.value)}
-              type="password"
-              placeholder="كلمة المرور الحالية"
-              aria-label="Current password"
-              className="input-field"
-            />
-            <input
-              value={newPassword}
-              onChange={event => setNewPassword(event.target.value)}
-              type="password"
-              placeholder="كلمة المرور الجديدة"
-              aria-label="New password"
-              className="input-field"
-            />
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => void saveAccount()}
-              className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
-            >
-              حفظ الحساب
-            </button>
-          </div>
-        </section>
-        <section className="rounded-2xl border border-line bg-surface p-4">
-          <h2 className="text-sm font-extrabold">{t('رسوم التوصيل الافتراضية', 'Default delivery fees')}</h2>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <label className="text-[11px] font-bold">
-              عمولة المنصة ٪
-              <input
-                dir="ltr"
-                inputMode="decimal"
-                value={baseStoreRate}
-                onChange={event => setBaseStoreRate(event.target.value)}
-                className="input-field mt-1"
-              />
-            </label>
-            <label className="text-[11px] font-bold">
-              حصة السائق ₪/توصيلة
-              <input
-                dir="ltr"
-                inputMode="decimal"
-                value={captainRate}
-                onChange={event => setCaptainRate(event.target.value)}
-                className="input-field mt-1"
-              />
-            </label>
-          </div>
-        </section>
-        <section className="rounded-2xl border border-line bg-surface p-4">
-          <h2 className="text-sm font-extrabold">{t('الدعم الفني', 'Support')}</h2>
+          <h2 className="text-sm font-extrabold">{t('بيانات الدعم والتواصل', 'Support & Contact')}</h2>
           <label className="mt-3 block text-[11px] font-bold">
-            {t('رقم واتساب للدعم الفني', 'WhatsApp support number')}
+            {t('رقم هاتف الدعم الفني / الواتساب', 'WhatsApp support number')}
             <input
               dir="ltr"
               inputMode="tel"
@@ -526,6 +468,63 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
           <p className="mt-1 text-[11px] text-ink-muted">
             {t('الرقم الظاهر في زر الدعم العائم لجميع التطبيقات. اتركه فارغاً للإخفاء.', 'The number shown in the floating support button across all apps. Leave empty to hide.')}
           </p>
+
+          {/* Appearance section nested here for compactness */}
+          <hr className="my-3 border-line" />
+          <h2 className="text-sm font-extrabold">{t('المظهر والنسق', 'Appearance & language')}</h2>
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold">{t('الوضع الداكن', 'Dark mode')}</span>
+              <ThemeToggle className="border border-line" />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold">{t('اللغة', 'Language')}</span>
+              <LanguageToggle className="border border-line" />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Card Group C: Platform Economics ──────────────────────────────── */}
+        <section className="rounded-2xl border border-line bg-surface p-4">
+          <h2 className="text-sm font-extrabold">{t('السياسات المالية', 'Platform Economics')}</h2>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <label className="text-[11px] font-bold">
+              {t('عمولة المنصة ٪', 'Platform commission %')}
+              <input
+                dir="ltr"
+                inputMode="decimal"
+                value={baseStoreRate}
+                onChange={event => setBaseStoreRate(event.target.value)}
+                className="input-field mt-1"
+              />
+            </label>
+            <label className="text-[11px] font-bold">
+              {t('حصة السائق ₪/توصيلة', 'Captain rate ₪/delivery')}
+              <input
+                dir="ltr"
+                inputMode="decimal"
+                value={captainRate}
+                onChange={event => setCaptainRate(event.target.value)}
+                className="input-field mt-1"
+              />
+            </label>
+          </div>
+          <p className="mt-2 text-[11px] text-ink-muted">
+            {t('النسب الحالية تُطبَّق على جميع الطلبات الجديدة unless overridden per store wallet.', 'Current rates apply to all new orders unless overridden per store wallet.')}
+          </p>
+        </section>
+
+        {/* ── Account & Security ──────────────────────────────────────────────── */}
+        <section className="rounded-2xl border border-line bg-surface p-4">
+          <h2 className="text-sm font-extrabold">{t('الحساب والأمان', 'Account & Security')}</h2>
+          <div className="mt-3 space-y-2">
+            <input value={name} onChange={event => setName(event.target.value)} placeholder="اسم العرض" aria-label="Display name" className="input-field" />
+            <input value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} type="password" placeholder="كلمة المرور الحالية" aria-label="Current password" className="input-field" />
+            <input value={newPassword} onChange={event => setNewPassword(event.target.value)} type="password" placeholder="كلمة المرور الجديدة" aria-label="New password" className="input-field" />
+            <button type="button" disabled={saving} onClick={() => void saveAccount()} className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-60">
+              {t('حفظ الحساب', 'Save Account')}
+            </button>
+          </div>
         </section>
       </div>
       <div className="px-5 pb-5">
@@ -648,7 +647,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
               center={[31.3971, 35.0716]}
               zoom={13}
               className="h-full w-full z-0"
-              markers={[{ position: [31.3971, 35.0716], label: "Samou' Go — منطقة التشغيل" }]}
+              markers={[{ position: [31.3971, 35.0716], label: "Samou Quick — منطقة التشغيل" }]}
             />
           </div>
         </section>

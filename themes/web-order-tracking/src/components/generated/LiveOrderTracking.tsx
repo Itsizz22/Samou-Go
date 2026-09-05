@@ -54,6 +54,7 @@ import { HeaderNav } from './HeaderNav';
 import { BottomTabs } from './BottomTabs';
 import { OrderCard } from './OrderCard';
 import { useLanguage, type BellNotification } from '@samou-go/ui';
+import { Confetti } from '../Confetti';
 
 /** Fast enough to feel live on the customer's side, gentle on mobile data. */
 const POLL_MS = 5_000;
@@ -160,6 +161,16 @@ export const LiveOrderTracking = () => {
     }
     prevStatusRef.current = current;
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.detail?.status]);
+
+  // Confetti burst when the order reaches DELIVERED.
+  const [showConfetti, setShowConfetti] = useState(false);
+  useEffect(() => {
+    if (order.detail?.status === OrderStatus.DELIVERED) {
+      setShowConfetti(true);
+      const timeout = setTimeout(() => setShowConfetti(false), 2500);
+      return () => clearTimeout(timeout);
+    }
   }, [order.detail?.status]);
 
   /* ---- Cancel ----------------------------------------------------------- */
@@ -277,6 +288,7 @@ export const LiveOrderTracking = () => {
 
   return (
     <main className="min-h-screen bg-canvas pb-24 text-ink">
+      <Confetti active={showConfetti} />
       <HeaderNav
         title={t('تتبع الطلب', 'Track Order')}
         showBack
@@ -364,6 +376,17 @@ export const LiveOrderTracking = () => {
               date={formatStamp(detail.createdAt)}
             />
           )}
+
+          {/* Delivered celebration card */}
+          {detail && detail.status === OrderStatus.DELIVERED && (
+            <div className="mt-4 rounded-xl border border-brand/30 bg-gradient-to-br from-brand-surface to-brand-tint p-5 text-center shadow-raised delivered-card">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand text-white shadow-brand">
+                <Check size={28} strokeWidth={3} />
+              </span>
+              <h3 className="mt-3 text-sm font-extrabold text-brand-deep">{t('تم التوصيل بنجاح!', 'Delivered successfully!')}</h3>
+              <p className="mt-1 text-xs text-ink-soft">{t('شكراً لاستخدامك سامو كويك', 'Thank you for using Samou Quick')}</p>
+            </div>
+          )}
         </section>
 
         {loading && (
@@ -416,11 +439,11 @@ export const LiveOrderTracking = () => {
                   <li key={step.status} className="relative flex min-h-[48px] gap-3">
                     <div className="flex w-7 shrink-0 flex-col items-center">
                       <span
-                        className={`z-10 flex h-7 w-7 items-center justify-center rounded-full border-2 ${
+                        className={`z-10 flex h-7 w-7 items-center justify-center rounded-full border-2 transition-all duration-500 ${
                           step.state === 'completed'
                             ? 'border-brand bg-brand text-white'
                             : step.state === 'active'
-                              ? 'border-brand bg-surface text-brand ring-4 ring-brand-tint'
+                              ? 'border-brand bg-surface text-brand ring-4 ring-brand-tint animate-[pulseAura_1.8s_ease-in-out_infinite]'
                               : 'border-line bg-surface text-ink-muted'
                         }`}
                       >
@@ -436,13 +459,19 @@ export const LiveOrderTracking = () => {
                         )}
                       </span>
                       {stepIndex < timeline.length - 1 && (
-                        <span
-                          className={`w-px flex-1 ${step.state === 'completed' ? 'bg-brand-soft' : 'bg-line'}`}
-                          aria-hidden="true"
-                        />
+                        <span className="relative w-px flex-1" aria-hidden="true">
+                          {/* Background track */}
+                          <span className="absolute inset-0 bg-line" />
+                          {/* Animated fill — green gradient that grows as steps complete */}
+                          <span
+                            className={`absolute inset-x-0 top-0 origin-top bg-gradient-to-b from-brand to-brand-soft transition-all duration-700 ease-out ${
+                              step.state === 'completed' ? 'bottom-0' : step.state === 'active' ? 'bottom-1/2' : 'bottom-full'
+                            }`}
+                          />
+                        </span>
                       )}
                     </div>
-                    <div className={`pb-5 ${step.state === 'pending' ? 'opacity-55' : ''}`}>
+                    <div className={`pb-5 transition-opacity duration-300 ${step.state === 'pending' ? 'opacity-55' : ''}`}>
                       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                         <h3
                           className={`text-xs font-extrabold leading-relaxed ${step.state === 'active' ? 'text-brand-deep' : 'text-ink'}`}
@@ -483,14 +512,22 @@ export const LiveOrderTracking = () => {
                 <span className="mt-1 block text-xs text-ink-soft">{detail.addressNote}</span>
               )}
             </address>
-            <p className="mt-3 flex items-center gap-2 text-xs text-ink-muted">
-              <Store className="h-4 w-4 text-brand" aria-hidden="true" />
-              <span>
-                {detail.captain
-                  ? `الكابتن ${detail.captain.name} سيتواصل معك`
-                  : 'سيتواصل معك الكابتن فور إسناد الطلب'}
-              </span>
-            </p>
+            {detail.fulfillmentType !== 'PICKUP' && (
+              <p className="mt-3 flex items-center gap-2 text-xs text-ink-muted">
+                <Store className="h-4 w-4 text-brand" aria-hidden="true" />
+                <span>
+                  {detail.captain
+                    ? `الكابتن ${detail.captain.name} سيتواصل معك`
+                    : 'سيتواصل معك الكابتن فور إسناد الطلب'}
+                </span>
+              </p>
+            )}
+            {detail.fulfillmentType === 'PICKUP' && (
+              <p className="mt-3 flex items-center gap-2 text-xs text-ink-muted">
+                <Store className="h-4 w-4 text-brand" aria-hidden="true" />
+                <span>{t('تم إشعار المتجر — طلبك جاهز للاستلام', 'Store notified — ready for pickup')}</span>
+              </p>
+            )}
           </section>
         )}
 
@@ -508,7 +545,7 @@ export const LiveOrderTracking = () => {
                 <Phone className="h-4 w-4" aria-hidden="true" />
                 <span>Call Store</span>
               </button>
-              {detail.captain && (
+              {detail.captain && detail.fulfillmentType !== 'PICKUP' && (
                 <button
                   type="button"
                   onClick={() => handleCall(detail.captain!.phone)}

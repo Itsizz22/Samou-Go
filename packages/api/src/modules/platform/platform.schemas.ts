@@ -54,6 +54,7 @@ export const platformSettingsSchema = z.object({
   enableDeliveryZones: z.boolean().optional(),
   requireOtpForSensitiveActions: z.boolean().optional(),
   whatsappSupportNumber: z.string().max(20).nullable().optional(),
+  gpsCaptureEnabled: z.boolean().optional(),
 });
 
 export type LocationBody = z.infer<typeof locationSchema>;

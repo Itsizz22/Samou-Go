@@ -114,6 +114,37 @@ export async function getWallet(auth: JwtPayload) {
   };
 }
 
+export async function getWalletStatement(auth: JwtPayload, page = 1, pageSize = 50) {
+  const wallet = await prisma.wallet.findFirst({
+    where:
+      auth.role === UserRole.STORE_MANAGER
+        ? { store: { managerId: auth.sub } }
+        : { userId: auth.sub },
+  });
+  if (!wallet) return { balance: 0, entries: [], total: 0 };
+
+  const skip = (Math.max(1, page) - 1) * pageSize;
+  const [entries, total] = await Promise.all([
+    prisma.ledgerEntry.findMany({
+      where: { walletId: wallet.id },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: pageSize,
+    }),
+    prisma.ledgerEntry.count({ where: { walletId: wallet.id } }),
+  ]);
+
+  return {
+    balance: decimalToNumber(wallet.balance),
+    total,
+    entries: entries.map(e => ({
+      ...e,
+      amount: decimalToNumber(e.amount),
+      createdAt: e.createdAt.toISOString(),
+    })),
+  };
+}
+
 export async function getAdminFinancials() {
   const [wallets, settlements, orders] = await Promise.all([
     prisma.wallet.findMany({
@@ -148,6 +179,7 @@ export async function getPlatformSettings() {
     enableDeliveryZones: row.enableDeliveryZones,
     requireOtpForSensitiveActions: row.requireOtpForSensitiveActions,
     whatsappSupportNumber: row.whatsappSupportNumber ?? null,
+    gpsCaptureEnabled: (row as any).gpsCaptureEnabled,
     updatedAt: row.updatedAt,
   };
 }
@@ -165,6 +197,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
       ...(body.enableDeliveryZones !== undefined ? { enableDeliveryZones: body.enableDeliveryZones } : {}),
       ...(body.requireOtpForSensitiveActions !== undefined ? { requireOtpForSensitiveActions: body.requireOtpForSensitiveActions } : {}),
       ...(body.whatsappSupportNumber !== undefined && body.whatsappSupportNumber !== null ? { whatsappSupportNumber: body.whatsappSupportNumber } : {}),
+      ...(body.gpsCaptureEnabled !== undefined ? { gpsCaptureEnabled: body.gpsCaptureEnabled } : {}),
     },
     update: {
       ...(body.captainDeliveryRate !== undefined ? { captainDeliveryRate: body.captainDeliveryRate } : {}),
@@ -174,6 +207,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
       ...(body.enableDeliveryZones !== undefined ? { enableDeliveryZones: body.enableDeliveryZones } : {}),
       ...(body.requireOtpForSensitiveActions !== undefined ? { requireOtpForSensitiveActions: body.requireOtpForSensitiveActions } : {}),
       ...(body.whatsappSupportNumber !== undefined ? { whatsappSupportNumber: body.whatsappSupportNumber ?? undefined } : {}),
+      ...(body.gpsCaptureEnabled !== undefined ? { gpsCaptureEnabled: body.gpsCaptureEnabled } : {}),
     },
   });
   return {
@@ -185,6 +219,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
     enableDeliveryZones: row.enableDeliveryZones,
     requireOtpForSensitiveActions: row.requireOtpForSensitiveActions,
     whatsappSupportNumber: row.whatsappSupportNumber ?? null,
+    gpsCaptureEnabled: (row as any).gpsCaptureEnabled,
     updatedAt: row.updatedAt,
   };
 }

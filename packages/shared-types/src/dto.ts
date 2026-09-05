@@ -195,6 +195,12 @@ export interface CreateOrderItemInput {
   productId: string;
   quantity: number;
   note?: string;
+  /** If true, this item is a standalone promotional offer (not a menu product). */
+  isOfferItem?: boolean;
+  /** Reference to the standalone offer. */
+  offerId?: string;
+  /** Display name of the offer (denormalized for order history). */
+  offerTitle?: string;
 }
 
 /**
@@ -216,6 +222,12 @@ export interface CreateOrderInput {
   latitude?: number;
   longitude?: number;
   voucherCode?: string;
+  /** DELIVERY or PICKUP — defaults to DELIVERY. */
+  fulfillmentType?: import('./enums').FulfillmentType;
+  /** Voice note URL (uploaded via presigned URL before checkout). */
+  voiceNoteUrl?: string;
+  /** Voice note duration in seconds. */
+  voiceNoteDuration?: number;
 }
 
 export interface UpdateOrderStatusInput {
@@ -513,6 +525,8 @@ export interface CreateOfferInput {
   titleEn: string;
   descriptionAr: string;
   descriptionEn: string;
+  /** Standalone purchase price — when set, customers can order this offer directly. */
+  price?: number;
   startsAt?: string;
   expiresAt?: string;
   isActive?: boolean;
@@ -526,6 +540,7 @@ export interface UpdateOfferInput {
   titleEn?: string;
   descriptionAr?: string;
   descriptionEn?: string;
+  price?: number | null;
   startsAt?: string | null;
   expiresAt?: string | null;
   isActive?: boolean;
@@ -595,6 +610,8 @@ export interface PlatformSettings {
   requireOtpForSensitiveActions: boolean;
   /** WhatsApp support phone number shown in the floating support button across all apps. */
   whatsappSupportNumber: string | null;
+  /** When enabled, the app prompts users to share their GPS coordinates. */
+  gpsCaptureEnabled: boolean;
   updatedAt: string;
 }
 
@@ -607,6 +624,7 @@ export interface UpdatePlatformSettingsInput {
   enableDeliveryZones?: boolean;
   requireOtpForSensitiveActions?: boolean;
   whatsappSupportNumber?: string | null;
+  gpsCaptureEnabled?: boolean;
 }
 
 /* ---------------------------------------------------------------------------
@@ -614,11 +632,11 @@ export interface UpdatePlatformSettingsInput {
  * ------------------------------------------------------------------------- */
 
 /** What a processed image eventually attaches to. */
-export type UploadKind = 'user' | 'product' | 'store' | 'offer' | 'category';
+export type UploadKind = 'user' | 'product' | 'store' | 'offer' | 'category' | 'audio';
 
 /** POST /uploads/presign */
 export interface PresignUploadInput {
-  /** Server validate: image/jpeg | image/png | image/webp. */
+  /** Server validate: image/jpeg | image/png | image/webp, or audio/webm | audio/mp4 | audio/ogg. */
   contentType: string;
   kind: UploadKind;
   /**

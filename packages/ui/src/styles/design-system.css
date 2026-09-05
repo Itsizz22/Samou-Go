@@ -153,6 +153,15 @@
   --animate-pop-in: pop-in 0.45s var(--ease-spring) both;
   --animate-shimmer: shimmer 1.6s linear infinite;
   --animate-pulse-ring: pulse-ring 1.8s var(--ease-in-out-soft) infinite;
+  --animate-pulse-aura: pulseAura 1.8s var(--ease-in-out-soft) infinite;
+  --animate-pulse-glow: pulseGlow 2s var(--ease-in-out-soft) infinite;
+  --animate-cart-bounce: cartBounce 0.4s var(--ease-spring) both;
+  --animate-cart-pop: cartPop 0.3s var(--ease-spring) both;
+  --animate-green-ripple: greenRipple 0.6s var(--ease-out-soft) both;
+  --animate-pill-slide: pillSlide 0.25s var(--ease-spring) both;
+  --animate-sheet-slide: sheetSlideUp 0.35s var(--ease-spring-soft) both;
+  --animate-delivered: deliveredBounce 0.6s var(--ease-spring) both;
+  --animate-add-check: addCheck 0.4s var(--ease-spring) both;
   --animate-ride: ride 1.6s var(--ease-in-out-soft) infinite;
 
   /* Stagger delays for cascading entry animations. */
@@ -475,6 +484,8 @@
 
   body {
     @apply bg-canvas text-ink text-body antialiased;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
     font-family: var(--font-body);
     font-feature-settings:
       'rlig' 1,
@@ -631,9 +642,9 @@
   /* Hoverable card — for tappable store/product tiles. */
   .card-interactive {
     @apply rounded-card border border-line/80 bg-surface shadow-card backdrop-blur-sm
-           transition-all duration-250
+           transition-all duration-150
            hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-raised
-           active:translate-y-0 active:scale-[0.99];
+           active:translate-y-0 active:scale-[0.98];
     transition-timing-function: var(--ease-spring-soft);
   }
 
@@ -730,10 +741,35 @@
 }
 
 @layer components {
-  /* -- Loading skeletons: shimmer with subtle gradient, not a blunt pulse -- */
+  /* -- Loading skeletons: GPU-accelerated shimmer with emerald tint -- */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      #f0fdf4 25%,
+      #dcfce7 50%,
+      #f0fdf4 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmerGradient 1.6s linear infinite;
+  }
+  .dark .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgb(16 185 129 / 0.08) 25%,
+      rgb(16 185 129 / 0.14) 50%,
+      rgb(16 185 129 / 0.08) 75%
+    );
+    background-size: 200% 100%;
+  }
+
   .skeleton {
     @apply relative overflow-hidden rounded-field;
-    background: linear-gradient(135deg, var(--color-line-soft) 0%, color-mix(in srgb, var(--color-line-soft) 60%, var(--color-canvas)) 50%, var(--color-line-soft) 100%);
+    background: linear-gradient(
+      135deg,
+      var(--color-line-soft) 0%,
+      color-mix(in srgb, var(--color-line-soft) 60%, var(--color-canvas)) 50%,
+      var(--color-line-soft) 100%
+    );
   }
 
   .skeleton::after {
@@ -743,17 +779,21 @@
     background-image: linear-gradient(
       90deg,
       transparent 0%,
-      rgb(255 255 255 / 0.35) 50%,
+      rgb(16 185 129 / 0.10) 30%,
+      rgb(16 185 129 / 0.18) 50%,
+      rgb(16 185 129 / 0.10) 70%,
       transparent 100%
     );
-    animation: shimmer 1.8s var(--ease-in-out-soft) infinite;
+    animation: shimmer 1.6s var(--ease-in-out-soft) infinite;
   }
 
   .dark .skeleton::after {
     background-image: linear-gradient(
       90deg,
       transparent 0%,
-      rgb(255 255 255 / 0.06) 50%,
+      rgb(16 185 129 / 0.08) 30%,
+      rgb(16 185 129 / 0.14) 50%,
+      rgb(16 185 129 / 0.08) 70%,
       transparent 100%
     );
   }
@@ -841,16 +881,7 @@
     display: none;
   }
 
-  /* Product card entrance animation — replaces Framer Motion to avoid
-     transform-based compositing layers that break overflow-x scrolling
-     on Android WebView. */
-  .product-card-enter {
-    animation: productCardIn 0.3s ease-out both;
-  }
-  @keyframes productCardIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
+  /* ---- Micro-interaction utilities ------------------------------------ */
 
   /* Tap feedback for anything that is not a .btn-* (rows, tiles, chips). */
   .press {
@@ -858,17 +889,43 @@
     transition-timing-function: var(--ease-spring-soft);
   }
 
-  /* Numerals, prices, phone numbers, order codes: LTR island + tabular figures. */
-  .numeral {
-    direction: ltr;
-    font-family: var(--font-english);
-    font-variant-numeric: tabular-nums;
-    unicode-bidi: isolate;
+  /* Alias: `.tap-bounce` — same tactile press, GPU-accelerated. */
+  .tap-bounce {
+    @apply will-change-transform transition-transform duration-150 active:scale-[0.97];
+    transition-timing-function: var(--ease-spring-soft);
   }
 
-  /* Stagger entry: applies rise-in animation with a delay based on child index.
-     Usage: class="stagger-entry" on the parent, then CSS custom property
-     --stagger-index on each child (set via inline style or nth-child). */
+  /* Smooth image fade-in on load — prevents abrupt pop-in. */
+  .img-fade-in {
+    opacity: 0;
+    transition: opacity 0.3s var(--ease-out-soft);
+  }
+  .img-fade-in-loaded {
+    opacity: 1;
+  }
+
+  /* Glass panel — modern backdrop blur with emerald tinted border. */
+  .glass-panel {
+    @apply backdrop-blur-md bg-surface/85 border border-brand/10 shadow-sm;
+  }
+  .dark .glass-panel {
+    @apply bg-zinc-900/85;
+  }
+
+  /* ---- Cart badge animations ------------------------------------------ */
+
+  /* Cart badge bounce — triggered by adding a class via JS. */
+  .cart-bounce {
+    animation: cartBounce 0.4s var(--ease-spring) both;
+  }
+
+  /* Cart badge pop — tighter, punchier bounce for counter increments. */
+  .cart-pop {
+    animation: cartPop 0.3s var(--ease-spring) both;
+  }
+
+  /* ---- Stagger entry -------------------------------------------------- */
+  /* Usage: class="stagger-entry" on the parent container. */
   .stagger-entry > * {
     animation: rise-in 0.4s var(--ease-out-expo) both;
   }
@@ -880,6 +937,41 @@
   .stagger-entry > *:nth-child(6) { animation-delay: 250ms; }
   .stagger-entry > *:nth-child(7) { animation-delay: 300ms; }
   .stagger-entry > *:nth-child(8) { animation-delay: 350ms; }
+
+  /* ---- Order tracking ------------------------------------------------- */
+
+  /* Animated progress line fill — smooth green gradient transition. */
+  .progress-fill {
+    @apply transition-all duration-700 ease-out;
+    transition-property: width, background;
+  }
+
+  /* Delivered celebration card — subtle bounce + glow. */
+  .delivered-card {
+    animation: deliveredBounce 0.6s var(--ease-spring) both;
+  }
+
+  /* ---- Add-to-cart checkmark feedback --------------------------------- */
+  .add-check {
+    animation: addCheck 0.4s var(--ease-spring) both;
+  }
+
+  /* ---- Numerals ------------------------------------------------------- */
+  .numeral {
+    direction: ltr;
+    font-family: var(--font-english);
+    font-variant-numeric: tabular-nums;
+    unicode-bidi: isolate;
+  }
+
+  /* ---- Sheet / modal slide-up ----------------------------------------- */
+  .sheet-slide-up {
+    animation: sheetSlideUp 0.35s var(--ease-spring-soft) both;
+  }
+
+  .modal-fade-in {
+    animation: fadeIn 0.2s ease-out both;
+  }
 }
 
 /* ----------------------------------------------------------------------------
@@ -938,6 +1030,14 @@
   }
 }
 
+/* Shimmer gradient for .skeleton-shimmer — uses background-position
+   instead of transform, so it composites on the CPU but is extremely
+   lightweight (just a gradient slide). */
+@keyframes shimmerGradient {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 @keyframes pulse-ring {
   0% {
     box-shadow: 0 0 0 0 rgb(16 185 129 / 0.4);
@@ -959,6 +1059,76 @@
   50% {
     transform: translateY(-0.1875rem) rotate(1deg);
   }
+}
+
+/* Cart badge bounce — scale up then settle. */
+@keyframes cartBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.30); }
+  60%  { transform: scale(0.92); }
+  80%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* Pulsing aura ring for the active timeline step. */
+@keyframes pulseAura {
+  0%   { box-shadow: 0 0 0 0 rgb(16 185 129 / 0.50); }
+  70%  { box-shadow: 0 0 0 0.625rem rgb(16 185 129 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(16 185 129 / 0); }
+}
+
+/* Smooth glowing ring — softer, wider pulse for emphasis. */
+@keyframes pulseGlow {
+  0%   { box-shadow: 0 0 0 0 rgb(16 185 129 / 0.35), 0 0 8px 0 rgb(16 185 129 / 0.20); }
+  50%  { box-shadow: 0 0 0 0.5rem rgb(16 185 129 / 0), 0 0 16px 2px rgb(16 185 129 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(16 185 129 / 0), 0 0 8px 0 rgb(16 185 129 / 0); }
+}
+
+/* Cart badge pop — tight bouncy scale for counter increments. */
+@keyframes cartPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.35); }
+  70%  { transform: scale(0.90); }
+  100% { transform: scale(1); }
+}
+
+/* Delivered card celebration — bounce + subtle glow. */
+@keyframes deliveredBounce {
+  0%   { opacity: 0; transform: scale(0.92) translateY(8px); }
+  50%  { opacity: 1; transform: scale(1.02) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Add-to-cart checkmark — quick scale-in. */
+@keyframes addCheck {
+  0%   { transform: scale(0) rotate(-45deg); opacity: 0; }
+  50%  { transform: scale(1.2) rotate(0deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* Sheet slide-up from bottom — spring physics feel. */
+@keyframes sheetSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Green ripple flash around an icon. */
+@keyframes greenRipple {
+  0%   { box-shadow: 0 0 0 0 rgb(16 185 129 / 0.40); }
+  70%  { box-shadow: 0 0 0 0.5rem rgb(16 185 129 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(16 185 129 / 0); }
+}
+
+/* Sliding pill background for active tab. */
+@keyframes pillSlide {
+  from { transform: scaleX(0.8); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
 }
 
 /* ----------------------------------------------------------------------------

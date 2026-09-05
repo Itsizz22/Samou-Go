@@ -26,6 +26,7 @@ import {
   getStoreManager,
   getStores,
   getWallet,
+  getWalletStatement,
   listActiveOffers,
   listAllOffers,
   listOrders,
@@ -404,6 +405,14 @@ export function usePlatformSettings(
 /** GET /platform/wallet — the caller's wallet + recent settlements. */
 export function useWallet(options?: ResourceOptions<WalletSummary | null>): Resource<WalletSummary | null> {
   return useResource('platform-wallet', (signal) => getWallet(signal), options);
+}
+
+/** GET /platform/wallet/statement — paginated account statement. */
+export function useWalletStatement(
+  page = 1,
+  options?: ResourceOptions<import('./api').WalletStatement>
+): Resource<import('./api').WalletStatement> {
+  return useResource(`platform-wallet-statement:${page}`, (signal) => getWalletStatement(page, 50, signal), options);
 }
 
 /* ---------------------------------------------------------------------------

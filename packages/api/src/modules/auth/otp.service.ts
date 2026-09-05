@@ -63,10 +63,10 @@ function generateOtpCode(length: number): string {
 
 function buildSmsBody(code: string): string {
   return (
-    `رمز تحقق Samou' Go الخاص بك هو: ${code}\n` +
+    `رمز تحقق Samou Quick الخاص بك هو: ${code}\n` +
     `صالح لمدة ${Math.round(env.otp.ttlMs / 60_000)} دقيقة.\n` +
     `---\n` +
-    `Your Samou' Go verification code is: ${code}`
+    `Your Samou Quick verification code is: ${code}`
   );
 }
 

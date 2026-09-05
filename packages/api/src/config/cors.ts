@@ -1,5 +1,5 @@
 /**
- * Samou' Go — CORS policy.
+ * Samou Quick — CORS policy.
  *
  * Kept in its own module (rather than inline in `app.ts`) because "which origin
  * may talk to the API" is a deployment fact worth unit-testing on its own.

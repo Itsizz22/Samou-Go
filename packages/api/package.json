@@ -2,7 +2,7 @@
   "name": "@samou-go/api",
   "version": "0.1.0",
   "private": true,
-  "description": "Samou' Go — Express + Prisma backend",
+  "description": "Samou Quick — Express + Prisma backend",
   "license": "UNLICENSED",
   "main": "./dist/server.js",
   "scripts": {

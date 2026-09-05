@@ -14,3 +14,31 @@
    ========================================================================== */
 
 @import '@samou-go/ui/styles';
+
+/* Customer-specific animation enhancements */
+@layer utilities {
+  /* Add-to-cart button checkmark feedback — use with state-driven class toggle */
+  .add-to-cart-active {
+    animation: addCheck 0.4s var(--ease-spring) both;
+  }
+
+  /* Green ripple flash around cart icon on item add */
+  .cart-ripple {
+    animation: greenRipple 0.6s var(--ease-out-soft) both;
+  }
+
+  /* Store card staggered entry — apply to grid container */
+  .store-grid-stagger > * {
+    animation: rise-in 0.4s var(--ease-out-expo) both;
+  }
+  .store-grid-stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .store-grid-stagger > *:nth-child(2) { animation-delay: 60ms; }
+  .store-grid-stagger > *:nth-child(3) { animation-delay: 120ms; }
+  .store-grid-stagger > *:nth-child(4) { animation-delay: 180ms; }
+  .store-grid-stagger > *:nth-child(5) { animation-delay: 240ms; }
+  .store-grid-stagger > *:nth-child(6) { animation-delay: 300ms; }
+  .store-grid-stagger > *:nth-child(7) { animation-delay: 360ms; }
+  .store-grid-stagger > *:nth-child(8) { animation-delay: 420ms; }
+  .store-grid-stagger > *:nth-child(9) { animation-delay: 480ms; }
+  .store-grid-stagger > *:nth-child(10) { animation-delay: 540ms; }
+}

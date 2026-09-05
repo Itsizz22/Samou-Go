@@ -32,6 +32,18 @@ export const OrderStatus = {
 } as const;
 export type OrderStatus = (typeof OrderStatus)[keyof typeof OrderStatus];
 
+/** How an order is fulfilled: delivered to the customer's address, or picked up from the store. */
+export const FulfillmentType = {
+  DELIVERY: 'DELIVERY',
+  PICKUP: 'PICKUP',
+} as const;
+export type FulfillmentType = (typeof FulfillmentType)[keyof typeof FulfillmentType];
+
+export const FULFILLMENT_TYPE_LABELS: Record<FulfillmentType, { ar: string; en: string }> = {
+  [FulfillmentType.DELIVERY]: { ar: 'توصيل', en: 'Delivery' },
+  [FulfillmentType.PICKUP]: { ar: 'استلام من المتجر', en: 'Pickup from store' },
+};
+
 /** Samou' is a cash economy; COD is the only method live today. */
 export const PaymentMethod = {
   COD: 'COD',
@@ -241,9 +253,25 @@ export function isTerminalOrderStatus(status: OrderStatus): boolean {
   return TERMINAL_ORDER_STATUSES.includes(status);
 }
 
-/** `true` when `from → to` is an edge in the state machine. */
-export function canTransitionOrderStatus(from: OrderStatus, to: OrderStatus): boolean {
-  return ORDER_STATUS_TRANSITIONS[from].includes(to);
+/**
+ * `true` when `from → to` is an edge in the state machine.
+ * For PICKUP orders, READY_FOR_PICKUP → DELIVERED is also valid (no captain needed).
+ */
+export function canTransitionOrderStatus(
+  from: OrderStatus,
+  to: OrderStatus,
+  fulfillmentType?: FulfillmentType
+): boolean {
+  if (ORDER_STATUS_TRANSITIONS[from].includes(to)) return true;
+  // PICKUP orders skip ON_THE_WAY — store manager marks directly DELIVERED.
+  if (
+    fulfillmentType === FulfillmentType.PICKUP &&
+    from === OrderStatus.READY_FOR_PICKUP &&
+    to === OrderStatus.DELIVERED
+  ) {
+    return true;
+  }
+  return false;
 }
 
 /** `true` when `role` is allowed to drive an order into `status`. */
@@ -272,9 +300,10 @@ export function canRoleSetOrderStatus(role: UserRole, status: OrderStatus): bool
 export function canRoleTransitionOrderStatus(
   role: UserRole,
   from: OrderStatus,
-  to: OrderStatus
+  to: OrderStatus,
+  fulfillmentType?: FulfillmentType
 ): boolean {
-  if (!canTransitionOrderStatus(from, to)) return false;
+  if (!canTransitionOrderStatus(from, to, fulfillmentType)) return false;
 
   switch (role) {
     case UserRole.ADMIN:

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Menu } from 'lucide-react';
-import { useLanguage } from '@samou-go/ui';
+import { BrandLogo, useLanguage } from '@samou-go/ui';
 import { BottomNav } from '@/components/BottomNav';
 import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import { useDrawer } from '@/components/NavigationDrawer';
@@ -33,8 +33,11 @@ export function ScreenShell({ title, subtitle, children }: ScreenShellProps) {
           >
             <Menu size={22} />
           </button>
-          <div className="flex-1 text-end">
-            <p className="font-heading text-sm font-bold leading-relaxed tracking-[-0.015em]">{t(title, subtitle)}</p>
+          <div className="flex items-center gap-2">
+            <BrandLogo size={28} />
+            <div className="flex-1 text-end">
+              <p className="font-heading text-sm font-bold leading-relaxed tracking-[-0.015em]">{t(title, subtitle)}</p>
+            </div>
           </div>
         </div>
       </header>

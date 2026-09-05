@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "display": "Samou' Go — base",
+  "display": "Samou Quick — base",
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2023"],

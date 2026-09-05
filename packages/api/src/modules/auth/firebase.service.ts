@@ -1,9 +1,9 @@
 /**
- * Samou' Go — Firebase ID token verification.
+ * Samou Quick — Firebase ID token verification.
  *
  * Verifies a Firebase ID token (JWT) sent by the client after Firebase Phone
  * Auth succeeds. The server uses the Firebase Admin SDK to validate the token,
- * then finds or creates the user account and issues a Samou' Go session.
+ * then finds or creates the user account and issues a Samou Quick session.
  *
  * This replaces the server-side OTP flow for customer sign-in. The server
  * never sees the OTP code — Firebase handles the entire verification.
@@ -71,13 +71,13 @@ async function getFirebaseAdmin(): Promise<any> {
 }
 
 /**
- * Verify a Firebase ID token and create a Samou' Go session.
+ * Verify a Firebase ID token and create a Samou Quick session.
  *
  * Flow:
  *   1. Verify the ID token with Firebase Admin SDK
  *   2. Extract phone number from the token
  *   3. Find or create the user account
- *   4. Issue Samou' Go access + refresh tokens
+ *   4. Issue Samou Quick access + refresh tokens
  */
 export async function verifyFirebaseToken(
   idToken: string,
@@ -109,7 +109,7 @@ export async function verifyFirebaseToken(
   // Find or create the user account.
   const user = await findOrCreateCustomer(localPhone, name, password);
 
-  // Issue Samou' Go session tokens.
+  // Issue Samou Quick session tokens.
   const { accessToken, expiresIn } = signAccessToken({
     userId: user.id,
     role: user.role,

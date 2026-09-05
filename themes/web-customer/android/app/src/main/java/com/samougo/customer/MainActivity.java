@@ -3,58 +3,93 @@ package com.samougo.customer;
 import android.app.NotificationChannel;
 import android.app.Notification;
 import android.app.NotificationManager;
+import android.content.Intent;
 import android.media.AudioAttributes;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
+
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.plugins.PushNotifications;
 
 public class MainActivity extends BridgeActivity {
 
-  /** Standard order notifications (sound = device default). */
-  private static final String CHANNEL_ORDERS = "samou-go-orders";
+    private static final String TAG = "MainActivity";
 
-  /** High-priority order alarm — plays a looping 10-second ringtone even when the app is killed. */
-  private static final String CHANNEL_ORDERS_HIGH = "orders_high_priority";
+    /** Standard order notifications (sound = device default). */
+    private static final String CHANNEL_ORDERS = "samou-go-orders";
 
-  @Override
-  public void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
-    createNotificationChannels();
-  }
+    /** High-priority order alarm — plays a looping ringtone even when the app is killed. */
+    private static final String CHANNEL_ORDERS_HIGH = "orders_high_priority";
 
-  private void createNotificationChannels() {
-    NotificationManager nm = getSystemService(NotificationManager.class);
-    if (nm == null) return;
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        createNotificationChannels();
 
-    // Default order channel — normal priority, default device sound.
-    NotificationChannel ordersChannel = new NotificationChannel(
-      CHANNEL_ORDERS,
-      "Orders",
-      NotificationManager.IMPORTANCE_DEFAULT
-    );
-    ordersChannel.setDescription("New order notifications for stores and captains");
-    nm.createNotificationChannel(ordersChannel);
+        // Register the OrderAlarm Capacitor plugin so JS can stop the alarm
+        bridge.addPlugin(new StopAlarmPlugin());
 
-    // High-priority order alarm — IMPORTANCE_HIGH means heads-up + lockscreen + vibration.
-    // Custom sound: the looping order_alarm.wav ringtone.
-    Uri alarmUri = Uri.parse(
-      "android.resource://" + getPackageName() + "/raw/order_alarm"
-    );
-    AudioAttributes audioAttr = new AudioAttributes.Builder()
-      .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-      .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-      .build();
+        // Handle notification tap — start alarm service if it's an order notification
+        handleNotificationIntent(getIntent());
+    }
 
-    NotificationChannel highChannel = new NotificationChannel(
-      CHANNEL_ORDERS_HIGH,
-      "Order Alerts",
-      NotificationManager.IMPORTANCE_HIGH
-    );
-    highChannel.setDescription("High-priority order alerts with alarm ringtone");
-    highChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
-    highChannel.enableVibration(true);
-    highChannel.setVibrationPattern(new long[]{0, 300, 200, 300});
-    highChannel.setSound(alarmUri, audioAttr);
-    nm.createNotificationChannel(highChannel);
-  }
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        // App was already running — handle the new notification
+        handleNotificationIntent(intent);
+    }
+
+    /**
+     * If the app was opened via a notification tap, check if it's an order
+     * notification and start the alarm service (or stop it if the user is
+     * now viewing the order).
+     */
+    private void handleNotificationIntent(Intent intent) {
+        if (intent == null || intent.getExtras() == null) return;
+
+        String orderId = intent.getStringExtra("orderId");
+        if (orderId != null) {
+            Log.i(TAG, "Notification tap with orderId: " + orderId);
+            // App is now in foreground — stop any playing alarm
+            OrderAlarmReceiver.stopAlarm(this);
+        }
+    }
+
+    private void createNotificationChannels() {
+        NotificationManager nm = getSystemService(NotificationManager.class);
+        if (nm == null) return;
+
+        // Default order channel — normal priority, default device sound.
+        NotificationChannel ordersChannel = new NotificationChannel(
+            CHANNEL_ORDERS,
+            "Orders",
+            NotificationManager.IMPORTANCE_DEFAULT
+        );
+        ordersChannel.setDescription("New order notifications for stores and captains");
+        nm.createNotificationChannel(ordersChannel);
+
+        // High-priority order alarm — IMPORTANCE_HIGH means heads-up + lockscreen + vibration.
+        // Custom sound: the looping order_alarm ringtone.
+        Uri alarmUri = Uri.parse(
+            "android.resource://" + getPackageName() + "/raw/order_alarm"
+        );
+        AudioAttributes audioAttr = new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build();
+
+        NotificationChannel highChannel = new NotificationChannel(
+            CHANNEL_ORDERS_HIGH,
+            "Order Alerts",
+            NotificationManager.IMPORTANCE_HIGH
+        );
+        highChannel.setDescription("High-priority order alerts with looping alarm ringtone");
+        highChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+        highChannel.enableVibration(true);
+        highChannel.setVibrationPattern(new long[]{0, 300, 200, 300});
+        highChannel.setSound(alarmUri, audioAttr);
+        nm.createNotificationChannel(highChannel);
+    }
 }

@@ -12,10 +12,32 @@ const app = createApp();
 const server: Server = app.listen(env.port, '0.0.0.0', () => {
   // eslint-disable-next-line no-console
   console.log(
-    `🚚  Samou' Go API — http://0.0.0.0:${env.port}/api/v1  [${env.nodeEnv}]\n` +
+    `🚚  Samou Quick API — http://0.0.0.0:${env.port}/api/v1  [${env.nodeEnv}]\n` +
       `    رسوم التوصيل يحددها السائق عند الاستلام / ` +
       `Delivery fee determined by driver upon delivery`
   );
+
+  // ── Firebase push notification status ──────────────────────────────────
+  // This log is intentionally LOUD so a missing Firebase config is never
+  // silently invisible in Render logs. Push notifications will silently
+  // no-op without credentials — store managers and captains will not
+  // receive order alerts on their phones.
+  // eslint-disable-next-line no-console
+  if (env.firebase.serviceAccountJson || env.firebase.serviceAccountPath) {
+    const projectId = env.firebase.projectId ?? '(derived from service account)';
+    console.log(`
+  ✅  [push] Firebase push NOTIFICATIONS ENABLED — project: ${projectId}
+` +
+      `       Store managers and captains will receive order alerts on their devices.`);
+  } else {
+    console.error(
+      `\n  ⚠️  [push] Firebase push NOTIFICATIONS DISABLED — no credentials configured!\n` +
+        `       Set FIREBASE_SERVICE_ACCOUNT_JSON (inline JSON) or\n` +
+        `       FIREBASE_SERVICE_ACCOUNT_PATH (file path) in your environment.\n` +
+        `       Store managers and captains will NOT receive order alerts on their phones.\n` +
+        `       This is not a boot-blocking error, but push is completely non-functional.`
+    );
+  }
 });
 attachRealtime(server);
 

@@ -38,6 +38,10 @@ export const orderItemInputSchema = z.object({
     .max(99, 'الحد الأقصى 99 لكل منتج / Maximum 99 per product'),
   note: z.string().trim().max(500).optional(),
   modifiers: z.array(modifierGroupSchema).optional(),
+  /** Standalone promotional offer fields. */
+  isOfferItem: z.boolean().optional().default(false),
+  offerId: z.string().optional(),
+  offerTitle: z.string().max(200).optional(),
 });
 
 /**
@@ -66,6 +70,9 @@ export const createOrderSchema = z.object({
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   voucherCode: voucherCodeField,
+  fulfillmentType: z.enum(['DELIVERY', 'PICKUP']).default('DELIVERY'),
+  voiceNoteUrl: z.string().url().max(500).optional(),
+  voiceNoteDuration: z.number().int().min(1).max(30).optional(),
 });
 
 /** Same body as create, minus the address — used to preview the delivery fee. */
@@ -123,6 +130,7 @@ const storeCheckoutItemSchema = z.object({
     .array(orderItemInputSchema)
     .min(1, 'السلة فارغة / The basket is empty')
     .max(60, 'عدد المنتجات كبير جداً / Too many distinct products'),
+  fulfillmentType: z.enum(['DELIVERY', 'PICKUP']).default('DELIVERY'),
 });
 
 export const checkoutSchema = z.object({

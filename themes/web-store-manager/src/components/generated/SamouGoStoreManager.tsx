@@ -50,8 +50,11 @@ import {
   useRoleRedirect,
   useStoreManager,
   useToast,
+  usePlatformSettings,
 } from '@samou-go/api-client';
-import { createLoopingAlert } from '@samou-go/ui';
+import { createLoopingAlert, AccountStatement } from '@samou-go/ui';
+import { getWalletStatement } from '@samou-go/api-client';
+import { stopOrderAlarm } from '@/lib/orderAlarm';
 import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import {
   LanguageToggle,
@@ -59,6 +62,7 @@ import {
   ThemeToggle,
   Badge,
   useLanguage,
+  OfflineBanner,
   type BellNotification,
 } from '@samou-go/ui';
 import {
@@ -119,6 +123,7 @@ const BOTTOM_TABS = [
   { id: 'offers', icon: Megaphone, ar: 'العروض', en: 'Offers' },
   { id: 'settings', icon: Settings, ar: 'إعدادات المتجر', en: 'Settings' },
   { id: 'custom-requests', icon: ClipboardList, ar: 'طلبات مخصصة', en: 'Requests' },
+  { id: 'statement', icon: BarChart3, ar: 'كشف حساب', en: 'Statement' },
 ] as const;
 
 /* ---------------------------------------------------------------------------
@@ -146,6 +151,8 @@ export function SamouGoStoreManager() {
   });
   const managedStoreId: string | null = managedStores.data?.[0]?.id ?? null;
   const managedStore = useStoreManager(managedStoreId, { enabled: isManager });
+  const platformSettings = usePlatformSettings();
+  const gpsCaptureEnabled = platformSettings.data?.gpsCaptureEnabled ?? false;
 
   const [storeStatus, setStoreStatus] = useState<StoreStatus>(StoreStatus.OPEN);
   const [prepMinutes, setPrepMinutes] = useState(25);
@@ -158,6 +165,9 @@ export function SamouGoStoreManager() {
   const [openingTime, setOpeningTime] = useState<string>('');
   const [closingTime, setClosingTime] = useState<string>('');
   const [hoursPending, setHoursPending] = useState(false);
+  const [statementPage, setStatementPage] = useState(1);
+  const [statementData, setStatementData] = useState<{ balance: number; entries: Array<{ id: string; amount: number; type: string; description: string | null; createdAt: string }>; total: number } | null>(null);
+  const [statementLoading, setStatementLoading] = useState(false);
 
   /* -- /Role gate --------------------------------------------------------- */
 
@@ -294,7 +304,7 @@ export function SamouGoStoreManager() {
   }, [incomingItems, incoming.loading, isManager, auth.user]);
 
   // Stop the looping alert when any order action is taken (accept, reject, etc.).
-  const stopAlert = useCallback(() => { stopAlertRef.current?.(); stopAlertRef.current = null; }, []);
+  const stopAlert = useCallback(() => { stopAlertRef.current?.(); stopAlertRef.current = null; stopOrderAlarm().catch(() => {}); }, []);
   const inbox: OrderSummary[] = useMemo(
     // Kitchen inbox in lifecycle order: PENDING first (needs a decision),
     // then ACCEPTED (start cooking), PREPARING (in progress), READY_FOR_PICKUP
@@ -355,6 +365,8 @@ export function SamouGoStoreManager() {
     void runTransition(orderId, OrderStatus.PREPARING, 'بدأ التحضير', 'Preparation started');
   const handleReadyForPickup = (orderId: string) =>
     void runTransition(orderId, OrderStatus.READY_FOR_PICKUP, 'الطلب جاهز للاستلام', 'Order ready for pickup');
+  const handleMarkDelivered = (orderId: string) =>
+    void runTransition(orderId, OrderStatus.DELIVERED, 'تم التسليم للزبون', 'Delivered to customer');
   const handleReject = (orderId: string) => {
     stopAlert();
     void runTransition(orderId, OrderStatus.CANCELLED, 'تم رفض الطلب', 'Order rejected');
@@ -429,9 +441,10 @@ export function SamouGoStoreManager() {
 
   return (
     <main className={`min-h-screen bg-canvas pb-24 font-sans text-ink transition-[padding] duration-300 ${sidebarOpen ? 'md:pr-60' : ''}`}>
+      <OfflineBanner />
       {sidebarOpen && <button type="button" aria-label={t('إغلاق القائمة', 'Close navigation')} onClick={() => setSidebarOpen(false)} className="fixed inset-0 z-20 bg-ink/40 md:hidden" />}
       <aside className={`fixed inset-y-0 right-0 z-30 flex w-60 flex-col bg-brand-deep px-4 py-6 text-white shadow-overlay transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} aria-label={t('تنقل مدير المتجر', 'Store manager navigation')}>
-        <p className="px-3 text-lg font-extrabold">Samou' Go</p>
+        <p className="px-3 text-lg font-extrabold">Samou Quick</p>
         <p className="px-3 text-[11px] text-white/70">مدير المتجر</p>
         <nav className="mt-8 flex-1 space-y-1">
           {BOTTOM_TABS.map((tab) => {
@@ -558,12 +571,8 @@ export function SamouGoStoreManager() {
         </div>
       </header>
 
-      {managedStore.data && (
-        <StoreLocationPrompt
-          store={managedStore.data}
-          storeId={managedStoreId}
-          onSaved={() => void managedStore.reload()}
-        />
+      {gpsCaptureEnabled && managedStore.data && !managedStore.data.latitude && (
+        <StoreLocationPrompt store={managedStore.data} storeId={managedStore.data.id} onSaved={() => managedStore.refresh()} />
       )}
 
       {managedStore.data?.dedicatedCaptains && (
@@ -601,7 +610,7 @@ export function SamouGoStoreManager() {
 
       {/* KPIs */}
       <section className="mx-auto max-w-md px-4 pt-5" aria-label="ملخص الأداء">
-        <div className="flex gap-3 overflow-x-auto pb-1">
+        <div className="scrollbar-none flex gap-3 overflow-x-auto overflow-y-hidden pb-1" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
           <KpiTile
             icon={<span className="text-lg">₪</span>}
             labelAr="الطلبات النشطة"
@@ -716,6 +725,7 @@ export function SamouGoStoreManager() {
                     onAccept={() => handleAccept(order.id)}
                     onStartPreparing={() => handleStartPreparing(order.id)}
                     onReadyForPickup={() => handleReadyForPickup(order.id)}
+                    onMarkDelivered={() => handleMarkDelivered(order.id)}
                     onReject={() => handleReject(order.id)}
                   />
                 ))}
@@ -821,6 +831,7 @@ export function SamouGoStoreManager() {
                   onAccept={() => handleAccept(order.id)}
                   onStartPreparing={() => handleStartPreparing(order.id)}
                   onReadyForPickup={() => handleReadyForPickup(order.id)}
+                  onMarkDelivered={() => handleMarkDelivered(order.id)}
                   onReject={() => handleReject(order.id)}
                 />
               ))}
@@ -973,6 +984,52 @@ export function SamouGoStoreManager() {
       )}
       {activeTab === 'custom-requests' && managedStoreId && <CustomRequestsPanel storeId={managedStoreId} />}
 
+      {activeTab === 'statement' && (
+        <section className="mx-auto max-w-md px-4 pt-5">
+          <h2 className="mb-3 text-lg font-extrabold">{t('كشف حساب', 'Account Statement')}</h2>
+          {!statementData && !statementLoading && (
+            <button
+              type="button"
+              onClick={() => {
+                setStatementLoading(true);
+                getWalletStatement(statementPage)
+                  .then((data) => { setStatementData(data); })
+                  .catch(() => {})
+                  .finally(() => { setStatementLoading(false); });
+              }}
+              className="rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white active:scale-95"
+            >
+              {t('عرض كشف الحساب', 'View Statement')}
+            </button>
+          )}
+          {statementLoading && (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="skeleton h-16 rounded-xl" />
+              ))}
+            </div>
+          )}
+          {statementData && (
+            <AccountStatement
+              balance={statementData.balance}
+              entries={statementData.entries}
+              total={statementData.total}
+              loading={false}
+              currentPage={statementPage}
+              onPageChange={(page) => {
+                setStatementPage(page);
+                setStatementLoading(true);
+                getWalletStatement(page)
+                  .then((data) => { setStatementData(data); })
+                  .catch(() => {})
+                  .finally(() => { setStatementLoading(false); });
+              }}
+              ownerLabel="store"
+            />
+          )}
+        </section>
+      )}
+
       <nav
         className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface px-3 safe-bottom pt-2 shadow-raised md:hidden"
         aria-label="التنقل السفلي"
@@ -1040,10 +1097,11 @@ interface OrderRowProps {
   onAccept: () => void;
   onStartPreparing: () => void;
   onReadyForPickup: () => void;
+  onMarkDelivered: () => void;
   onReject: () => void;
 }
 
-function OrderRow({ order, customerPhone, customerName, pending, onAccept, onStartPreparing, onReadyForPickup, onReject }: OrderRowProps) {
+function OrderRow({ order, customerPhone, customerName, pending, onAccept, onStartPreparing, onReadyForPickup, onMarkDelivered, onReject }: OrderRowProps) {
   const { t } = useLanguage();
   const time = relativeTime(order.createdAt);
   const itemCount = order.itemCount;
@@ -1067,6 +1125,12 @@ function OrderRow({ order, customerPhone, customerName, pending, onAccept, onSta
         return { labelAr: 'بدء التحضير', labelEn: 'Start Cooking', icon: UtensilsCrossed, handler: onStartPreparing, color: 'bg-warning hover:bg-warning-dark focus:ring-warning/40 text-white' };
       case OrderStatus.PREPARING:
         return { labelAr: 'جاهز للاستلام', labelEn: 'Mark Ready', icon: PackageCheck, handler: onReadyForPickup, color: 'bg-info hover:bg-info-dark focus:ring-info/40 text-white' };
+      case OrderStatus.READY_FOR_PICKUP:
+        // PICKUP orders: store manager marks directly as delivered (no captain).
+        if (order.fulfillmentType === 'PICKUP') {
+          return { labelAr: 'تم التسليم للزبون', labelEn: 'Delivered', icon: Check, handler: onMarkDelivered, color: 'bg-success hover:bg-success-dark focus:ring-success/40 text-white' };
+        }
+        return null;
       default:
         return null;
     }
@@ -1152,8 +1216,14 @@ function OrderRow({ order, customerPhone, customerName, pending, onAccept, onSta
         )}
       </div>
 
-      {/* READY_FOR_PICKUP: informational — captain is expected to claim it */}
-      {order.status === OrderStatus.READY_FOR_PICKUP && (
+      {/* READY_FOR_PICKUP: show pickup or delivery status */}
+      {order.status === OrderStatus.READY_FOR_PICKUP && order.fulfillmentType === 'PICKUP' && (
+        <p className="mb-2 flex items-center gap-1.5 rounded-xl bg-success-tint px-3 py-2 text-[11px] font-semibold text-success-ink">
+          <PackageCheck size={14} className="shrink-0" />
+          <span>{t('جاهز للاستلام من الفرع — في انتظار الزبون', 'Ready for customer pickup')}</span>
+        </p>
+      )}
+      {order.status === OrderStatus.READY_FOR_PICKUP && order.fulfillmentType !== 'PICKUP' && (
         <p className="mb-2 flex items-center gap-1.5 rounded-xl bg-info-tint px-3 py-2 text-[11px] font-semibold text-info-ink">
           <ChevronRight size={14} className="shrink-0 rtl:rotate-180" />
           <span>{t('جاهز — بانتظار كابتن التوصيل', 'Waiting for a captain')}</span>

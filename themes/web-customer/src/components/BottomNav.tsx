@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Home, Heart, Package, Search, User, type LucideIcon } from 'lucide-react';
+import { Home, Heart, Package, Search, User, BadgePercent, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useLanguage } from '@samou-go/ui';
 import { useAuth } from '@/hooks/useApi';
@@ -27,7 +27,7 @@ interface TabItem {
 
 const TABS: readonly TabItem[] = [
   { to: '/home', labelAr: 'الرئيسية', labelEn: 'Home', icon: Home },
-  { to: '/search', labelAr: 'بحث', labelEn: 'Search', icon: Search },
+  { to: '/offers', labelAr: 'العروض', labelEn: 'Offers', icon: BadgePercent },
   { to: '/orders', labelAr: 'طلباتي', labelEn: 'Orders', icon: Package },
   { to: '/favorites', labelAr: 'المفضلة', labelEn: 'Favorites', icon: Heart },
   { to: '/profile', labelAr: 'حسابي', labelEn: 'Profile', icon: User },
@@ -82,6 +82,21 @@ function useActiveOrderCount(): number {
 export function BottomNav() {
   const { t } = useLanguage();
   const activeOrders = useActiveOrderCount();
+  const [cartBounce, setCartBounce] = useState(false);
+  const [cartRipple, setCartRipple] = useState(false);
+
+  // Listen for cart:item-added events and trigger bounce + ripple animation.
+  useEffect(() => {
+    const handler = () => {
+      setCartBounce(true);
+      setCartRipple(true);
+      const bounceTimeout = setTimeout(() => setCartBounce(false), 500);
+      const rippleTimeout = setTimeout(() => setCartRipple(false), 700);
+      return () => { clearTimeout(bounceTimeout); clearTimeout(rippleTimeout); };
+    };
+    window.addEventListener('cart:item-added', handler);
+    return () => window.removeEventListener('cart:item-added', handler);
+  }, []);
 
   return (
     <nav
@@ -109,15 +124,25 @@ export function BottomNav() {
                     size={21}
                     strokeWidth={isActive ? 2.5 : 1.8}
                     fill={isActive && to === '/home' ? 'currentColor' : 'none'}
-                    className={isActive ? 'text-brand-deep' : ''}
+                    className={`${
+                      to === '/orders' && cartBounce ? 'cart-bounce' : ''
+                    } ${
+                      to === '/orders' && cartRipple ? 'animate-[greenRipple_0.6s_ease-out_both]' : ''
+                    } ${
+                      isActive ? 'text-brand-deep' : ''
+                    }`}
                   />
                   {/* Active-order badge — only on the Orders tab */}
                   {to === '/orders' && activeOrders > 0 && (
-                    <span className="absolute -end-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[8px] font-black text-white">
+                    <span className="absolute -end-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[8px] font-black text-white animate-[cartPop_0.3s_var(--ease-spring)_both]">
                       {activeOrders > 9 ? '9+' : activeOrders}
                     </span>
                   )}
                 </span>
+                {/* Sliding pill indicator for active tab */}
+                {isActive && (
+                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-brand animate-[pillSlide_0.25s_var(--ease-spring)_both]" />
+                )}
                 <span className="leading-none">{t(labelAr, labelEn)}</span>
               </>
             )}

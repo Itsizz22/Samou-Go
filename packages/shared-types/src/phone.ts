@@ -85,18 +85,28 @@ export const WHATSAPP_MESSAGES = {
   /** Captain/driver contacting customer about an order */
   captain: (orderNumber: string, customerName?: string) => {
     const namePart = customerName ? ` ${customerName}` : '';
-    return `مرحباً${namePart}، معك كابتن التوصيل من تطبيق سموع قو بخصوص طلبك رقم #${orderNumber}.`;
+    return `مرحباً${namePart}، معك كابتن التوصيل من تطبيق سموع كويك بخصوص طلبك رقم #${orderNumber}.`;
   },
 
   /** Store manager contacting customer about an order */
   storeManager: (orderNumber: string, customerName?: string, storeName?: string) => {
     const namePart = customerName ? ` ${customerName}` : '';
     const storePart = storeName ? ` من ${storeName}` : '';
-    return `مرحباً${namePart}، مع حضرتك إدارة المتجر${storePart} من تطبيق سموع قو بخصوص طلبك رقم #${orderNumber}.`;
+    return `مرحباً${namePart}، مع حضرتك إدارة المتجر${storePart} من تطبيق سموع كويك بخصوص طلبك رقم #${orderNumber}.`;
+  },
+
+  /** Captain contacting customer via WhatsApp with order & store info */
+  captainOrderWhatsApp: (
+    customerPhone: string,
+    orderNumber: string,
+    storeName: string,
+  ): string => {
+    const message = `مرحباً، أنا كابتن سموع كويك ومعي طلبك رقم (SG-${orderNumber}) من ${storeName}. أنا في طريقي إليك.`;
+    return formatWhatsAppLink(customerPhone, message);
   },
 
   /** Generic contact message */
   generic: (context: string) => {
-    return `مرحباً، معك ${context} من تطبيق سموع قو.`;
+    return `مرحباً، معك ${context} من تطبيق سموع كويك.`;
   },
 } as const;

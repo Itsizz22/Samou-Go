@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { SignInGate, useAuth, useOrders } from '@/hooks/useApi';
+import { SignInGate, useAuth, useOrders, useToast } from '@/hooks/useApi';
 import { Loader2, Package, Phone, RefreshCw, RotateCcw, StickyNote, Store } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { reorderOrder } from '@samou-go/api-client';
@@ -20,6 +20,7 @@ export function OrdersScreen() {
   const cart = useCart();
   const { t } = useLanguage();
   const [reorderingId, setReorderingId] = useState<string | null>(null);
+  const toast = useToast();
   const orders = useOrders({ pageSize: 20 }, { enabled: Boolean(auth.user) });
 
   const status = (state: OrderStatus) => ORDER_STATUS_LABELS[state]?.ar ?? state;
@@ -110,6 +111,34 @@ export function OrdersScreen() {
                       </div>
                     ))}
                   </div>
+                  <button
+                    type="button"
+                    disabled={reorderingId === row.key}
+                    onClick={async () => {
+                      setReorderingId(row.key);
+                      try {
+                        let totalSkipped = 0;
+                        cart.clear();
+                        for (const o of row.orders) {
+                          const result = await reorderOrder(o.id);
+                          result.items.forEach((item) => cart.addItem(item.product, item.quantity, item.note, result.storeNameAr));
+                          totalSkipped += result.skipped;
+                        }
+                        if (totalSkipped > 0) {
+                          toast.info('تمت إضافة الأصناف المتوفرة فقط إلى السلة', 'Only available items were added to the cart');
+                        } else {
+                          toast.success('تمت إضافة الطلب إلى السلة', 'Order added to cart');
+                        }
+                        navigate('/cart');
+                      } catch (err) {
+                        toast.error('تعذّر إعادة الطلب', 'Could not reorder');
+                      } finally { setReorderingId(null); }
+                    }}
+                    className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl bg-brand py-2 text-xs font-bold text-white disabled:opacity-60"
+                  >
+                    {reorderingId === row.key ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                    إعادة الطلب <span dir="ltr">Reorder All</span>
+                  </button>
                 </article>
               ) : (
                 /* Single order */
@@ -129,7 +158,16 @@ export function OrdersScreen() {
                         const result = await reorderOrder(row.orders[0].id);
                         cart.clear();
                         result.items.forEach((item) => cart.addItem(item.product, item.quantity, item.note, result.storeNameAr));
+                        if (result.skipped > 0) {
+                          toast.info(
+                            'تمت إضافة الأصناف المتوفرة فقط إلى السلة', 'Only available items were added to the cart',
+                          );
+                        } else {
+                          toast.success('تمت إضافة الطلب إلى السلة', 'Order added to cart');
+                        }
                         navigate('/cart');
+                      } catch (err) {
+                        toast.error('تعذّر إعادة الطلب', 'Could not reorder');
                       } finally { setReorderingId(null); }
                     }} className="inline-flex items-center justify-center gap-1 rounded-xl bg-brand py-2 text-xs font-bold text-white disabled:opacity-60">
                       {reorderingId === row.orders[0].id ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} إعادة الطلب <span dir="ltr">Reorder</span>

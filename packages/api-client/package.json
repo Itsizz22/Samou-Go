@@ -2,7 +2,7 @@
   "name": "@samou-go/api-client",
   "version": "0.1.0",
   "private": true,
-  "description": "Browser HTTP client, data-fetching hooks and sign-in gate for the Samou' Go Express API",
+  "description": "Browser HTTP client, data-fetching hooks and sign-in gate for the Samou Quick Express API",
   "license": "UNLICENSED",
   "type": "module",
   "exports": {

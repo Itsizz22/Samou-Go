@@ -40,11 +40,13 @@ import {
   useRoleRedirect,
   useToast,
   useWallet,
+  getWalletStatement,
   connectRealtime,
 } from '@samou-go/api-client';
 import { useAuth } from '@/hooks/useApi';
 import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import {
+  AccountStatement,
   Badge,
   LanguageToggle,
   NotificationBell,
@@ -53,6 +55,7 @@ import {
   useLanguage,
   type BellNotification,
 } from '@samou-go/ui';
+import { stopOrderAlarm } from '@/lib/orderAlarm';
 import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_TONES,
@@ -61,6 +64,8 @@ import {
   canRoleSetOrderStatus,
   canRoleTransitionOrderStatus,
   canTransitionOrderStatus,
+  formatWhatsAppLink,
+  WHATSAPP_MESSAGES,
   type DeliveryZone,
   type OrderDetail,
   type OrderSummary,
@@ -247,7 +252,7 @@ export function SamouGoCaptain() {
   }, [availableItems, availableOrders.loading, isCaptain, auth.user]);
 
   /** Stop the looping alert (called when captain taps Accept). */
-  const stopAlert = useCallback(() => { stopAlertRef.current?.(); stopAlertRef.current = null; }, []);
+  const stopAlert = useCallback(() => { stopAlertRef.current?.(); stopAlertRef.current = null; stopOrderAlarm().catch(() => {}); }, []);
 
   /* ---- Mutations --------------------------------------------------------- */
 
@@ -608,7 +613,7 @@ export function SamouGoCaptain() {
   return (
     <main className="min-h-screen bg-canvas pb-24 font-sans text-ink md:pr-60">
       <aside className="fixed inset-y-0 right-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل الكابتن">
-        <p className="px-3 text-lg font-extrabold">Samou' Go</p>
+        <p className="px-3 text-lg font-extrabold">Samou Quick</p>
         <p className="px-3 text-[11px] text-white/70">الكابتن</p>
         <nav className="mt-8 flex-1 space-y-1">
           {NAV_ITEMS.map((item) => {
@@ -805,6 +810,35 @@ export function SamouGoCaptain() {
                           <Navigation size={15} />
                           <span>{t('العميل', 'Customer')}</span>
                         </a>
+                        {activeOrderDetail.data?.customer?.phone && (
+                          <a
+                            href={formatWhatsAppLink(
+                              activeOrderDetail.data.customer.phone,
+                              WHATSAPP_MESSAGES.captain(order.orderNumber, activeOrderDetail.data.customer.name)
+                            )}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={t('تواصل عبر واتساب', 'Contact via WhatsApp')}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] py-2.5 text-[11px] font-bold text-white transition hover:bg-[#1ea952] active:scale-95"
+                            style={{ backgroundColor: '#25D366' }}
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.263.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.67m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378 3.094 3.094 0 01-.988-.77 9.86 9.86 0 004.776-5.684 3.072 3.072 0 011.228-.378c1.613 0 2.612 1.228 2.612 2.944 0 1.85-1.54 3.325-3.328 3.724-.34.074-.68.148-1.02.222-.34.074-.567.075-.827-.074-.26-.148-.774-.865-1.077-1.488-.302-.622-.373-1.1-.074-1.328s.722-.148 1.095-.074c.373.075.68.3 1.02.623.623.56 1.096 1.592 1.314 2.56.183.78.173 1.558.048 2.068-.099.404-.404.828-.758 1.096-.353.267-.827.374-1.327.312-.488-.062-.948-.136-1.267-.375l-.57-.373c-.43-.238-.675-.286-1.12-.173-.352.123-1.121.375-1.582.81-.507.475-1.53 1.146-1.53 2.104 0 1.137.985 2.14 2.17 2.357.267.049.52.049.804.049.373 0 .747-.099 1.095-.272.34-.173.64-.397.89-.748.267-.373.39-.85.323-1.096-.074-.26-.468-.436-.967-.623-.373-.148-.847-.148-1.24-.074-.622.075-1.106.507-1.342 1.137-.21.576-.21 1.127-.105 1.274.105.15.423.624 1.096 1.517.788.975 2.03 2.18 2.03 3.558 0 2.374-2.778 2.374-2.778 2.914" />
+                            </svg>
+                            <span>{t('واتساب', 'WhatsApp')}</span>
+                          </a>
+                        )}
+                        {activeOrderDetail.data?.customer?.phone && (
+                          <a
+                            href={`tel:${activeOrderDetail.data.customer.phone}`}
+                            aria-label={t('اتصال مباشر', 'Direct call')}
+                            title={t('اتصال مباشر بالعميل', 'Call customer directly')}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-500 py-2.5 text-[11px] font-bold text-white transition hover:bg-blue-600 active:scale-95"
+                          >
+                            <Phone size={14} />
+                            <span>{t('اتصال', 'Call')}</span>
+                          </a>
+                        )}
                         <button
                           type="button"
                           disabled={deliverMutation.pending}
@@ -834,6 +868,7 @@ export function SamouGoCaptain() {
           <>
             {earningsSection}
             {todaySection}
+            <CaptainStatement />
           </>
         )}
 
@@ -1208,6 +1243,56 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
       >
         {t('تسجيل الخروج', 'Sign out')}
       </button>
+    </section>
+  );
+}
+
+/** Captain's account statement — shows ledger entries with balance. */
+function CaptainStatement() {
+  const { t } = useLanguage();
+  const [page, setPage] = useState(1);
+  const [data, setData] = useState<{ balance: number; entries: Array<{ id: string; amount: number; type: string; description: string | null; createdAt: string }>; total: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  const load = (p: number) => {
+    setLoading(true);
+    getWalletStatement(p)
+      .then((d) => { setData(d); setLoaded(true); })
+      .catch(() => {})
+      .finally(() => { setLoading(false); });
+  };
+
+  return (
+    <section className="mt-4">
+      <h3 className="mb-2 text-base font-extrabold">{t('كشف حساب', 'Account Statement')}</h3>
+      {!loaded && !loading && (
+        <button
+          type="button"
+          onClick={() => load(1)}
+          className="rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white active:scale-95"
+        >
+          {t('عرض كشف الحساب', 'View Statement')}
+        </button>
+      )}
+      {loading && (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="skeleton h-16 rounded-xl" />
+          ))}
+        </div>
+      )}
+      {data && (
+        <AccountStatement
+          balance={data.balance}
+          entries={data.entries}
+          total={data.total}
+          loading={false}
+          currentPage={page}
+          onPageChange={(p) => { setPage(p); load(p); }}
+          ownerLabel="captain"
+        />
+      )}
     </section>
   );
 }

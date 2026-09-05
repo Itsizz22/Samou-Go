@@ -79,6 +79,8 @@ export interface Store {
   /** Distance from the requesting customer, in km — present only on
    * `GET /api/v1/stores?lat=&lng=` (nearby-store queries). */
   distanceKm?: number;
+  /** Computed badges for the customer UI — computed server-side, not stored in DB. */
+  badges?: string[];
   createdAt: IsoDateTime;
 }
 
@@ -131,6 +133,8 @@ export interface Offer {
   descriptionAr: string;
   descriptionEn: string;
   imageUrl: string | null;
+  /** Standalone purchase price — when set, customers can order this offer directly. */
+  price: number | null;
   startsAt: IsoDateTime | null;
   expiresAt: IsoDateTime | null;
   isActive: boolean;
@@ -198,6 +202,12 @@ export interface OrderItem {
   totalPrice: number;
   /** Customer instruction for this specific product, e.g. "no onions". */
   note: string | null;
+  /** True when this item is a standalone promotional offer (not a menu product). */
+  isOfferItem: boolean;
+  /** Display name of the offer — stored denormalized for order history. */
+  offerTitle: string | null;
+  /** Reference to the standalone offer, if applicable. */
+  offerId: string | null;
 }
 
 export interface OrderStatusHistoryEntry {
@@ -223,6 +233,8 @@ export interface Order {
    */
   cartCheckoutId: string | null;
   status: OrderStatus;
+  /** How the order is fulfilled: delivered to the customer or picked up from the store. */
+  fulfillmentType: import('./enums').FulfillmentType;
   /**
    * Free-text destination — neighbourhood, street, landmark.
    * Samou' has no reliable street numbering, so the captain phones the customer.
@@ -241,6 +253,10 @@ export interface Order {
   estimatedPrepMinutes: number | null;
   /** 4-digit PIN the customer shares with the captain on delivery. */
   deliveryPin: string | null;
+  /** Customer voice note URL — uploaded via presigned URL before checkout. */
+  voiceNoteUrl: string | null;
+  /** Duration of the voice note in seconds. */
+  voiceNoteDuration: number | null;
   subtotal: number;
   /** Fee from the captain-selected `deliveryZone`, or 0 before one is set. */
   deliveryFee: number;
@@ -293,6 +309,8 @@ export interface OrderSummary {
   orderNote: string | null;
   /** Delivery preset: "call_on_arrival", "leave_at_door", or null. */
   deliveryPreset: string | null;
+  /** Fulfillment method for this order: DELIVERY or PICKUP. */
+  fulfillmentType: import('./enums').FulfillmentType;
   /** Kitchen estimate chosen when the store accepted the order. */
   estimatedPrepMinutes: number | null;
   /**

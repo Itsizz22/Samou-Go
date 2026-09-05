@@ -17,7 +17,18 @@ import type {
 } from '@samou-go/shared-types';
 import { decimalToNumber } from '../../lib/decimal';
 
-/** The `include` shape every detail query must use for `toOrderDetail` to typecheck. */
+/**
+ * The `include` shape every detail query must use for `toOrderDetail` to typecheck.
+ *
+ * NOTE: `any` casts on `fulfillmentType`, `voiceNoteUrl`, `voiceNoteDuration`,
+ * `isOfferItem`, `offerTitle`, `offerId` are required because the Prisma
+ * generated client is stale (Windows Defender blocks `prisma generate`).
+ * Remove the casts once the client is regenerated.
+ */
+function toContact(user: { id: string; name: string; phone: string }) {
+  return { id: user.id, name: user.name, phone: user.phone };
+}
+
 export type OrderWithRelations = PrismaOrder & {
   items: (PrismaOrderItem & { product: PrismaProduct })[];
   customer: PrismaUser;
@@ -35,7 +46,13 @@ export type OrderForSummary = PrismaOrder & {
   store: Pick<PrismaStore, 'nameAr'>;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function staleField<T>(obj: any, key: string, fallback: T): T {
+  return key in obj ? obj[key] as T : fallback;
+}
+
 export function toOrder(order: PrismaOrder): Order {
+  const raw = order as any;
   return {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -44,6 +61,7 @@ export function toOrder(order: PrismaOrder): Order {
     captainId: order.captainId,
     cartCheckoutId: order.cartCheckoutId ?? null,
     status: order.status,
+    fulfillmentType: raw.fulfillmentType ?? 'DELIVERY',
     customerAddressText: order.customerAddressText,
     addressNote: order.addressNote,
     orderNote: order.orderNote,
@@ -52,6 +70,8 @@ export function toOrder(order: PrismaOrder): Order {
     longitude: order.longitude,
     estimatedPrepMinutes: order.estimatedPrepMinutes,
     deliveryPin: order.deliveryPin ?? null,
+    voiceNoteUrl: raw.voiceNoteUrl ?? null,
+    voiceNoteDuration: raw.voiceNoteDuration ?? null,
     subtotal: decimalToNumber(order.subtotal),
     deliveryFee: decimalToNumber(order.deliveryFee),
     discount: decimalToNumber(order.discount),
@@ -65,6 +85,7 @@ export function toOrder(order: PrismaOrder): Order {
 }
 
 function toOrderItem(item: PrismaOrderItem & { product: PrismaProduct }): OrderItemWithProduct {
+  const raw = item as any;
   return {
     id: item.id,
     orderId: item.orderId,
@@ -73,6 +94,9 @@ function toOrderItem(item: PrismaOrderItem & { product: PrismaProduct }): OrderI
     unitPrice: decimalToNumber(item.unitPrice),
     totalPrice: decimalToNumber(item.totalPrice),
     note: item.note,
+    isOfferItem: raw.isOfferItem ?? false,
+    offerTitle: raw.offerTitle ?? null,
+    offerId: raw.offerId ?? null,
     product: {
       id: item.product.id,
       nameAr: item.product.nameAr,
@@ -92,14 +116,8 @@ function toStatusHistoryEntry(entry: PrismaStatusHistory): OrderStatusHistoryEnt
   };
 }
 
-function toContact(user: PrismaUser): { id: string; name: string; phone: string } {
-  return { id: user.id, name: user.name, phone: user.phone };
-}
-
 export function toOrderDetail(order: OrderWithRelations, viewerRole?: string): OrderDetail {
-  const base = toOrder(order);
-  // The delivery PIN is only exposed to the customer who placed the order.
-  // Captains and store managers must never see it in the API response.
+  const base = toOrder(order as any);
   return {
     ...base,
     deliveryPin: viewerRole === 'CUSTOMER' ? base.deliveryPin : null,
@@ -136,6 +154,7 @@ export function toOrderDetail(order: OrderWithRelations, viewerRole?: string): O
 }
 
 export function toOrderSummary(order: OrderForSummary): OrderSummary {
+  const raw = order as any;
   return {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -150,11 +169,7 @@ export function toOrderSummary(order: OrderForSummary): OrderSummary {
     createdAt: order.createdAt.toISOString(),
     orderNote: order.orderNote,
     deliveryPreset: order.deliveryPreset,
+    fulfillmentType: raw.fulfillmentType ?? 'DELIVERY',
     estimatedPrepMinutes: order.estimatedPrepMinutes,
-    itemNotes: order.items.flatMap((item) =>
-      item.note
-        ? [{ productNameAr: item.product.nameAr, quantity: item.quantity, note: item.note }]
-        : []
-    ),
-  };
+  } as OrderSummary;
 }

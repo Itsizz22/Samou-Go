@@ -77,6 +77,23 @@ export function CartScreen() {
                         <span className="text-xs font-extrabold text-ink">{group.storeNameAr || t('المتجر', 'Store')}</span>
                         <span className="mr-auto text-[11px] font-semibold text-ink-muted">{formatCurrency(group.subtotal)}</span>
                       </div>
+                      {/* Fulfillment type toggle per store */}
+                      <div className="mb-2 flex gap-1 rounded-xl bg-canvas p-1">
+                        {(['DELIVERY', 'PICKUP'] as const).map(type => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => cart.setFulfillmentType(group.storeId, type)}
+                            className={`flex-1 rounded-lg px-2 py-1.5 text-[11px] font-bold transition ${
+                              group.fulfillmentType === type
+                                ? 'bg-brand text-white shadow-sm'
+                                : 'text-ink-muted'
+                            }`}
+                          >
+                            {type === 'DELIVERY' ? t('توصيل', 'Delivery') : t('استلام من المتجر', 'Pickup')}
+                          </button>
+                        ))}
+                      </div>
                       <div className="space-y-2">
                         {group.lines.map((line) => (
                           <div key={line.productId} className="flex items-center gap-3 py-2">

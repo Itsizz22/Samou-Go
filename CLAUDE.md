@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Samou' Go — hyper-local delivery platform for Samou', Hebron (Palestine). Arabic-first RTL UI, emerald brand (`#10B981`). npm workspaces monorepo, no root `README.md`. `AGENTS.md` holds the same rules in condensed form; historical docs live in `To_Do_old_versions/` (including `DESIGN_SYSTEM.md`, which the code still cites by section).
+Samou Quick — hyper-local delivery platform for Samou', Hebron (Palestine). Arabic-first RTL UI, emerald brand (`#10B981`). npm workspaces monorepo, no root `README.md`. `AGENTS.md` holds the same rules in condensed form; historical docs live in `To_Do_old_versions/` (including `DESIGN_SYSTEM.md`, which the code still cites by section).
 
 ## Workspaces
 

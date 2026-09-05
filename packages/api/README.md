@@ -1,6 +1,6 @@
 # @samou-go/api
 
-Express + TypeScript + Prisma backend for **السموع جو / Samou' Go**.
+Express + TypeScript + Prisma backend for **Samou Quick**.
 
 ## Getting started
 

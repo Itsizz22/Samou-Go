@@ -8,6 +8,7 @@
 
 export * from './components';
 export * from './lib';
-export { playNewOrderChime, createLoopingAlert } from './chime';
+export { playNewOrderChime, createLoopingAlert, createInfiniteLoopingAlert, vibrateOnce } from './chime';
 export { bootstrapApp, setAppLanguage, setBrandTheme } from './bootstrap';
+export { useNetworkStatus } from './hooks/useNetworkStatus';
 export type { BootstrapOptions, AppLanguage, BrandTheme } from './bootstrap';

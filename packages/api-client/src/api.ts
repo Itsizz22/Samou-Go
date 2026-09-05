@@ -1840,3 +1840,28 @@ export function settleWallet(walletId: string, input: SettleWalletInput, signal?
 export function creditWallet(walletId: string, input: CreditWalletInput, signal?: AbortSignal): Promise<WalletSummary> {
   return request('POST', `/platform/admin/wallets/${encodeURIComponent(walletId)}/credit`, { body: input, auth: true, signal });
 }
+
+/** A single ledger entry in the account statement. */
+export interface WalletStatementEntry {
+  id: string;
+  walletId: string;
+  userId: string | null;
+  amount: number;
+  type: string;
+  description: string | null;
+  createdAt: string;
+}
+
+/** GET /platform/wallet/statement — paginated ledger entries. */
+export interface WalletStatement {
+  balance: number;
+  total: number;
+  entries: WalletStatementEntry[];
+}
+
+export function getWalletStatement(page = 1, pageSize = 50, signal?: AbortSignal): Promise<WalletStatement> {
+  return request<WalletStatement>('GET', `/platform/wallet/statement?page=${page}&pageSize=${pageSize}`, {
+    auth: true,
+    signal,
+  });
+}

@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import type { ApiError } from '@samou-go/api-client';
 import { createOrder, checkoutOrders, quoteOrder, getPlatformSettings } from '@/hooks/useApi';
-import { OrderSuccess, Button, useLanguage } from '@samou-go/ui';
+import { OrderSuccess, Button, useLanguage, VoiceRecorder, useNetworkStatus } from '@samou-go/ui';
 import { useCart } from '@/components/CartProvider';
 import { MapPicker } from '@/components/MapPicker';
 import { CustomerAuthGate } from '@/components/CustomerAuthGate';
@@ -72,6 +72,7 @@ export function CheckoutScreen() {
   const cart = useCart();
   const navigate = useNavigate();
   const { t, language } = useLanguage();
+  const { isOffline } = useNetworkStatus();
   const isArabic = language === 'ar';
 
   const [saved, setSaved] = useState<SavedAddress[]>(() => readSavedAddresses());
@@ -108,6 +109,11 @@ export function CheckoutScreen() {
   const [placedOrder, setPlacedOrder] = useState<OrderDetail | null>(null);
   /** Multi-store checkout result — when set, renders the grouped success view. */
   const [placedCheckout, setPlacedCheckout] = useState<CheckoutResult | null>(null);
+  /** Voice note state */
+  const [voiceNoteBlob, setVoiceNoteBlob] = useState<Blob | null>(null);
+  const [voiceNoteDuration, setVoiceNoteDuration] = useState<number>(0);
+  const [voiceNoteUrl, setVoiceNoteUrl] = useState<string | null>(null);
+  const [voiceNoteUploading, setVoiceNoteUploading] = useState(false);
   /** Re-fetches the live quote — bumped when a stale-basket error is caught. */
   const [quoteRevision, setQuoteRevision] = useState(0);
   /** Platform settings — used to check if dynamic driver fee is enabled. */
@@ -332,6 +338,25 @@ export function CheckoutScreen() {
 
       setPlacing(true);
 
+      // Upload voice note if recorded
+      let finalVoiceNoteUrl = voiceNoteUrl;
+      if (voiceNoteBlob && !voiceNoteUrl) {
+        try {
+          setVoiceNoteUploading(true);
+          const { uploadImage } = await import('@samou-go/api-client');
+          const result = await uploadImage(
+            { kind: 'audio', contentType: voiceNoteBlob.type || 'audio/webm' },
+            voiceNoteBlob
+          );
+          finalVoiceNoteUrl = result.url;
+          setVoiceNoteUrl(result.url);
+        } catch {
+          // Voice note upload failed — continue with the order without it.
+        } finally {
+          setVoiceNoteUploading(false);
+        }
+      }
+
       if (cart.isMultiStore) {
         // Multi-store: split into per-store sub-orders.
         const storeGroups = cart.storeGroups.map(group => ({
@@ -341,6 +366,7 @@ export function CheckoutScreen() {
             quantity: line.quantity,
             ...(line.note.trim() ? { note: line.note.trim() } : {}),
           })),
+          fulfillmentType: group.fulfillmentType,
         }));
         const result = await checkoutOrders({
           stores: storeGroups,
@@ -351,6 +377,7 @@ export function CheckoutScreen() {
           deliveryPreset: deliveryPreset || undefined,
           latitude: pickedLat,
           longitude: pickedLng,
+          ...(finalVoiceNoteUrl ? { voiceNoteUrl: finalVoiceNoteUrl, voiceNoteDuration } : {}),
         });
         await hapticSuccess();
         cart.clear();
@@ -368,6 +395,8 @@ export function CheckoutScreen() {
           latitude: pickedLat,
           longitude: pickedLng,
           voucherCode: appliedVoucher || undefined,
+          fulfillmentType: cart.storeGroups[0]?.fulfillmentType ?? 'DELIVERY',
+          ...(finalVoiceNoteUrl ? { voiceNoteUrl: finalVoiceNoteUrl, voiceNoteDuration } : {}),
         });
         await hapticSuccess();
         cart.clear();
@@ -631,6 +660,34 @@ export function CheckoutScreen() {
             <textarea value={orderNote} onChange={(event) => setOrderNote(event.target.value)} maxLength={500} rows={2} placeholder={t('مثال: لا تضع معجون', 'e.g. no paste')} className="input-field mt-3 w-full" />
           </section>
 
+          {/* Voice Note */}
+          <section className="rounded-2xl bg-surface p-4 shadow-card">
+            <h2 className="text-sm font-extrabold">{t('ملاحظة صوتية', 'Voice note')}</h2>
+            <p className="mt-1 text-[11px] text-ink-muted">
+              {t('سجل ملاحظة صوتية للكابتن أو المتجر (اختياري)', 'Record a voice note for the captain or store (optional)')}
+            </p>
+            <div className="mt-3">
+              <VoiceRecorder
+                onRecorded={(blob, dur) => {
+                  setVoiceNoteBlob(blob);
+                  setVoiceNoteDuration(dur);
+                }}
+                onClear={() => {
+                  setVoiceNoteBlob(null);
+                  setVoiceNoteDuration(0);
+                  setVoiceNoteUrl(null);
+                }}
+                uploading={voiceNoteUploading}
+                disabled={placing}
+              />
+              {voiceNoteUrl && (
+                <p className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-brand-dark">
+                  <Check size={12} /> {t('تم رفع الملاحظة الصوتية', 'Voice note uploaded')}
+                </p>
+              )}
+            </div>
+          </section>
+
           {/* Payment — COD only, by design. */}
           <section className="rounded-2xl bg-surface p-4 shadow-card">
             <h2 className="text-sm font-extrabold">طريقة الدفع</h2>
@@ -827,12 +884,14 @@ export function CheckoutScreen() {
           <Button
             type="button"
             onClick={() => void handleSubmit()}
-            disabled={cart.lines.length === 0}
-            loading={placing}
+            disabled={cart.lines.length === 0 || isOffline}
+            loading={placing || voiceNoteUploading}
             block
             icon={placing ? undefined : <Package size={16} />}
           >
-            {t('تأكيد الطلب — الدفع عند الاستلام', 'Confirm order — cash on delivery')}
+            {isOffline
+              ? t('بانتظار عودة الاتصال', 'Waiting for connection')
+              : t('تأكيد الطلب — الدفع عند الاستلام', 'Confirm order — cash on delivery')}
           </Button>
           <p className="pb-4 text-center text-micro text-ink-muted" dir="ltr">
             Samou' is a cash economy — the captain collects on delivery.

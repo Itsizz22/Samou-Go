@@ -113,3 +113,71 @@ export function createLoopingAlert(maxMs = 10_000): () => void {
     clearInterval(timer);
   };
 }
+
+/**
+ * High-intensity infinite looping alert with vibration.
+ *
+ * Plays the chime on an infinite loop until `stop()` is called.
+ * Also triggers device vibration (where supported) in a repeating pattern.
+ * Designed for new-order dispatch alerts in the store-manager app.
+ */
+export function createInfiniteLoopingAlert(): () => void {
+  const raw = getContext();
+  if (!raw) return () => {};
+  const ctx: AudioContext = raw;
+
+  let stopped = false;
+  const intervalMs = 1200;
+
+  // Vibration pattern: vibrate 500ms, pause 250ms, repeat
+  let vibrationInterval: ReturnType<typeof setInterval> | null = null;
+  const hasVibration = typeof navigator !== 'undefined' && 'vibrate' in navigator;
+  if (hasVibration) {
+    navigator.vibrate!([500, 250, 500, 250]);
+    vibrationInterval = setInterval(() => {
+      if (stopped && vibrationInterval) {
+        clearInterval(vibrationInterval);
+        navigator.vibrate!(0); // cancel vibration
+        return;
+      }
+      navigator.vibrate!([500, 250, 500, 250]);
+    }, 1500);
+  }
+
+  function playOnce(): void {
+    if (stopped) return;
+    const now = ctx.currentTime;
+    // High-intensity urgent chime: ascending triple-tone
+    tone(ctx, 659.25, now, 0.12);
+    tone(ctx, 880.0, now + 0.08, 0.14);
+    tone(ctx, 1046.5, now + 0.20, 0.18);
+  }
+
+  playOnce();
+
+  const timer = setInterval(() => {
+    if (stopped) {
+      clearInterval(timer);
+      return;
+    }
+    playOnce();
+  }, intervalMs);
+
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+    if (vibrationInterval) clearInterval(vibrationInterval);
+    if (hasVibration) navigator.vibrate!(0);
+  };
+}
+
+/**
+ * Trigger a single short vibration burst (for UI feedback).
+ */
+export function vibrateOnce(pattern: number[] = [100]): void {
+  try {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate!(pattern);
+    }
+  } catch { /* no-op */ }
+}

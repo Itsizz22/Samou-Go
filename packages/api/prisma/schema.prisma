@@ -20,7 +20,7 @@ generator client {
   provider = "prisma-client-js"
   // Independent output so PostgreSQL codegen never overwrites the SQLite client
   // (which is generated into `../generated/prisma-sqlite`).
-  output = "../generated/prisma-postgres"
+  output = "../generated/prisma-pg-v2"
 }
 
 datasource db {
@@ -53,6 +53,12 @@ enum OrderStatus {
 /// Declared as an enum so adding card/wallet later is a migration, not a refactor.
 enum PaymentMethod {
   COD
+}
+
+/// How an order is fulfilled.
+enum FulfillmentType {
+  DELIVERY
+  PICKUP
 }
 
 /// How a voucher's `discountValue` is interpreted.
@@ -309,6 +315,7 @@ model Order {
   cartCheckoutId String?
 
   status OrderStatus @default(PENDING)
+  fulfillmentType FulfillmentType @default(DELIVERY)
 
   /// Free-text destination: neighbourhood, street, landmark. No GPS by design.
   customerAddressText String  @db.VarChar(500)
@@ -328,6 +335,10 @@ model Order {
   deliveryPin String?  @db.VarChar(4)
   /// Failed PIN validation attempts — locked after 5 to prevent brute-force.
   deliveryPinAttempts Int @default(0)
+  /// Customer voice note URL (audio/webm, audio/mp4, etc.) — uploaded via presigned URL.
+  voiceNoteUrl String?
+  /// Duration of the voice note in seconds.
+  voiceNoteDuration Int?
 
   subtotal      Decimal       @db.Decimal(10, 2)
   deliveryFee   Decimal       @db.Decimal(10, 2)
@@ -370,13 +381,21 @@ model OrderItem {
   unitPrice  Decimal @db.Decimal(10, 2)
   totalPrice Decimal @db.Decimal(10, 2)
   note       String? @db.VarChar(500)
+  /// True when this item is a standalone promotional offer (not a menu product).
+  isOfferItem Boolean @default(false)
+  /// Display name of the offer (e.g. "خصم 20٪ على المشروبات") — stored denormalized for order history.
+  offerTitle  String? @db.VarChar(200)
+  /// Reference to the standalone offer, if applicable.
+  offerId     String?
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  offer   Offer?  @relation(fields: [offerId], references: [id], onDelete: SetNull)
 
   /// One row per product per order — quantity carries the count.
   @@unique([orderId, productId])
   @@index([productId])
+  @@index([offerId])
   @@map("order_items")
 }
 
@@ -465,6 +484,8 @@ model Offer {
   imageUrl    String?
   /// Storage key of the image object (never exposed over the API).
   imageKey    String?
+  /// Standalone purchase price — when set, customers can order this offer directly.
+  price       Decimal? @db.Decimal(10, 2)
   /// Optional dispatch window — only shown to customers while active.
   startsAt    DateTime?
   expiresAt   DateTime?
@@ -475,6 +496,7 @@ model Offer {
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
   products OfferProduct[]
+  orderItems OrderItem[]
 
   @@index([storeId, isActive])
   @@index([isActive, expiresAt])
@@ -660,6 +682,9 @@ model PlatformSettings {
   requireOtpForSensitiveActions Boolean @default(false)
   /// WhatsApp support phone number shown in the floating support button across all apps.
   whatsappSupportNumber String? @db.VarChar(20)
+  /// When enabled, the app prompts users (customers, store managers) to share their GPS coordinates.
+  /// When disabled (default), all automatic GPS capture prompts are suppressed.
+  gpsCaptureEnabled Boolean @default(false)
   updatedAt DateTime @updatedAt
   @@map("platform_settings")
 }

@@ -97,7 +97,7 @@ describe('WHATSAPP_MESSAGES', () => {
     const msg = WHATSAPP_MESSAGES.captain('SG-260728-0042');
     expect(msg).toContain('SG-260728-0042');
     expect(msg).toContain('كابتن التوصيل');
-    expect(msg).toContain('سموع قو');
+    expect(msg).toContain('سموع كويك');
   });
 
   it('generates captain message with customer name', () => {
@@ -109,7 +109,7 @@ describe('WHATSAPP_MESSAGES', () => {
     const msg = WHATSAPP_MESSAGES.storeManager('SG-260728-0042');
     expect(msg).toContain('SG-260728-0042');
     expect(msg).toContain('إدارة المتجر');
-    expect(msg).toContain('سموع قو');
+    expect(msg).toContain('سموع كويك');
   });
 
   it('generates store manager message with customer name and store name', () => {
@@ -121,6 +121,6 @@ describe('WHATSAPP_MESSAGES', () => {
   it('generates generic message', () => {
     const msg = WHATSAPP_MESSAGES.generic('فريق الدعم');
     expect(msg).toContain('فريق الدعم');
-    expect(msg).toContain('سموع قو');
+    expect(msg).toContain('سموع كويك');
   });
 });

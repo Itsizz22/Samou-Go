@@ -57,7 +57,7 @@ function AuthShell({ children }: { children: React.ReactNode }) {
             <ShoppingCart size={26} />
           </span>
           <strong dir="ltr" className="text-lg">
-            Samou' Go
+            Samou Quick
           </strong>
         </div>
         {children}

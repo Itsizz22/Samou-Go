@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronLeft,
   Coffee,
+  Flame,
   Heart,
   LayoutGrid,
   Loader2,
@@ -19,10 +20,12 @@ import {
   ShoppingCart,
   Star,
   Store as StoreIcon,
+  Tag,
   Utensils,
+  Zap,
   type LucideIcon,
 } from 'lucide-react';
-import { NotificationBell, useLanguage, type BellNotification } from '@samou-go/ui';
+import { BrandLogo, NotificationBell, useLanguage, type BellNotification } from '@samou-go/ui';
 import { BottomNav } from '@/components/BottomNav';
 import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import { useDrawer } from '@/components/NavigationDrawer';
@@ -215,8 +218,8 @@ export function SamouGoHome() {
             <Menu size={22} />
           </button>
           <div className="flex items-center gap-2" dir="ltr">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-brand"><ShoppingCart size={19} strokeWidth={2.5} /></span>
-            <span className="text-[17px] font-bold tracking-tight">Samou' Go</span>
+            <BrandLogo size={34} />
+            <span className="text-[17px] font-bold tracking-tight">Samou Quick</span>
           </div>
           <div className="flex shrink-0 items-center gap-0.5" dir="ltr">
             <NotificationBell
@@ -441,7 +444,14 @@ export function SamouGoHome() {
                   </div>
                 )}
                 <div className="p-3 text-end">
-                  <p className="truncate text-sm font-extrabold">{t(offer.titleAr, offer.titleEn)}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-extrabold">{t(offer.titleAr, offer.titleEn)}</p>
+                    {offer.price != null && offer.price > 0 && (
+                      <span className="shrink-0 rounded-lg bg-brand px-2 py-0.5 text-[11px] font-black text-white" dir="ltr">
+                        {offer.price} ₪
+                      </span>
+                    )}
+                  </div>
                   <p className="mt-1 line-clamp-2 text-micro text-ink-muted">{t(offer.descriptionAr, offer.descriptionEn)}</p>
                 </div>
               </Link>
@@ -488,6 +498,9 @@ export function SamouGoHome() {
                     <div className={`relative flex h-24 items-center justify-center bg-gradient-to-br ${gradient}`}>
                       {store.logoUrl ? <img src={store.logoUrl} alt="" className="h-full w-full object-cover" loading="lazy" /> : <span className="text-3xl font-black text-white/40">{initials}</span>}
                       {store.isRecommended && <span className="absolute top-2 start-2 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-1 text-micro font-bold text-white shadow-card" title={t('ينصح به لدينا', 'Recommended by us')}><Star size={10} fill="currentColor" />{t('موصى به', 'Recommended')}</span>}
+                      {store.badges?.includes('badge_popular') && <span className="absolute top-2 end-2 inline-flex items-center gap-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('الأكثر طلباً', 'Most popular')}><Flame size={9} />{t('الأكثر طلباً', 'Popular')}</span>}
+                      {store.badges?.includes('badge_fast') && <span className="absolute top-10 end-2 inline-flex items-center gap-0.5 rounded-full bg-blue-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('سريع التجهيز', 'Fast prep')}><Zap size={9} />{t('سريع', 'Fast')}</span>}
+                      {store.badges?.includes('badge_has_offers') && <span className="absolute top-[68px] end-2 inline-flex items-center gap-0.5 rounded-full bg-emerald-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('عرض حصري', 'Special offer')}><Tag size={9} />{t('عرض', 'Offer')}</span>}
                       <span className={`absolute bottom-2 start-2 rounded-full px-2 py-1 text-micro font-bold ${store.isActive ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{store.isActive ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
                       <button type="button" aria-label={t(`إضافة ${store.nameAr} إلى المفضلة`, `Favorite ${store.nameEn}`)} aria-pressed={favorites.isFavorite(store.id)} onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggleLike(store.id); }} disabled={favorites.pending.includes(store.id)} className="absolute end-2 top-2 rounded-full bg-surface/85 p-2 text-brand"><Heart size={15} fill={favorites.isFavorite(store.id) ? 'currentColor' : 'none'} /></button>
                     </div>

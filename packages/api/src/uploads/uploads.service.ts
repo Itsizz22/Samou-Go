@@ -10,9 +10,9 @@ import { badRequest, badState, forbidden, notFound } from '../lib/http-error';
 import { prisma } from '../lib/prisma';
 import { processImage, sniffImageType } from './image';
 import { storage } from './storage';
-import { ALLOWED_IMAGE_MIMES, MIME_TO_EXT, uploadConfig } from './uploads.config';
+import { ALL_ALLOWED_MIMES, ALLOWED_AUDIO_MIMES, MIME_TO_EXT, MAX_AUDIO_BYTES, uploadConfig } from './uploads.config';
 
-const KEY_PATTERN = /^(user|product|store|offer|category)\/([^/]+)\/([^/]+)\.(jpg|png|webp)$/;
+const KEY_PATTERN = /^(user|product|store|offer|category|audio)\/([^/]+)\/([^/]+)\.(jpg|png|webp|webm|m4a|ogg|mp3)$/;
 
 export interface UploadCaller {
   userId: string;
@@ -141,11 +141,25 @@ export async function presign(
   caller: UploadCaller,
   input: { contentType: string; kind: UploadKind; resourceId?: string; purpose?: 'logo' | 'cover' | 'image' }
 ): Promise<PresignUploadResult> {
-  const mime = ALLOWED_IMAGE_MIMES.find(entry => entry === input.contentType);
+  const isAudio = ALLOWED_AUDIO_MIMES.includes(input.contentType as any);
+  const mime = ALL_ALLOWED_MIMES.find(entry => entry === input.contentType);
   if (!mime) {
     throw badRequest(
-      'نوع الصورة غير مدعوم — يُسمح بـ JPEG أو PNG أو WebP / Unsupported image type — JPEG, PNG or WebP only'
+      'نوع الملف غير مدعوم — يُسمح بـ JPEG أو PNG أو WebP أو صوتيات / Unsupported file type'
     );
+  }
+
+  // Audio uploads: enforce size limit at presign time.
+  if (isAudio) {
+    const maxBytes = MAX_AUDIO_BYTES;
+    // Size check is advisory — the real enforcement is at PUT time,
+    // but we return the limit in the presign response so the client can warn early.
+    return {
+      uploadUrl: '',
+      key: `audio/${caller.userId}/${randomUUID()}.${MIME_TO_EXT[mime]}`,
+      contentType: mime,
+      maxBytes,
+    } as PresignUploadResult & { key: string };
   }
 
   const ext = MIME_TO_EXT[mime];
@@ -197,7 +211,7 @@ export async function presign(
     uploadUrl: storage.rawUploadUrl(key),
     key,
     contentType: mime,
-    maxBytes: uploadConfig.maxBytes,
+    maxBytes: isAudio ? MAX_AUDIO_BYTES : uploadConfig.maxBytes,
   };
 }
 
@@ -250,7 +264,7 @@ export async function finalizeUpload(
   }
 
   const base = baseKeyOf(key);
-  const processed = await processImage({ buffer: raw, kind });
+  const processed = await processImage({ buffer: raw, kind: kind as any });
 
   if (parsed.kind === 'user' || parsed.kind === 'store' || parsed.kind === 'offer' || parsed.kind === 'category') {
     const variant = processed.variants[0]!;

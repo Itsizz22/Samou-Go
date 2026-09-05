@@ -1,6 +1,6 @@
 /**
  * Human-facing order references: `SG-260728-0042`
- * — `SG` Samou' Go, `YYMMDD`, then a zero-padded per-day sequence.
+ * — `SG` Samou Quick, `YYMMDD`, then a zero-padded per-day sequence.
  *
  * The sequence comes from `DailyOrderSequence`, bumped ATOMICALLY inside the
  * create transaction (`upsert` + `increment`), so concurrent checkouts never

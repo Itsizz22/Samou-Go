@@ -29,7 +29,7 @@ async function main(): Promise<void> {
     );
   }
 
-  console.log("🌱 Seeding Samou' Go — admin account only");
+  console.log("🌱 Seeding Samou Quick — admin account only");
 
   const passwordHash = await hashPassword(ADMIN_PASSWORD);
 

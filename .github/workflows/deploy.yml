@@ -225,5 +225,5 @@ jobs:
         if: success()
         run: |
           echo "=============================================="
-          echo " Samou' Go Production Deployment: SUCCESS"
+          echo " Samou Quick Production Deployment: SUCCESS"
           echo "=============================================="

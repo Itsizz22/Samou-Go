@@ -48,6 +48,7 @@ interface OfferFormState {
   titleEn: string;
   descriptionAr: string;
   descriptionEn: string;
+  price: string;
   startsAt: string;
   expiresAt: string;
   sortOrder: string;
@@ -59,6 +60,7 @@ const emptyForm = (): OfferFormState => ({
   titleEn: '',
   descriptionAr: '',
   descriptionEn: '',
+  price: '',
   startsAt: '',
   expiresAt: '',
   sortOrder: '',
@@ -71,6 +73,7 @@ function formFromOffer(o: Offer): OfferFormState {
     titleEn: o.titleEn,
     descriptionAr: o.descriptionAr,
     descriptionEn: o.descriptionEn,
+    price: o.price != null ? String(o.price) : '',
     startsAt: toDatetimeLocal(o.startsAt),
     expiresAt: toDatetimeLocal(o.expiresAt),
     sortOrder: String(o.sortOrder),
@@ -176,11 +179,13 @@ export function OffersPanel({ storeId }: Props) {
     setFormError(null);
 
     try {
+      const price = form.price.trim() ? Number(form.price) : undefined;
       const input = {
         titleAr,
         titleEn,
         descriptionAr: descAr,
         descriptionEn: descEn,
+        price,
         startsAt: toIso(form.startsAt),
         expiresAt: toIso(form.expiresAt),
         sortOrder,
@@ -412,6 +417,11 @@ export function OffersPanel({ storeId }: Props) {
                       {t(`${o.productIds.length} منتج`, `${o.productIds.length} products`)}
                     </span>
                   )}
+                  {o.price != null && o.price > 0 && (
+                    <span className="shrink-0 rounded-full bg-brand px-2 py-0.5 text-micro font-black text-white" dir="ltr">
+                      {o.price} ₪
+                    </span>
+                  )}
                 </div>
                 <p className="mt-0.5 truncate text-[11px] text-ink-muted">{o.descriptionAr}</p>
                 {o.startsAt || o.expiresAt ? (
@@ -538,6 +548,24 @@ export function OffersPanel({ storeId }: Props) {
                   rows={2}
                   dir="ltr"
                   className="w-full resize-none rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+                />
+              </label>
+
+              {/* Standalone price */}
+              <label className="block">
+                <span className="mb-1 block text-xs font-bold text-ink">
+                  {t('سعر العرض (لطلب مباشر)', 'Offer price (direct order)')} <span className="font-normal text-ink-muted">({t('اختياري', 'opt')})</span>
+                </span>
+                <input
+                  type="number"
+                  dir="ltr"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.50"
+                  value={form.price}
+                  onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+                  placeholder="0.00"
+                  className="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
                 />
               </label>
 

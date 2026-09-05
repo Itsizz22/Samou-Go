@@ -45,9 +45,11 @@ import {
   useRoleRedirect,
   useToast,
   useWallet,
+  getWalletStatement,
   connectRealtime,
 } from '@samou-go/api-client';
 import {
+  AccountStatement,
   Badge,
   LanguageToggle,
   NotificationBell,
@@ -688,7 +690,7 @@ export function SamouGoCaptain() {
     <main className={`min-h-screen bg-canvas pb-24 font-sans text-ink transition-[padding] duration-300 ${sidebarOpen ? 'md:pr-60' : ''}`}>
       {sidebarOpen && <button type="button" aria-label={t('إغلاق القائمة', 'Close navigation')} onClick={() => setSidebarOpen(false)} className="fixed inset-0 z-20 bg-ink/40 md:hidden" />}
       <aside className={`fixed inset-y-0 right-0 z-30 flex w-60 flex-col bg-brand-deep px-4 py-6 text-white shadow-overlay transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} aria-label={t('تنقل الكابتن', 'Captain navigation')}>
-        <p className="px-3 text-lg font-extrabold">Samou' Go</p>
+        <p className="px-3 text-lg font-extrabold">Samou Quick</p>
         <p className="px-3 text-[11px] text-white/70">الكابتن</p>
         <nav className="mt-8 flex-1 space-y-1">
           {NAV_ITEMS.map((item) => {
@@ -906,6 +908,17 @@ export function SamouGoCaptain() {
                             <span>{t('واتساب', 'WhatsApp')}</span>
                           </a>
                         )}
+                        {activeOrderDetail.data?.customer?.phone && (
+                          <a
+                            href={`tel:${activeOrderDetail.data.customer.phone}`}
+                            aria-label={t('اتصال مباشر', 'Direct call')}
+                            title={t('اتصال مباشر بالعميل', 'Call customer directly')}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-500 py-2.5 text-[11px] font-bold text-white transition hover:bg-blue-600 active:scale-95"
+                          >
+                            <Phone size={14} />
+                            <span>{t('اتصال', 'Call')}</span>
+                          </a>
+                        )}
                         <button
                           type="button"
                           disabled={deliverMutation.pending}
@@ -935,6 +948,7 @@ export function SamouGoCaptain() {
           <>
             {earningsSection}
             {todaySection}
+            <CaptainStatement />
           </>
         )}
 
@@ -1427,5 +1441,55 @@ function DynamicFeeModal({
         </div>
       </div>
     </div>
+  );
+}
+
+/** Captain's account statement — shows ledger entries with balance. */
+function CaptainStatement() {
+  const { t } = useLanguage();
+  const [page, setPage] = useState(1);
+  const [data, setData] = useState<{ balance: number; entries: Array<{ id: string; amount: number; type: string; description: string | null; createdAt: string }>; total: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  const load = (p: number) => {
+    setLoading(true);
+    getWalletStatement(p)
+      .then((d) => { setData(d); setLoaded(true); })
+      .catch(() => {})
+      .finally(() => { setLoading(false); });
+  };
+
+  return (
+    <section className="mt-4">
+      <h3 className="mb-2 text-base font-extrabold">{t('كشف حساب', 'Account Statement')}</h3>
+      {!loaded && !loading && (
+        <button
+          type="button"
+          onClick={() => load(1)}
+          className="rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white active:scale-95"
+        >
+          {t('عرض كشف الحساب', 'View Statement')}
+        </button>
+      )}
+      {loading && (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="skeleton h-16 rounded-xl" />
+          ))}
+        </div>
+      )}
+      {data && (
+        <AccountStatement
+          balance={data.balance}
+          entries={data.entries}
+          total={data.total}
+          loading={false}
+          currentPage={page}
+          onPageChange={(p) => { setPage(p); load(p); }}
+          ownerLabel="captain"
+        />
+      )}
+    </section>
   );
 }

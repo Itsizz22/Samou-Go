@@ -21,6 +21,10 @@ export interface CartLine {
   note: string;
   storeId: string;
   storeNameAr: string;
+  /** Standalone offer fields — when present, this line is an offer item. */
+  isOfferItem?: boolean;
+  offerId?: string;
+  offerTitle?: string;
 }
 
 /** Groups of lines by store, for the checkout screen to render per-store. */
@@ -30,6 +34,8 @@ export interface CartStoreGroup {
   lines: CartLine[];
   subtotal: number;
   itemCount: number;
+  /** DELIVERY or PICKUP — defaults to DELIVERY. Per-store choice for multi-store carts. */
+  fulfillmentType: 'DELIVERY' | 'PICKUP';
 }
 
 export interface CartState {
@@ -50,12 +56,16 @@ export interface CartState {
   /** Set a single-store context (used by reorder to pre-set the store). */
   setStore: (storeId: string, storeNameAr: string) => void;
   addItem: (product: Product, quantity?: number, note?: string, storeNameAr?: string) => void;
+  /** Add a standalone promotional offer to the cart. Uses the offer's price as the unit price. */
+  addOfferItem: (offer: { id: string; storeId: string; titleAr: string; price: number; imageUrl: string | null }, quantity?: number, storeNameAr?: string) => void;
   setNote: (productId: string, note: string) => void;
   setQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
   clear: () => void;
   /** Find a line by productId (first match across stores). */
   lineFor: (productId: string) => CartLine | undefined;
+  /** Set fulfillment type (DELIVERY or PICKUP) for a specific store group. */
+  setFulfillmentType: (storeId: string, type: 'DELIVERY' | 'PICKUP') => void;
 }
 
 const STORAGE_KEY = 'samou-go.cart.v2';
@@ -120,6 +130,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>(() => readPersisted());
   const hydrated = useRef(false);
 
+  // Per-store fulfillment type (DELIVERY or PICKUP). Not persisted —
+  // it's a checkout-time choice that resets when the cart is cleared.
+  const [fulfillmentTypes, setFulfillmentTypes] = useState<Record<string, 'DELIVERY' | 'PICKUP'>>({});
+
   // Mirrors the latest lines so callbacks can read synchronously.
   const linesRef = useRef(lines);
   linesRef.current = lines;
@@ -158,6 +172,50 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         storeNameAr: storeNameAr ?? '',
       }];
     });
+    // Notify BottomNav to trigger cart bounce animation.
+    window.dispatchEvent(new CustomEvent('cart:item-added'));
+  }, []);
+
+  const addOfferItem = useCallback((
+    offer: { id: string; storeId: string; titleAr: string; price: number; imageUrl: string | null },
+    quantity = 1,
+    storeNameAr?: string,
+  ): void => {
+    // Use a synthetic productId based on the offer ID so the cart can track it.
+    const productId = `offer:${offer.id}`;
+    setLines(current => {
+      const existing = current.find(line => line.productId === productId);
+      if (existing) {
+        return current.map(line =>
+          line.productId === productId
+            ? { ...line, quantity: Math.min(99, line.quantity + quantity) }
+            : line,
+        );
+      }
+      // Create a minimal Product-like object for the cart line.
+      const productSnapshot: Product = {
+        id: productId,
+        storeId: offer.storeId,
+        nameAr: offer.titleAr,
+        description: null,
+        price: offer.price,
+        imageUrl: offer.imageUrl,
+        isAvailable: true,
+        categoryId: null,
+      };
+      return [...current, {
+        productId,
+        quantity,
+        product: productSnapshot,
+        note: '',
+        storeId: offer.storeId,
+        storeNameAr: storeNameAr ?? '',
+        isOfferItem: true,
+        offerId: offer.id,
+        offerTitle: offer.titleAr,
+      }];
+    });
+    window.dispatchEvent(new CustomEvent('cart:item-added'));
   }, []);
 
   const setQuantity = useCallback((productId: string, quantity: number) => {
@@ -180,8 +238,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const setFulfillmentType = useCallback((storeId: string, type: 'DELIVERY' | 'PICKUP') => {
+    setFulfillmentTypes(prev => ({ ...prev, [storeId]: type }));
+  }, []);
+
   const clear = useCallback(() => {
     setLines([]);
+    setFulfillmentTypes({});
   }, []);
 
   const lineFor = useCallback(
@@ -202,6 +265,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           lines: [],
           subtotal: 0,
           itemCount: 0,
+          fulfillmentType: fulfillmentTypes[line.storeId] ?? 'DELIVERY',
         };
         groupMap.set(line.storeId, group);
       }
@@ -222,13 +286,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       storeNameAr: firstGroup?.storeNameAr ?? '',
       setStore,
       addItem,
+      addOfferItem,
       setNote,
       setQuantity,
       removeItem,
       clear,
       lineFor,
+      setFulfillmentType,
     };
-  }, [lines, setStore, addItem, setNote, setQuantity, removeItem, clear, lineFor]);
+  }, [lines, fulfillmentTypes, setStore, addItem, addOfferItem, setNote, setQuantity, removeItem, clear, lineFor, setFulfillmentType]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

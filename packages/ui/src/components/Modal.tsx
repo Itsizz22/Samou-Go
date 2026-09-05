@@ -93,7 +93,7 @@ export function Modal({
           )}
         >
           <motion.div
-            className="modal-overlay"
+            className="fixed inset-0 z-40 bg-ink/40 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -111,7 +111,7 @@ export function Modal({
             initial={PANEL_MOTION[variant].initial}
             animate={PANEL_MOTION[variant].animate}
             exit={PANEL_MOTION[variant].exit}
-            transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
           >
             {variant === 'sheet' ? (
               <div className="mx-auto mb-3 h-1 w-10 rounded-pill bg-line" aria-hidden="true" />
