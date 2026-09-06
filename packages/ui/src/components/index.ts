@@ -33,3 +33,4 @@ export { VoicePlayer, type VoicePlayerProps } from './VoicePlayer';
 export { IncomingOrderModal, type IncomingOrderModalProps, type IncomingOrderItem } from './IncomingOrderModal';
 export { BrandLogo } from './BrandLogo';
 export { WhatsAppFAB, type WhatsAppFABProps } from './WhatsAppFAB';
+export { TermsModal, type TermsModalProps } from './TermsModal';

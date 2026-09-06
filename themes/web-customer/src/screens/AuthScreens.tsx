@@ -12,7 +12,7 @@ import {
   useToast,
 } from '@/hooks/useApi';
 import { OtpPinInput } from '@/components/OtpPinInput';
-import { useLanguage } from '@samou-go/ui';
+import { useLanguage, TermsModal } from '@samou-go/ui';
 import { normalizePhone, isValidPalestinianMobile } from '@/lib/phone';
 import { roleHomePath } from '@/lib/roles';
 import {
@@ -219,6 +219,7 @@ export function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [accepted, setAccepted] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<LocalizedText | null>(null);
   const valid = name.trim().length >= 2 && phoneValid(phone) && password.length >= 8 && password === confirmPassword && accepted;
@@ -391,8 +392,17 @@ export function RegisterScreen() {
               checked={accepted}
               onChange={event => setAccepted(event.target.checked)}
             />
-            أوافق على الشروط وسياسة الخصوصية.
+            أوافق على{' '}
+            <button
+              type="button"
+              onClick={() => setShowTerms(true)}
+              className="font-bold text-brand underline-offset-2 hover:underline"
+            >
+              شروط الاستخدام وسياسة الخصوصية
+            </button>
+            .
           </label>
+          <TermsModal open={showTerms} onClose={() => setShowTerms(false)} />
           <ErrorBanner error={error} />
           <button
             type="submit"
