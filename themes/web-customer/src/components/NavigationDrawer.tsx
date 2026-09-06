@@ -18,8 +18,10 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
+  type TouchEvent as ReactTouchEvent,
 } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { UserRole } from '@samou-go/shared-types';
@@ -105,6 +107,58 @@ export function NavigationDrawer() {
   // language context so a flip to English re-animates from the correct edge.
   const away = useMemo(() => (dir === 'rtl' ? '100%' : '-100%'), [dir]);
 
+  // Swipe-to-close: dragging the panel toward the outside of the screen closes
+  // it. RTL panel sits on the inline-start (right) edge, so a swipe toward the
+  // viewport's outer edge is +x there; LTR is -x. A wrapper div carries a plain
+  // transform so the panel follows the finger 1:1; framer-motion only handles
+  // the enter/exit slide (its `animate` prop owns the motion value, which would
+  // swallow synthetic-touch drags).
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const SWIPE_CLOSE_THRESHOLD = 96;
+  const MAX_PULL = 320;
+  const gestureStart = useRef<number | null>(null);
+
+  const onTouchStart = useCallback((event: ReactTouchEvent<HTMLElement>) => {
+    const touch = event.touches[0];
+    if (touch) {
+      gestureStart.current = touch.pageX;
+      setDragging(true);
+    }
+  }, []);
+
+  const onTouchMove = useCallback(
+    (event: ReactTouchEvent<HTMLElement>) => {
+      if (gestureStart.current === null) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      const dx = touch.pageX - gestureStart.current;
+      if (dx === 0) return;
+      // Closing direction: RTL pull = +x, LTR pull = -x. Opposing drags only
+      // rubber-band so the panel never opens further than its rest position.
+      const closing = dir === 'rtl' ? 1 : -1;
+      const raw = dx * closing;
+      setDragX(Math.min(MAX_PULL, Math.max(-MAX_PULL, raw > 0 ? dx : dx * 0.15)));
+    },
+    [dir]
+  );
+
+  const onTouchEnd = useCallback(
+    (event: ReactTouchEvent<HTMLElement>) => {
+      const start = gestureStart.current;
+      gestureStart.current = null;
+      setDragging(false);
+      if (start !== null) {
+        const touch = event.changedTouches[0];
+        const closing = dir === 'rtl' ? 1 : -1;
+        const distance = touch ? (touch.pageX - start) * closing : 0;
+        if (distance >= SWIPE_CLOSE_THRESHOLD) closeDrawer();
+      }
+      setDragX(0);
+    },
+    [closeDrawer, dir]
+  );
+
   // Lock body scroll + Esc handling while the drawer is open.
   useEffect(() => {
     if (!open) return;
@@ -150,11 +204,26 @@ export function NavigationDrawer() {
             role="dialog"
             aria-modal="true"
             aria-label={t('قائمة التنقل', 'Navigation menu')}
-            className="fixed inset-y-0 start-0 z-50 flex w-[290px] max-w-[85vw] flex-col bg-surface text-ink shadow-raised"
+            className="fixed inset-y-0 start-0 z-50"
+            style={{ touchAction: 'pan-y' }}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            onTouchCancel={() => {
+              gestureStart.current = null;
+              setDragging(false);
+              setDragX(0);
+            }}
             initial={{ x: away }}
             animate={{ x: 0 }}
             exit={{ x: away }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+          >
+          <div
+            className={`flex h-full w-[290px] max-w-[85vw] flex-col bg-surface text-ink shadow-raised will-change-transform ${
+              dragging ? '' : 'transition-transform duration-300 ease-out'
+            }`}
+            style={dragX ? { transform: `translateX(${dragX}px)` } : undefined}
           >
             {/* Brand + close */}
             <header className="flex items-center justify-between bg-brand px-5 py-5 text-white safe-top">
@@ -332,6 +401,7 @@ export function NavigationDrawer() {
                 </button>
               </footer>
             )}
+          </div>
           </motion.aside>
         </>
       )}

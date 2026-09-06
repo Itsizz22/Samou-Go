@@ -260,6 +260,14 @@ export function SamouGoHome() {
         </label>
       </section>
 
+      {/* ==========================================================================
+          BANNER SLIDER INJECTION POINT
+          The upcoming dynamic Banner Slider component will render here — just below
+          the main Header/Search and above the Store Rails. Keep this marker element
+          (id: banners-slider-placeholder) so the injection point is always locatable.
+          ======================================================================== */}
+      <div id="banners-slider-placeholder" className="hidden" aria-hidden="true" />
+
       {/* Custom Order quick-action banner */}
       <section className="mx-auto max-w-md px-5 pt-5" aria-label="Custom order">
         <Link

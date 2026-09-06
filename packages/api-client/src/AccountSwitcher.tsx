@@ -18,7 +18,7 @@
  */
 
 import { useState, type FormEvent } from 'react';
-import { AlertTriangle, Check, Loader2, LogOut, UserPlus } from 'lucide-react';
+import { AlertTriangle, Check, Info, Loader2, LogOut, UserPlus } from 'lucide-react';
 import type { Auth } from './useAuth';
 import { useAccounts } from './useAccounts';
 import { useToast } from './useToast';
@@ -208,6 +208,15 @@ export function AccountSwitcher({ auth }: AccountSwitcherProps) {
           <UserPlus size={14} />
           {isArabic ? 'إضافة حساب آخر' : 'Add another account'}
         </button>
+      )}
+
+      {full && (
+        <p className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-warning-tint px-3 py-2.5 text-[11px] font-bold text-warning-ink" role="status">
+          <Info size={13} className="shrink-0" />
+          {isArabic
+            ? 'الحسابات ممتلئة (3/3) — أزل حساباً أولاً لإضافة حساب جديد'
+            : 'Vault full (3/3) — remove an account first to add a new one'}
+        </p>
       )}
 
       {!full && adding && (
