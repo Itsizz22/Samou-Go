@@ -90,6 +90,8 @@ export function CheckoutScreen() {
   const [pickedLng, setPickedLng] = useState<number | undefined>(undefined);
   /** Delivery preset: call on arrival / leave at door */
   const [deliveryPreset, setDeliveryPreset] = useState<string>('');
+  /** DELIVERY or PICKUP — per-store choice. Defaults to cart's current value. */
+  const [fulfillmentType, setFulfillmentType] = useState<'DELIVERY' | 'PICKUP'>(() => cart.storeGroups[0]?.fulfillmentType ?? 'DELIVERY');
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [quote, setQuote] = useState<{
     subtotal: number;
@@ -303,8 +305,10 @@ export function CheckoutScreen() {
       setFieldError(null);
       setSubmitError(null);
 
-      const finalText = (useSavedAddress?.addressText ?? addressText).trim();
-      if (!finalText) {
+      const finalText = fulfillmentType === 'PICKUP'
+        ? 'استلام من المتجر'
+        : (useSavedAddress?.addressText ?? addressText).trim();
+      if (fulfillmentType === 'DELIVERY' && !finalText) {
         setFieldError(t('يرجى إدخال عنوان التوصيل', 'Please enter a delivery address'));
         await hapticError();
         return;
@@ -319,8 +323,8 @@ export function CheckoutScreen() {
         return;
       }
 
-      // Persist the address for the next order, if the customer wants it.
-      if (saveForNextTime) {
+      // Persist the address for the next order, if the customer wants it (delivery only).
+      if (saveForNextTime && fulfillmentType === 'DELIVERY') {
         const entry: SavedAddress = {
           id: useSavedAddress?.id ?? `${Date.now()}`,
           label: useSavedAddress?.label ?? finalText.slice(0, 24),
@@ -388,14 +392,14 @@ export function CheckoutScreen() {
           storeId: cart.storeId!,
           items,
           customerAddressText: finalText,
-          deliveryRegion,
-          addressNote: addressNote.trim() || useSavedAddress?.addressNote || undefined,
+          deliveryRegion: fulfillmentType === 'PICKUP' ? undefined : deliveryRegion,
+          addressNote: fulfillmentType === 'PICKUP' ? undefined : (addressNote.trim() || useSavedAddress?.addressNote || undefined),
           orderNote: orderNote.trim() || undefined,
-          deliveryPreset: deliveryPreset || undefined,
-          latitude: pickedLat,
-          longitude: pickedLng,
+          deliveryPreset: fulfillmentType === 'PICKUP' ? undefined : (deliveryPreset || undefined),
+          latitude: fulfillmentType === 'PICKUP' ? undefined : pickedLat,
+          longitude: fulfillmentType === 'PICKUP' ? undefined : pickedLng,
           voucherCode: appliedVoucher || undefined,
-          fulfillmentType: cart.storeGroups[0]?.fulfillmentType ?? 'DELIVERY',
+          fulfillmentType,
           ...(finalVoiceNoteUrl ? { voiceNoteUrl: finalVoiceNoteUrl, voiceNoteDuration } : {}),
         });
         await hapticSuccess();
@@ -457,7 +461,39 @@ export function CheckoutScreen() {
             </div>
           </section>
 
-          {/* Address */}
+          {/* Fulfillment Type Toggle */}
+          {!cart.isMultiStore && (
+          <section className="rounded-2xl bg-surface p-4 shadow-card">
+            <h2 className="text-sm font-extrabold mb-3">{t('طريقة الاستلام', 'Fulfillment')}</h2>
+            <div className="flex gap-2 p-1 bg-canvas rounded-xl">
+              <button
+                type="button"
+                onClick={() => setFulfillmentType('DELIVERY')}
+                className={`flex-1 rounded-lg py-2.5 px-3 text-xs font-bold transition-all duration-200 ${
+                  fulfillmentType === 'DELIVERY'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-transparent text-gray-500 dark:text-gray-400'
+                }`}
+              >
+                🛵 {t('توصيل للمنزل', 'Delivery')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFulfillmentType('PICKUP')}
+                className={`flex-1 rounded-lg py-2.5 px-3 text-xs font-bold transition-all duration-200 ${
+                  fulfillmentType === 'PICKUP'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-transparent text-gray-500 dark:text-gray-400'
+                }`}
+              >
+                🏪 {t('استلام من المتجر', 'Pickup')}
+              </button>
+            </div>
+          </section>
+          )}
+
+          {/* Address — only shown for DELIVERY */}
+          {fulfillmentType === 'DELIVERY' ? (
           <section className="rounded-2xl bg-surface p-4 shadow-card">
             <h2 className="flex items-center gap-2 text-sm font-extrabold">
               <MapPin size={16} className="text-brand" /> عنوان التوصيل
@@ -651,6 +687,26 @@ export function CheckoutScreen() {
               )}
             </div>
           </section>
+          ) : (
+          <section className="rounded-2xl bg-surface p-4 shadow-card">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                <StoreIcon size={18} />
+              </span>
+              <div className="flex-1 text-end">
+                <h2 className="text-sm font-extrabold text-emerald-800">{t('استلام من المتجر', 'Store Pickup')}</h2>
+                <p className="text-[11px] text-emerald-600">
+                  {t('توجه إلى المتجر لاستلام طلبك مباشرة فور جاهزيته', 'Go to the store to pick up your order when ready')}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-center">
+              <p className="text-[11px] font-semibold text-emerald-800">
+                {t('لا توجد رسوم توصيل لهذا الطلب (0 ₪)', 'No delivery fee for this order (0 ₪)')}
+              </p>
+            </div>
+          </section>
+          )}
 
           <section className="rounded-2xl bg-surface p-4 shadow-card">
             <h2 className="text-sm font-extrabold">{t('ملاحظة إضافية للطلب', 'Additional order note')}</h2>
@@ -833,14 +889,16 @@ export function CheckoutScreen() {
                     <span dir="ltr" className="font-bold text-ink">{formatCurrency(quote.subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-ink-muted">
-                    <span>{deliveryFeeLabel(language)}</span>
+                    <span>{fulfillmentType === 'PICKUP' ? t('رسوم التوصيل', 'Delivery fee') : deliveryFeeLabel(language)}</span>
                     <span dir="ltr" className="font-bold text-brand-dark">
-                      {isArabic ? DRIVER_FEE_LABEL.ar : DRIVER_FEE_LABEL.en}
+                      {fulfillmentType === 'PICKUP' ? '0 ₪' : (isArabic ? DRIVER_FEE_LABEL.ar : DRIVER_FEE_LABEL.en)}
                     </span>
                   </div>
+                  {fulfillmentType === 'DELIVERY' && (
                   <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
                     {t(DRIVER_FEE_NOTICE.ar, DRIVER_FEE_NOTICE.en)}
                   </p>
+                  )}
                   {quote.discount > 0 && (
                     <div className="flex justify-between text-brand-dark">
                       <span>{isArabic ? quote.voucherLabelAr : quote.voucherLabelEn || t('خصم الكوبون', 'Voucher discount')}</span>
@@ -891,7 +949,9 @@ export function CheckoutScreen() {
           >
             {isOffline
               ? t('بانتظار عودة الاتصال', 'Waiting for connection')
-              : t('تأكيد الطلب — الدفع عند الاستلام', 'Confirm order — cash on delivery')}
+              : fulfillmentType === 'PICKUP'
+                ? t('تأكيد واستلام من المتجر', 'Confirm — pickup from store')
+                : t('تأكيد الطلب — الدفع عند الاستلام', 'Confirm order — cash on delivery')}
           </Button>
           <p className="pb-4 text-center text-micro text-ink-muted" dir="ltr">
             Samou' is a cash economy — the captain collects on delivery.
