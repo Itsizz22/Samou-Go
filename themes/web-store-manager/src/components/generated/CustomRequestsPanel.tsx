@@ -72,7 +72,7 @@ export function CustomRequestsPanel({ storeId }: { storeId: string }) {
       )}
 
       <div className="space-y-3">
-        {requests.data?.items.map((item) => (
+        {requests.data?.items?.map((item) => (
           <article
             key={item.id}
             className="rounded-2xl border border-line bg-surface p-4 shadow-card"
@@ -113,7 +113,7 @@ export function CustomRequestsPanel({ storeId }: { storeId: string }) {
           </article>
         ))}
 
-        {!requests.loading && !requests.error && !requests.data?.items.length && (
+        {!requests.loading && !requests.error && !requests.data?.items?.length && (
           <p className="py-8 text-center text-sm text-ink-muted">
             {t('لا توجد طلبات مخصصة', 'No custom requests yet')}
           </p>

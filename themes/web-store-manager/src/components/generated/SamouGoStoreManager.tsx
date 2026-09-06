@@ -409,7 +409,7 @@ export function SamouGoStoreManager() {
   if (!auth.ready) {
     return (
       <main className="min-h-screen bg-canvas pb-24" aria-busy="true">
-        <header className="bg-brand px-4 pb-4 pt-4 text-white">
+<header className="bg-brand px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
           <div className="mx-auto flex max-w-md items-center justify-between" aria-hidden="true">
             <span className="h-10 w-10 rounded-xl bg-surface/15" />
             <span className="h-5 w-40 rounded bg-surface/20" />
@@ -440,10 +440,10 @@ export function SamouGoStoreManager() {
   /* ---- Render ------------------------------------------------------------ */
 
   return (
-    <main className={`min-h-screen bg-canvas pb-24 font-sans text-ink transition-[padding] duration-300 ${sidebarOpen ? 'md:pr-60' : ''}`}>
+    <main className={`min-h-screen bg-canvas pb-28 font-sans text-ink transition-[padding] duration-300 ${sidebarOpen ? 'md:ps-60' : ''}`}>
       <OfflineBanner />
       {sidebarOpen && <button type="button" aria-label={t('إغلاق القائمة', 'Close navigation')} onClick={() => setSidebarOpen(false)} className="fixed inset-0 z-20 bg-ink/40 md:hidden" />}
-      <aside className={`fixed inset-y-0 right-0 z-30 flex w-60 flex-col bg-brand-deep px-4 py-6 text-white shadow-overlay transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} aria-label={t('تنقل مدير المتجر', 'Store manager navigation')}>
+      <aside className={`fixed inset-y-0 start-0 z-30 flex w-60 flex-col bg-brand-deep px-4 py-6 text-white shadow-overlay transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'rtl:translate-x-full ltr:-translate-x-full'}`} aria-label={t('تنقل مدير المتجر', 'Store manager navigation')}>
         <p className="px-3 text-lg font-extrabold">Samou Quick</p>
         <p className="px-3 text-[11px] text-white/70">مدير المتجر</p>
         <nav className="mt-8 flex-1 space-y-1">
@@ -477,7 +477,7 @@ export function SamouGoStoreManager() {
         </div>
         <button type="button" onClick={() => setSidebarOpen(false)} aria-label={t('إغلاق القائمة', 'Close navigation')} className="absolute start-3 top-3 rounded-lg p-2 text-white/80 hover:bg-white/10 md:hidden"><X size={18} /></button>
       </aside>
-      <header className="bg-brand px-4 pb-4 pt-4 text-white">
+      <header className="bg-brand px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="التنقل الرئيسي">
           <button type="button" onClick={() => setSidebarOpen(value => !value)} aria-expanded={sidebarOpen} aria-label={t('فتح القائمة', 'Open navigation')} className="rounded-lg p-2 text-white transition hover:bg-white/10 active:scale-95"><Menu size={21} /></button>
           <div className="flex-1 text-center leading-tight">
@@ -1075,7 +1075,7 @@ function KpiTile({ icon, labelAr, labelEn, value, suffix, isLoading }: KpiTilePr
       <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-xl bg-brand-tint text-brand">
         {icon}
       </div>
-      <p className="mt-0.5 whitespace-nowrap text-[12px] font-bold text-ink-soft">{t(labelAr, labelEn)}</p>
+      <p className="mt-0.5 truncate text-[12px] font-bold text-ink-soft">{t(labelAr, labelEn)}</p>
       <p dir="ltr" className="mt-1 text-xl font-extrabold tracking-tight text-ink">
         {isLoading ? (
           <span className="inline-block h-6 w-12 animate-pulse rounded bg-line-soft" aria-hidden="true" />

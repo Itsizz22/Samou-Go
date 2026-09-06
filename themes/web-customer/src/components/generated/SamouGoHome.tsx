@@ -206,8 +206,8 @@ export function SamouGoHome() {
     }));
   }, [auth.user, orders.data]);
 
-  return <main className="min-h-screen bg-canvas pb-24 text-ink">
-      <header className="bg-brand px-4 pb-6 pt-[max(1rem,env(safe-area-inset-top))] text-white safe-top">
+  return <main className="min-h-screen bg-canvas pb-28 text-ink">
+      <header className="bg-brand px-4 pb-6 pt-[max(1rem,env(safe-area-inset-top))] text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between gap-2" aria-label="Main navigation">
           <button
             type="button"
@@ -391,7 +391,7 @@ export function SamouGoHome() {
         </div>
         <div
           id="category-chips"
-          className={`${categoriesCollapsed ? 'hidden md:flex' : 'flex'} gap-3 overflow-x-auto pb-1`}
+          className={`${categoriesCollapsed ? 'hidden md:flex' : 'flex'} gap-3 overflow-x-auto pb-1 scrollbar-none`}
         >
           {STORE_CATEGORIES.map(category => {
           const Icon = CATEGORY_ICONS[category.key];
@@ -412,7 +412,7 @@ export function SamouGoHome() {
           <h2 id="offers-title" className="text-lg font-extrabold">{t('عروض وإعلانات المتاجر', 'Store offers & ads')}</h2>
         </div>
         {offers.loading ? (
-          <div className="flex gap-3 overflow-x-auto pb-2">
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
             {[0, 1, 2].map(index => (
               <div key={index} className="skeleton min-w-[220px] overflow-hidden rounded-2xl shadow-card" aria-hidden="true">
                 <div className="h-28 bg-line-soft" />
@@ -424,7 +424,7 @@ export function SamouGoHome() {
             ))}
           </div>
         ) : activeOffers.length > 0 ? (
-          <div className="flex gap-3 overflow-x-auto pb-2">
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
             {activeOffers.map((offer) => (
               <Link
                 key={offer.id}
@@ -489,7 +489,7 @@ export function SamouGoHome() {
 
       {!stores.error && (stores.loading || featured.length > 0) && <section className="mx-auto max-w-md px-5 pt-8" aria-labelledby="featured-title" aria-busy={stores.loading}>
         <div className="mb-4 flex items-end justify-between"><div><h2 id="featured-title" className="text-lg font-extrabold">{t('المتاجر المميزة', 'Featured stores')}</h2></div><button type="button" onClick={() => document.getElementById('nearby-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="text-xs font-bold text-brand">{t('عرض الكل', 'See all')}</button></div>
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
           {stores.loading
             ? [0, 1, 2].map(index => <div key={index} className="skeleton min-w-[196px] overflow-hidden rounded-2xl shadow-card" aria-hidden="true"><div className="h-24 bg-line-soft" /><div className="space-y-2 p-3"><div className="ms-auto h-3 w-2/3 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-1/2 rounded bg-line-soft" /><div className="h-5 w-20 rounded-full bg-line-soft" /></div></div>)
             : featured.map(({ store, category, initials, gradient }) => (

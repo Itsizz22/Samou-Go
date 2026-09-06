@@ -336,7 +336,7 @@ export function ProfileScreen() {
                   </span>
                   <div className="min-w-0 flex-1 text-end">
                     <p className="flex items-center justify-end gap-1.5">
-                      <span className="truncate text-xs font-extrabold text-ink">{entry.label || entry.addressText.slice(0, 24)}</span>
+                      <span className="truncate text-xs font-extrabold text-ink">{entry.label || (entry.addressText ?? '').slice(0, 24)}</span>
                       {entry.tag && (
                         <span className="shrink-0 rounded-full bg-brand-tint px-2 py-0.5 text-micro font-bold text-brand-dark">
                           {t(ADDRESS_TAG_META[normalizeTag(entry.tag)].ar, ADDRESS_TAG_META[normalizeTag(entry.tag)].en)}

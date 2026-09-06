@@ -394,7 +394,7 @@ export function SamouGoCaptain() {
   if (!auth.ready) {
     return (
       <main className="min-h-screen bg-canvas pb-24" aria-busy="true">
-        <header className="bg-brand px-4 pb-4 pt-3 text-white">
+        <header className="bg-brand px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
           <div className="mx-auto flex max-w-md items-center justify-between" aria-hidden="true">
             <span className="h-10 w-10 rounded-full bg-surface/15" />
             <span className="h-5 w-32 rounded bg-surface/20" />
@@ -611,8 +611,8 @@ export function SamouGoCaptain() {
   /* ---- Render ------------------------------------------------------------ */
 
   return (
-    <main className="min-h-screen bg-canvas pb-24 font-sans text-ink md:pr-60">
-      <aside className="fixed inset-y-0 right-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل الكابتن">
+    <main className="min-h-screen bg-canvas pb-28 font-sans text-ink md:ps-60">
+      <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل الكابتن">
         <p className="px-3 text-lg font-extrabold">Samou Quick</p>
         <p className="px-3 text-[11px] text-white/70">الكابتن</p>
         <nav className="mt-8 flex-1 space-y-1">
@@ -645,7 +645,7 @@ export function SamouGoCaptain() {
           </div>
         </div>
       </aside>
-      <header className="bg-brand px-4 pb-4 pt-3 text-white">
+      <header className="bg-brand px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Captain navigation">
           <button type="button" aria-label="Profile" onClick={() => setActiveTab('account')} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-surface/15 transition hover:bg-surface/25">
             <UserRound size={21} />

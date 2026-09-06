@@ -51,7 +51,7 @@ export function CartScreen() {
         </header>
 
         <div className="mx-auto max-w-md px-5 pt-6">
-          {cart.lines.length === 0 ? (
+          {(cart?.lines ?? []).length === 0 ? (
             <div className="rounded-2xl border border-line bg-surface p-8 text-center shadow-card">
               <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-surface text-brand">
                 <ShoppingBag size={24} />
@@ -70,12 +70,12 @@ export function CartScreen() {
               {cart.isMultiStore ? (
                 /* Multi-store: group items by store with headers */
                 <div className="space-y-3">
-                  {cart.storeGroups.map((group: CartStoreGroup) => (
+                  {(cart?.storeGroups ?? []).map((group: CartStoreGroup) => (
                     <div key={group.storeId} className="rounded-2xl bg-surface p-3 shadow-card">
                       <div className="mb-2 flex items-center gap-2 border-b border-line pb-2">
                         <Store size={14} className="text-brand" />
                         <span className="text-xs font-extrabold text-ink">{group.storeNameAr || t('المتجر', 'Store')}</span>
-                        <span className="mr-auto text-[11px] font-semibold text-ink-muted">{formatCurrency(group.subtotal)}</span>
+                        <span className="ms-auto text-[11px] font-semibold text-ink-muted">{formatCurrency(group.subtotal)}</span>
                       </div>
                       {/* Fulfillment type toggle per store */}
                       <div className="mb-2 flex gap-1 rounded-xl bg-canvas p-1">
@@ -108,7 +108,7 @@ export function CartScreen() {
                             </div>
                             <div className="flex shrink-0 items-center gap-2 rounded-full bg-brand px-1.5 py-1 text-white">
                               <button type="button" aria-label={t('إنقاص', 'Decrease')} onClick={() => { cart.setQuantity(line.productId, line.quantity - 1); void hapticTap(); }} className="rounded-full p-2 transition active:scale-90"><Minus size={14} /></button>
-                              <span className="min-w-[18px] text-center text-xs font-bold">{line.quantity}</span>
+                              <span className="min-w-4.5 text-center text-xs font-bold">{line.quantity}</span>
                               <button type="button" aria-label={t('زيادة', 'Increase')} onClick={() => { cart.setQuantity(line.productId, line.quantity + 1); void hapticTap(); }} className="rounded-full p-2 transition active:scale-90"><Plus size={14} /></button>
                             </div>
                             <button type="button" aria-label={t('حذف', 'Remove')} onClick={() => cart.removeItem(line.productId)} className="shrink-0 rounded-full p-2 text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink"><Trash2 size={16} /></button>
@@ -122,7 +122,7 @@ export function CartScreen() {
                 /* Single-store: flat list */
                 <div className="space-y-3">
                   <AnimatePresence>
-                    {cart.lines.map((line) => (
+                    {(cart?.lines ?? []).map((line) => (
                       <motion.article key={line.productId} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -40 }} className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card">
                         {line.product.imageUrl ? (
                           <img src={line.product.imageUrl} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
@@ -136,7 +136,7 @@ export function CartScreen() {
                         </div>
                         <div className="flex shrink-0 items-center gap-2 rounded-full bg-brand px-1.5 py-1 text-white">
                           <button type="button" aria-label={t('إنقاص', 'Decrease')} onClick={() => { cart.setQuantity(line.productId, line.quantity - 1); void hapticTap(); }} className="rounded-full p-2 transition active:scale-90"><Minus size={14} /></button>
-                          <span className="min-w-[18px] text-center text-xs font-bold">{line.quantity}</span>
+                          <span className="min-w-4.5 text-center text-xs font-bold">{line.quantity}</span>
                           <button type="button" aria-label={t('زيادة', 'Increase')} onClick={() => { cart.setQuantity(line.productId, line.quantity + 1); void hapticTap(); }} className="rounded-full p-2 transition active:scale-90"><Plus size={14} /></button>
                         </div>
                         <button type="button" aria-label={t('حذف', 'Remove')} onClick={() => cart.removeItem(line.productId)} className="shrink-0 rounded-full p-2 text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink"><Trash2 size={16} /></button>

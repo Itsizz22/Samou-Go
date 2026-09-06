@@ -373,7 +373,7 @@ export function SamouGoStoreManager() {
   if (!auth.ready) {
     return (
       <main className="min-h-screen bg-canvas pb-24" aria-busy="true">
-        <header className="bg-brand px-4 pb-4 pt-4 text-white">
+        <header className="bg-brand px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
           <div className="mx-auto flex max-w-md items-center justify-between" aria-hidden="true">
             <span className="h-10 w-10 rounded-xl bg-surface/15" />
             <span className="h-5 w-40 rounded bg-surface/20" />
@@ -404,8 +404,8 @@ export function SamouGoStoreManager() {
   /* ---- Render ------------------------------------------------------------ */
 
   return (
-    <main className="min-h-screen bg-canvas pb-24 font-sans text-ink md:pr-60">
-      <aside className="fixed inset-y-0 right-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل مدير المتجر">
+    <main className="min-h-screen bg-canvas pb-28 font-sans text-ink md:ps-60">
+      <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل مدير المتجر">
         <p className="px-3 text-lg font-extrabold">Samou Quick</p>
         <p className="px-3 text-[11px] text-white/70">مدير المتجر</p>
         <nav className="mt-8 flex-1 space-y-1">
@@ -438,7 +438,7 @@ export function SamouGoStoreManager() {
           </div>
         </div>
       </aside>
-      <header className="bg-brand px-4 pb-4 pt-4 text-white">
+      <header className="bg-brand px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="التنقل الرئيسي">
           <div className="flex-1 text-center leading-tight">
             <h1 className="text-[15px] font-extrabold">{t('لوحة المتجر', 'Store Manager')}</h1>

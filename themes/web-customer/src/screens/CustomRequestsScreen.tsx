@@ -113,7 +113,7 @@ export function CustomRequestsScreen() {
             required
           >
             <option value="">اختر المتجر</option>
-            {stores.data?.items.map((store) => (
+            {stores.data?.items?.map((store) => (
               <option key={store.id} value={store.id}>
                 {store.nameAr}
               </option>
@@ -144,7 +144,7 @@ export function CustomRequestsScreen() {
                 <button
                   type="button"
                   onClick={removePhoto}
-                  className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-white"
+                  className="absolute -top-1.5 -end-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-white"
                 >
                   <X size={12} />
                 </button>
@@ -176,7 +176,7 @@ export function CustomRequestsScreen() {
 
         {/* Existing requests */}
         <section className="space-y-3">
-          {requests.data?.items.map((request) => (
+          {requests.data?.items?.map((request) => (
             <article key={request.id} className="rounded-2xl border border-line bg-surface p-4 shadow-card">
               <div className="flex justify-between gap-3">
                 <b>{request.store.nameAr}</b>
@@ -224,7 +224,7 @@ export function CustomRequestsScreen() {
               )}
             </article>
           ))}
-          {!requests.loading && !requests.data?.items.length && (
+          {!requests.loading && !requests.data?.items?.length && (
             <p className="py-8 text-center text-sm text-ink-muted">لا توجد طلبات مخصصة بعد</p>
           )}
         </section>

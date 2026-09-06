@@ -25,7 +25,7 @@ export function WhatsAppFAB({ href, label }: WhatsAppFABProps) {
       rel="noopener noreferrer"
       aria-label={label}
       title={label}
-      className="fixed bottom-20 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-white shadow-lg transition hover:bg-green-600 hover:scale-110 active:scale-95 md:bottom-6"
+      className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-white shadow-lg transition hover:bg-green-600 hover:scale-110 active:scale-95 md:bottom-6"
       style={{ insetInlineEnd: '1rem' }}
     >
       <MessageCircle size={22} />

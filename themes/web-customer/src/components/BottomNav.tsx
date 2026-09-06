@@ -48,7 +48,6 @@ function useActiveOrderCount(): number {
     if (!auth.user) { setCount(0); return; }
 
     let cancelled = false;
-    let timer: ReturnType<typeof setInterval> | undefined;
 
     async function fetchCount(): Promise<void> {
       try {
@@ -71,7 +70,7 @@ function useActiveOrderCount(): number {
     }
 
     void fetchCount();
-    timer = setInterval(() => void fetchCount(), 30_000);
+    const timer = setInterval(() => void fetchCount(), 30_000);
 
     return () => { cancelled = true; clearInterval(timer); };
   }, [auth.user]);
@@ -100,7 +99,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-20 border-t border-line/80 bg-surface/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 shadow-nav backdrop-blur-md safe-bottom"
+      className="fixed bottom-0 inset-x-0 z-20 border-t border-line/80 bg-surface/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 shadow-nav backdrop-blur-md"
       aria-label={t('التنقل السفلي', 'Bottom navigation')}
     >
       <div className="mx-auto grid max-w-md grid-cols-5 items-stretch gap-0.5">
@@ -110,7 +109,7 @@ export function BottomNav() {
             to={to}
             end={to === '/home'}
             className={({ isActive }) =>
-              `relative flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-bold transition-all duration-200 active:scale-[0.95] ${
+              `relative flex min-h-13 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-bold transition-all duration-200 active:scale-[0.95] ${
                 isActive
                   ? 'bg-brand-tint text-brand-deep shadow-sm'
                   : 'text-ink-muted active:bg-canvas'
@@ -134,7 +133,7 @@ export function BottomNav() {
                   />
                   {/* Active-order badge — only on the Orders tab */}
                   {to === '/orders' && activeOrders > 0 && (
-                    <span className="absolute -end-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[8px] font-black text-white animate-[cartPop_0.3s_var(--ease-spring)_both]">
+                    <span className="absolute -inset-e-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[8px] font-black text-white animate-[cartPop_0.3s_var(--ease-spring)_both]">
                       {activeOrders > 9 ? '9+' : activeOrders}
                     </span>
                   )}

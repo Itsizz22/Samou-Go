@@ -75,7 +75,7 @@ export function CheckoutScreen() {
   const { isOffline } = useNetworkStatus();
   const isArabic = language === 'ar';
 
-  const [saved, setSaved] = useState<SavedAddress[]>(() => readSavedAddresses());
+  const [saved, setSaved] = useState<SavedAddress[]>(() => readSavedAddresses() ?? []);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [addressText, setAddressText] = useState('');
   const [addressNote, setAddressNote] = useState('');
@@ -129,13 +129,13 @@ export function CheckoutScreen() {
   const submittingRef = useRef(false);
 
   const items = useMemo(
-    () => cart.lines.map((line) => ({ productId: line.productId, quantity: line.quantity, ...(line.note.trim() ? { note: line.note.trim() } : {}) })),
-    [cart.lines]
+    () => (cart?.lines ?? []).map((line) => ({ productId: line.productId, quantity: line.quantity, ...(line.note.trim() ? { note: line.note.trim() } : {}) })),
+    [cart?.lines]
   );
 
   // Pick a default saved address once the book loads.
   useEffect(() => {
-    if (saved.length > 0 && !selectedAddressId) {
+    if ((saved ?? []).length > 0 && !selectedAddressId) {
       setSelectedAddressId(saved[0].id);
       if (saved[0].tag) setAddressTag(normalizeTag(saved[0].tag));
       if (saved[0].lat && saved[0].lng) {
@@ -144,7 +144,7 @@ export function CheckoutScreen() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved.length]);
+  }, [(saved ?? []).length]);
 
   // Fetch delivery zone setting to control region selector visibility.
   useEffect(() => {
@@ -161,7 +161,7 @@ export function CheckoutScreen() {
   // changes shape. The voucher is only sent to the server once the customer
   // presses "apply" (`appliedVoucher`), never on every keystroke.
   useEffect(() => {
-    if (!cart.storeId || items.length === 0) {
+    if (!cart?.storeId || (items ?? []).length === 0) {
       setQuote(null);
       return;
     }
@@ -313,7 +313,7 @@ export function CheckoutScreen() {
         await hapticError();
         return;
       }
-      if (!cart.storeId || items.length === 0) {
+      if (!cart?.storeId || (items ?? []).length === 0) {
         setSubmitError(
           Object.assign(new Error(t('سلتك فارغة', 'Your cart is empty')), {
             message: t('سلتك فارغة', 'Your cart is empty'),
@@ -363,7 +363,7 @@ export function CheckoutScreen() {
 
       if (cart.isMultiStore) {
         // Multi-store: split into per-store sub-orders.
-        const storeGroups = cart.storeGroups.map(group => ({
+        const storeGroups = (cart?.storeGroups ?? []).map(group => ({
           storeId: group.storeId,
           items: group.lines.map(line => ({
             productId: line.productId,
@@ -499,9 +499,9 @@ export function CheckoutScreen() {
               <MapPin size={16} className="text-brand" /> عنوان التوصيل
             </h2>
 
-            {saved.length > 0 && (
+            {(saved ?? []).length > 0 && (
               <div className="mt-3 space-y-2">
-                {saved.map((entry) => (
+                {(saved ?? []).map((entry) => (
                   <button
                     key={entry.id}
                     type="button"
@@ -634,7 +634,7 @@ export function CheckoutScreen() {
                   </button>
                 </div>
               </div>
-              {saved.length > 0 && (
+              {(saved ?? []).length > 0 && (
                 <label className="flex items-center justify-between rounded-xl bg-canvas px-3 py-2.5">
                   <span className="text-[11px] font-bold text-ink-muted">إدخال عنوان جديد</span>
                   <button
@@ -840,7 +840,7 @@ export function CheckoutScreen() {
           {cart.isMultiStore ? (
           <section className="rounded-2xl bg-surface p-4 shadow-card">
             <h2 className="text-sm font-extrabold">{t('ملخص الطلب', 'Order summary')}</h2>
-            {cart.storeGroups.map(group => (
+            {(cart?.storeGroups ?? []).map(group => (
               <div key={group.storeId} className="mt-3 rounded-xl border border-line p-3">
                 <h3 className="text-xs font-bold text-ink-muted">{group.storeNameAr || t('المتجر', 'Store')}</h3>
                 <div className="mt-1.5 space-y-1 text-xs">
@@ -942,7 +942,7 @@ export function CheckoutScreen() {
           <Button
             type="button"
             onClick={() => void handleSubmit()}
-            disabled={cart.lines.length === 0 || isOffline}
+            disabled={(cart?.lines ?? []).length === 0 || isOffline}
             loading={placing || voiceNoteUploading}
             block
             icon={placing ? undefined : <Package size={16} />}
