@@ -164,7 +164,29 @@ export async function getAdminFinancials() {
  * Reads the platform settings singleton, defaulting every knob when the row
  * has not been provisioned yet. Money fields are returned as plain numbers.
  */
-export async function getPlatformSettings() {
+/* ---------------------------------------------------------------------------
+ * In-memory TTL cache for platform settings.
+ *
+ * /platform/settings is called on almost every client mount (all 7 SPAs).
+ * Caching for 60 s in memory means 1,000+ concurrent requests resolve in
+ * <1 ms without touching PostgreSQL.  The cache is invalidated only when
+ * PATCH /platform/settings is executed (see `invalidatePlatformSettingsCache`).
+ * ------------------------------------------------------------------------- */
+
+interface CachedSettings {
+  data: Awaited<ReturnType<typeof getPlatformSettingsRaw>>;
+  expiresAt: number;
+}
+
+const SETTINGS_CACHE_TTL_MS = 60_000; // 60 seconds
+let settingsCache: CachedSettings | null = null;
+
+/** Invalidate the in-memory cache — called from `updatePlatformSettings`. */
+export function invalidatePlatformSettingsCache(): void {
+  settingsCache = null;
+}
+
+async function getPlatformSettingsRaw() {
   const row =
     (await prisma.platformSettings.findUnique({ where: { id: 'platform' } })) ??
     (await prisma.platformSettings.create({
@@ -184,8 +206,18 @@ export async function getPlatformSettings() {
   };
 }
 
+export async function getPlatformSettings() {
+  if (settingsCache && Date.now() < settingsCache.expiresAt) {
+    return settingsCache.data;
+  }
+  const data = await getPlatformSettingsRaw();
+  settingsCache = { data, expiresAt: Date.now() + SETTINGS_CACHE_TTL_MS };
+  return data;
+}
+
 /** PATCH — admin updates one or more knobs on the singleton row. */
 export async function updatePlatformSettings(body: PlatformSettingsBody) {
+  invalidatePlatformSettingsCache();
   const row = await prisma.platformSettings.upsert({
     where: { id: 'platform' },
     create: {

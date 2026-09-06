@@ -22,7 +22,7 @@ const h = vi.hoisted(() => {
   const buildOrder = (overrides: Record<string, unknown> = {}) => {
     const base = {
       id: 'order-1',
-      orderNumber: 'SG-260808-0001',
+      orderNumber: 'SQ-260808-0023',
       customerId: 'customer-1',
       storeId: 'store-1',
       captainId: null,
@@ -228,7 +228,14 @@ describe('order numbering under concurrency', () => {
     const yy = String(now.getFullYear()).slice(-2);
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const dd = String(now.getDate()).padStart(2, '0');
-    const expected = Array.from({ length: 10 }, (_, i) => `SG-${yy}${mm}${dd}-${String(i + 1).padStart(4, '0')}`);
+    // New SQ- format uses encodeSequence: 1→'0023', 2→'0025', etc.
+    const expected = Array.from({ length: 10 }, (_, i) => {
+      const seq = i + 1;
+      let v = seq; let code = '';
+      const ALPHA = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+      for (let j = 0; j < 4; j++) { code = ALPHA[v % 32] + code; v = Math.floor(v / 32); }
+      return `SQ-${yy}${mm}${dd}-${code}`;
+    });
 
     expect(numbers.sort()).toEqual(expected.sort());
     expect(h.state.orderCreateCalls).toBe(10);

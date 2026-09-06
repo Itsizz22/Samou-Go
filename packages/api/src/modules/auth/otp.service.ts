@@ -14,7 +14,7 @@
  *   - The code row is consumed on success, so a code cannot be replayed.
  */
 
-import { randomInt } from "node:crypto";
+import { randomInt, createHash } from "node:crypto";
 import bcrypt from "bcryptjs";
 import type {
   AuthResponse,
@@ -22,7 +22,7 @@ import type {
   OtpVerifyInput,
   ResetPasswordInput,
 } from "@samou-go/shared-types";
-import { UserRole } from "@samou-go/shared-types";
+import { UserRole, generateStoreSlug, generateCaptainCode } from "@samou-go/shared-types";
 import { env } from "../../config/env";
 import { prisma } from "../../lib/prisma";
 import { notFound, serviceUnavailable, tooMany, unauthorized, type HttpError } from "../../lib/http-error";
@@ -421,11 +421,15 @@ export async function adminVerifyStoreOtp(body: AdminOtpVerifyBody): Promise<Aut
       },
     });
 
+    const storeName = storeData?.nameAr ?? "متجر جديد / New Store";
+    const slug = generateStoreSlug(storeName);
+
     // Create the store with the managerId pointing to the created user
     const store = await tx.store.create({
       data: {
-        nameAr: storeData?.nameAr ?? "متجر جديد / New Store",
+        nameAr: storeName,
         nameEn: storeData?.nameEn ?? "New Store",
+        slug,
         phone,
         isActive: true,
         isApproved: true, // Admin-created stores are immediately approved
@@ -479,6 +483,9 @@ export async function adminVerifyCaptainOtp(body: AdminOtpVerifyBody): Promise<A
       isActive: true,
       isVerified: true,
       assignedStoreId: captainData?.assignedStoreId,
+      userCode: generateCaptainCode(
+        parseInt(createHash('sha256').update(phone).digest('hex').slice(0, 8), 16) % 32_768
+      ),
     },
   });
 

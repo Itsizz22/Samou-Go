@@ -9,7 +9,7 @@ import type {
   StoreWithCatalogue,
   UserRole,
 } from '@samou-go/shared-types';
-import { StoreStatus as StoreStatusEnum, UserRole as UserRoleEnum } from '@samou-go/shared-types';
+import { StoreStatus as StoreStatusEnum, UserRole as UserRoleEnum, generateStoreSlug } from '@samou-go/shared-types';
 import { prisma, caseInsensitiveContains } from '../../lib/prisma';
 import { conflict, forbidden, notFound } from '../../lib/http-error';
 import { toProduct, toStore, toStoreWithCatalogue } from './stores.mapper';
@@ -300,7 +300,7 @@ export async function updateStore(storeId: string, body: UpdateStoreBody): Promi
   const updated = await prisma.store.update({
     where: { id: storeId },
     data: {
-      ...(body.nameAr !== undefined ? { nameAr: body.nameAr } : {}),
+      ...(body.nameAr !== undefined ? { nameAr: body.nameAr, slug: generateStoreSlug(body.nameAr) } : {}),
       ...(body.nameEn !== undefined ? { nameEn: body.nameEn } : {}),
       ...(body.phone !== undefined ? { phone: body.phone } : {}),
       ...(body.logoUrl !== undefined ? { logoUrl: body.logoUrl } : {}),

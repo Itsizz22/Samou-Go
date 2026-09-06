@@ -20,11 +20,15 @@
     "prisma:push": "prisma db push --schema=prisma/schema.sqlite.prisma",
     "prisma:studio": "prisma studio --schema=prisma/schema.sqlite.prisma",
     "prisma:seed": "tsx src/scripts/seed.ts",
+    "db:seed:test": "tsx src/scripts/seed-e2e-test-data.ts",
     "demo:passwords": "tsx src/scripts/set-admin-password.ts",
     "migrate:demo-passwords": "tsx src/scripts/migrate-demo-passwords.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "node scripts/e2e-smoke.mjs",
+    "test:load": "tsx src/scripts/load-test.ts",
+    "test:load:prod": "tsx src/scripts/load-test.ts https://samou-go.onrender.com",
+    "backfill:identifiers": "tsx src/scripts/backfill-identifiers.ts",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
@@ -45,12 +49,14 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/autocannon": "^7.12.7",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.13.9",
+    "autocannon": "^8.0.0",
     "prisma": "^6.3.1",
     "tsx": "^4.19.2",
     "typescript": "~5.7.2",

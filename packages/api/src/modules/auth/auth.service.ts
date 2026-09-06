@@ -1,4 +1,4 @@
-import { randomInt } from 'node:crypto';
+import { randomInt, createHash } from 'node:crypto';
 import type { Store, User } from '../../lib/prisma-types';
 import type { Prisma } from '../../lib/prisma-types';
 import type {
@@ -6,7 +6,7 @@ import type {
   Paginated,
   PublicUser,
 } from '@samou-go/shared-types';
-import { UserRole } from '@samou-go/shared-types';
+import { UserRole, generateStoreSlug, generateCustomerCode, generateCaptainCode } from '@samou-go/shared-types';
 import { prisma, caseInsensitiveContains } from '../../lib/prisma';
 import { conflict, forbidden, notFound, unauthorized, unprocessable } from '../../lib/http-error';
 import { signAccessToken } from '../../lib/jwt';
@@ -29,6 +29,15 @@ import type {
 
 /** Roles a caller may create without being an admin. */
 const SELF_SERVICE_ROLES: readonly UserRole[] = [UserRole.CUSTOMER];
+
+/**
+ * Generate a deterministic seed from a string (e.g. user ID) for userCode.
+ * Returns a non-negative integer suitable for encodeBase32.
+ */
+function codeSeed(value: string): number {
+  const hex = createHash('sha256').update(value).digest('hex').slice(0, 8);
+  return parseInt(hex, 16) % 32_768; // fits in 5 base32 chars (32^5 = 33M)
+}
 
 /** Composes the login response: access token + a fresh refresh token. */
 async function buildAuthResponse(user: User): Promise<AuthResponse> {
@@ -69,6 +78,9 @@ export async function register(
       passwordHash: await hashPassword(body.password),
       role: requestedRole,
       isVerified: true,
+      userCode: requestedRole === UserRole.CUSTOMER
+        ? generateCustomerCode(codeSeed(body.phone))
+        : undefined,
     },
   });
 
@@ -327,10 +339,12 @@ export async function adminCreateStore(
     },
   });
 
+  const slug = generateStoreSlug(body.nameAr);
   const store = await prisma.store.create({
     data: {
       nameAr: body.nameAr,
       nameEn: body.nameEn,
+      slug,
       phone: body.phone,
       isActive: body.isActive,
       isApproved: true,
@@ -365,6 +379,7 @@ export async function adminCreateCaptain(body: AdminCreateCaptainBody): Promise<
       isActive: true,
       isVerified: body.isVerified,
       assignedStoreId: body.assignedStoreId,
+      userCode: generateCaptainCode(codeSeed(body.phone)),
     },
   });
 

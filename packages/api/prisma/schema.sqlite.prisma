@@ -122,6 +122,8 @@ enum StoreType {
 model User {
   id           String   @id @default(cuid())
   name         String  
+  /// Human-friendly reference code (e.g. CUST-XXXXX / CAPT-XXXXX).
+  userCode     String?  @unique
   /// Canonical Palestinian mobile: 10 digits, `05XXXXXXXX`.
   phone        String   @unique
   /// bcrypt hash. Never selected into an API response.
@@ -214,6 +216,8 @@ model RefreshToken {
 /// may run several shops.
 model Store {
   id         String   @id @default(cuid())
+  /// URL-safe slug derived from store name, used for public-facing URLs.
+  slug       String?  @unique
   nameAr     String  
   nameEn     String  
   logoUrl    String?
@@ -257,6 +261,7 @@ model Store {
   @@index([managerId])
   @@index([isActive])
   @@index([nameAr])
+  @@index([slug])
   @@map("stores")
 }
 
