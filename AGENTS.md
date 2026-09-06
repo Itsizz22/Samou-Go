@@ -44,7 +44,7 @@ npm run db:validate       # local dev → SQLite (schema.sqlite.prisma)
 npm run db:deploy         # PRODUCTION → PostgreSQL (schema.prisma)
 npm run db:push           # local SQLite push (no migration history)
 npm run db:seed            # idempotent seeding
-npm run seed:e2e          # As-Samou demo data (local SQLite, wipes all rows first)
+npm run seed:e2e          # As-Samou demo data (local SQLite, NON-destructive find-or-create)
 ```
 
 **Development servers**
