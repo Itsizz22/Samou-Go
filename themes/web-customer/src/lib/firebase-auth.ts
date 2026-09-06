@@ -18,10 +18,7 @@ import {
 } from 'firebase/auth';
 import { getFirebaseAuth } from './firebase';
 
-/** API base URL */
-const API_BASE: string = (
-  import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:4000')
-).replace(/\/+$/, '');
+import { API_URL } from '@samou-go/api-client';
 
 /** ReCAPTCHA verifier instance (cached). */
 let recaptchaVerifier: RecaptchaVerifier | null = null;
@@ -95,7 +92,7 @@ export async function exchangeFirebaseToken(
   name?: string,
   password?: string,
 ): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE}/api/v1/auth/firebase/verify`, {
+  const response = await fetch(`${API_URL}/auth/firebase/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken, name, password }),

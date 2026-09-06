@@ -25,6 +25,7 @@ import {
 import { optionalAuthenticate } from '../middleware/authenticate';
 import { asyncHandler } from '../lib/async-handler';
 import { listAllOffersHandler } from '../modules/offers/offers.controller';
+import { getPlatformSettingsHandler } from '../modules/platform/platform.controller';
 
 export const apiRouter: Router = Router();
 
@@ -50,12 +51,16 @@ apiRouter.use('/stores', storesRouter);
 /* ---- Home-screen offers feed (across all approved stores) --------------- */
 apiRouter.get('/offers', optionalAuthenticate, asyncHandler(listAllOffersHandler));
 
+/* ---- Public platform settings (delivery fee config, WhatsApp number, etc.) */
+apiRouter.get('/platform/settings', optionalAuthenticate, asyncHandler(getPlatformSettingsHandler));
+
 apiRouter.use('/orders', ordersRouter);
 apiRouter.use('/users', usersRouter);
 apiRouter.use('/captains', captainsRouter);
 apiRouter.use('/admin', adminRouter);
 apiRouter.use('/favorites', favoritesRouter);
 apiRouter.use('/uploads', uploadsRouter);
+/* Platform router handles authenticated routes (wallet, rating, admin settings, etc.) */
 apiRouter.use('/platform', platformRouter);
 apiRouter.use('/devices', devicesRouter);
 apiRouter.use('/delivery-zones', deliveryZonesRouter);

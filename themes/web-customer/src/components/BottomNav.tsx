@@ -56,7 +56,7 @@ function useActiveOrderCount(): number {
         if (!token) return;
         // Fetch active orders — any status that is not DELIVERED or CANCELLED.
         // We fetch all statuses the server supports and count non-terminal ones.
-        const res = await fetch(`${API_URL}/api/v1/orders?pageSize=50`, {
+        const res = await fetch(`${API_URL}/orders?pageSize=50`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.status === 401) { clearToken(); auth.setUser(null); return; }

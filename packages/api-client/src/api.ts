@@ -1757,12 +1757,11 @@ export function cancelStoreCustomRequest(
  * /api/v1/platform — wallet + settings
  * ------------------------------------------------------------------------- */
 
-/** GET /platform/settings — the platform economy knobs. Authenticated. */
+/** GET /platform/settings — the platform economy knobs. Public (no auth required). */
 export function getPlatformSettings(
   signal?: AbortSignal,
 ): Promise<PlatformSettings> {
   return request<PlatformSettings>("GET", "/platform/settings", {
-    auth: true,
     signal,
   });
 }

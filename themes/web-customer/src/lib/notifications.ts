@@ -18,10 +18,7 @@ import { globalNavigate } from './globalNavigate';
 import { createLoopingAlert } from '@samou-go/ui';
 import { stopOrderAlarm } from './orderAlarm';
 
-/** API base URL — same origin in production, localhost in dev. */
-const API_BASE: string = (
-  import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:4000')
-).replace(/\/+$/, '');
+import { API_URL } from '@samou-go/api-client';
 
 /** Detect platform for the `platform` field sent to the API. */
 function getPlatform(): 'android' | 'ios' | 'web' {
@@ -116,7 +113,7 @@ export async function registerForPushNotifications(accessToken: string): Promise
  */
 async function sendTokenToServer(token: string, accessToken: string): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE}/api/v1/devices/token`, {
+    const response = await fetch(`${API_URL}/devices/token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -147,7 +144,7 @@ export async function unregisterDeviceToken(
   if (!Capacitor.isNativePlatform()) return;
 
   try {
-    await fetch(`${API_BASE}/api/v1/devices/token`, {
+    await fetch(`${API_URL}/devices/token`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
