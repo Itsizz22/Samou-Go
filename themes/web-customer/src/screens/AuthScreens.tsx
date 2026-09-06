@@ -3,6 +3,7 @@ import { Crosshair, Eye, EyeOff, Loader2, LockKeyhole, MapPin, ShoppingCart } fr
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   ApiError,
+  ENABLE_LOCATION,
   register,
   requestOtp,
   resetPassword,
@@ -455,6 +456,7 @@ export function RegisterScreen() {
               </button>
             ))}
           </div>
+          {ENABLE_LOCATION && (
           <button
             type="button"
             onClick={shareCurrentLocation}
@@ -474,6 +476,7 @@ export function RegisterScreen() {
               </>
             )}
           </button>
+          )}
           <ErrorBanner error={error} />
           <button
             type="button"

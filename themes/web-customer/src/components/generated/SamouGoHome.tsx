@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Apple,
@@ -30,7 +30,8 @@ import { BottomNav } from '@/components/BottomNav';
 import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import { useDrawer } from '@/components/NavigationDrawer';
 import { DeliveryFee } from '@samou-go/ui';
-import { API_URL } from '@/hooks/useApi';
+import { API_URL, ENABLE_LOCATION } from '@/hooks/useApi';
+import { PromoBannerSlider } from '@/components/PromoBannerSlider';
 import { useApiMeta, useOrders, useStores, useAuth, useAllOffers } from '@/hooks/useApi';
 import { useFavorites } from '@/components/FavoritesProvider';
 import { Link, useNavigate } from 'react-router-dom';
@@ -79,7 +80,6 @@ export function SamouGoHome() {
   const { t, language } = useLanguage();
   const isArabic = language === 'ar';
   const [activeCategory, setActiveCategory] = useState<StoreCategoryKey>('all');
-  const [banner, setBanner] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'open' | 'closed'>('all');
@@ -87,56 +87,7 @@ export function SamouGoHome() {
   // permanently expanded on wider viewports where horizontal scroll is usable.
   const [categoriesCollapsed, setCategoriesCollapsed] = useState(false);
 
-  // Auto-rotate the banner carousel every 5 seconds.
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setBanner(prev => (prev === 0 ? 1 : 0));
-    }, 5000);
-    return () => clearInterval(timer);
-  }, []);
 
-  // Touch swipe support for banner carousel.
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
-  const [touchDelta, setTouchDelta] = useState(0);
-  const isDragging = useRef(false);
-  const BANNER_COUNT = 2;
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-    isDragging.current = true;
-    setTouchDelta(0);
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging.current) return;
-    const dx = e.touches[0].clientX - touchStartX.current;
-    const dy = e.touches[0].clientY - touchStartY.current;
-    // Only handle horizontal swipes (ignore vertical scrolling)
-    if (Math.abs(dy) > Math.abs(dx)) {
-      isDragging.current = false;
-      return;
-    }
-    setTouchDelta(dx);
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    if (!isDragging.current) return;
-    isDragging.current = false;
-    const threshold = 50;
-    if (Math.abs(touchDelta) > threshold) {
-      // In RTL, swipe direction is inverted
-      const isRTL = document.documentElement.dir === 'rtl';
-      const swipeLeft = touchDelta < 0;
-      const shouldAdvance = isRTL ? !swipeLeft : swipeLeft;
-      setBanner(prev => {
-        if (shouldAdvance) return prev === 0 ? 1 : 0;
-        return prev === 1 ? 0 : 1;
-      });
-    }
-    setTouchDelta(0);
-  }, [touchDelta]);
 
   // Every keystroke would otherwise be a round-trip over Samou' mobile data.
   useEffect(() => {
@@ -238,7 +189,9 @@ export function SamouGoHome() {
           </div>
         </nav>
         <section className="mx-auto mt-5 flex max-w-md items-end justify-between" aria-label="Location and greeting">
-          <div className="flex items-center gap-2 text-end"><MapPin size={18} /><div><p className="text-sm font-semibold">{t('السموع، الخليل', "Al-Samou', Hebron")}</p></div></div>
+          {ENABLE_LOCATION && (
+            <div className="flex items-center gap-2 text-end"><MapPin size={18} /><div><p className="text-sm font-semibold">{t('السموع، الخليل', "Al-Samou', Hebron")}</p></div></div>
+          )}
           <div className="text-start"><p className="text-lg font-bold">{t('مرحباً! 👋', 'Hello! 👋')}</p></div>
         </section>
       </header>
@@ -266,7 +219,7 @@ export function SamouGoHome() {
           the main Header/Search and above the Store Rails. Keep this marker element
           (id: banners-slider-placeholder) so the injection point is always locatable.
           ======================================================================== */}
-      <div id="banners-slider-placeholder" className="hidden" aria-hidden="true" />
+      <PromoBannerSlider />
 
       {/* Custom Order quick-action banner */}
       <section className="mx-auto max-w-md px-5 pt-5" aria-label="Custom order">
@@ -285,90 +238,7 @@ export function SamouGoHome() {
         </Link>
       </section>
 
-      {/* Multi-banner carousel */}
-      <section className="mx-auto max-w-md px-5 pt-5" aria-label="Feature banners">
-        <div
-          className="relative overflow-hidden rounded-2xl shadow-card"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          style={{ touchAction: 'pan-y' }}
-        >
-          {/* Banner container with smooth transition */}
-          <div
-            className="flex transition-transform duration-500 ease-out"
-            style={{ transform: `translateX(${banner === 0 ? '0%' : '-100%'})`, '--tw-translate-x': touchDelta ? `${touchDelta}px` : undefined } as React.CSSProperties}
-          >
-            {/* Banner 1 — Multi-Vendor Cart */}
-            <div className="min-w-full rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-400 to-teal-400 px-5 py-6 text-white">
-              <div className="flex min-h-[100px] items-center justify-between">
-                <div className="flex-1 text-end">
-                  <p className="mb-1 text-xs font-medium text-white/80">{t('اطلب من عدة متاجر', 'Order from multiple stores')}</p>
-                  <h2 className="text-[20px] font-extrabold leading-tight">{t('سلة مشتركة.. فاتورة واحدة', 'Shared cart.. one invoice')}</h2>
-                </div>
-                {/* Cart icon with store boxes */}
-                <div className="ms-4 shrink-0">
-                  <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-                    <circle cx="40" cy="40" r="36" fill="rgba(255,255,255,0.15)" />
-                    {/* Cart body */}
-                    <path d="M20 28h8l4 20h24l4-16H28" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                    {/* Wheels */}
-                    <circle cx="33" cy="52" r="3" fill="white" />
-                    <circle cx="49" cy="52" r="3" fill="white" />
-                    {/* Store box 1 */}
-                    <rect x="30" y="20" width="10" height="12" rx="2" fill="rgba(255,255,255,0.85)" />
-                    <text x="35" y="28" textAnchor="middle" fontSize="7" fill="#059669">🏪</text>
-                    {/* Store box 2 */}
-                    <rect x="42" y="16" width="10" height="14" rx="2" fill="rgba(255,255,255,0.85)" />
-                    <text x="47" y="26" textAnchor="middle" fontSize="7" fill="#059669">🍞</text>
-                  </svg>
-                </div>
-              </div>
-            </div>
-            {/* Banner 2 — Post-Checkout Tracking */}
-            <div className="min-w-full rounded-2xl bg-gradient-to-br from-teal-500 via-emerald-500 to-green-400 px-5 py-6 text-white">
-              <div className="flex min-h-[100px] items-center justify-between">
-                <div className="flex-1 text-end">
-                  <p className="mb-1 text-xs font-medium text-white/80">{t('العودة للصفحة الرئيسية', 'Back to home page')}</p>
-                  <h2 className="text-[20px] font-extrabold leading-tight">{t('تابع طلبك مباشرة', 'Track your order live')}</h2>
-                </div>
-                {/* Map pin with tracking path */}
-                <div className="ms-4 shrink-0">
-                  <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-                    <circle cx="40" cy="40" r="36" fill="rgba(255,255,255,0.15)" />
-                    {/* Winding path */}
-                    <path d="M25 55 Q30 45 35 50 Q42 56 45 42 Q48 32 55 28" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 3" fill="none" />
-                    {/* Map pin */}
-                    <circle cx="55" cy="24" r="8" fill="white" />
-                    <circle cx="55" cy="24" r="4" fill="#059669" />
-                    <path d="M55 32 L52 26 L58 26 Z" fill="white" />
-                    {/* Start dot */}
-                    <circle cx="25" cy="55" r="4" fill="white" opacity="0.8" />
-                    <circle cx="25" cy="55" r="2" fill="#059669" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* Pagination dots + swipe hint */}
-        <div className="mt-3 flex flex-col items-center gap-1.5">
-          <div className="flex items-center gap-1.5">
-            {[0, 1].map(i => (
-              <button
-                key={i}
-                type="button"
-                aria-label={i === 0 ? 'Multi-vendor banner' : 'Tracking banner'}
-                onClick={() => setBanner(i)}
-                className="-m-2.5 p-2.5"
-              >
-                <span className={`block h-1.5 rounded-full transition-all ${banner === i ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`} />
-              </button>
-            ))}
-          </div>
-          <p className="text-[10px] text-ink-subtle">{t('سحب لليمين', 'Swipe right')}</p>
-        </div>
-      </section>
+
 
       <section className="mx-auto max-w-md px-5 pt-7" aria-labelledby="categories-title">
         <div className="mb-4 flex items-end justify-between">

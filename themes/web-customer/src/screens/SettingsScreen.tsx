@@ -12,7 +12,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Bell, Check, Globe, Loader2, MapPin, Moon, Palette, Sun, type LucideIcon } from 'lucide-react';
 import { useLanguage } from '@samou-go/ui';
-import { AccountSwitcher, updateMyLocation, useAuth } from '@/hooks/useApi';
+import { AccountSwitcher, updateMyLocation, useAuth, ENABLE_LOCATION } from '@/hooks/useApi';
 import { ScreenShell } from '@/components/ScreenShell';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ACCENT_OPTIONS } from '@/theme/presets';
@@ -225,6 +225,7 @@ export function SettingsScreen() {
           />
         </SettingsRow>
 
+        {ENABLE_LOCATION && (
         <SettingsRow icon={MapPin} titleAr="العناوين والمواقع" titleEn="Saved Addresses & GPS" hint="استخدم موقع الجهاز لتسهيل كتابة عنوان التوصيل">
           <div className="rounded-xl bg-canvas p-3">
             {hasLocation ? (
@@ -249,6 +250,7 @@ export function SettingsScreen() {
           </div>
           {locationMessage && <p className="mt-2 text-[11px] text-ink-muted" dir="auto">{isArabic ? locationMessage.ar : locationMessage.en}</p>}
         </SettingsRow>
+        )}
 
         <SettingsRow
           icon={Bell}

@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { Loader2, MapPin, X } from 'lucide-react';
 import { UserRole, type UserRole as UserRoleValue } from '@samou-go/shared-types';
 import { useLanguage, OfflineBanner } from '@samou-go/ui';
-import { updateMyLocation, usePlatformSettings } from '@samou-go/api-client';
+import { updateMyLocation, usePlatformSettings, ENABLE_LOCATION } from '@samou-go/api-client';
 import { SamouGoHome } from './components/generated/SamouGoHome';
 import { OrdersScreen } from './screens/OrdersScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
@@ -144,7 +144,7 @@ function App() {
         <OfflineBanner />
         <StartupRoutes auth={auth} />
         <NavigationDrawer />
-        {gpsCaptureEnabled && auth.user?.role === UserRole.CUSTOMER && (
+        {ENABLE_LOCATION && gpsCaptureEnabled && auth.user?.role === UserRole.CUSTOMER && (
           <CustomerLocationPrompt auth={auth} />
         )}
       </NavigationDrawerProvider>

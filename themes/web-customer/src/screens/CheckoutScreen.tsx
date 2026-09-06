@@ -31,7 +31,7 @@ import { OrderSuccess, Button, useLanguage, VoiceRecorder, useNetworkStatus } fr
 import { useCart } from '@/components/CartProvider';
 import { MapPicker } from '@/components/MapPicker';
 import { CustomerAuthGate } from '@/components/CustomerAuthGate';
-import { useAuth } from '@/hooks/useApi';
+import { useAuth, ENABLE_LOCATION } from '@/hooks/useApi';
 import { formatCurrency, DRIVER_FEE_LABEL, DRIVER_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
 import { hapticError, hapticSuccess } from '@/lib/haptics';
 import {
@@ -582,7 +582,8 @@ export function CheckoutScreen() {
                 />
               </label>
 
-              {/* Map picker button */}
+              {/* Map picker button — gated by ENABLE_LOCATION flag */}
+              {ENABLE_LOCATION && (
               <button
                 type="button"
                 onClick={() => setShowMapPicker(true)}
@@ -603,6 +604,7 @@ export function CheckoutScreen() {
                   <Check size={14} className="text-brand-dark" />
                 )}
               </button>
+              )}
 
               {/* Delivery preset */}
               <div className="rounded-xl bg-canvas p-3">
@@ -959,7 +961,8 @@ export function CheckoutScreen() {
         </div>
       </main>
 
-      {/* Interactive map picker — full screen on mobile */}
+      {/* Interactive map picker — gated by ENABLE_LOCATION flag */}
+      {ENABLE_LOCATION && (
       <MapPicker
         isOpen={showMapPicker}
         initialLat={pickedLat}
@@ -967,6 +970,7 @@ export function CheckoutScreen() {
         onPick={(lat, lng) => { setPickedLat(lat); setPickedLng(lng); }}
         onClose={() => setShowMapPicker(false)}
       />
+      )}
     </PageTransition>
   );
 }

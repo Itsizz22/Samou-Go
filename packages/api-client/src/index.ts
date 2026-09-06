@@ -9,6 +9,7 @@
  */
 
 export * from './api';
+export * from './flags';
 export * from './accountVault';
 export * from './useAccounts';
 export { AccountSwitcher } from './AccountSwitcher';
