@@ -35,6 +35,7 @@ import {
   refreshAccessToken,
   subscribeTokenChange,
 } from "./api";
+import { syncActiveSession } from "./accountVault";
 import { consumeSsoToken } from "./sso";
 
 export interface Auth {
@@ -113,6 +114,29 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
     [acceptsRole],
   );
 
+  /**
+   * Every non-null profile that survives the role gate is committed through
+   * here: state update + Multi-Account Vault bookkeeping. Covers flows that
+   * establish a session without `login()` — SSO hand-off, self-registration —
+   * as well as plain sign-in and refresh, so the vault list always mirrors the
+   * accounts that actually signed in on this device.
+   */
+  const committedProfile = useCallback(
+    (profile: PublicUser | null): PublicUser | null => {
+      const accepted = applyProfile(profile);
+      if (accepted) {
+        try {
+          syncActiveSession(accepted);
+        } catch {
+          /* Vault is best-effort; a failure here must not break sign-in. */
+        }
+      }
+      if (mounted.current) setUserState(accepted);
+      return accepted;
+    },
+    [applyProfile],
+  );
+
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -145,7 +169,7 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
               refresh,
               controller.signal,
             );
-            if (mounted.current) setUserState(applyProfile(restored.user));
+            if (mounted.current) committedProfile(restored.user);
             return;
           } catch {
             // Offline or rejected — `me()` below surfaces the failure.
@@ -153,7 +177,7 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
         }
       }
       const profile = await me(controller.signal);
-      if (mounted.current) setUserState(applyProfile(profile));
+      if (mounted.current) committedProfile(profile);
     };
 
     ensureAccessToken()
@@ -196,9 +220,11 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
       setError(null);
       try {
         const auth = await login(input);
-        const accepted = applyProfile(auth.user);
-        if (mounted.current) setUserState(accepted);
-        return accepted;
+        if (mounted.current) {
+          const accepted = committedProfile(auth.user);
+          return accepted;
+        }
+        return null;
       } catch (cause) {
         const apiError =
           cause instanceof ApiError
@@ -230,19 +256,18 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
   const refresh = useCallback(async (): Promise<PublicUser | null> => {
     try {
       const profile = await me();
-      const accepted = applyProfile(profile);
-      if (mounted.current) setUserState(accepted);
-      return accepted;
+      if (mounted.current) return committedProfile(profile);
+      return null;
     } catch {
       return null;
     }
-  }, [applyProfile]);
+  }, [committedProfile]);
 
   const setUser = useCallback(
     (next: PublicUser | null) => {
-      if (mounted.current) setUserState(applyProfile(next));
+      if (mounted.current) committedProfile(next);
     },
-    [applyProfile],
+    [committedProfile],
   );
 
   return { user, ready, signIn, signOut, error, pending, refresh, setUser };

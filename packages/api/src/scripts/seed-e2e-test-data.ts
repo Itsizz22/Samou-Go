@@ -1,15 +1,17 @@
 #!/usr/bin/env tsx
 /**
- * E2E Test Data Seed — `npm run db:seed:test`
+ * E2E Test Data Seed — `npm run seed:e2e`
  *
  * Populates the database with realistic Arabic-localized test data for
- * stress-testing, API validation, and edge-case verification.
+ * stress-testing, API validation, and edge-case verification. Uses the three
+ * local As-Samou stores plus verified captains, test customers, and every
+ * order lifecycle stage.
  *
  * Idempotent: cleans existing test data before re-inserting.
  * Safe: uses fixed IDs to avoid conflicts with production data.
  *
  * Usage:
- *   cd packages/api && npm run db:seed:test
+ *   cd packages/api && npm run seed:e2e
  */
 
 import path from 'node:path';
@@ -254,24 +256,24 @@ async function seedStores(manager1Id: string, manager2Id: string): Promise<{
   const stores = [
     {
       id: store1Id, managerId: manager1Id,
-      nameAr: 'مطعم ومشاوي الأصالة', nameEn: 'Al-Asala Restaurant & Grill',
+      nameAr: 'مطعم ومشويات القدس', nameEn: 'Al-Quds Restaurant & Grill',
       phone: '0599100001', storeType: 'RESTAURANT' as const,
       storeStatus: 'OPEN' as const,
-      slug: generateStoreSlug('مطعم ومشاوي الأصالة'),
+      slug: generateStoreSlug('مطعم ومشويات القدس'),
     },
     {
       id: store2Id, managerId: manager2Id,
-      nameAr: 'سوبرماركت المدينة', nameEn: 'Al-Madina Supermarket',
+      nameAr: 'سوبرماركت البركة', nameEn: 'Al-Baraka Supermarket',
       phone: '0599100002', storeType: 'SUPERMARKET' as const,
       storeStatus: 'OPEN' as const,
-      slug: generateStoreSlug('سوبرماركت المدينة'),
+      slug: generateStoreSlug('سوبرماركت البركة'),
     },
     {
       id: store3Id, managerId: manager1Id,
-      nameAr: 'حلويات القدس', nameEn: 'Al-Quds Sweets',
+      nameAr: 'حلويات البلدة القديمة', nameEn: 'Old City Sweets',
       phone: '0599100003', storeType: 'BAKERY_SWEETS' as const,
       storeStatus: 'CLOSED' as const,
-      slug: generateStoreSlug('حلويات القدس'),
+      slug: generateStoreSlug('حلويات البلدة القديمة'),
     },
   ];
 
@@ -292,6 +294,11 @@ async function seedStores(manager1Id: string, manager2Id: string): Promise<{
   }
 
   console.log('  ✅ 3 stores created (Restaurant, Supermarket, Sweets)\n');
+
+  console.log('🏪 LOCAL AS-SAMOU STORES:');
+  console.log('  • مطعم ومشويات القدس — RESTAURANT (OPEN)');
+  console.log('  • سوبرماركت البركة — SUPERMARKET (OPEN)');
+  console.log('  • حلويات البلدة القديمة — BAKERY_SWEETS (CLOSED)\n');
 
   return { store1Id, store2Id, store3Id };
 }
@@ -544,7 +551,7 @@ async function seedOrders(
       captainId: null,
       status: 'CANCELLED',
       fulfillmentType: 'DELIVERY',
-      customerAddressText: 'شارع الحCACI',
+      customerAddressText: 'شارع الحجاز، بجانب السوق المركزي',
       deliveryFee: 12,
       subtotal: 25,
       totalAmount: 37,
@@ -823,9 +830,9 @@ async function main(): Promise<void> {
   console.log('  ┌──────────────────────────────┬────────────┬────────────┐');
   console.log('  │ Name                         │ Type       │ Status     │');
   console.log('  ├──────────────────────────────┼────────────┼────────────┤');
-  console.log('  │ مطعم ومشاوي الأصالة          │ RESTAURANT │ OPEN       │');
-  console.log('  │ سوبرماركت المدينة             │ SUPERMARKET│ OPEN       │');
-  console.log('  │ حلويات القدس                │ BAKERY     │ CLOSED     │');
+  console.log('  │ مطعم ومشويات القدس           │ RESTAURANT │ OPEN       │');
+  console.log('  │ سوبرماركت البركة             │ SUPERMARKET│ OPEN       │');
+  console.log('  │ حلويات البلدة القديمة        │ BAKERY     │ CLOSED     │');
   console.log('  └──────────────────────────────┴────────────┴────────────┘');
 
   console.log('\n📋 Orders by Status:');

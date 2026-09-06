@@ -10,7 +10,20 @@ function readBearerToken(req: Request): string | null {
   const [scheme, token] = header.split(' ');
   if (!scheme || scheme.toLowerCase() !== 'bearer' || !token) return null;
 
-  return token.trim() || null;
+  const trimmed = token.trim();
+  // `Bearer null`, `Bearer undefined` and bare `Bearer` are phantom sessions
+  // (a corrupted client that stringified a null token). Treat them exactly
+  // like a missing header: the gate answers 401, never 400.
+  if (
+    trimmed.length === 0 ||
+    trimmed === 'null' ||
+    trimmed === 'undefined' ||
+    trimmed === 'NaN'
+  ) {
+    return null;
+  }
+
+  return trimmed;
 }
 
 /** Hard gate: 401 unless a valid bearer token is present. */

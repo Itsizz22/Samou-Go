@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import {
   ApiError,
+  AccountSwitcher,
   SignInGate,
   useAuth,
   useToast,
@@ -361,6 +362,9 @@ export function ProfileScreen() {
             </ul>
           )}
         </section>
+
+        {/* Switch accounts */}
+        <AccountSwitcher auth={auth} />
 
         {/* Settings shortcut */}
         <button

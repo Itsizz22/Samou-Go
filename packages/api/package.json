@@ -21,6 +21,7 @@
     "prisma:studio": "prisma studio --schema=prisma/schema.sqlite.prisma",
     "prisma:seed": "tsx src/scripts/seed.ts",
     "db:seed:test": "tsx src/scripts/seed-e2e-test-data.ts",
+    "seed:e2e": "tsx src/scripts/seed-e2e-test-data.ts",
     "demo:passwords": "tsx src/scripts/set-admin-password.ts",
     "migrate:demo-passwords": "tsx src/scripts/migrate-demo-passwords.ts",
     "test": "vitest run",

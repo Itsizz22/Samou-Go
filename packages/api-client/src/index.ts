@@ -9,6 +9,9 @@
  */
 
 export * from './api';
+export * from './accountVault';
+export * from './useAccounts';
+export { AccountSwitcher } from './AccountSwitcher';
 export { compressImage } from './compressImage';
 export * from './language';
 export * from './useApi';

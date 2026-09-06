@@ -16,6 +16,22 @@ import { AlertTriangle, Loader2, LogIn, ShoppingCart } from 'lucide-react';
 import type { Auth } from './useAuth';
 import { useAppLanguage } from './language';
 
+/**
+ * Mirrors the API's `phoneSchema` (`packages/api/src/modules/auth/auth.schemas.ts`)
+ * so the raw field is never sent to the wire: `+970…`, `00970…`, `+972…`, spaces
+ * and dashes all collapse to the canonical `05XXXXXXXX` the server stores. A
+ * mismatched payload would otherwise surface as a server-side validation error
+ * (400/422) instead of a clean sign-in.
+ */
+export function normalizeLoginPhone(input: string): string {
+  const digits = input.trim().replace(/[\s-()]/g, '').replace(/^\+/, '');
+  if (digits.startsWith('00970')) return `0${digits.slice(5)}`;
+  if (digits.startsWith('00972')) return `0${digits.slice(5)}`;
+  if (digits.startsWith('970')) return `0${digits.slice(3)}`;
+  if (digits.startsWith('972')) return `0${digits.slice(3)}`;
+  return digits;
+}
+
 export interface SignInGateProps {
   /** The value returned by `useAuth()` in the parent screen. */
   auth: Auth;
@@ -44,7 +60,7 @@ export function SignInGate({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
-    void auth.signIn({ phone: phone.trim(), password });
+    void auth.signIn({ phone: normalizeLoginPhone(phone), password });
   };
 
   return (

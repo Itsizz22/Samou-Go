@@ -24,6 +24,7 @@
  */
 
 import { localizeMessage, readAppLanguage } from './language';
+import { addAccount, updateCurrentSessionTokens } from './accountVault';
 import type {
   AdminCreateCaptainInput,
   AdminCreateStoreInput,
@@ -277,6 +278,22 @@ let sessionPersistence: SessionPersistence = "local";
 let inMemoryToken: string | null = null;
 let inMemoryRefreshToken: string | null = null;
 
+/**
+ * A usable bearer token is a non-empty opaque string. Anything else — missing,
+ * whitespace-only, or the literal `"null"` / `"undefined"` a corrupted storage
+ * entry (or an old bug) can leave behind — is NOT a token and MUST never reach
+ * an `Authorization: Bearer …` header: the server would answer 400/401 for a
+ * phantom session. Normalising here, at the single token source, keeps the
+ * header-builder and every consumer honest.
+ */
+function isUsableToken(value: string | null | undefined): value is string {
+  if (!value) return false;
+  const trimmed = value.trim();
+  return (
+    trimmed.length > 0 && trimmed !== 'null' && trimmed !== 'undefined'
+  );
+}
+
 /** Best-effort persistence; failures never surface — the in-memory copy rules. */
 function persist(key: string, value: string | null): void {
   try {
@@ -296,11 +313,21 @@ function persist(key: string, value: string | null): void {
 }
 
 export function getToken(): string | null {
-  if (inMemoryToken !== null) return inMemoryToken;
+  if (isUsableToken(inMemoryToken)) return inMemoryToken;
+  // A corrupt in-memory copy must never become a phantom session.
+  inMemoryToken = null;
   try {
-    inMemoryToken =
+    const stored =
       localStorage.getItem(TOKEN_STORAGE_KEY) ??
       sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    if (isUsableToken(stored)) {
+      inMemoryToken = stored;
+    } else if (stored !== null) {
+      // Storage holds garbage (e.g. the literal string "null") — drop it
+      // quietly. This is cleanup, not a sign-out, so no listener fires.
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
   } catch {
     inMemoryToken = null;
   }
@@ -308,8 +335,8 @@ export function getToken(): string | null {
 }
 
 export function setToken(token: string | null): void {
-  inMemoryToken = token;
-  persist(TOKEN_STORAGE_KEY, token);
+  inMemoryToken = isUsableToken(token) ? token : null;
+  persist(TOKEN_STORAGE_KEY, inMemoryToken);
   notifyTokenChange();
 }
 
@@ -343,11 +370,18 @@ function notifyTokenChange(): void {
 }
 
 export function getRefreshToken(): string | null {
-  if (inMemoryRefreshToken !== null) return inMemoryRefreshToken;
+  if (isUsableToken(inMemoryRefreshToken)) return inMemoryRefreshToken;
+  inMemoryRefreshToken = null;
   try {
-    inMemoryRefreshToken =
+    const stored =
       localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) ??
       sessionStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+    if (isUsableToken(stored)) {
+      inMemoryRefreshToken = stored;
+    } else if (stored !== null) {
+      localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+      sessionStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+    }
   } catch {
     inMemoryRefreshToken = null;
   }
@@ -355,8 +389,8 @@ export function getRefreshToken(): string | null {
 }
 
 export function setRefreshToken(token: string | null): void {
-  inMemoryRefreshToken = token;
-  persist(REFRESH_TOKEN_STORAGE_KEY, token);
+  inMemoryRefreshToken = isUsableToken(token) ? token : null;
+  persist(REFRESH_TOKEN_STORAGE_KEY, inMemoryRefreshToken);
 }
 
 export function clearTokens(): void {
@@ -473,6 +507,9 @@ async function refreshSessionIfPossible(): Promise<boolean> {
       );
       setToken(result.accessToken);
       setRefreshToken(result.refreshToken ?? null);
+      // Rotated pair — keep the active vault snapshot in step (no user row is
+      // needed here; only the tokens change).
+      updateCurrentSessionTokens(result.accessToken, result.refreshToken ?? null);
       return true;
     } catch {
       // Offline or rejected — the session is gone; drop the dead credentials so
@@ -515,7 +552,11 @@ async function request<T>(
 
   if (auth) {
     const token = getToken();
-    if (!token) {
+    // `getToken()` already normalises away empty/"null"/"undefined" storage
+    // values, but guard again so a phantom token can NEVER reach the wire as
+    // `Authorization: Bearer null`.
+    if (!isUsableToken(token)) {
+      clearToken();
       throw new ApiError(
         "UNAUTHENTICATED",
         "يجب تسجيل الدخول أولاً / Please sign in first",
@@ -913,6 +954,13 @@ export async function login(
   });
   setToken(auth.accessToken);
   setRefreshToken(auth.refreshToken ?? null);
+  // Record the session in the Multi-Account Vault and make it the active one,
+  // so a previous account on this device is kept, not forgotten.
+  addAccount({
+    user: auth.user,
+    accessToken: auth.accessToken,
+    refreshToken: auth.refreshToken ?? null,
+  });
   return auth;
 }
 
@@ -967,6 +1015,11 @@ export async function verifyOtp(
   });
   setToken(auth.accessToken);
   setRefreshToken(auth.refreshToken ?? null);
+  addAccount({
+    user: auth.user,
+    accessToken: auth.accessToken,
+    refreshToken: auth.refreshToken ?? null,
+  });
   return auth;
 }
 
@@ -984,6 +1037,13 @@ export async function refreshAccessToken(
   });
   setToken(auth.accessToken);
   setRefreshToken(auth.refreshToken ?? null);
+  // Refresh ROTATES the pair — realign the active account's snapshot so a
+  // later switch does not hand the server a revoked refresh token.
+  addAccount({
+    user: auth.user,
+    accessToken: auth.accessToken,
+    refreshToken: auth.refreshToken ?? null,
+  });
   return auth;
 }
 
@@ -1007,6 +1067,21 @@ export async function logout(signal?: AbortSignal): Promise<void> {
   } finally {
     clearTokens();
   }
+}
+
+/**
+ * Revokes a SPECIFIC refresh token server-side without touching the live
+ * session. Used by the Multi-Account Vault when an account is removed, so a
+ * signed-out account cannot be resurrected from a copy of its old token.
+ */
+export async function logoutRefreshToken(
+  refreshToken: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await request<unknown>("POST", "/auth/logout", {
+    body: { refreshToken },
+    signal,
+  });
 }
 
 /** Updates the signed-in user's own profile (name, phone, password). */
@@ -1064,7 +1139,8 @@ export async function uploadRawFile(
 ): Promise<void> {
   const putOnce = async (): Promise<Response> => {
     const token = getToken();
-    if (!token) {
+    if (!isUsableToken(token)) {
+      clearToken();
       throw new ApiError(
         "UNAUTHENTICATED",
         "يجب تسجيل الدخول أولاً / Please sign in first",

@@ -48,6 +48,7 @@
     "db:deactivate-demo": "npx tsx packages/api/src/scripts/deactivate-demo-users.ts",
     "db:clean-demo": "npx tsx packages/api/src/scripts/clean-demo-data.ts",
     "test:e2e": "npm run test:e2e --workspace @samou-go/api",
+    "seed:e2e": "npm run seed:e2e --workspace @samou-go/api",
     "test": "npm run test --workspace @samou-go/shared-types"
   },
   "devDependencies": {

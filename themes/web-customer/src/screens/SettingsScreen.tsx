@@ -12,7 +12,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Bell, Check, Globe, Loader2, MapPin, Moon, Palette, Sun, type LucideIcon } from 'lucide-react';
 import { useLanguage } from '@samou-go/ui';
-import { updateMyLocation, useAuth } from '@/hooks/useApi';
+import { AccountSwitcher, updateMyLocation, useAuth } from '@/hooks/useApi';
 import { ScreenShell } from '@/components/ScreenShell';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ACCENT_OPTIONS } from '@/theme/presets';
@@ -158,6 +158,8 @@ export function SettingsScreen() {
   return (
     <ScreenShell title="الإعدادات" subtitle="Settings">
       <div className="space-y-4">
+        <AccountSwitcher auth={auth} />
+
         <SettingsRow
           icon={Palette}
           titleAr="لون الواجهة"

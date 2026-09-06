@@ -75,6 +75,18 @@ describe('authenticate', () => {
     expectHttpError(next, 'UNAUTHORIZED', 401);
   });
 
+  it.each([
+    ['Bearer null'],
+    ['Bearer undefined'],
+    ['Bearer NaN'],
+    ['Bearer '],
+    ['Bearer'],
+  ])('rejects a phantom bearer %j as 401, never 400', (header) => {
+    const next = makeNext();
+    authenticate(makeRequest({ authorization: header }), {} as Response, next as unknown as NextFunction);
+    expectHttpError(next, 'UNAUTHORIZED', 401);
+  });
+
   it('rejects a garbage / malformed token (401)', () => {
     const next = makeNext();
     authenticate(makeRequest({ authorization: 'Bearer not.a.real.jwt' }), {} as Response, next as unknown as NextFunction);
@@ -164,6 +176,14 @@ describe('optionalAuthenticate', () => {
 
   it('ignores a bad token on a public route', () => {
     const req = makeRequest({ authorization: 'Bearer garbage' });
+    const next = makeNext();
+    optionalAuthenticate(req, {} as Response, next as unknown as NextFunction);
+    expect(next.mock.calls[0]![0]).toBeUndefined();
+    expect(req.auth).toBeUndefined();
+  });
+
+  it('ignores a phantom "Bearer null" on a public route', () => {
+    const req = makeRequest({ authorization: 'Bearer null' });
     const next = makeNext();
     optionalAuthenticate(req, {} as Response, next as unknown as NextFunction);
     expect(next.mock.calls[0]![0]).toBeUndefined();
