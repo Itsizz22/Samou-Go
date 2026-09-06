@@ -20,7 +20,7 @@ generator client {
   provider = "prisma-client-js"
   // Independent output so PostgreSQL codegen never overwrites the SQLite client
   // (which is generated into `../generated/prisma-sqlite`).
-  output = "../generated/prisma-pg-v2"
+  output = "../generated/prisma-postgres"
 }
 
 datasource db {

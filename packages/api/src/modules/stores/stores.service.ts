@@ -89,7 +89,6 @@ async function computeStoreBadges(storeIds: string[]): Promise<Map<string, strin
       where: {
         storeId: { in: storeIds },
         isActive: true,
-        // @ts-expect-error stale Prisma client — Offer.price
         price: { gt: 0 },
       },
     }),
