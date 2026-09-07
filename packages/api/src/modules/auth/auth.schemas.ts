@@ -194,9 +194,23 @@ export const captainIdParamsSchema = z.object({
  * POST /auth/logout — the refresh token is OPTIONAL (stateless access tokens
  * are just dropped client-side). When present it is revoked server-side.
  */
-export const logoutSchema = z.object({
-  refreshToken: z.string().min(1).optional(),
-});
+export const logoutSchema = z
+  .object({
+    refreshToken: z.string().min(1).optional(),
+    /**
+     * Optional FCM device token. When present, the server ALSO unregisters
+     * THIS device's token (scoped to the refresh token's owner) — "selective
+     * logout" for multi-device sessions, so the other devices stay signed in
+     * and remain reachable by push. Requires `refreshToken` so the removal is
+     * always attributed to an identifiable session — it never touches another
+     * user's tokens.
+     */
+    deviceToken: z.string().trim().min(1).max(512).optional(),
+  })
+  .refine((body) => !body.deviceToken || !!body.refreshToken, {
+    message: "deviceToken requires refreshToken — the owning session must be identified",
+    path: ["deviceToken"],
+  });
 
 /** GET /users — admin list query. */
 export const userListQuerySchema = z.object({

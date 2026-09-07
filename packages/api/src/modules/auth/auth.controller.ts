@@ -4,7 +4,8 @@ import { created, ok } from "../../lib/respond";
 import { parseWith } from "../../lib/validate";
 import { forbidden } from "../../lib/http-error";
 import { requireAuth } from "../../middleware/authenticate";
-import { revokeRefreshToken } from "./refresh-token";
+import { revokeRefreshToken, findUserIdForRefreshToken } from "./refresh-token";
+import * as devicesService from "../devices/devices.service";
 import {
   adminIdParamsSchema,
   adminUpdateUserSchema,
@@ -103,15 +104,28 @@ export async function updateMyLocationHandler(
  * POST /api/v1/auth/logout
  * Stateless JWT access tokens are dropped client-side. The refresh token, if
  * the client sends one, is revoked server-side so a leaked token cannot be
- * replayed after sign-out.
+ * replayed after sign-out. When the client also sends `deviceToken`, ONLY that
+ * device's push token is removed (selective logout) — the user's other devices
+ * stay signed in and remain reachable by push. Both operations are scoped to
+ * the refresh token's owner, so a logout can never unregister another user's
+ * device.
  */
 export async function logoutHandler(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const { refreshToken } = parseWith(logoutSchema, req.body);
+  const { refreshToken, deviceToken } = parseWith(logoutSchema, req.body);
   if (refreshToken) {
     await revokeRefreshToken(refreshToken);
+    // Selective logout: remove exactly the device that is signing out, still
+    // attributed to this session's account. Without a matching refresh token
+    // (schema-refined) we never attempt an unscoped delete.
+    if (deviceToken) {
+      const userId = await findUserIdForRefreshToken(refreshToken);
+      if (userId) {
+        await devicesService.unregisterDeviceToken(userId, { token: deviceToken });
+      }
+    }
   }
   ok(res, { message: "تم تسجيل الخروج / Signed out" });
 }

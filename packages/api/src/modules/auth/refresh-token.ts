@@ -113,6 +113,20 @@ export async function revokeRefreshToken(raw: string): Promise<void> {
     });
 }
 
+/**
+ * Resolves the user who owns a raw refresh token and returns their id, or
+ * `null` when the token is unknown. Only the SHA-256 hash is queried — the raw
+ * credential never touches the DB. Used by logout to scope a selective
+ * device-token removal to the session's account.
+ */
+export async function findUserIdForRefreshToken(raw: string): Promise<string | null> {
+  const stored = await prisma.refreshToken.findUnique({
+    where: { tokenHash: hashRefreshToken(raw) },
+    select: { userId: true },
+  });
+  return stored?.userId ?? null;
+}
+
 /** Revokes every live refresh token for a user (e.g. on a password change). */
 export async function revokeAllUserRefreshTokens(userId: string): Promise<void> {
   await prisma.refreshToken.updateMany({

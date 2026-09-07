@@ -1052,18 +1052,22 @@ export function me(signal?: AbortSignal): Promise<PublicUser> {
   return request<PublicUser>("GET", "/auth/me", { auth: true, signal });
 }
 
-/** Stateless access tokens are dropped locally; the refresh token is revoked server-side. */
-export async function logout(signal?: AbortSignal): Promise<void> {
+/** Stateless access tokens are dropped locally; the refresh token is revoked server-side.
+ *  Pass `deviceToken` to also unregister THIS device's FCM token (selective logout) —
+ *  the user's other devices stay signed in and reachable by push. */
+export async function logout(opts?: {
+  signal?: AbortSignal;
+  deviceToken?: string;
+}): Promise<void> {
   try {
     const refresh = getRefreshToken();
-    if (refresh) {
-      await request<unknown>("POST", "/auth/logout", {
-        body: { refreshToken: refresh },
-        signal,
-      });
-    } else {
-      await request<unknown>("POST", "/auth/logout", { signal });
-    }
+    const body: Record<string, unknown> = {};
+    if (refresh) body.refreshToken = refresh;
+    if (opts?.deviceToken) body.deviceToken = opts.deviceToken;
+    await request<unknown>("POST", "/auth/logout", {
+      body,
+      signal: opts?.signal,
+    });
   } finally {
     clearTokens();
   }

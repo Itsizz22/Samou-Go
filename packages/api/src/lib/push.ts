@@ -81,12 +81,42 @@ export interface PushPayload {
 }
 
 /**
+ * Classification of per-token FCM errors that mean "this token is no longer
+ * valid" (app uninstalled, device logged out, quota/registration scrub). Tokens
+ * that fail with one of these codes are silently removed so they are never
+ * retried. Firestore/FCM surfaces the code in a few shapes depending on the SDK
+ * version: error-code string literally named `UNREGISTERED` (admin SDK
+ * `unregistered` error code) or `messaging/registration-token-not-registered`.
+ */
+export function isStaleTokenCode(code: string | null | undefined): boolean {
+  if (!code) return false;
+  return (
+    code === 'messaging/registration-token-not-registered' ||
+    code === 'messaging/invalid-registration-token' ||
+    code === 'messaging/unregistered' ||
+    code === 'UNREGISTERED'
+  );
+}
+
+/**
  * Send a push notification to all devices registered to a user.
  * Sends in parallel and silently removes stale tokens on failure.
  */
+export interface SendPushOptions {
+  /** If true, omit the root-level `notification` key so the message is
+   *  data-only. This guarantees `onMessageReceived()` fires in
+   *  FirebaseMessagingService even when the app is killed, allowing the
+   *  native side to build a custom notification with the correct channel
+   *  (ringing vs. silent) based on user preferences.
+   *  When false (default), FCM delivers a standard notification+data message
+   *  that Android handles natively in the background. */
+  dataOnly?: boolean;
+}
+
 export async function sendPushToUser(
   userId: string,
-  payload: PushPayload
+  payload: PushPayload,
+  options?: SendPushOptions
 ): Promise<{ sent: number; failed: number }> {
   const msg = await getMessaging();
   if (!msg) return { sent: 0, failed: 0 };
@@ -98,14 +128,26 @@ export async function sendPushToUser(
 
   if (tokens.length === 0) return { sent: 0, failed: 0 };
 
-  // Build the multicast message — each token gets the same payload.
-  const messages = tokens.map((t: { token: string }) => ({
-    token: t.token,
-    notification: {
+  // Build ONE multicast message carrying every registered device of this
+  // user. A single `sendEachForMulticast` batch deliver the same payload to
+  // all devices at once — responses align with `tokens` by index.
+  // When data-only, omit the notification object entirely so Android
+  // routes through onMessageReceived() even when the app is killed.
+  const multicast = {
+    tokens: tokens.map((t: { token: string }) => t.token),
+    ...(options?.dataOnly
+      ? {}
+      : {
+          notification: {
+            title: payload.title,
+            body: payload.body,
+          },
+        }),
+    data: {
       title: payload.title,
       body: payload.body,
+      ...(payload.data ?? {}),
     },
-    data: payload.data ?? {},
     // Android: use the "orders_high_priority" channel for urgent order alerts.
     // IMPORTANCE_HIGH + custom ringtone ensures the alarm plays even when the
     // app is killed, with heads-up display on lockscreen.
@@ -127,45 +169,32 @@ export async function sendPushToUser(
         },
       },
     },
-  }));
+  };
 
-  // Send all messages in parallel.
-  const results = await Promise.allSettled(
-    messages.map((m: (typeof messages)[number]) =>
-      msg.sendEachForMulticast({ tokens: [m.token], ...m })
-    )
-  );
+  // Fire the multicast batch. In offline/dev mode (no Firebase credentials)
+  // getMessaging() returns null and we already returned early above.
+  const response = await msg.sendEachForMulticast([multicast]);
 
   let sent = 0;
   let failed = 0;
   const staleTokenIds: string[] = [];
 
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    if (result && result.status === 'fulfilled') {
-      const response = result.value as { responses: Array<{ success: boolean; error?: { code: string } }> };
-      for (const resp of response.responses) {
-        if (resp.success) {
-          sent++;
-        } else {
-          failed++;
-          const errorCode = resp.error?.code;
-          // Token is no longer valid — mark for removal.
-          if (
-            errorCode === 'messaging/registration-token-not-registered' ||
-            errorCode === 'messaging/invalid-registration-token'
-          ) {
-            const token = tokens[i];
-            if (token) staleTokenIds.push(token.id);
-          }
-        }
-      }
-    } else {
-      failed++;
+  const perToken = response.responses as Array<{ success: boolean; error?: { code: string } }>;
+  for (let i = 0; i < perToken.length; i++) {
+    const resp = perToken[i];
+    if (resp && resp.success) {
+      sent++;
+      continue;
+    }
+    failed++;
+    // Token is no longer valid — mark for removal so we never retry it.
+    if (tokens[i] && isStaleTokenCode(resp?.error?.code)) {
+      staleTokenIds.push(tokens[i]!.id);
     }
   }
 
-  // Clean up stale tokens so we never retry them.
+  // Clean up stale tokens so we never retry them. Only the reported-gone
+  // tokens of this user are removed — other devices stay untouched.
   if (staleTokenIds.length > 0) {
     await prisma.deviceToken.deleteMany({
       where: { id: { in: staleTokenIds } },
@@ -181,14 +210,15 @@ export async function sendPushToUser(
  */
 export async function sendPushToMany(
   userIds: string[],
-  payload: PushPayload
+  payload: PushPayload,
+  options?: SendPushOptions
 ): Promise<{ totalSent: number; totalFailed: number }> {
   let totalSent = 0;
   let totalFailed = 0;
 
   // Send to all users in parallel (each user may have multiple devices).
   const results = await Promise.allSettled(
-    userIds.map((userId) => sendPushToUser(userId, payload))
+    userIds.map((userId) => sendPushToUser(userId, payload, options))
   );
 
   for (const result of results) {

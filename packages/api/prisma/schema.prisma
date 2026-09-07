@@ -703,6 +703,9 @@ model DeviceToken {
   token     String   @unique
   /// "android", "ios", or "web" — used to select the right FCM API.
   platform  String   @db.VarChar(10)
+  /// Free-form device description (model, OS version, app build) — shown in
+  /// admin tooling so a driver's devices are distinguishable.
+  deviceInfo String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

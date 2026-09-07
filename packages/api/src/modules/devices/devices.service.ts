@@ -9,37 +9,56 @@
 import { prisma } from '../../lib/prisma';
 import type { RegisterDeviceTokenBody, UnregisterDeviceTokenBody } from './devices.schemas';
 
-/** Register or update a device token. Idempotent — safe to call on every app open. */
+/** Register or update a device token. Idempotent — safe to call on every app open.
+ *  Upsert semantics: re-registering the SAME token for the SAME user refreshes
+ *  the device metadata + `updatedAt`; registering a token that was previously
+ *  held by another account reassigns it. Tokens belonging to the user's OTHER
+ *  devices are never touched. */
 export async function registerDeviceToken(
   userId: string,
   body: RegisterDeviceTokenBody
-): Promise<{ id: string }> {
+): Promise<{ id: string; upserted: boolean }> {
   const existing = await prisma.deviceToken.findUnique({
     where: { token: body.token },
     select: { id: true, userId: true },
   });
 
+  // Metadata always set together so the row stays coherent on every write.
+  const metadata = {
+    platform: body.platform,
+    ...(body.deviceInfo !== undefined ? { deviceInfo: body.deviceInfo } : {}),
+  };
+
   if (existing) {
-    // Token already registered — if it belongs to a different user (e.g. device
-    // was factory-reset and re-registered by another account), reassign it.
-    if (existing.userId !== userId) {
+    // Same device, same user → refresh metadata (bumps `updatedAt`). This
+    // keeps the row fresh without creating a duplicate or affecting the
+    // user's other active devices.
+    if (existing.userId === userId) {
       await prisma.deviceToken.update({
         where: { id: existing.id },
-        data: { userId, platform: body.platform },
+        data: metadata,
+      });
+    } else {
+      // Token already registered — if it belongs to a different user (e.g.
+      // device was factory-reset and re-registered by another account),
+      // reassign it rather than creating a duplicate row.
+      await prisma.deviceToken.update({
+        where: { id: existing.id },
+        data: { userId, ...metadata },
       });
     }
-    return { id: existing.id };
+    return { id: existing.id, upserted: true };
   }
 
   const row = await prisma.deviceToken.create({
     data: {
       userId,
       token: body.token,
-      platform: body.platform,
+      ...metadata,
     },
   });
 
-  return { id: row.id };
+  return { id: row.id, upserted: false };
 }
 
 /** Remove a device token — called on logout or when the app is uninstalled. */

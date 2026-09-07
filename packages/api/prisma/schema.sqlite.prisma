@@ -706,12 +706,14 @@ model PlatformSettings {
 
 /// FCM / APNs device token registered by a mobile client.
 model DeviceToken {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  platform  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique
+  platform   String
+  /// Free-form device description (model, OS version, app build).
+  deviceInfo String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
