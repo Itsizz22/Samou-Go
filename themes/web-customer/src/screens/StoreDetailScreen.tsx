@@ -302,17 +302,13 @@ export function StoreDetailScreen() {
           );
         })()}
 
-        <div className="mx-auto max-w-md px-5 pt-5 min-w-0">
+        <div className="mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 min-w-0">
           {products.length === 0 ? (
             <p className="py-12 text-center text-xs text-ink-muted">
               لا توجد منتجات في هذه الفئة حالياً
             </p>
           ) : (
-            <div
-              className="flex flex-nowrap gap-3 overflow-x-auto overflow-y-hidden py-2 px-1 -mx-1 scrollbar-none md:grid md:grid-cols-2 lg:grid-cols-3 md:overflow-visible md:gap-3 md:mx-0 md:px-0"
-              style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x', overscrollBehaviorX: 'contain' }}
-              data-swipe-back="true"
-            >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 xl:grid-cols-5">
               {products
                 .filter((product) => product.isAvailable)
                 .map((product, index) => {
@@ -320,85 +316,92 @@ export function StoreDetailScreen() {
                   return (
                     <article
                       key={product.id}
-                      className="relative flex shrink-0 w-[82vw] max-w-[320px] min-w-[270px] items-center gap-3 rounded-2xl bg-surface p-3 shadow-card product-card-enter md:w-auto md:shrink"
+                      className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised sm:p-4 product-card-enter"
                       style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }}
                     >
                       {/* Offer badge */}
                       {offerProductIds.has(product.id) && (
-                        <span className="absolute -top-1.5 -end-1.5 z-10 rounded-full bg-brand px-2 py-0.5 text-micro font-bold text-white shadow-sm">
+                        <span className="absolute start-2 top-2 z-10 rounded-full bg-brand px-2 py-0.5 text-micro font-bold text-white shadow-sm">
                           {t('عرض', 'Offer')}
                         </span>
                       )}
-                      {product.imageUrl ? (
-                        <ImageWithFallback
-                          src={product.imageUrl}
-                          alt=""
-                          className="h-16 w-16 shrink-0 rounded-xl object-cover"
-                        />
-                      ) : (
-                        <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-lg font-black text-brand-dark">
-                          {product.nameAr.slice(0, 2)}
-                        </span>
-                      )}
-                      <div className="min-w-0 flex-1 text-end">
-                        <h3 className="truncate text-sm font-extrabold">{product.nameAr}</h3>
+
+                      {/* Media — fixed aspect ratio; elegant gradient fallback */}
+                      <div className="relative mb-3 aspect-square overflow-hidden rounded-xl bg-gradient-to-br from-brand-tint to-brand-surface">
+                        {product.imageUrl ? (
+                          <ImageWithFallback
+                            src={product.imageUrl}
+                            alt=""
+                            className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                            fallbackText={product.nameAr.slice(0, 2)}
+                          />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-xl font-black text-brand-dark sm:text-2xl">
+                            {product.nameAr.slice(0, 2)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Text & Price */}
+                      <div className="flex min-w-0 flex-1 flex-col text-end">
+                        <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-bold text-ink">
+                          {product.nameAr}
+                        </h3>
                         {product.description && (
                           <p className="mt-0.5 line-clamp-2 text-[11px] text-ink-muted">
                             {product.description}
                           </p>
                         )}
-                        <p className="mt-1 text-sm font-bold text-brand-dark" dir="ltr">
+                        <p className="mt-2 text-sm font-bold text-brand-dark" dir="ltr">
                           {formatCurrency(product.price)}
                         </p>
                       </div>
-                      {line ? (
-                        <div className="flex shrink-0 items-center gap-2 rounded-full bg-brand px-1.5 py-1 text-white">
+
+                      {/* Counter / add */}
+                      <div className="mt-3 flex justify-end">
+                        {line ? (
+                          <div className="flex items-center gap-1 rounded-full bg-brand px-1 py-1 text-white">
+                            <button
+                              type="button"
+                              aria-label={t('إنقاص', 'Decrease')}
+                              onClick={() => {
+                                cart.setQuantity(product.id, line.quantity - 1);
+                                void hapticTap();
+                              }}
+                              className="rounded-full p-2 transition active:scale-90"
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <span className="min-w-[18px] text-center text-xs font-bold">
+                              {line.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label={t('زيادة', 'Increase')}
+                              onClick={() => {
+                                cart.setQuantity(product.id, line.quantity + 1);
+                                void hapticTap();
+                              }}
+                              className="rounded-full p-2 transition active:scale-90"
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                        ) : (
                           <button
                             type="button"
-                            aria-label={t('إنقاص', 'Decrease')}
-                            onClick={() => {
-                              cart.setQuantity(product.id, line.quantity - 1);
-                              void hapticTap();
-                            }}
-                            className="rounded-full p-2 transition active:scale-90"
+                            aria-label={`أضف ${product.nameAr} إلى السلة`}
+                            onClick={() => handleAdd(product.id, product)}
+                            className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-tint text-brand-dark transition active:scale-90"
                           >
-                            <Minus size={14} />
+                            <Plus size={18} strokeWidth={2.5} />
                           </button>
-                          <span className="min-w-[18px] text-center text-xs font-bold">
-                            {line.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            aria-label={t('زيادة', 'Increase')}
-                            onClick={() => {
-                              cart.setQuantity(product.id, line.quantity + 1);
-                              void hapticTap();
-                            }}
-                            className="rounded-full p-2 transition active:scale-90"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          aria-label={`أضف ${product.nameAr} إلى السلة`}
-                          onClick={() => handleAdd(product.id, product)}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand-dark transition active:scale-90"
-                        >
-                          <Plus size={18} strokeWidth={2.5} />
-                        </button>
-                      )}
+                        )}
+                      </div>
                     </article>
                   );
                 })}
             </div>
-          )}
-          {/* Horizontal scroll hint — visible only on mobile when there are multiple products */}
-          {products.filter(p => p.isAvailable).length > 1 && (
-            <p className="mt-2 text-center text-[10px] text-ink-muted md:hidden">
-              {t('اسحب للتصفح ⟵', 'Swipe to browse ⟵')}
-            </p>
           )}
         </div>
 
