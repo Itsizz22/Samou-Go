@@ -429,8 +429,8 @@ export async function createOrder(
               isOfferItem: itemSource?.isOfferItem ?? false,
               offerTitle: itemSource?.offerTitle ?? null,
               offerId: itemSource?.offerId ?? null,
-              // Store server-validated selected options as JSON.
-              selectedOptions: line.selectedOptions ? JSON.stringify(line.selectedOptions) : null,
+              // Pass the object directly — Prisma serialises JSON fields natively.
+              selectedOptions: (line.selectedOptions ?? null) as unknown as Prisma.InputJsonValue,
               // Append modifier summary to note if present, for display in order detail
               ...(itemSource?.modifiers
                 ? itemSource?.note
@@ -560,7 +560,8 @@ export async function createCheckoutOrders(
                 totalPrice: lineTotal(line.unitPrice, line.quantity),
                 note: itemSource?.note ?? null,
                 // Store server-validated selected options as JSON.
-                selectedOptions: line.selectedOptions ? JSON.stringify(line.selectedOptions) : null,
+                // Pass the object directly — Prisma serialises JSON fields natively.
+                selectedOptions: (line.selectedOptions ?? null) as unknown as Prisma.InputJsonValue,
                 ...(itemSource?.modifiers
                   ? itemSource?.note
                     ? { note: `${itemSource.note} | ${modifierSummary(itemSource.modifiers)}` }

@@ -35,7 +35,6 @@ export async function listOptionGroups(
     throw notFound('المنتج غير موجود / Product not found');
   }
 
-  // @ts-expect-error — prisma-client-js generated types may be stale
   const groups = await prisma.productOptionGroup.findMany({
     where: { productId },
     include: { items: { orderBy: { sortOrder: 'asc' } } },
@@ -67,7 +66,6 @@ export async function createOptionGroup(
 
   // Enforce 5-item total cap across all groups for this product.
   const incomingItemCount = (body.items ?? []).length;
-  // @ts-expect-error — prisma-client-js generated types may be stale
   const existingGroups = await prisma.productOptionGroup.findMany({
     where: { productId },
     include: { items: { select: { id: true } } },
@@ -85,7 +83,6 @@ export async function createOptionGroup(
     throw unprocessable('MIN_GT_MAX', 'الحد الأدنى أكبر من الأقصى / minSelect > maxSelect');
   }
 
-  // @ts-expect-error — prisma-client-js generated types may be stale
   const group = await prisma.productOptionGroup.create({
     data: {
       productId,
@@ -119,7 +116,6 @@ export async function updateOptionGroup(
 ): Promise<OptionGroupDto> {
   await assertManagerOwnsStore(actor, storeId);
 
-  // @ts-expect-error — prisma-client-js generated types may be stale
   const existing = await prisma.productOptionGroup.findUnique({
     where: { id: groupId },
     include: { product: { select: { storeId: true, id: true } } },
@@ -132,7 +128,6 @@ export async function updateOptionGroup(
   // Enforce 5-item total cap when replacing items.
   if (body.items !== undefined) {
     const incomingItemCount = body.items.length;
-    // @ts-expect-error — prisma-client-js generated types may be stale
     const otherGroups = await prisma.productOptionGroup.findMany({
       where: { productId: existing.product.id, id: { not: groupId } },
       include: { items: { select: { id: true } } },
@@ -144,14 +139,10 @@ export async function updateOptionGroup(
         `الحد الأقصى المسموح به هو 5 إضافات للمنتج الواحد (${otherItemCount} في مجموعات أخرى + ${incomingItemCount} هنا)`,
       );
     }
-  }
-
-  const group = await prisma.$transaction(async (tx) => {
+  }    const group = await prisma.$transaction(async (tx) => {
     // If items array provided, do a full replacement (delete old → create new).
     if (body.items !== undefined) {
-      // @ts-expect-error — prisma-client-js generated types may be stale
       await tx.productOptionItem.deleteMany({ where: { groupId } });
-      // @ts-expect-error — prisma-client-js generated types may be stale
       await tx.productOptionGroup.update({
         where: { id: groupId },
         data: {
@@ -173,7 +164,6 @@ export async function updateOptionGroup(
       });
     } else {
       // Partial update of group fields only.
-      // @ts-expect-error — prisma-client-js generated types may be stale
       await tx.productOptionGroup.update({
         where: { id: groupId },
         data: {
@@ -186,7 +176,6 @@ export async function updateOptionGroup(
       });
     }
 
-    // @ts-expect-error — prisma-client-js generated types may be stale
     return prisma.productOptionGroup.findUnique({
       where: { id: groupId },
       include: { items: { orderBy: { sortOrder: 'asc' } } },
@@ -206,7 +195,6 @@ export async function deleteOptionGroup(
 ): Promise<void> {
   await assertManagerOwnsStore(actor, storeId);
 
-  // @ts-expect-error — prisma-client-js generated types may be stale
   const existing = await prisma.productOptionGroup.findUnique({
     where: { id: groupId },
     include: { product: { select: { storeId: true } } },
@@ -216,7 +204,6 @@ export async function deleteOptionGroup(
     throw forbidden('غير مصرح / Not authorized');
   }
 
-  // @ts-expect-error — prisma-client-js generated types may be stale
   await prisma.productOptionGroup.delete({ where: { id: groupId } });
 }
 
