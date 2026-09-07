@@ -10,11 +10,16 @@
       <stop offset="45%" stop-color="#FACC15" />
       <stop offset="100%" stop-color="#EAB308" />
     </linearGradient>
+    <filter id="emeraldDepth" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#011F17" flood-opacity="0.65" />
+    </filter>
   </defs>
   <rect width="512" height="512" rx="128" fill="url(#emeraldBg)" stroke="#10B981" stroke-width="4" />
-  <text x="190" y="295" text-anchor="middle" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="185" font-style="italic" font-weight="900">S</text>
-  <polygon points="325,128 275,240 320,240 252,382 360,215 315,215" fill="url(#boltGoldGrad)" stroke="#FEF08A" stroke-width="3" stroke-linejoin="round" />
-  <circle cx="375" cy="180" r="13" fill="#FEF08A" />
-  <circle cx="390" cy="295" r="16" fill="#FACC15" />
-  <circle cx="240" cy="390" r="10" fill="#34D399" />
+  <g filter="url(#emeraldDepth)">
+    <text x="190" y="295" text-anchor="middle" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="185" font-style="italic" font-weight="900">S</text>
+    <polygon points="325,128 275,240 320,240 252,382 360,215 315,215" fill="url(#boltGoldGrad)" stroke="#FEF08A" stroke-width="3" stroke-linejoin="round" />
+    <circle cx="375" cy="180" r="13" fill="#FEF08A" />
+    <circle cx="390" cy="295" r="16" fill="#FACC15" />
+    <circle cx="240" cy="390" r="10" fill="#34D399" />
+  </g>
 </svg>

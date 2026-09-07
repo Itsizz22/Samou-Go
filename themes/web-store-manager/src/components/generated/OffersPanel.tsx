@@ -407,12 +407,12 @@ export function OffersPanel({ storeId }: Props) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm font-extrabold text-ink">{o.titleAr}</span>
-                  {o.productIds.length === 0 && (
+                  {(o.productIds?.length ?? 0) === 0 && (
                     <span className="shrink-0 rounded-full bg-brand-tint px-2 py-0.5 text-micro font-bold text-brand-dark">
                       {t('-store-wide', '-store-wide')}
                     </span>
                   )}
-                  {o.productIds.length > 0 && (
+                  {(o.productIds?.length ?? 0) > 0 && (
                     <span className="shrink-0 rounded-full bg-canvas px-2 py-0.5 text-micro font-bold text-ink-muted">
                       {t(`${o.productIds.length} منتج`, `${o.productIds.length} products`)}
                     </span>
