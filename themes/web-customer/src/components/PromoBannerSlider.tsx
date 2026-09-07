@@ -22,7 +22,8 @@ function GoldBadge({ children }: { children: React.ReactNode }) {
 }
 
 export function PromoBannerSlider() {
-  const { t } = useLanguage();
+  const { t, dir } = useLanguage();
+  const isRTL = dir === 'rtl';
   const [slide, setSlide] = useState(0);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
@@ -75,10 +76,14 @@ export function PromoBannerSlider() {
         onTouchEnd={handleTouchEnd}
         style={{ touchAction: 'pan-y' }}
       >
-        {/* Slides container — smooth translate + live drag offset */}
+        {/* Slides container — smooth translate + live drag offset.
+            Direction-aware: in RTL the next slide sits on the physical LEFT
+            of the current one, so the track must move +x; in LTR it moves -x. */}
         <div
           className="flex transition-transform duration-500 ease-out"
-          style={{ transform: `translateX(${slide === 0 ? '0%' : '-100%'})` }}
+          style={{
+            transform: `translateX(${slide === 0 ? '0%' : isRTL ? '100%' : '-100%'})`,
+          }}
         >
           {/* ---- Slide 1: Live Location Tracking ---- */}
           <div className="min-w-full rounded-2xl bg-gradient-to-br from-brand-deep via-brand-dark to-brand px-5 py-6 text-white">
