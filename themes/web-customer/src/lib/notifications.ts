@@ -17,8 +17,9 @@ import { Capacitor } from '@capacitor/core';
 import { globalNavigate } from './globalNavigate';
 import { createLoopingAlert } from '@samou-go/ui';
 import { stopOrderAlarm } from './orderAlarm';
+import { getRingOnOrder } from './ringPreference';
 
-import { API_URL } from '@samou-go/api-client';
+import { API_URL, setLogoutDeviceToken } from '@samou-go/api-client';
 
 /** Detect platform for the `platform` field sent to the API. */
 function getPlatform(): 'android' | 'ios' | 'web' {
@@ -35,6 +36,21 @@ function getPlatform(): 'android' | 'ios' | 'web' {
  * leading to memory leaks and duplicate API calls.
  */
 let listenersRegistered = false;
+
+/**
+ * The device's FCM token from the most recent registration. A device owns one
+ * token regardless of how many accounts sign in on it, so a module-level cache
+ * is correct. Sign-out reads it (`getDeviceToken`) so the logout request can
+ * carry `deviceToken` and unregister ONLY this device — the other devices of
+ * the same account stay signed in (selective logout). Must be called BEFORE
+ * tokens are cleared, which `useAuth.signOut()` now guarantees.
+ */
+let latestDeviceToken: string | null = null;
+
+/** The current device's push token, or null if FCM never handed one out. */
+export function getDeviceToken(): string | null {
+  return latestDeviceToken;
+}
 
 /**
  * Request permission and register for push notifications.
@@ -64,6 +80,10 @@ export async function registerForPushNotifications(accessToken: string): Promise
     // Step 3: Listen for registration token.
     PushNotifications.addListener('registration', async (token) => {
       console.log('[push] Device token:', token.value);
+      // Cache for the selective-logout flow AND surface it for the api-client
+      // so POST /auth/logout can unregister just this device.
+      latestDeviceToken = token.value;
+      setLogoutDeviceToken(token.value);
       await sendTokenToServer(token.value, accessToken);
     });
 
@@ -72,18 +92,18 @@ export async function registerForPushNotifications(accessToken: string): Promise
       console.error('[push] Registration error:', error);
     });
 
-    // Step 5: Handle foreground notifications — play a 10-second looping
-    // alarm so the store manager / captain hears new orders even if the
-    // app is in the foreground (the OS channel sound may be suppressed).
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    // Step 5: Handle foreground notifications — respect the user's ring
+    // preference. When enabled, play a 10-second looping alarm so the
+    // store manager / captain hears new orders even in foreground.
+    PushNotifications.addListener('pushNotificationReceived', async (notification) => {
       console.log('[push] Foreground notification:', notification);
-      // Play the looping alarm for up to 10 seconds. The user can dismiss
-      // it by tapping the notification or it stops automatically.
       try {
-        const stop = createLoopingAlert(10_000);
-        // Auto-stop if the user taps the notification (action listener below).
-        // The loop also auto-stops after 10s.
-        void stop;
+        const ringEnabled = await getRingOnOrder();
+        if (ringEnabled) {
+          // Play the looping alarm for up to 10 seconds. The user can
+          // dismiss it by tapping the notification or it stops automatically.
+          createLoopingAlert(10_000);
+        }
       } catch {
         // Audio may not be available — non-fatal.
       }
@@ -122,6 +142,7 @@ async function sendTokenToServer(token: string, accessToken: string): Promise<vo
       body: JSON.stringify({
         token,
         platform: getPlatform(),
+        deviceInfo: `${getPlatform()} · ${navigator.userAgent.slice(0, 140)}`,
       }),
     });
 

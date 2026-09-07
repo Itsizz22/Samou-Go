@@ -14,7 +14,7 @@ import { formatCurrency, DRIVER_FEE_LABEL, DRIVER_FEE_NOTICE, deliveryFeeLabel }
 import { hapticTap } from '@/lib/haptics';
 import { PageTransition } from '@/components/PageTransition';
 import { SkeletonGrid, ProductRowSkeleton } from '@/components/Skeleton';
-import { useLanguage } from '@samou-go/ui';
+import { useLanguage, ImageWithFallback } from '@samou-go/ui';
 import { usePlatformSettings } from '@/hooks/useApi';
 
 export function CartScreen() {
@@ -98,7 +98,7 @@ export function CartScreen() {
                         {group.lines.map((line) => (
                           <div key={line.productId} className="flex items-center gap-3 py-2">
                             {line.product.imageUrl ? (
-                              <img src={line.product.imageUrl} alt="" loading="lazy" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+                              <ImageWithFallback src={line.product.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" fallbackText={line.product.nameAr?.charAt(0)} />
                             ) : (
                               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-sm font-black text-brand-dark">{line.product.nameAr.slice(0, 2)}</span>
                             )}
@@ -125,7 +125,7 @@ export function CartScreen() {
                     {(cart?.lines ?? []).map((line) => (
                       <motion.article key={line.productId} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -40 }} className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card">
                         {line.product.imageUrl ? (
-                          <img src={line.product.imageUrl} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+                          <ImageWithFallback src={line.product.imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" fallbackText={line.product.nameAr?.charAt(0)} />
                         ) : (
                           <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-sm font-black text-brand-dark">{line.product.nameAr.slice(0, 2)}</span>
                         )}

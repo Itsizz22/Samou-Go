@@ -129,7 +129,11 @@ export function CheckoutScreen() {
   const submittingRef = useRef(false);
 
   const items = useMemo(
-    () => (cart?.lines ?? []).map((line) => ({ productId: line.productId, quantity: line.quantity, ...(line.note.trim() ? { note: line.note.trim() } : {}) })),
+    () => (cart?.lines ?? []).map((line) => ({
+      productId: line.productId,
+      quantity: line.quantity,
+      ...((line.note ?? '').trim() ? { note: (line.note ?? '').trim() } : {}),
+    })),
     [cart?.lines]
   );
 
@@ -368,7 +372,7 @@ export function CheckoutScreen() {
           items: group.lines.map(line => ({
             productId: line.productId,
             quantity: line.quantity,
-            ...(line.note.trim() ? { note: line.note.trim() } : {}),
+            ...((line.note ?? '').trim() ? { note: (line.note ?? '').trim() } : {}),
           })),
           fulfillmentType: group.fulfillmentType,
         }));

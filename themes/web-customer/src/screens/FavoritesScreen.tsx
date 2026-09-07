@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { SignInGate, useAuth } from '@/hooks/useApi';
 import { ScreenShell } from '@/components/ScreenShell';
 import { useFavorites } from '@/components/FavoritesProvider';
-import { toStoreCardModel } from '@samou-go/ui';
+import { toStoreCardModel, ImageWithFallback } from '@samou-go/ui';
 
 /**
  * Samou' Go — `/favorites`.
@@ -92,7 +92,7 @@ export function FavoritesScreen() {
                 className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-black ${tint}`}
               >
                 {store.logoUrl ? (
-                  <img src={store.logoUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  <ImageWithFallback src={store.logoUrl} alt="" className="h-full w-full object-cover" fallbackText={initials} />
                 ) : (
                   initials
                 )}

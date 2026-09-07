@@ -1,10 +1,10 @@
 #!/usr/bin/env tsx
 /**
- * As-Samou E2E Seed — `npm run seed:e2e`
+ * As-Samou E2E Seed — `npm run seed:e2e` (SQLite) / `npm run seed:e2e:pg` (PostgreSQL)
  *
  * Populates the database with realistic Arabic-localized test data for the
  * three local As-Samou stores: verified captains, test customers (including
- * the 0598300517 login), and every order lifecycle stage.
+ * the 0598300517 and 0566010623 logins), and every order lifecycle stage.
  *
  * NON-DESTRUCTIVE & IDEMPOTENT:
  *   • NEVER deletes, wipes, or truncates any existing table or custom record.
@@ -12,22 +12,21 @@
  *       - User     → `phone`
  *       - Store    → `slug`
  *       - Category → composite `[storeId, nameEn]`
- *       - Favorite → composite `[userId, storeId]`
- *       - Order    → fixed test `id` / unique `orderNumber`
  *       - etc.     → deterministic `e2e-test-*` ids (re-run updates, never dups)
  *   • If a record already exists AND was created by this script (id starts
- *     with `e2e-test`), its managed fields are refreshed. If it belongs to a
- *     customer's existing data, it is left UNTOUCHED — including its password,
- *     so a custom account sharing a test phone is never hijacked.
- *   • Test accounts created fresh are given password `Password123!`; their
- *     state is reported so the login can be used immediately.
+ *     with `e2e-test`), its managed fields are refreshed. If it belongs to
+ *     a customer's existing data, it is left UNTOUCHED — including its password.
+ *   • Test accounts created fresh are given password `Password123!`.
  *
- * Target: LOCAL SQLite only. Refuses to run when NODE_ENV=production (the
- * script is bound to `generated/prisma-sqlite` → `file:./dev.db` and never
- * reads the Postgres `DATABASE_URL`).
+ * DATABASE TARGET:
+ *   • If DATABASE_URL is set and starts with `postgresql://` or `postgres://`,
+ *     the script seeds the PostgreSQL database (e.g. Neon).
+ *   • Otherwise, falls back to the local SQLite client.
  *
  * Usage:
- *   cd packages/api && npm run seed:e2e
+ *   cd packages/api
+ *   npm run seed:e2e          # SQLite (local dev)
+ *   npm run seed:e2e:pg       # PostgreSQL (Neon / production)
  */
 
 import path from 'node:path';
@@ -47,11 +46,26 @@ import {
 } from '@samou-go/shared-types';
 import { createHash } from 'node:crypto';
 
-import { PrismaClient } from '../../generated/prisma-sqlite';
-import type { PrismaClient as SqlitePrismaClient } from '../../generated/prisma-sqlite';
+// ─── Dynamic Prisma Client Selection ────────────────────────────────────────
+// When DATABASE_URL targets PostgreSQL, use the postgres-generated client;
+// otherwise fall back to the SQLite client for local development.
 
-const PrismaClientCtor = PrismaClient as unknown as typeof SqlitePrismaClient;
-const prisma: SqlitePrismaClient = new PrismaClientCtor();
+const databaseUrl = process.env.DATABASE_URL ?? '';
+const usePostgres = /^postgres(ql)?:\/\//.test(databaseUrl);
+
+// The two generated clients are structurally identical; we resolve the right one
+// lazily inside main() to avoid top-level await (CJS/tsx incompatibility).
+let prisma: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+async function resolvePrismaClient(): Promise<void> {
+  if (usePostgres) {
+    const mod = await import('../../generated/prisma-postgres/index.js');
+    prisma = new mod.PrismaClient();
+  } else {
+    const mod = await import('../../generated/prisma-sqlite/index.js');
+    prisma = new mod.PrismaClient();
+  }
+}
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -85,29 +99,21 @@ function formatOrderNumber(date: Date, sequence: number): string {
   return `SQ-${yy}${mm}${dd}-${encodeSequence(sequence)}`;
 }
 
-// ─── Safety Guards ──────────────────────────────────────────────────────────
+// ─── Target Detection ───────────────────────────────────────────────────────
 
-/** This tool is LOCAL-SQLite-bound and must never run against the live Postgres. */
-function assertLocalTarget(): void {
-  if (process.env.NODE_ENV === 'production') {
-    console.error(
-      '❌ Refusing to seed: NODE_ENV=production. `seed:e2e` is a LOCAL SQLite tool ' +
-        '(generated/prisma-sqlite → file:./dev.db). Production data is managed with ' +
-        '`npm run db:deploy` + the production `seed.ts`.',
-    );
-    process.exit(1);
+function printTarget(): void {
+  if (usePostgres) {
+    // Mask password in the URL for display
+    const masked = databaseUrl.replace(/:[^:@]+@/, ':***@');
+    console.log(`   Target DB : PostgreSQL (${masked})`);
+  } else {
+    const dbFile = path.resolve(__dirname, '../../prisma/dev.db');
+    console.log(`   Target DB : SQLite ${dbFile}`);
   }
-  const dbFile = path.resolve(__dirname, '../../prisma/dev.db');
-  console.log(`   Target DB : SQLite ${dbFile}`);
-  console.log(
-    `   Note      : the SQLite client embeds "file:./dev.db" and never reads ` +
-      `.env's DATABASE_URL (a Postgres placeholder for the prod schema).`,
-  );
   console.log(`   NODE_ENV  : ${process.env.NODE_ENV ?? '(unset → development)'}\n`);
 }
 
 // ─── Platform Settings ──────────────────────────────────────────────────────
-// System singleton by id — refreshed to the managed values, never wiped.
 
 async function seedPlatformSettings(): Promise<void> {
   console.log('⚙️  Seeding platform settings…');
@@ -137,7 +143,6 @@ async function seedPlatformSettings(): Promise<void> {
 }
 
 // ─── Delivery Zones ─────────────────────────────────────────────────────────
-// Deterministic e2e-test ids — safe upserts, no interference with custom zones.
 
 async function seedDeliveryZones(): Promise<void> {
   console.log('🗺️  Seeding delivery zones…');
@@ -167,9 +172,6 @@ async function seedDeliveryZones(): Promise<void> {
 }
 
 // ─── Users ──────────────────────────────────────────────────────────────────
-// FIND-OR-CREATE BY PHONE. A phone that already exists (e.g. a custom account)
-// is reused untouched; only rows this script itself created (id `e2e-test-*`)
-// have their managed fields + password refreshed.
 
 interface UserSpec {
   id: string;
@@ -248,6 +250,7 @@ async function seedUsers(): Promise<{
   admin: ResolvedUser;
   manager1: ResolvedUser;
   manager2: ResolvedUser;
+  manager3: ResolvedUser;
   captainA: ResolvedUser;
   captainB: ResolvedUser;
   captainC: ResolvedUser;
@@ -255,6 +258,7 @@ async function seedUsers(): Promise<{
   customer2: ResolvedUser;
   customer3: ResolvedUser;
   customer4: ResolvedUser;
+  customer5: ResolvedUser;
   list: ResolvedUser[];
 }> {
   console.log('👤 Seeding users (find-or-create by phone)…');
@@ -262,16 +266,23 @@ async function seedUsers(): Promise<{
   const passwordHash = await hashPassword(DEFAULT_PASSWORD);
 
   const specs: UserSpec[] = [
-    { id: `${TEST_PREFIX}-user-admin`, name: 'مدير النظام (E2E)', phone: '0599000001', role: 'ADMIN', isActive: true, isVerified: true, isAvailable: false },
+    // ── Admin / Store Manager (dual role — phone 0566010623) ──
+    { id: `${TEST_PREFIX}-user-admin`, name: 'مدير النظام (E2E)', phone: '0566010623', role: 'ADMIN', isActive: true, isVerified: true, isAvailable: false },
+    // ── Store Managers ──
     { id: `${TEST_PREFIX}-user-manager1`, name: 'مدير المتجر الأول (E2E)', phone: '0599000002', role: 'STORE_MANAGER', isActive: true, isVerified: true, isAvailable: false },
     { id: `${TEST_PREFIX}-user-manager2`, name: 'مدير المتجر الثاني (E2E)', phone: '0599000003', role: 'STORE_MANAGER', isActive: true, isVerified: true, isAvailable: false },
+    { id: `${TEST_PREFIX}-user-manager3`, name: 'مدير متجر الحلويات (E2E)', phone: '0599000010', role: 'STORE_MANAGER', isActive: true, isVerified: true, isAvailable: false },
+    // ── Captains ──
     { id: `${TEST_PREFIX}-user-captain-a`, name: 'كابتن أحمد (E2E)', phone: '0599000004', role: 'CAPTAIN', isActive: true, isVerified: true, isAvailable: true },
     { id: `${TEST_PREFIX}-user-captain-b`, name: 'كابتن سعيد (E2E)', phone: '0599000005', role: 'CAPTAIN', isActive: true, isVerified: false, isAvailable: false },
     { id: `${TEST_PREFIX}-user-captain-c`, name: 'كابتن خالد (E2E)', phone: '0599000006', role: 'CAPTAIN', isActive: false, isVerified: true, isAvailable: false },
+    // ── Customers ──
     { id: `${TEST_PREFIX}-user-customer1`, name: 'عميل فاطمة (E2E)', phone: '0599000007', role: 'CUSTOMER', isActive: true, isVerified: true, isAvailable: false, userCode: generateCustomerCode(deterministicSeed('0599000007')) },
     { id: `${TEST_PREFIX}-user-customer2`, name: 'عميل جديد (E2E)', phone: '0599000008', role: 'CUSTOMER', isActive: true, isVerified: true, isAvailable: false, userCode: generateCustomerCode(deterministicSeed('0599000008')) },
     { id: `${TEST_PREFIX}-user-customer3`, name: 'عميل متكرر (E2E)', phone: '0599000009', role: 'CUSTOMER', isActive: true, isVerified: true, isAvailable: false, userCode: generateCustomerCode(deterministicSeed('0599000009')) },
+    // ── Key test customer: 0598300517 ──
     { id: `${TEST_PREFIX}-user-customer4`, name: 'عميل سامو (E2E)', phone: '0598300517', role: 'CUSTOMER', isActive: true, isVerified: true, isAvailable: false, userCode: generateCustomerCode(deterministicSeed('0598300517')) },
+    { id: `${TEST_PREFIX}-user-customer5`, name: 'عميل إضافي (E2E)', phone: '0599000011', role: 'CUSTOMER', isActive: true, isVerified: true, isAvailable: false, userCode: generateCustomerCode(deterministicSeed('0599000011')) },
   ];
 
   const resolved = [];
@@ -279,8 +290,8 @@ async function seedUsers(): Promise<{
     resolved.push(await findOrCreateUser(spec, passwordHash));
   }
 
-  const states = resolved.map(u => u.state);
-  console.log(`  ✅ 10 test phone numbers resolved (${states.filter(s => s === 'created').length} created, ${states.filter(s => s === 'updated').length} refreshed, ${states.filter(s => s === 'kept').length} already existed — untouched)\n`);
+  const states = resolved.map((u: ResolvedUser) => u.state);
+  console.log(`  ✅ ${specs.length} test phone numbers resolved (${states.filter(s => s === 'created').length} created, ${states.filter(s => s === 'updated').length} refreshed, ${states.filter(s => s === 'kept').length} already existed — untouched)\n`);
 
   if (resolved.length !== specs.length) {
     throw new Error('User seeding did not resolve every test phone.');
@@ -288,19 +299,19 @@ async function seedUsers(): Promise<{
   const admin = resolved[0]!;
   const manager1 = resolved[1]!;
   const manager2 = resolved[2]!;
-  const captainA = resolved[3]!;
-  const captainB = resolved[4]!;
-  const captainC = resolved[5]!;
-  const customer1 = resolved[6]!;
-  const customer2 = resolved[7]!;
-  const customer3 = resolved[8]!;
-  const customer4 = resolved[9]!;
-  return { admin, manager1, manager2, captainA, captainB, captainC, customer1, customer2, customer3, customer4, list: resolved };
+  const manager3 = resolved[3]!;
+  const captainA = resolved[4]!;
+  const captainB = resolved[5]!;
+  const captainC = resolved[6]!;
+  const customer1 = resolved[7]!;
+  const customer2 = resolved[8]!;
+  const customer3 = resolved[9]!;
+  const customer4 = resolved[10]!;
+  const customer5 = resolved[11]!;
+  return { admin, manager1, manager2, manager3, captainA, captainB, captainC, customer1, customer2, customer3, customer4, customer5, list: resolved };
 }
 
 // ─── Stores ─────────────────────────────────────────────────────────────────
-// FIND-OR-CREATE BY SLUG. An existing store that shares a slug is reused.
-// Only rows created by this script (id `e2e-test-*`) have fields refreshed.
 
 interface StoreSpec {
   id: string;
@@ -361,7 +372,7 @@ async function findOrCreateStore(spec: StoreSpec): Promise<ResolvedStore> {
   return { id: spec.id, nameAr: spec.nameAr, storeStatus: spec.storeStatus, state: 'created' };
 }
 
-async function seedStores(manager1Id: string, manager2Id: string): Promise<{
+async function seedStores(manager1Id: string, manager2Id: string, manager3Id: string): Promise<{
   store1: ResolvedStore;
   store2: ResolvedStore;
   store3: ResolvedStore;
@@ -382,7 +393,7 @@ async function seedStores(manager1Id: string, manager2Id: string): Promise<{
       slug: generateStoreSlug('سوبرماركت البركة'),
     },
     {
-      id: `${TEST_PREFIX}-store-sweets`, managerId: manager1Id,
+      id: `${TEST_PREFIX}-store-sweets`, managerId: manager3Id,
       nameAr: 'حلويات البلدة القديمة', nameEn: 'Old City Sweets',
       phone: '0599100003', storeType: 'BAKERY_SWEETS', storeStatus: 'CLOSED',
       slug: generateStoreSlug('حلويات البلدة القديمة'),
@@ -397,7 +408,7 @@ async function seedStores(manager1Id: string, manager2Id: string): Promise<{
     throw new Error('Store seeding did not resolve all three As-Samou stores.');
   }
 
-  console.log('  ✅ LOCAL AS-SAMOU STORES:');
+  console.log('  ✅ AS-SAMOU STORES:');
   for (const store of [store1, store2, store3]) {
     const tag = store.state === 'created' ? '✅ created' : store.state === 'updated' ? '↻ refreshed' : '♻ kept (untouched)';
     console.log(`  • ${store.nameAr} — ${store.storeStatus} [${tag}]`);
@@ -408,8 +419,6 @@ async function seedStores(manager1Id: string, manager2Id: string): Promise<{
 }
 
 // ─── Categories & Products ──────────────────────────────────────────────────
-// Categories: composite-unique find-or-create [storeId, nameEn]. Products:
-// deterministic e2e-test ids — safe upserts against custom product cuit()s.
 
 async function upsertCategory(storeId: string, spec: { id: string; nameAr: string; nameEn: string; sortOrder: number }): Promise<string> {
   const existing = await prisma.category.findUnique({ where: { storeId_nameEn: { storeId, nameEn: spec.nameEn } } });
@@ -681,7 +690,6 @@ async function seedOrders(
     // Create order items
     if (orderData.storeId === ctx.store1Id) {
       if (isOfferOrder) {
-        // Order 5: mixed regular items + a standalone offer
         const regularProduct = products.find(p => p.storeId === ctx.store1Id && p.id === `${TEST_PREFIX}-prod-mixed-grill`);
         const fallbackProduct = products.find(p => p.storeId === ctx.store1Id);
 
@@ -766,7 +774,6 @@ async function seedOrders(
 }
 
 // ─── Wallets & Ledger Entries ───────────────────────────────────────────────
-// Ledger entries get DETERMINISTIC ids so re-running never duplicates rows.
 
 async function seedWallets(store1: ResolvedStore, captainA: ResolvedUser): Promise<void> {
   console.log('💰 Seeding wallets & ledger entries…');
@@ -839,7 +846,6 @@ async function seedRatings(customer3: ResolvedUser, store1: ResolvedStore, capta
 }
 
 // ─── Favorites ──────────────────────────────────────────────────────────────
-// Composite-unique find-or-create [userId, storeId] — never duplicates.
 
 interface FavoriteSpec {
   id: string;
@@ -880,7 +886,7 @@ async function verifySeededData(users: { admin: ResolvedUser; captainA: Resolved
     orderBy: { createdAt: 'asc' },
   });
 
-  // 2. Totals — a growing total store/user count proves adjacent data is preserved
+  // 2. Totals
   const totals = {
     stores: await prisma.store.count(),
     users: await prisma.user.count(),
@@ -890,7 +896,7 @@ async function verifySeededData(users: { admin: ResolvedUser; captainA: Resolved
 
   console.log('\n🏪 As-Samou stores found:');
   for (const name of AS_SAMOU_STORE_NAMES) {
-    const hit = asSamouStores.find(s => s.nameAr === name);
+    const hit = asSamouStores.find((s: { nameAr: string; storeStatus: string }) => s.nameAr === name);
     console.log(`  ${hit ? '✅' : '❌'} ${name} — ${hit ? hit.storeStatus : 'MISSING'}`);
   }
 
@@ -901,13 +907,12 @@ async function verifySeededData(users: { admin: ResolvedUser; captainA: Resolved
   console.log(`  • Total orders   : ${totals.orders}`);
   console.log('    (totals above include any previously-existing custom data — nothing was wiped)');
 
-  // 3. Login readiness — verify the requested test user resolves via Prisma and
-  //    the seeded password actually matches the stored bcrypt hash.
+  // 3. Login readiness
   console.log('\n🔑 Login accounts (phone + password for immediate testing):');
   const verifiedLogins: Array<{ phone: string; password: string | null; state: string; role: string }> = [
+    { phone: users.admin.phone, password: users.admin.password, state: users.admin.state, role: 'ADMIN' },
     { phone: users.customer4.phone, password: users.customer4.password, state: users.customer4.state, role: 'CUSTOMER' },
     { phone: users.captainA.phone, password: users.captainA.password, state: users.captainA.state, role: 'CAPTAIN' },
-    { phone: users.admin.phone, password: users.admin.password, state: users.admin.state, role: 'ADMIN' },
   ];
 
   for (const login of verifiedLogins) {
@@ -948,13 +953,14 @@ async function main(): Promise<void> {
   console.log(`   Time: ${new Date().toISOString()}\n`);
   console.log('━'.repeat(60));
 
-  assertLocalTarget();
+  await resolvePrismaClient();
+  printTarget();
 
   await seedPlatformSettings();
   await seedDeliveryZones();
 
   const users = await seedUsers();
-  const stores = await seedStores(users.manager1.id, users.manager2.id);
+  const stores = await seedStores(users.manager1.id, users.manager2.id, users.manager3.id);
   const { products } = await seedCatalog(stores.store1.id, stores.store2.id, stores.store3.id);
   await seedOffers(stores.store1.id, stores.store2.id);
 

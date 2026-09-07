@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import type { Application, Request, Response } from 'express';
+import fs from 'node:fs';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { corsOptions } from './config/cors';
@@ -28,6 +29,13 @@ export function createApp(): Application {
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
 
+  // Ensure the uploads directories exist on disk — on fresh deploys (Render,
+  // Fly.io, etc.) the directories may not exist yet, and express.static would
+  // throw or return 503 when a client requests an upload URL.
+  for (const dir of [uploadDirs.rawDir, uploadDirs.finalDir]) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
   // Processed uploads are immutable — every URL embeds a fresh random key, so a
   // year-long immutable cache is safe. CORP must be cross-origin because the
   // seven frontends live on other ports and load these images from here.
@@ -42,6 +50,11 @@ export function createApp(): Application {
       },
     })
   );
+  // Graceful fallback: if express.static can't find a file, return 404
+  // instead of letting the request fall through to the error handler as 503.
+  app.use('/uploads', (_req: Request, res: Response) => {
+    res.status(404).json({ message: 'File not found' });
+  });
 
   if (!env.isTest) {
     app.use(morgan(env.isProduction ? 'combined' : 'dev'));

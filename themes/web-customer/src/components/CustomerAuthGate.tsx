@@ -5,8 +5,8 @@
  */
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Eye, EyeOff, Loader2, LockKeyhole, ShoppingCart } from 'lucide-react';
-import { useLanguage } from '@samou-go/ui';
+import { Eye, EyeOff, Loader2, LockKeyhole } from 'lucide-react';
+import { BrandLogo, useLanguage } from '@samou-go/ui';
 import { isValidPalestinianMobile } from '@/lib/phone';
 import { fadeSlideUp } from '@/lib/motion';
 import { motion } from 'framer-motion';
@@ -48,9 +48,7 @@ export function CustomerAuthGate({
         animate="animate"
       >
         <div className="mb-6 flex flex-col items-center gap-2">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand text-white shadow-brand">
-            <ShoppingCart size={26} strokeWidth={2.5} />
-          </span>
+          <BrandLogo size={56} />
           <p className="text-lg font-extrabold tracking-tight" dir="ltr">
             Samou Quick
           </p>

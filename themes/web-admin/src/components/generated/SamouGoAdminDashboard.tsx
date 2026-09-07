@@ -72,6 +72,7 @@ import {
   useUploadImage,
   useUsers,
   verifyCaptain,
+  ENABLE_LOCATION,
   type Resource,
 } from '@/hooks/useApi';
 import {
@@ -197,6 +198,18 @@ export function SamouGoAdminDashboard() {
   }
 
   /* ---- Render -------------------------------------------------------------- */
+
+  // Final guard: if auth resolved but user is somehow null (race condition),
+  // show the sign-in gate instead of crashing on .length accesses.
+  if (!auth.user) {
+    return (
+      <SignInGate
+        auth={auth}
+        reasonAr="سجّل الدخول للوصول إلى لوحة الإدارة"
+        reasonEn="Sign in to access the admin dashboard"
+      />
+    );
+  }
 
   return (
     <main
@@ -554,6 +567,18 @@ interface DashboardTabProps {
 function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
   const [range, setRange] = useState<'today' | 'week' | 'month'>('today');
   const { t, language } = useLanguage();
+
+  // Guard: show skeleton while stats are loading to prevent .length crashes
+  // on尚未渲染的 API data.
+  if (!stats && loading) {
+    return (
+      <div className="space-y-4">
+        {[0, 1, 2].map(i => (
+          <div key={i} className="h-20 animate-pulse rounded-xl bg-line-soft" />
+        ))}
+      </div>
+    );
+  }
   const pipeline = useOrders({ page: 1, pageSize: 100 }, { pollMs: 10_000 });
   const rangeStart = useMemo(() => {
     const now = new Date();
@@ -633,6 +658,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
             </span>
           </div>
         </div>
+        {ENABLE_LOCATION && (
         <section
           className="mb-8 overflow-hidden rounded-2xl border border-line bg-surface shadow-card"
           aria-label={t('خريطة التشغيل', 'Operations map')}
@@ -651,6 +677,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
             />
           </div>
         </section>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {kpis.map(kpi => {
@@ -2874,9 +2901,9 @@ function OffersPanel() {
                     {storeNames.get(offer.storeId) ?? offer.storeId}
                   </td>
                   <td className="px-4 py-3 text-xs text-ink-muted" dir="ltr">
-                    {offer.productIds.length === 0
+                    {(offer.productIds?.length ?? 0) === 0
                       ? t('كل المنتجات', 'All products')
-                      : `${offer.productIds.length} ${t('منتج', 'item(s)')}`}
+                      : `${offer.productIds?.length ?? 0} ${t('منتج', 'item(s)')}`}
                   </td>
                   <td className="px-4 py-3 text-xs text-ink-muted">
                     {offer.startsAt === null && offer.expiresAt === null

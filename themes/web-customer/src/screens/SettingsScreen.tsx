@@ -10,8 +10,9 @@
  */
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { Bell, Check, Globe, Loader2, MapPin, Moon, Palette, Sun, type LucideIcon } from 'lucide-react';
+import { Bell, Check, Globe, Loader2, MapPin, Moon, Palette, Phone, Sun, type LucideIcon } from 'lucide-react';
 import { useLanguage } from '@samou-go/ui';
+import { getRingOnOrder, setRingOnOrder } from '@/lib/ringPreference';
 import { AccountSwitcher, updateMyLocation, useAuth, ENABLE_LOCATION } from '@/hooks/useApi';
 import { ScreenShell } from '@/components/ScreenShell';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -100,6 +101,12 @@ export function SettingsScreen() {
   const [notifications, setNotifications] = useState(() =>
     readBoolean(NOTIFICATIONS_STORAGE_KEY, true)
   );
+  const [ringOnOrder, setRingOnOrderState] = useState(true);
+
+  // Load ring preference on mount (async because it may read SharedPreferences)
+  useEffect(() => {
+    void getRingOnOrder().then(setRingOnOrderState);
+  }, []);
   const [locationMessage, setLocationMessage] = useState<{ ar: string; en: string } | null>(null);
   const [locBusy, setLocBusy] = useState(false);
 
@@ -275,6 +282,39 @@ export function SettingsScreen() {
           </button>
           <p className="mt-2 text-[11px] text-ink-muted">
             {t(notifications ? 'الإشعارات مفعّلة' : 'الإشعارات متوقفة', notifications ? 'On' : 'Off')}
+          </p>
+        </SettingsRow>
+
+        <SettingsRow
+          icon={Phone}
+          titleAr="الهاتف يرن عند وصول طلب"
+          titleEn="Ring phone on new order"
+          hint="تشغيل صوت تنبيه عند وصول طلب توصيل جديد"
+        >
+          <button
+            type="button"
+            role="switch"
+            aria-checked={ringOnOrder}
+            onClick={() => {
+              const next = !ringOnOrder;
+              setRingOnOrderState(next);
+              void setRingOnOrder(next);
+            }}
+            className={`flex h-7 w-12 items-center rounded-full p-1 transition ${
+              ringOnOrder ? 'justify-end bg-brand' : 'justify-start bg-line'
+            }`}
+          >
+            <span
+              className={`h-5 w-5 rounded-full ${
+                ringOnOrder ? 'bg-white' : 'bg-ink-subtle'
+              }`}
+            />
+          </button>
+          <p className="mt-2 text-[11px] text-ink-muted">
+            {t(
+              ringOnOrder ? 'الهاتف يرن عند وصول طلب' : 'إشعار صامت عند وصول طلب',
+              ringOnOrder ? 'Ring on new order' : 'Silent notification'
+            )}
           </p>
         </SettingsRow>
       </div>

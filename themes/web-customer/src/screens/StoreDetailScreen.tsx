@@ -12,7 +12,7 @@ import { AlertTriangle, ArrowRight, Clock3, FolderOpen, Heart, Loader2, MessageC
 import { useCart } from '@/components/CartProvider';
 import { useFavorites } from '@/components/FavoritesProvider';
 import { useStore, useOffersForStore } from '@/hooks/useApi';
-import { HorizontalScrollGallery, useLanguage } from '@samou-go/ui';
+import { HorizontalScrollGallery, ImageWithFallback, useLanguage } from '@samou-go/ui';
 import { ProductRowSkeleton, Skeleton } from '@/components/Skeleton';
 import { formatCurrency } from '@/lib/delivery';
 import { StoreStatus, STORE_STATUS_LABELS, formatWhatsAppLink } from '@samou-go/shared-types';
@@ -231,10 +231,9 @@ export function StoreDetailScreen() {
             `store` kind with `cover` purpose); falls back to no banner. */}
         {current.coverUrl && (
           <div className="mx-auto max-w-md px-5 pt-4">
-            <img
+            <ImageWithFallback
               src={current.coverUrl}
               alt={t(current.nameAr, current.nameEn)}
-              loading="lazy"
               className="h-32 w-full rounded-2xl object-cover shadow-card"
             />
           </div>
@@ -266,11 +265,10 @@ export function StoreDetailScreen() {
               }`}
             >
               {category.imageUrl ? (
-                <img
+                <ImageWithFallback
                   src={category.imageUrl}
                   alt=""
                   className="h-5 w-5 shrink-0 rounded-md object-cover"
-                  loading="lazy"
                 />
               ) : (
                 <FolderOpen size={14} className="shrink-0" />
@@ -292,11 +290,10 @@ export function StoreDetailScreen() {
                     key={o.id}
                     className="shrink-0 overflow-hidden rounded-xl border border-line bg-surface shadow-card"
                   >
-                    <img
+                    <ImageWithFallback
                       src={o.imageUrl!}
                       alt={t(o.titleAr, o.titleEn)}
                       className="h-20 w-36 object-cover"
-                      loading="lazy"
                     />
                   </div>
                 ))}
@@ -333,10 +330,9 @@ export function StoreDetailScreen() {
                         </span>
                       )}
                       {product.imageUrl ? (
-                        <img
+                        <ImageWithFallback
                           src={product.imageUrl}
                           alt=""
-                          loading="lazy"
                           className="h-16 w-16 shrink-0 rounded-xl object-cover"
                         />
                       ) : (

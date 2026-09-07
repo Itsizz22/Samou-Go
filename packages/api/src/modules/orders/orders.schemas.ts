@@ -63,12 +63,12 @@ export const createOrderSchema = z.object({
     .trim()
     .min(5, 'العنوان قصير جداً / Address is too short')
     .max(500),
-  deliveryRegion: z.enum(['central', 'outer', 'remote']).optional(),
+  deliveryRegion: z.enum(['central', 'outer', 'remote']).nullable().optional(),
   addressNote: z.string().trim().max(500).optional(),
   orderNote: z.string().trim().max(500).optional(),
   deliveryPreset: z.string().trim().max(50).optional(),
-  latitude: z.number().min(-90).max(90).optional(),
-  longitude: z.number().min(-180).max(180).optional(),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
   voucherCode: voucherCodeField,
   fulfillmentType: z.enum(['DELIVERY', 'PICKUP']).default('DELIVERY'),
   voiceNoteUrl: z.string().url().max(500).optional(),
@@ -76,11 +76,21 @@ export const createOrderSchema = z.object({
 });
 
 /** Same body as create, minus the address — used to preview the delivery fee. */
+/**
+ * Quote order schema — previews the delivery fee before committing.
+ *
+ * `deliveryRegion` is nullable: when the customer picks PICKUP or has no
+ * coordinates, the client sends `null` and the server falls back to the
+ * default 'central' zone fee. The original `.enum()` only accepted the three
+ * literal strings, so `null` triggered a 422 validation error.
+ */
 export const quoteOrderSchema = createOrderSchema.pick({
   storeId: true,
   items: true,
   voucherCode: true,
   deliveryRegion: true,
+}).extend({
+  deliveryRegion: z.enum(['central', 'outer', 'remote']).nullable().optional(),
 });
 
 export const updateOrderStatusSchema = z.object({
@@ -144,12 +154,12 @@ export const checkoutSchema = z.object({
     .trim()
     .min(5, 'العنوان قصير جداً / Address is too short')
     .max(500),
-  deliveryRegion: z.enum(['central', 'outer', 'remote']).optional(),
+  deliveryRegion: z.enum(['central', 'outer', 'remote']).nullable().optional(),
   addressNote: z.string().trim().max(500).optional(),
   orderNote: z.string().trim().max(500).optional(),
   deliveryPreset: z.string().trim().max(50).optional(),
-  latitude: z.number().min(-90).max(90).optional(),
-  longitude: z.number().min(-180).max(180).optional(),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
 });
 
 /** Individual store result within a multi-store checkout. */

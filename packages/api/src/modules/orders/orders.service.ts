@@ -229,7 +229,9 @@ async function priceBasket(
  */
 export async function quoteOrder(body: QuoteOrderBody): Promise<OrderQuote> {
   const lines = await priceBasket(prisma, body.storeId, body.items);
-  const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, body.deliveryRegion);
+  // Normalize null → undefined so the default 'central' zone kicks in.
+  const region = body.deliveryRegion ?? undefined;
+  const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, region);
 
   if (totals.subtotal <= 0) {
     throw unprocessable('EMPTY_BASKET', 'السلة فارغة / The basket is empty');
@@ -270,7 +272,8 @@ export async function createOrder(
     // If any step throws, the whole unit rolls back — no order, no items,
     // no voucher redemption, no partial financials.
     const lines = await priceBasket(tx, body.storeId, body.items);
-    const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, body.deliveryRegion);
+    const region = body.deliveryRegion ?? undefined;
+    const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, region);
 
     if (totals.subtotal <= 0) {
       throw unprocessable('EMPTY_BASKET', 'السلة فارغة / The basket is empty');
@@ -434,7 +437,8 @@ export async function createCheckoutOrders(
 
     for (const storeGroup of body.stores) {
       const lines = await priceBasket(tx, storeGroup.storeId, storeGroup.items);
-      const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, body.deliveryRegion);
+      const checkoutRegion = body.deliveryRegion ?? undefined;
+      const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, checkoutRegion);
 
       if (totals.subtotal <= 0) {
         throw unprocessable('EMPTY_BASKET', 'السلة فارغة / The basket is empty');

@@ -9,7 +9,7 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BadgePercent, ChevronLeft, Store as StoreIcon } from 'lucide-react';
-import { useLanguage } from '@samou-go/ui';
+import { useLanguage, ImageWithFallback } from '@samou-go/ui';
 import { useAllOffers } from '@/hooks/useApi';
 import { useCart } from '@/components/CartProvider';
 import { ScreenShell } from '@/components/ScreenShell';
@@ -82,7 +82,7 @@ export function OffersScreen() {
             {/* Offer image */}
             {offer.imageUrl && (
               <div className="relative h-44 w-full overflow-hidden bg-canvas">
-                <img
+                <ImageWithFallback
                   src={offer.imageUrl}
                   alt={isArabic ? offer.titleAr : offer.titleEn}
                   className="h-full w-full object-cover"

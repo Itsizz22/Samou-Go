@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Crosshair, Eye, EyeOff, Loader2, LockKeyhole, MapPin, ShoppingCart } from 'lucide-react';
+import { Crosshair, Eye, EyeOff, Loader2, LockKeyhole, MapPin } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   ApiError,
@@ -13,7 +13,7 @@ import {
   useToast,
 } from '@/hooks/useApi';
 import { OtpPinInput } from '@/components/OtpPinInput';
-import { useLanguage, TermsModal } from '@samou-go/ui';
+import { BrandLogo, useLanguage, TermsModal } from '@samou-go/ui';
 import { normalizePhone, isValidPalestinianMobile } from '@/lib/phone';
 import { roleHomePath } from '@/lib/roles';
 import {
@@ -54,9 +54,7 @@ function AuthShell({ children }: { children: React.ReactNode }) {
     >
       <section className="w-full max-w-md rounded-3xl border border-line bg-surface p-6 shadow-card">
         <div className="mb-7 flex flex-col items-center gap-2">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand text-white shadow-brand">
-            <ShoppingCart size={26} />
-          </span>
+          <BrandLogo size={56} />
           <strong dir="ltr" className="text-lg">
             Samou Quick
           </strong>

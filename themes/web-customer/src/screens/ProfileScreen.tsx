@@ -32,7 +32,7 @@ import {
   type SavedAddress,
 } from '@/lib/address-book';
 import { ADDRESS_TAG_META, normalizeTag } from '@/lib/address-book';
-import { useLanguage } from '@samou-go/ui';
+import { useLanguage, ImageWithFallback } from '@samou-go/ui';
 
 const ROLE_LABELS: Record<string, string> = {
   CUSTOMER: 'عميل',
@@ -178,7 +178,7 @@ export function ProfileScreen() {
         <section className="rounded-2xl border border-line bg-surface p-5 shadow-card">
           <div className="flex items-center gap-3">
             {user.profileImageUrl ? (
-              <img
+              <ImageWithFallback
                 src={user.profileImageUrl}
                 alt={user.name}
                 className="h-14 w-14 shrink-0 rounded-2xl object-cover"

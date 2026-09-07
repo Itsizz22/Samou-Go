@@ -1,24 +1,22 @@
 import { useEffect } from 'react';
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-
-const LEAFLET_VERSION = '1.9.4';
-const ICON_BASE = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/images`;
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 /**
- * Fix Leaflet default icon paths — without this, markers show a broken-image
- * 404 because the bundled asset paths don't match what Leaflet expects by
- * default. We use the unpkg CDN as the icon source, which is reliable and
- * works across all build systems (tsc, Vite, webpack).
+ * Fix Leaflet default icon paths — Vite/webpack resolve the imported PNGs
+ * to hashed URLs, so we wire them into the global default icon instead of
+ * relying on CDN URLs that may 404 on restricted networks.
  */
 function fixLeafletIcons() {
-  void import('leaflet').then((L) => {
-    L.Icon.Default.mergeOptions({
-      iconUrl: `${ICON_BASE}/marker-icon.png`,
-      iconRetinaUrl: `${ICON_BASE}/marker-icon-2x.png`,
-      shadowUrl: `${ICON_BASE}/marker-shadow.png`,
-    });
+  L.Icon.Default.mergeOptions({
+    iconUrl: markerIcon,
+    iconRetinaUrl: markerIcon2x,
+    shadowUrl: markerShadow,
   });
 }
 
@@ -45,7 +43,7 @@ export function LeafletMap({
   className = 'h-64 w-full rounded-2xl',
 }: LeafletMapProps) {
   const centerExpr: LatLngExpression = center;
-  useEffect(fixLeafletIcons, []);
+  useEffect(() => { fixLeafletIcons(); }, []);
   return (
     <MapContainer center={centerExpr} zoom={zoom} className={className}>
       <TileLayer

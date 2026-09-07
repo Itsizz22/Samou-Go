@@ -43,7 +43,7 @@ import {
   getWalletStatement,
   connectRealtime,
 } from '@samou-go/api-client';
-import { useAuth } from '@/hooks/useApi';
+import { useAuth, ENABLE_LOCATION } from '@/hooks/useApi';
 import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import {
   AccountStatement,
@@ -882,7 +882,7 @@ export function SamouGoCaptain() {
 
             {activeItems.length > 0 && activeOrderDetail.data ? (
               <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
-                {activeOrderDetail.data.store.latitude !== null && activeOrderDetail.data.store.longitude !== null && <LeafletMap center={[activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude]} markers={[{ position: [activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude], label: activeOrderDetail.data.store.nameAr }]} />}
+                {ENABLE_LOCATION && activeOrderDetail.data.store.latitude !== null && activeOrderDetail.data.store.longitude !== null && <LeafletMap center={[activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude]} markers={[{ position: [activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude], label: activeOrderDetail.data.store.nameAr }]} />}
                 <div className="flex items-center justify-between">
                   <span className="rounded-full bg-warning-tint px-2.5 py-1 text-micro font-extrabold text-warning-ink">
                     {t('توصيل جاري', 'Active route')}

@@ -14,7 +14,7 @@ import {
 } from '@/hooks/useApi';
 import { CustomRequestStatus, type CreateCustomRequestInput } from '@samou-go/shared-types';
 import { ScreenShell } from '@/components/ScreenShell';
-import { useLanguage } from '@samou-go/ui';
+import { useLanguage, ImageWithFallback } from '@samou-go/ui';
 
 export function CustomRequestsScreen() {
   const toast = useToast();
@@ -140,7 +140,7 @@ export function CustomRequestsScreen() {
 
             {imageUrl ? (
               <div className="relative mt-2 inline-block">
-                <img src={imageUrl} alt="Attachment" className="h-20 w-20 rounded-xl object-cover" />
+                <ImageWithFallback src={imageUrl} alt="Attachment" className="h-20 w-20 rounded-xl object-cover" />
                 <button
                   type="button"
                   onClick={removePhoto}
@@ -186,7 +186,7 @@ export function CustomRequestsScreen() {
 
               {/* Show attached photo if present */}
               {request.imageUrl && (
-                <img
+                <ImageWithFallback
                   src={request.imageUrl}
                   alt="Attached"
                   className="mt-2 h-24 w-24 rounded-xl object-cover"

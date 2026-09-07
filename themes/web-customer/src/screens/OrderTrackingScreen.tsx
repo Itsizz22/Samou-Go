@@ -27,7 +27,7 @@ import { OrderStatusTimeline } from '@/components/OrderStatusTimeline';
 import { PageTransition } from '@/components/PageTransition';
 import { Skeleton } from '@/components/Skeleton';
 import { formatCurrency, DRIVER_FEE_LABEL, DRIVER_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
-import { useLanguage } from '@samou-go/ui';
+import { useLanguage, ImageWithFallback } from '@samou-go/ui';
 
 const POLL_MS = 15_000;
 
@@ -239,10 +239,9 @@ export function OrderTrackingScreen() {
                   {order.data.items.map((item) => (
                     <li key={item.id} className="flex items-center gap-3">
                       {item.product.imageUrl ? (
-                        <img
+                        <ImageWithFallback
                           src={item.product.imageUrl}
                           alt=""
-                          loading="lazy"
                           className="h-11 w-11 shrink-0 rounded-xl object-cover"
                         />
                       ) : (

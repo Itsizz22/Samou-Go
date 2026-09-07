@@ -398,6 +398,26 @@ export function clearTokens(): void {
   setRefreshToken(null);
 }
 
+/**
+ * The physical device's FCM token, if one was ever received this session.
+ * A device owns exactly ONE push token regardless of how many accounts sign
+ * in on it, so a module-level holder (never persisted) is correct for the
+ * multi-device logout flow. It is captured BEFORE logout clears storage, so
+ * `POST /auth/logout` can send `{ deviceToken, refreshToken }` to unregister
+ * only this device.
+ */
+let logoutDeviceToken: string | null = null;
+
+/** Record the current device's push token (called by the push manager when FCM hands one out). */
+export function setLogoutDeviceToken(token: string | null): void {
+  logoutDeviceToken = token ?? null;
+}
+
+/** Debug/telemetry accessor — the token is intentionally not persisted. */
+export function getLogoutDeviceToken(): string | null {
+  return logoutDeviceToken;
+}
+
 /** Select storage before login/register: local survives browser restarts; session ends on tab close. */
 export function setSessionPersistence(remember: boolean): void {
   sessionPersistence = remember ? "local" : "session";
@@ -796,12 +816,12 @@ export interface CheckoutInput {
   cartCheckoutId?: string;
   stores: StoreCheckoutGroup[];
   customerAddressText: string;
-  deliveryRegion?: 'central' | 'outer' | 'remote';
+  deliveryRegion?: 'central' | 'outer' | 'remote' | null;
   addressNote?: string;
   orderNote?: string;
   deliveryPreset?: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface CheckoutStoreResult {
@@ -1053,8 +1073,13 @@ export function me(signal?: AbortSignal): Promise<PublicUser> {
 }
 
 /** Stateless access tokens are dropped locally; the refresh token is revoked server-side.
- *  Pass `deviceToken` to also unregister THIS device's FCM token (selective logout) —
- *  the user's other devices stay signed in and reachable by push. */
+ *  The current device's FCM token (see `setLogoutDeviceToken`) is sent along with the
+ *  refresh token so `POST /auth/logout` performs a SELECTIVE logout: only THIS device's
+ *  token is unregistered, other devices of the same account stay signed in. Pass
+ *  `opts.deviceToken` to override the registered token.
+ *  Ordering contract: both tokens are read at the TOP of this function, and local
+ *  storage is only cleared in `finally` — so the server round-trip always carries the
+ *  credentials, yet a network failure still logs the session out cleanly. */
 export async function logout(opts?: {
   signal?: AbortSignal;
   deviceToken?: string;
@@ -1063,7 +1088,8 @@ export async function logout(opts?: {
     const refresh = getRefreshToken();
     const body: Record<string, unknown> = {};
     if (refresh) body.refreshToken = refresh;
-    if (opts?.deviceToken) body.deviceToken = opts.deviceToken;
+    const deviceToken = opts?.deviceToken ?? getLogoutDeviceToken();
+    if (deviceToken) body.deviceToken = deviceToken;
     await request<unknown>("POST", "/auth/logout", {
       body,
       signal: opts?.signal,

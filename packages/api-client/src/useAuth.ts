@@ -243,13 +243,18 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
   );
 
   const signOut = useCallback(() => {
-    // Drop the local tokens first: the screen must react immediately even if the
-    // network call to a stateless endpoint never lands.
-    clearTokens();
+    // Ordered deliberately for multi-device selective logout:
+    // 1. UI state drops immediately so the screen reacts even when offline.
+    // 2. `logout()` captures the refresh token + this device's FCM token at the
+    //    TOP of its body — BEFORE storage is cleared — and posts them to
+    //    `/auth/logout` so the server revokes the session and unregisters only
+    //    THIS device. Other devices of the same account stay signed in.
+    // 3. `logout()` clears local storage tokens in its `finally`, so a failed
+    //    network round-trip still logs the session out cleanly.
     setUserState(null);
     setError(null);
     void logout().catch(() => {
-      /* Already signed out locally — a failed round-trip changes nothing. */
+      /* Tokens are cleared in logout()'s finally either way. */
     });
   }, []);
 

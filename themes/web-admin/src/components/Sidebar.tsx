@@ -11,7 +11,6 @@ import {
   MapPin,
   Megaphone,
   Package,
-  ShoppingBag,
   Store,
   Settings,
   Truck,
@@ -20,7 +19,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import { useLanguage } from '@samou-go/ui';
+import { BrandLogo, useLanguage } from '@samou-go/ui';
 
 export interface AdminNavItem {
   id: string;
@@ -60,9 +59,7 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
       aria-label={t('قائمة الإدارة', 'Admin sidebar')}
     >
       <div className="flex items-center gap-3 px-3 pb-9" dir="ltr">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface text-brand">
-          <ShoppingBag size={22} strokeWidth={2.6} />
-        </span>
+        <BrandLogo size={40} />
         <span>
           <strong className="block text-[18px] tracking-[-0.03em]">Samou Quick</strong>
           <span className="block text-micro font-medium text-white/70">Samou Quick · ADMIN</span>

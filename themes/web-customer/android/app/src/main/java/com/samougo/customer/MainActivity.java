@@ -30,6 +30,10 @@ public class MainActivity extends BridgeActivity {
         // Register the OrderAlarm Capacitor plugin so JS can stop the alarm
         bridge.addPlugin(new StopAlarmPlugin());
 
+        // Register the Settings plugin so JS can read/write ring preference
+        // (SharedPreferences bridge for native FirebaseMessagingService)
+        bridge.addPlugin(new SettingsPlugin());
+
         // Handle notification tap — start alarm service if it's an order notification
         handleNotificationIntent(getIntent());
     }
@@ -91,5 +95,34 @@ public class MainActivity extends BridgeActivity {
         highChannel.setVibrationPattern(new long[]{0, 300, 200, 300});
         highChannel.setSound(alarmUri, audioAttr);
         nm.createNotificationChannel(highChannel);
+
+        // ── Two-channel strategy for FirebaseMessagingService ──────────────
+        // Alert channel: HIGH importance, custom ringtone, used when
+        // "الهاتف يرن عند وصول طلب" is ON.
+        if (nm.getNotificationChannel(FirebaseMyMessagingService.CHANNEL_ALERT) == null) {
+            NotificationChannel alertChannel = new NotificationChannel(
+                FirebaseMyMessagingService.CHANNEL_ALERT,
+                "طلبات جديدة",
+                NotificationManager.IMPORTANCE_HIGH
+            );
+            alertChannel.setDescription("إشعارات الطلبات الجديدة مع صوت تنبيه");
+            alertChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+            alertChannel.enableVibration(true);
+            alertChannel.setVibrationPattern(new long[]{0, 500, 250, 500, 250});
+            alertChannel.setSound(alarmUri, audioAttr);
+            nm.createNotificationChannel(alertChannel);
+        }
+
+        // Silent channel: HIGH importance, no sound, used when toggle is OFF.
+        if (nm.getNotificationChannel(FirebaseMyMessagingService.CHANNEL_SILENT) == null) {
+            NotificationChannel silentChannel = new NotificationChannel(
+                FirebaseMyMessagingService.CHANNEL_SILENT,
+                "طلبات جديدة (صامت)",
+                NotificationManager.IMPORTANCE_HIGH
+            );
+            silentChannel.setDescription("إشعارات الطلبات الجديدة بدون صوت");
+            silentChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+            nm.createNotificationChannel(silentChannel);
+        }
     }
 }

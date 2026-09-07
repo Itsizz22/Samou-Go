@@ -213,7 +213,7 @@ export interface CreateOrderInput {
   storeId: string;
   items: CreateOrderItemInput[];
   customerAddressText: string;
-  deliveryRegion?: DeliveryRegion;
+  deliveryRegion?: DeliveryRegion | null;
   addressNote?: string;
   orderNote?: string;
   /** Delivery preset: "call_on_arrival" or "leave_at_door". */
@@ -257,7 +257,7 @@ export interface QuoteOrderInput {
   storeId: string;
   items: CreateOrderItemInput[];
   voucherCode?: string;
-  deliveryRegion?: DeliveryRegion;
+  deliveryRegion?: DeliveryRegion | null;
 }
 
 export interface OrderQuote {

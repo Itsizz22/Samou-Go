@@ -34,3 +34,4 @@ export { IncomingOrderModal, type IncomingOrderModalProps, type IncomingOrderIte
 export { BrandLogo } from './BrandLogo';
 export { WhatsAppFAB, type WhatsAppFABProps } from './WhatsAppFAB';
 export { TermsModal, type TermsModalProps } from './TermsModal';
+export { ImageWithFallback } from './ImageWithFallback';

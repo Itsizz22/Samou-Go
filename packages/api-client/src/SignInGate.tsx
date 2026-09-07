@@ -12,7 +12,7 @@
  */
 
 import { useState, type FormEvent } from 'react';
-import { AlertTriangle, Loader2, LogIn, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, Loader2, LogIn } from 'lucide-react';
 import type { Auth } from './useAuth';
 import { useAppLanguage } from './language';
 
@@ -67,9 +67,19 @@ export function SignInGate({
     <main className="flex min-h-screen items-center justify-center bg-canvas px-5 py-10 text-ink">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand text-white shadow-brand">
-            <ShoppingCart size={26} strokeWidth={2.5} />
-          </span>
+          <svg viewBox="0 0 512 512" width={56} height={56} xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Samou Quick" style={{ display: 'block' }}>
+            <defs>
+              <linearGradient id="sg-emeraldBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#065F46" /><stop offset="50%" stopColor="#044E37" /><stop offset="100%" stopColor="#022C22" />
+              </linearGradient>
+              <linearGradient id="sg-boltGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FEF08A" /><stop offset="45%" stopColor="#FACC15" /><stop offset="100%" stopColor="#EAB308" />
+              </linearGradient>
+            </defs>
+            <rect width="512" height="512" rx="128" fill="url(#sg-emeraldBg)" stroke="#10B981" strokeWidth="4" />
+            <text x="190" y="295" textAnchor="middle" fill="#FFF" fontFamily="system-ui,-apple-system,sans-serif" fontSize="185" fontStyle="italic" fontWeight="900">S</text>
+            <polygon points="325,128 275,240 320,240 252,382 360,215 315,215" fill="url(#sg-boltGold)" stroke="#FEF08A" strokeWidth="3" strokeLinejoin="round" />
+          </svg>
           <p className="text-lg font-extrabold tracking-tight" dir="ltr">
             Samou Quick
           </p>

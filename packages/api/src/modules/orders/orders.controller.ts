@@ -105,19 +105,34 @@ export async function createOrderHandler(req: Request, res: Response): Promise<v
   const result = await ordersService.createOrder(auth.sub, body);
   emitPlatformEvent('order:created', { orderId: result.id, storeId: result.storeId, status: result.status });
 
-  // Push: notify all store managers of the new order.
+  // Push: notify all store managers + dedicated captains of the new order.
+  // Uses data-only payloads so Android can route to the ringing/silent channel
+  // based on user preferences, even when the app is killed.
   void (async () => {
     try {
       const store = await prisma.store.findUnique({
         where: { id: result.storeId },
-        select: { managerId: true, nameAr: true },
+        select: { managerId: true, nameAr: true, dedicatedCaptains: { select: { id: true } } },
       });
       if (store) {
+        // Notify store manager
         await sendPushToUser(store.managerId, {
           title: 'طلب جديد 🛒',
           body: `طلب جديد #${result.orderNumber} من ${result.customer.name}`,
-          data: { orderId: result.id, screen: 'order' },
-        });
+          data: { orderId: result.id, type: 'NEW_ORDER', storeId: result.storeId, screen: 'order' },
+        }, { dataOnly: true });
+        // Notify dedicated captains (DELIVERY orders only)
+        if (result.fulfillmentType === 'DELIVERY' && store.dedicatedCaptains.length > 0) {
+          await sendPushToMany(
+            store.dedicatedCaptains.map(c => c.id),
+            {
+              title: 'طلب جديد 🚨',
+              body: `لديك طلب توصيل جديد #${result.orderNumber} من ${store.nameAr}`,
+              data: { orderId: result.id, type: 'NEW_ORDER', storeId: result.storeId, screen: 'order' },
+            },
+            { dataOnly: true }
+          );
+        }
       }
     } catch {
       // Push failure must never break the order flow.
@@ -136,13 +151,13 @@ export async function checkoutHandler(req: Request, res: Response): Promise<void
   const body = parseWith(checkoutSchema, req.body);
   const result = await ordersService.createCheckoutOrders(auth.sub, body);
 
-  // Push: notify each store manager of their sub-order.
+  // Push: notify each store manager + dedicated captains of their sub-order.
   void (async () => {
     try {
       const storeIds = result.orders.map(o => o.storeId);
       const stores = await prisma.store.findMany({
         where: { id: { in: storeIds } },
-        select: { id: true, managerId: true, nameAr: true },
+        select: { id: true, managerId: true, nameAr: true, dedicatedCaptains: { select: { id: true } } },
       });
       const storeMap = new Map(stores.map(s => [s.id, s]));
       for (const sub of result.orders) {
@@ -151,8 +166,20 @@ export async function checkoutHandler(req: Request, res: Response): Promise<void
           await sendPushToUser(store.managerId, {
             title: 'طلب جديد 🛒',
             body: `طلب جديد #${sub.orderNumber} من متجر ${store.nameAr}`,
-            data: { orderId: sub.orderId, screen: 'order' },
-          });
+            data: { orderId: sub.orderId, type: 'NEW_ORDER', storeId: sub.storeId, screen: 'order' },
+          }, { dataOnly: true });
+          // Notify dedicated captains for DELIVERY sub-orders
+          if (store.dedicatedCaptains.length > 0) {
+            await sendPushToMany(
+              store.dedicatedCaptains.map(c => c.id),
+              {
+                title: 'طلب جديد 🚨',
+                body: `لديك طلب توصيل جديد #${sub.orderNumber} من ${store.nameAr}`,
+                data: { orderId: sub.orderId, type: 'NEW_ORDER', storeId: sub.storeId, screen: 'order' },
+              },
+              { dataOnly: true }
+            );
+          }
         }
         emitPlatformEvent('order:created', { orderId: sub.orderId, storeId: sub.storeId, status: 'PENDING' as OrderStatus });
       }
@@ -318,6 +345,8 @@ async function notifyStatusChange(
           data: { orderId, screen: 'tracking' },
         });
         // Notify available captains that there's a new order to claim.
+        // Uses data-only payloads so Android can route to the correct
+        // notification channel based on the captain's ring preference.
         const availableCaptains = await prisma.user.findMany({
           where: {
             role: UserRole.CAPTAIN,
@@ -333,8 +362,9 @@ async function notifyStatusChange(
             {
               title: 'طلب جاهز للاستلام 📦',
               body: `طلب #${order.orderNumber} من ${order.store.nameAr} جاهز للاستلام`,
-              data: { orderId, screen: 'order' },
-            }
+              data: { orderId, type: 'NEW_ORDER', storeId: order.storeId, screen: 'order' },
+            },
+            { dataOnly: true }
           );
         }
         break;
