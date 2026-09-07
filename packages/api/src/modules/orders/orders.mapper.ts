@@ -171,5 +171,12 @@ export function toOrderSummary(order: OrderForSummary): OrderSummary {
     deliveryPreset: order.deliveryPreset,
     fulfillmentType: raw.fulfillmentType ?? 'DELIVERY',
     estimatedPrepMinutes: order.estimatedPrepMinutes,
+    itemNotes: order.items
+      .filter((item) => item.note)
+      .map((item) => ({
+        productNameAr: item.product.nameAr,
+        quantity: item.quantity,
+        note: item.note,
+      })),
   } as OrderSummary;
 }

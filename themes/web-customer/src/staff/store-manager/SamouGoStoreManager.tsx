@@ -1053,7 +1053,7 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
             {t(`مدة التحضير المقدّرة: ${order.estimatedPrepMinutes} دقيقة`, `Estimated prep: ${order.estimatedPrepMinutes} min`)}
           </p>
         )}
-        {(order.orderNote || order.itemNotes.length > 0) && (
+        {(order.orderNote || (order.itemNotes?.length ?? 0) > 0) && (
           <div className="mt-3 space-y-1.5 rounded-xl bg-brand-surface px-3 py-2">
             {order.orderNote && (
               <p className="flex items-start gap-1.5 text-[11px] font-semibold text-ink">
@@ -1061,7 +1061,7 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
                 <span>{order.orderNote}</span>
               </p>
             )}
-            {order.itemNotes.map((entry) => (
+            {(order.itemNotes ?? []).map((entry) => (
               <p
                 key={`${entry.productNameAr}:${entry.quantity}`}
                 className="flex items-start gap-1.5 text-[11px] text-ink-soft"
