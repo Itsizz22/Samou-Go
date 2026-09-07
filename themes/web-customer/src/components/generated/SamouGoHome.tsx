@@ -14,6 +14,7 @@ import {
   MapPin,
   Menu,
   MessageSquarePlus,
+  Plus,
   RefreshCw,
   Search,
   ShoppingBag,
