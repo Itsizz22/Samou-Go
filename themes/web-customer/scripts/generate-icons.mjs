@@ -1,7 +1,8 @@
 /**
  * generate-icons.mjs
  *
- * Generates Android launcher icons from the SVG brand asset.
+ * Generates Android launcher icons from the official brand asset
+ * (packages/app/assets/icon.jpg).
  * Run:  node themes/web-customer/scripts/generate-icons.mjs
  *
  * Requires: npm install sharp (or have it globally available).
@@ -12,8 +13,8 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(__dirname, '../..');
-const SVG_PATH = resolve(ROOT, 'themes/web-customer/src/assets/icon.svg');
+const ROOT = resolve(__dirname, '../../..');
+const ICON_SRC = resolve(ROOT, 'packages/app/assets/icon.jpg');
 const RES_DIR = resolve(ROOT, 'themes/web-customer/android/app/src/main/res');
 
 const DENSITIES = {
@@ -38,28 +39,28 @@ async function main() {
     process.exit(1);
   }
 
-  const svgBuffer = readFileSync(SVG_PATH);
+  const iconSrc = readFileSync(ICON_SRC);
 
   for (const [folder, size] of Object.entries(DENSITIES)) {
     const dir = resolve(RES_DIR, folder);
     mkdirSync(dir, { recursive: true });
 
     // Square icon
-    const iconPng = await sharp(svgBuffer)
+    const iconPng = await sharp(iconSrc)
       .resize(size, size)
       .png()
       .toBuffer();
     writeFileSync(resolve(dir, 'ic_launcher.png'), iconPng);
 
     // Round icon (same for now — Capacitor treats them identically)
-    const roundPng = await sharp(svgBuffer)
+    const roundPng = await sharp(iconSrc)
       .resize(size, size)
       .png()
       .toBuffer();
     writeFileSync(resolve(dir, 'ic_launcher_round.png'), roundPng);
 
     // Foreground layer for adaptive icons (512×512, transparent background)
-    const fgPng = await sharp(svgBuffer)
+    const fgPng = await sharp(iconSrc)
       .resize(512, 512)
       .png()
       .toBuffer();
@@ -68,7 +69,7 @@ async function main() {
     console.log(`✅ ${folder}: ic_launcher.png (${size}×${size}), ic_launcher_round.png, ic_launcher_foreground.png`);
   }
 
-  console.log('\n🎉 All Android icons generated from the brand SVG.');
+  console.log('\n🎉 All Android icons generated from the brand image.');
 }
 
 main();

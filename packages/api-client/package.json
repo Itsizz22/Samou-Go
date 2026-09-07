@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@samou-go/shared-types": "*",
+    "@samou-go/ui": "*",
     "socket.io-client": "^4.8.3"
   },
   "peerDependencies": {
