@@ -29,6 +29,8 @@ const h = vi.hoisted(() => {
       paymentMethod: 'COD',
       deliveryPin: '1234',
       deliveryPinAttempts: 0,
+      captainHandoffCode: null,
+      handoffCodeAttempts: 0,
       createdAt: new Date('2026-08-16T10:00:00.000Z'),
       updatedAt: new Date('2026-08-16T10:00:00.000Z'),
       items: [],
@@ -60,7 +62,14 @@ const h = vi.hoisted(() => {
 
 vi.mock('../../lib/prisma', () => ({
   prisma: {
-    order: { findUnique: vi.fn(async () => h.state.order) },
+    order: {
+      findUnique: vi.fn(async () => h.state.order),
+      update: vi.fn(async ({ where, data }: any) => {
+        const updated = h.buildOrder({ ...h.state.order, ...data });
+        h.state.order = updated;
+        return updated;
+      }),
+    },
     store: { findMany: vi.fn(async () => [{ id: 'store-1' }]) },
     user: { findUnique: vi.fn() },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(h.tx),

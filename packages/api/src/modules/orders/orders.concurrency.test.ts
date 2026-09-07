@@ -35,6 +35,8 @@ const h = vi.hoisted(() => {
       totalAmount: 30,
       voucherId: null,
       paymentMethod: 'COD',
+      captainHandoffCode: null,
+      handoffCodeAttempts: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
       items: [],
@@ -178,6 +180,11 @@ vi.mock('../../lib/prisma', () => ({
   prisma: {
     order: {
       findUnique: vi.fn(async () => h.state.order),
+      update: vi.fn(async ({ where, data }: any) => {
+        const updated = h.buildOrder({ ...h.state.order, ...data });
+        h.state.order = updated;
+        return updated;
+      }),
     },
     store: {
       findUnique: h.tx.store.findUnique,
