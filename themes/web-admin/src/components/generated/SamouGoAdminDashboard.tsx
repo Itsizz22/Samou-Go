@@ -568,17 +568,9 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
   const [range, setRange] = useState<'today' | 'week' | 'month'>('today');
   const { t, language } = useLanguage();
 
-  // Guard: show skeleton while stats are loading to prevent .length crashes
-  // on尚未渲染的 API data.
-  if (!stats && loading) {
-    return (
-      <div className="space-y-4">
-        {[0, 1, 2].map(i => (
-          <div key={i} className="h-20 animate-pulse rounded-xl bg-line-soft" />
-        ))}
-      </div>
-    );
-  }
+  // All hooks must be called unconditionally, before any early return, so the
+  // hook count stays identical on every render. The loading skeleton below is
+  // rendered after all hooks run — never between hook calls.
   const pipeline = useOrders({ page: 1, pageSize: 100 }, { pollMs: 10_000 });
   const rangeStart = useMemo(() => {
     const now = new Date();
@@ -594,6 +586,18 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
       ),
     [pipeline.data?.items, rangeStart]
   );
+
+  // Guard: show skeleton while stats are loading to prevent .length crashes
+  // on尚未渲染的 API data.
+  if (!stats && loading) {
+    return (
+      <div className="space-y-4">
+        {[0, 1, 2].map(i => (
+          <div key={i} className="h-20 animate-pulse rounded-xl bg-line-soft" />
+        ))}
+      </div>
+    );
+  }
   const kpis = [
     {
       label: 'Revenue Today',
