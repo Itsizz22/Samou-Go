@@ -20,6 +20,7 @@ import {
   deleteStore,
   deleteUser,
   getMyStores,
+  getPopularProducts,
   getOrder,
   getPlatformSettings,
   getStore,
@@ -39,6 +40,7 @@ import {
   getAdminFinancials,
   type WalletSummary,
   type AdminFinancials,
+  type PopularProduct,
 } from './api';
 import type {
   AdminCreateCaptainInput,
@@ -319,6 +321,14 @@ export function useOffersForStore(
 /** `GET /offers` — the home-screen feed of active offers across all approved stores. */
 export function useAllOffers(options?: ResourceOptions<Paginated<Offer>>): Resource<Paginated<Offer>> {
   return useResource('offers:all', (signal) => listAllOffers(signal), options);
+}
+
+/** `GET /stores/popular-products` — top best-selling products across all stores. */
+export function usePopularProducts(
+  limit = 12,
+  options?: ResourceOptions<PopularProduct[]>
+): Resource<PopularProduct[]> {
+  return useResource(`popular-products:${limit}`, (signal) => getPopularProducts(limit, signal), options);
 }
 
 /** `GET /orders/:id` — order tracking. */

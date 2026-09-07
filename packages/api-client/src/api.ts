@@ -759,6 +759,28 @@ export function getMyStores(signal?: AbortSignal): Promise<Store[]> {
   return request<Store[]>("GET", "/stores/mine", { auth: true, signal });
 }
 
+/** Top best-selling products across all active, approved stores. */
+export interface PopularProduct {
+  id: string;
+  nameAr: string;
+  description: string | null;
+  price: number;
+  imageUrl: string | null;
+  isAvailable: boolean;
+  storeId: string;
+  storeNameAr: string;
+  totalSold: number;
+  hasOptions: boolean;
+  optionGroups?: { id: string; name: string; items: { id: string; name: string; priceDelta: number; isActive: boolean }[] }[];
+}
+
+export function getPopularProducts(limit = 12, signal?: AbortSignal): Promise<PopularProduct[]> {
+  return request<PopularProduct[]>("GET", "/stores/popular-products", {
+    query: { limit: String(limit) },
+    signal,
+  });
+}
+
 /** Paginated products within a store, filterable by category or search term. */
 export function getStoreProducts(
   storeId: string,

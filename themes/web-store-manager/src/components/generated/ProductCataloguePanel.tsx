@@ -140,6 +140,12 @@ export function ProductCataloguePanel({ storeId }: Props) {
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   const [addingToGroup, setAddingToGroup] = useState<string | null>(null);
+  const [optionsEnabled, setOptionsEnabled] = useState(true);
+
+  // Total addon items across all groups for this product (5-item cap).
+  const totalAddonItems = optionGroups.reduce((sum, g) => sum + g.items.length, 0);
+  const MAX_ADDON_ITEMS = 5;
+  const maxItemsReached = totalAddonItems >= MAX_ADDON_ITEMS;
 
   const loadOptionGroups = async (productId: string) => {
     setOptionLoading(true);
@@ -265,6 +271,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
     setForm(formFromProduct(p));
     setFormError(null);
     setModal('edit');
+    setOptionsEnabled(p.optionsEnabled ?? true);
     // Load existing option groups for this product.
     void loadOptionGroups(p.id);
   };
@@ -291,6 +298,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
         price: priceNum,
         categoryId: form.categoryId || undefined,
         isAvailable: form.isAvailable,
+        optionsEnabled,
       };
 
       if (modal === 'create') {
@@ -317,6 +325,21 @@ export function ProductCataloguePanel({ storeId }: Props) {
 
   /* ---- Deactivate -------------------------------------------------------- */
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
+
+  const handleToggleOptionsEnabled = async () => {
+    if (!editTarget) return;
+    const next = !optionsEnabled;
+    setOptionsEnabled(next);
+    try {
+      await updateProduct(storeId, editTarget.id, { optionsEnabled: next });
+      reload();
+    } catch (err) {
+      // Revert on failure.
+      setOptionsEnabled(!next);
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error('تعذّر تحديث حالة الإضافات', msg);
+    }
+  };
 
   const handleDeactivate = async (p: Product) => {
     if (!confirm(`إيقاف "${p.nameAr}"؟\nDeactivate "${p.nameAr}"?`)) return;
@@ -773,15 +796,31 @@ export function ProductCataloguePanel({ storeId }: Props) {
               {/* Option Groups — edit mode only */}
               {modal === 'edit' && editTarget && (
                 <div className="rounded-xl border border-line bg-canvas p-3">
-                  <div className="mb-2 flex items-center gap-2">
-                    <ListPlus size={14} className="text-brand" />
-                    <span className="text-xs font-bold text-ink">{t('إضافات وخيارات المنتج', 'Product Options & Addons')}</span>
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ListPlus size={14} className="text-brand" />
+                      <span className="text-xs font-bold text-ink">{t('إضافات وخيارات المنتج', 'Product Options & Addons')}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${maxItemsReached ? 'bg-warning-tint text-warning' : 'bg-brand-tint text-brand-dark'}`}>
+                        {totalAddonItems}/{MAX_ADDON_ITEMS} {t('مضاف', 'added')}
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={optionsEnabled}
+                        onClick={() => void handleToggleOptionsEnabled()}
+                        className={`flex h-6 w-11 items-center rounded-full p-0.5 transition ${optionsEnabled ? 'justify-end bg-brand' : 'justify-start bg-line'}`}
+                      >
+                        <span className="h-5 w-5 rounded-full bg-surface shadow-card" />
+                      </button>
+                    </div>
                   </div>
                   {optionLoading && <p className="text-[11px] text-ink-muted">Loading...</p>}
                   {!optionLoading && optionGroups.length === 0 && (
                     <p className="text-[11px] text-ink-muted">{t('لا توجد مجموعات خيارات بعد', 'No option groups yet')}</p>
                   )}
-                  {optionGroups.map(g => (
+                  {optionsEnabled && optionGroups.map(g => (
                     <div key={g.id} className="mb-3 rounded-lg border border-line bg-surface p-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-ink">{g.name} <span className="text-ink-muted">({g.items.length})</span></span>
@@ -805,6 +844,8 @@ export function ProductCataloguePanel({ storeId }: Props) {
                           <button type="button" onClick={() => void handleAddOptionItem(g.id)} className="rounded bg-brand px-2 py-1 text-[10px] font-bold text-white"><Check size={10} /></button>
                           <button type="button" onClick={() => { setAddingToGroup(null); setNewItemName(''); setNewItemPrice(''); }} className="rounded px-1.5 py-1 text-[10px] text-ink-muted"><X size={10} /></button>
                         </div>
+                      ) : maxItemsReached ? (
+                        <p className="mt-2 text-[11px] font-semibold text-warning">{t('الحد الأقصى 5 إضافات', 'Max 5 addon items per product')}</p>
                       ) : (
                         <button type="button" onClick={() => setAddingToGroup(g.id)} className="mt-2 flex items-center gap-1 text-[11px] font-bold text-brand transition hover:text-brand-dark">
                           <Plus size={10} /> {t('إضافة خيار', 'Add option')}
@@ -812,12 +853,17 @@ export function ProductCataloguePanel({ storeId }: Props) {
                       )}
                     </div>
                   ))}
-                  <div className="flex items-center gap-2 mt-2">
-                    <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder={t('اسم المجموعة — مثال: الإضافات', 'Group name — e.g. Addons')} className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-1.5 text-[11px] outline-none focus:border-brand" />
-                    <button type="button" onClick={() => void handleCreateOptionGroup()} disabled={!newGroupName.trim()} className="flex h-7 items-center gap-1 rounded-lg bg-brand px-2.5 text-[10px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-50">
-                      <Plus size={10} /> {t('إضافة', 'Add')}
-                    </button>
-                  </div>
+                  {optionsEnabled && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder={t('اسم المجموعة — مثال: الإضافات', 'Group name — e.g. Addons')} className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-1.5 text-[11px] outline-none focus:border-brand" />
+                      <button type="button" onClick={() => void handleCreateOptionGroup()} disabled={!newGroupName.trim() || maxItemsReached} className="flex h-7 items-center gap-1 rounded-lg bg-brand px-2.5 text-[10px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-50" title={maxItemsReached ? t('الحد الأقصى 5 إضافات', 'Max 5 items reached') : ''}>
+                        <Plus size={10} /> {t('إضافة', 'Add')}
+                      </button>
+                    </div>
+                  )}
+                  {optionsEnabled && maxItemsReached && (
+                    <p className="mt-2 text-[11px] font-semibold text-warning">{t('تم الوصول للحد الأقصى من الإضافات', 'Maximum addon items reached for this product')}</p>
+                  )}
                 </div>
               )}
 

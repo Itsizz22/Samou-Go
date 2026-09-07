@@ -293,6 +293,7 @@ model Product {
   price       Decimal 
   imageUrl    String?
   isAvailable Boolean  @default(true)
+  optionsEnabled Boolean @default(true)
   categoryId  String?
   storeId     String
   createdAt   DateTime @default(now())

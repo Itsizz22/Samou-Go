@@ -64,6 +64,21 @@ export async function createOptionGroup(
   if (!body.name?.trim()) {
     throw unprocessable('NAME_REQUIRED', 'اسم المجموعة مطلوب / Group name is required');
   }
+
+  // Enforce 5-item total cap across all groups for this product.
+  const incomingItemCount = (body.items ?? []).length;
+  // @ts-expect-error — prisma-client-js generated types may be stale
+  const existingGroups = await prisma.productOptionGroup.findMany({
+    where: { productId },
+    include: { items: { select: { id: true } } },
+  });
+  const existingItemCount = existingGroups.reduce((sum: number, g: any) => sum + g.items.length, 0);
+  if (existingItemCount + incomingItemCount > 5) {
+    throw unprocessable(
+      'MAX_ITEMS_EXCEEDED',
+      `الحد الأقصى المسموح به هو 5 إضافات للمنتج الواحد (${existingItemCount} موجودة + ${incomingItemCount} جديدة)`,
+    );
+  }
   if ((body.minSelect ?? 0) < 0) throw unprocessable('MIN_INVALID', 'الحد الأدنى غير صالح / minSelect must be >= 0');
   if ((body.maxSelect ?? 1) < 1) throw unprocessable('MAX_INVALID', 'الحد الأقصى غير صالح / maxSelect must be >= 1');
   if ((body.minSelect ?? 0) > (body.maxSelect ?? 1)) {
@@ -107,11 +122,28 @@ export async function updateOptionGroup(
   // @ts-expect-error — prisma-client-js generated types may be stale
   const existing = await prisma.productOptionGroup.findUnique({
     where: { id: groupId },
-    include: { product: { select: { storeId: true } } },
+    include: { product: { select: { storeId: true, id: true } } },
   });
   if (!existing) throw notFound('مجموعة الخيارات غير موجودة / Option group not found');
   if (existing.product.storeId !== storeId) {
     throw forbidden('غير مصرح / Not authorized');
+  }
+
+  // Enforce 5-item total cap when replacing items.
+  if (body.items !== undefined) {
+    const incomingItemCount = body.items.length;
+    // @ts-expect-error — prisma-client-js generated types may be stale
+    const otherGroups = await prisma.productOptionGroup.findMany({
+      where: { productId: existing.product.id, id: { not: groupId } },
+      include: { items: { select: { id: true } } },
+    });
+    const otherItemCount = otherGroups.reduce((sum: number, g: any) => sum + g.items.length, 0);
+    if (otherItemCount + incomingItemCount > 5) {
+      throw unprocessable(
+        'MAX_ITEMS_EXCEEDED',
+        `الحد الأقصى المسموح به هو 5 إضافات للمنتج الواحد (${otherItemCount} في مجموعات أخرى + ${incomingItemCount} هنا)`,
+      );
+    }
   }
 
   const group = await prisma.$transaction(async (tx) => {

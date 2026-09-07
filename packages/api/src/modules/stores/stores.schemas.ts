@@ -79,6 +79,7 @@ export const createProductSchema = z.object({
     .multipleOf(0.01),
   imageUrl: z.string().url('رابط الصورة غير صالح / Invalid image URL').optional(),
   isAvailable: z.boolean().default(true),
+  optionsEnabled: z.boolean().default(true),
   categoryId: z.string().min(1).optional(),
 });
 

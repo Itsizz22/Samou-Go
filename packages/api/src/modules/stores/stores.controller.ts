@@ -147,3 +147,9 @@ export async function deleteCategoryHandler(req: Request, res: Response): Promis
   await storesService.assertStoreAccess(storeId, auth.sub, auth.role);
   ok(res, await storesService.deleteCategory(storeId, categoryId));
 }
+
+/** GET /api/v1/stores/popular-products — top best-selling products across stores. */
+export async function popularProductsHandler(req: Request, res: Response): Promise<void> {
+  const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 12, 1), 24);
+  ok(res, await storesService.getPopularProducts(limit));
+}

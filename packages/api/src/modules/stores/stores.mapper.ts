@@ -48,7 +48,7 @@ export function toCategory(category: PrismaCategory): Category {
   };
 }
 
-export function toProduct(product: PrismaProduct & { optionGroups?: any[] }): Product {
+export function toProduct(product: PrismaProduct & { optionGroups?: any[]; optionsEnabled?: boolean }): Product {
   const raw = product as any;
   return {
     id: product.id,
@@ -60,7 +60,8 @@ export function toProduct(product: PrismaProduct & { optionGroups?: any[] }): Pr
     categoryId: product.categoryId,
     storeId: product.storeId,
     // Map option groups from DB shape to shared-types shape.
-    ...(raw.optionGroups
+    // When optionsEnabled is false, omit optionGroups entirely from the customer view.
+    ...((raw.optionGroups && raw.optionsEnabled !== false)
       ? {
           optionGroups: raw.optionGroups.map((g: any) => ({
             id: g.id,
@@ -81,7 +82,9 @@ export function toProduct(product: PrismaProduct & { optionGroups?: any[] }): Pr
           })),
         }
       : {}),
-  };
+    // optionsEnabled added after shared-types rebuild — cast needed until dist is refreshed.
+    optionsEnabled: raw.optionsEnabled ?? true,
+  } as Product;
 }
 
 export function toStoreWithCatalogue(

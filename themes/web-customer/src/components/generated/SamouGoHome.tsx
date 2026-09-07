@@ -32,8 +32,12 @@ import { useDrawer } from '@/components/NavigationDrawer';
 import { DeliveryFee } from '@samou-go/ui';
 import { API_URL, ENABLE_LOCATION } from '@/hooks/useApi';
 import { PromoBannerSlider } from '@/components/PromoBannerSlider';
-import { useApiMeta, useOrders, useStores, useAuth, useAllOffers } from '@/hooks/useApi';
+import { useApiMeta, useOrders, useStores, useAuth, useAllOffers, usePopularProducts, type PopularProduct } from '@/hooks/useApi';
 import { useFavorites } from '@/components/FavoritesProvider';
+import { useCart } from '@/components/CartProvider';
+import { ProductOptionsSheet } from '@/components/ProductOptionsSheet';
+import { hapticConfirm } from '@/lib/haptics';
+import { formatCurrency } from '@/lib/delivery';
 import { Link, useNavigate } from 'react-router-dom';
 import { DEFAULT_DELIVERY_FEE_CONFIG } from '@/lib/delivery';
 import { ORDER_STATUS_LABELS, OrderStatus } from '@samou-go/shared-types';
@@ -138,6 +142,56 @@ export function SamouGoHome() {
   // Store-wide active offers feed.
   const offers = useAllOffers();
   const activeOffers = useMemo(() => (offers.data?.items ?? []).slice(0, 6), [offers.data]);
+
+  // Popular products across all stores.
+  const popular = usePopularProducts(12);
+  const cart = useCart();
+  const [optionsProduct, setOptionsProduct] = useState<PopularProduct | null>(null);
+
+  const handlePopularAdd = (product: PopularProduct) => {
+    if (product.hasOptions && product.optionGroups && product.optionGroups.length > 0) {
+      setOptionsProduct(product);
+      return;
+    }
+    // Add directly to cart (synthesize a Product-like object).
+    cart.addItem({
+      id: product.id,
+      nameAr: product.nameAr,
+      description: product.description,
+      price: product.price,
+      imageUrl: product.imageUrl,
+      isAvailable: product.isAvailable,
+      categoryId: null,
+      storeId: product.storeId,
+    } as any, 1, '', product.storeNameAr);
+    void hapticConfirm();
+  };
+
+  const handlePopularOptionsConfirm = (options: { groupId: string; optionId: string }[], quantity: number) => {
+    if (!optionsProduct) return;
+    const selectedOptions = options.map(o => {
+      const group = optionsProduct.optionGroups!.find(g => g.id === o.groupId);
+      const item = group?.items.find(i => i.id === o.optionId);
+      return {
+        id: o.optionId,
+        groupId: o.groupId,
+        name: item?.name ?? '',
+        priceDelta: item?.priceDelta ?? 0,
+      };
+    });
+    cart.addItem({
+      id: optionsProduct.id,
+      nameAr: optionsProduct.nameAr,
+      description: optionsProduct.description,
+      price: optionsProduct.price,
+      imageUrl: optionsProduct.imageUrl,
+      isAvailable: optionsProduct.isAvailable,
+      categoryId: null,
+      storeId: optionsProduct.storeId,
+    } as any, quantity, '', optionsProduct.storeNameAr, selectedOptions);
+    setOptionsProduct(null);
+    void hapticConfirm();
+  };
 
   const featured = cards.slice(0, FEATURED_COUNT);
   const showEmpty = !stores.loading && !stores.error && cards.length === 0;
@@ -392,6 +446,76 @@ export function SamouGoHome() {
               ))}
         </div>
       </section>}
+
+      {/* Popular Products Section */}
+      {(!popular.loading || (popular.data ?? []).length > 0) && (
+        <section className="mx-auto max-w-md px-5 pt-8" aria-labelledby="popular-title" aria-busy={popular.loading}>
+          <div className="mb-4 flex items-end justify-between">
+            <h2 id="popular-title" className="text-lg font-extrabold">{t('الأكثر مبيعاً', 'Best sellers')}</h2>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+            {popular.loading
+              ? [0, 1, 2, 3].map(i => (
+                  <div key={i} className="skeleton min-w-[150px] overflow-hidden rounded-2xl shadow-card" aria-hidden="true">
+                    <div className="h-32 bg-line-soft" />
+                    <div className="space-y-2 p-3"><div className="h-3 w-2/3 rounded bg-line-soft" /><div className="h-2.5 w-1/2 rounded bg-line-soft" /><div className="h-5 w-16 rounded-full bg-line-soft" /></div>
+                  </div>
+                ))
+              : (popular.data ?? []).map((product) => (
+                  <article
+                    key={product.id}
+                    className="group relative min-w-[150px] overflow-hidden rounded-2xl bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised"
+                  >
+                    {/* Product image */}
+                    <div className="relative h-32 overflow-hidden bg-gradient-to-br from-brand-tint to-brand-surface">
+                      {product.imageUrl ? (
+                        <ImageWithFallback src={product.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" fallbackText={product.nameAr.slice(0, 2)} />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-2xl font-black text-brand-dark/30">{product.nameAr.slice(0, 2)}</span>
+                      )}
+                      {/* Store name badge */}
+                      <span className="absolute bottom-2 end-2 rounded-full bg-surface/90 px-2 py-0.5 text-micro font-bold text-ink shadow-card">{product.storeNameAr}</span>
+                    </div>
+                    {/* Text & Price */}
+                    <div className="p-3 text-end">
+                      <h3 className="line-clamp-2 min-h-[2rem] text-sm font-bold text-ink">{product.nameAr}</h3>
+                      <p className="mt-1 text-xs font-bold text-brand-dark" dir="ltr">{formatCurrency(product.price)}</p>
+                      <div className="mt-2 flex items-center justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handlePopularAdd(product)}
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-tint text-brand-dark transition active:scale-90"
+                          aria-label={`أضف ${product.nameAr} إلى السلة`}
+                        >
+                          <Plus size={16} strokeWidth={2.5} />
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+          </div>
+        </section>
+      )}
+
+      {/* Product Options Sheet (for popular products with addons) */}
+      {optionsProduct && (
+        <ProductOptionsSheet
+          product={{
+            id: optionsProduct.id,
+            nameAr: optionsProduct.nameAr,
+            description: optionsProduct.description,
+            price: optionsProduct.price,
+            imageUrl: optionsProduct.imageUrl,
+            isAvailable: optionsProduct.isAvailable,
+            categoryId: null,
+            storeId: optionsProduct.storeId,
+            optionGroups: optionsProduct.optionGroups,
+          } as any}
+          storeNameAr={optionsProduct.storeNameAr}
+          onClose={() => setOptionsProduct(null)}
+          onConfirm={handlePopularOptionsConfirm}
+        />
+      )}
 
       {!stores.error && (stores.loading || cards.length > 0) && <section id="home-results" aria-live="polite" className="mx-auto max-w-md px-5 pt-8" aria-labelledby="nearby-title" aria-busy={stores.loading}>
         <div className="mb-4 flex items-end justify-between"><div><h2 id="nearby-title" className="text-lg font-extrabold">{t('كل المتاجر', "All stores in Al-Samou'")}</h2></div>{stores.refreshing ? <Loader2 size={16} className="animate-spin text-brand" aria-label="Refreshing" /> : <ChevronLeft size={18} className="text-ink-subtle" />}</div>

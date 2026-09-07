@@ -420,6 +420,7 @@ export async function updateProduct(
       ...(body.price !== undefined ? { price: body.price } : {}),
       ...(body.imageUrl !== undefined ? { imageUrl: body.imageUrl } : {}),
       ...(body.isAvailable !== undefined ? { isAvailable: body.isAvailable } : {}),
+      ...(body.optionsEnabled !== undefined ? { optionsEnabled: body.optionsEnabled } : {}),
       ...(body.categoryId !== undefined ? { categoryId: body.categoryId } : {}),
     },
   });
@@ -576,4 +577,94 @@ export async function deleteCategory(storeId: string, categoryId: string): Promi
     prisma.category.delete({ where: { id: categoryId } }),
   ]);
   return { removed: true };
+}
+
+/* ---------------------------------------------------------------------------
+ * Popular / best-selling products
+ * ------------------------------------------------------------------------- */
+
+export interface PopularProduct {
+  id: string;
+  nameAr: string;
+  description: string | null;
+  price: number;
+  imageUrl: string | null;
+  isAvailable: boolean;
+  storeId: string;
+  storeNameAr: string;
+  totalSold: number;
+  hasOptions: boolean;
+  optionGroups?: { id: string; name: string; items: { id: string; name: string; priceDelta: number; isActive: boolean }[] }[];
+}
+
+/**
+ * Returns the top N best-selling products across all active, approved stores.
+ * Ranked by total quantity sold across completed (DELIVERED) orders in the last 90 days.
+ * Uses raw SQL for the aggregation since Prisma lacks a clean GROUP BY + SUM.
+ */
+export async function getPopularProducts(limit = 12): Promise<PopularProduct[]> {
+  const rows = await prisma.$queryRaw<{
+    productId: string;
+    totalSold: bigint;
+  }[]>`
+    SELECT oi."productId", SUM(oi."quantity")::int AS "totalSold"
+    FROM order_items oi
+    JOIN orders o ON o."id" = oi."orderId"
+    WHERE o."status" = 'DELIVERED'
+      AND o."createdAt" > NOW() - INTERVAL '90 days'
+    GROUP BY oi."productId"
+    ORDER BY "totalSold" DESC
+    LIMIT ${limit}
+  `;
+
+  if (rows.length === 0) return [];
+
+  const productIds = rows.map(r => r.productId);
+  const products: any[] = await (prisma.product.findMany as any)({
+    where: {
+      id: { in: productIds },
+      isAvailable: true,
+      store: { isActive: true, isApproved: true },
+    },
+    include: {
+      store: { select: { id: true, nameAr: true } },
+      optionGroups: {
+        orderBy: { sortOrder: 'asc' },
+        include: { items: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } },
+      },
+    },
+  });
+
+  const productMap = new Map(products.map(p => [p.id, p]));
+  const soldMap = new Map(rows.map(r => [r.productId, r.totalSold]));
+
+  return rows
+    .map(row => {
+      const p = productMap.get(row.productId);
+      if (!p) return null;
+      const optGroups = (p as any).optionGroups ?? [];
+      return {
+        id: p.id,
+        nameAr: p.nameAr,
+        description: p.description,
+        price: Number(p.price),
+        imageUrl: p.imageUrl,
+        isAvailable: p.isAvailable,
+        storeId: p.storeId,
+        storeNameAr: (p as any).store.nameAr,
+        totalSold: Number(soldMap.get(row.productId) ?? 0),
+        hasOptions: optGroups.length > 0,
+        optionGroups: optGroups.map((g: any) => ({
+          id: g.id,
+          name: g.name,
+          items: g.items.map((i: any) => ({
+            id: i.id,
+            name: i.name,
+            priceDelta: i.price,
+            isActive: i.isActive,
+          })),
+        })),
+      };
+    })
+    .filter(Boolean) as PopularProduct[];
 }

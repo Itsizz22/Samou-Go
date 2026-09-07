@@ -24,6 +24,12 @@ storesRouter.get(
   asyncHandler(controller.listMyStoresHandler)
 );
 
+storesRouter.get(
+  '/popular-products',
+  optionalAuthenticate,
+  asyncHandler(controller.popularProductsHandler)
+);
+
 storesRouter.get('/:storeId', optionalAuthenticate, asyncHandler(controller.getStoreHandler));
 storesRouter.get(
   '/:storeId/full',

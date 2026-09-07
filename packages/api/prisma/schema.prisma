@@ -286,6 +286,8 @@ model Product {
   price       Decimal  @db.Decimal(10, 2)
   imageUrl    String?
   isAvailable Boolean  @default(true)
+  /// Admin/manager toggle: when false, product option groups are hidden from the customer catalogue.
+  optionsEnabled Boolean @default(true)
   categoryId  String?
   storeId     String
   createdAt   DateTime @default(now())

@@ -115,6 +115,9 @@ const h = vi.hoisted(() => {
         return { date: new Date(), sequence: state.sequence };
       }),
     },
+    productOptionGroup: {
+      findMany: vi.fn(async () => []),
+    },
   };
 
   return { state, tx };
@@ -126,6 +129,7 @@ vi.mock('../../lib/prisma', () => ({
     store: { findUnique: h.tx.store.findUnique },
     product: { findMany: h.tx.product.findMany },
     voucher: { findUnique: h.tx.voucher.findUnique },
+    productOptionGroup: { findMany: h.tx.productOptionGroup.findMany },
   },
 }));
 

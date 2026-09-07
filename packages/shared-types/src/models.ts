@@ -136,6 +136,8 @@ export interface Product {
   price: number;
   imageUrl: string | null;
   isAvailable: boolean;
+  /** Admin/manager toggle: when false, product option groups are hidden from the customer catalogue. */
+  optionsEnabled: boolean;
   categoryId: string | null;
   storeId: string;
   /** Product option groups with their items — populated on catalogue endpoints. */
