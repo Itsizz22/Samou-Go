@@ -100,6 +100,6 @@ export async function getAdminStats(): Promise<AdminStats> {
       total: users.reduce((acc, row) => acc + row._count._all, 0),
       byRole,
     },
-    recentOrders: recentOrders.map(toOrderSummary),
+    recentOrders: recentOrders.map((order) => toOrderSummary(order, UserRole.ADMIN)),
   };
 }

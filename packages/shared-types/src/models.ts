@@ -253,6 +253,17 @@ export interface Order {
   estimatedPrepMinutes: number | null;
   /** 4-digit PIN the customer shares with the captain on delivery. */
   deliveryPin: string | null;
+  /**
+   * 4-digit code the store shares with the captain to verify pickup handoff.
+   * Generated when the store marks the order READY_FOR_PICKUP; visible only
+   * to the STORE_MANAGER/ADMIN roles (masked for CAPTAIN/CUSTOMER).
+   */
+  captainHandoffCode: string | null;
+  /**
+   * Whether a captain pickup handoff code exists for this order (captains see
+   * this flag so they know to ask the store for the code — never the value).
+   */
+  requiresHandoffCode: boolean;
   /** Customer voice note URL — uploaded via presigned URL before checkout. */
   voiceNoteUrl: string | null;
   /** Duration of the voice note in seconds. */
@@ -318,4 +329,11 @@ export interface OrderSummary {
    * views can surface the kitchen-critical notes without shipping a full detail.
    */
   itemNotes: { productNameAr: string; quantity: number; note: string }[];
+  /**
+   * 4-digit pickup handoff code. Present only for STORE_MANAGER/ADMIN
+   * viewers when the order is READY_FOR_PICKUP; `null` otherwise.
+   */
+  captainHandoffCode: string | null;
+  /** Whether the order carries a pickup handoff code (visible to all roles). */
+  requiresHandoffCode: boolean;
 }

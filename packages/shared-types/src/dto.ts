@@ -235,6 +235,10 @@ export interface UpdateOrderStatusInput {
   note?: string;
   /** STORE_MANAGER supplies this together with PENDING → ACCEPTED. */
   estimatedPrepMinutes?: number;
+  /** 4-digit delivery PIN the customer shares — captain supplies on DELIVERED. */
+  deliveryPin?: string;
+  /** 4-digit pickup handoff code the store shared — captain supplies on ON_THE_WAY. */
+  handoffCode?: string;
 }
 
 export interface AssignCaptainInput {

@@ -340,6 +340,12 @@ model Order {
   deliveryPin String?  @db.VarChar(4)
   /// Failed PIN validation attempts — locked after 5 to prevent brute-force.
   deliveryPinAttempts Int @default(0)
+
+  /// 4-digit code the store gives the captain when handing over a delivery
+  /// order. Generated when the store marks the order READY_FOR_PICKUP.
+  captainHandoffCode String? @db.VarChar(4)
+  /// Failed handoff-code validation attempts — locked after 5 to prevent brute-force.
+  handoffCodeAttempts Int @default(0)
   /// Customer voice note URL (audio/webm, audio/mp4, etc.) — uploaded via presigned URL.
   voiceNoteUrl String?
   /// Duration of the voice note in seconds.

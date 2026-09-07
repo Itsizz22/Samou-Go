@@ -99,6 +99,8 @@ export const updateOrderStatusSchema = z.object({
   estimatedPrepMinutes: z.number().int().min(5).max(180).optional(),
   /** 4-digit delivery PIN — required when captain transitions to DELIVERED. */
   deliveryPin: z.string().length(4, 'رمز التوصيل يجب أن يكون 4 أرقام / Delivery PIN must be 4 digits').optional(),
+  /** 4-digit pickup handoff code — required when captain transitions to ON_THE_WAY on a coded order. */
+  handoffCode: z.string().length(4, 'رمز الاستلام يجب أن يكون 4 أرقام / Handoff code must be 4 digits').optional(),
 });
 
 /** Rating and comment for an order review. */

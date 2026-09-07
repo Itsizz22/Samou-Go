@@ -15,7 +15,17 @@ import type {
   OrderStatusHistoryEntry,
   OrderSummary,
 } from '@samou-go/shared-types';
+import { UserRole } from '@samou-go/shared-types';
 import { decimalToNumber } from '../../lib/decimal';
+
+/**
+ * The captain pickup-handoff code is a store→captain secret: only the store and
+ * admins may read it. The captain must obtain it from the store employee at
+ * handoff, so it is masked for CAPTAIN/CUSTOMER in every response shape.
+ */
+export function canViewCaptainHandoffCode(viewerRole?: string): boolean {
+  return viewerRole === UserRole.STORE_MANAGER || viewerRole === UserRole.ADMIN;
+}
 
 /**
  * The `include` shape every detail query must use for `toOrderDetail` to typecheck.
@@ -70,6 +80,8 @@ export function toOrder(order: PrismaOrder): Order {
     longitude: order.longitude,
     estimatedPrepMinutes: order.estimatedPrepMinutes,
     deliveryPin: order.deliveryPin ?? null,
+    captainHandoffCode: order.captainHandoffCode ?? null,
+    requiresHandoffCode: order.captainHandoffCode !== null,
     voiceNoteUrl: raw.voiceNoteUrl ?? null,
     voiceNoteDuration: raw.voiceNoteDuration ?? null,
     subtotal: decimalToNumber(order.subtotal),
@@ -121,6 +133,7 @@ export function toOrderDetail(order: OrderWithRelations, viewerRole?: string): O
   return {
     ...base,
     deliveryPin: viewerRole === 'CUSTOMER' ? base.deliveryPin : null,
+    captainHandoffCode: canViewCaptainHandoffCode(viewerRole) ? base.captainHandoffCode : null,
     items: order.items.map(toOrderItem),
     customer: toContact(order.customer),
     store: {
@@ -153,7 +166,7 @@ export function toOrderDetail(order: OrderWithRelations, viewerRole?: string): O
   };
 }
 
-export function toOrderSummary(order: OrderForSummary): OrderSummary {
+export function toOrderSummary(order: OrderForSummary, viewerRole?: string): OrderSummary {
   const raw = order as any;
   return {
     id: order.id,
@@ -171,6 +184,10 @@ export function toOrderSummary(order: OrderForSummary): OrderSummary {
     deliveryPreset: order.deliveryPreset,
     fulfillmentType: raw.fulfillmentType ?? 'DELIVERY',
     estimatedPrepMinutes: order.estimatedPrepMinutes,
+    captainHandoffCode: canViewCaptainHandoffCode(viewerRole)
+      ? (order.captainHandoffCode ?? null)
+      : null,
+    requiresHandoffCode: order.captainHandoffCode !== null,
     itemNotes: order.items
       .filter((item) => item.note)
       .map((item) => ({

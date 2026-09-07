@@ -220,7 +220,11 @@ export async function reorderOrderHandler(req: Request, res: Response): Promise<
 export async function claimOrderHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);
   const { orderId } = parseWith(orderIdParamsSchema, req.params);
-  const result = await ordersService.updateOrderStatus(auth, orderId, { status: OrderStatus.ON_THE_WAY });
+  const body = parseWith(updateOrderStatusSchema.pick({ handoffCode: true }), req.body);
+  const result = await ordersService.updateOrderStatus(auth, orderId, {
+    status: OrderStatus.ON_THE_WAY,
+    ...(body.handoffCode !== undefined ? { handoffCode: body.handoffCode } : {}),
+  });
   emitOrderStatus(orderId, { status: result.status, orderId, timestamp: new Date().toISOString() });
   ok(res, result);
 }

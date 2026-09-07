@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Check,
+  KeyRound,
   Loader2,
   LogOut,
   MapPin,
@@ -256,10 +257,10 @@ export function SamouGoCaptain() {
 
   /* ---- Mutations --------------------------------------------------------- */
 
-  interface TransitionInput { orderId: string; status: OrderStatus; deliveryPin?: string }
+  interface TransitionInput { orderId: string; status: OrderStatus; deliveryPin?: string; handoffCode?: string }
 
   const acceptMutation = useMutation<TransitionInput, OrderDetail>(
-    (input, signal) => updateOrderStatus(input.orderId, { status: input.status }, signal)
+    (input, signal) => updateOrderStatus(input.orderId, { status: input.status, ...(input.handoffCode ? { handoffCode: input.handoffCode } : {}) }, signal)
   );
 
   const deliverMutation = useMutation<TransitionInput, OrderDetail>(
@@ -272,6 +273,16 @@ export function SamouGoCaptain() {
 
   const handleAccept = async (orderId: string) => {
     stopAlert();
+    const order = availableItems.find((o) => o.id === orderId);
+    // A coded order requires the pickup handoff code the store employee shares
+    // with the captain at handover. Open the code entry modal before claiming.
+    if (order?.requiresHandoffCode) {
+      setHandoffOrderId(orderId);
+      setHandoffInput('');
+      setHandoffAttemptMessage(null);
+      setHandoffCodeLoading(false);
+      return;
+    }
     const result = await acceptMutation.run({ orderId, status: OrderStatus.ON_THE_WAY });
     if (result) {
       toast.success('تم استلام الطلب للتوصيل', 'Order picked up — heading to the customer');
@@ -287,6 +298,45 @@ export function SamouGoCaptain() {
       // Refresh the pool so the claimed order disappears immediately.
       void availableOrders.reload();
     }
+  };
+
+  const [handoffOrderId, setHandoffOrderId] = useState<string | null>(null);
+  const [handoffInput, setHandoffInput] = useState('');
+  const [handoffAttemptMessage, setHandoffAttemptMessage] = useState<{ ar: string; en: string } | null>(null);
+  const [handoffCodeLoading, setHandoffCodeLoading] = useState(false);
+
+  const handleAcceptWithHandoff = async () => {
+    if (!handoffOrderId || handoffInput.length !== 4 || handoffCodeLoading) return;
+    setHandoffCodeLoading(true);
+    setHandoffAttemptMessage(null);
+    stopAlert();
+    const result = await acceptMutation.run({ orderId: handoffOrderId, status: OrderStatus.ON_THE_WAY, handoffCode: handoffInput });
+    if (result) {
+      toast.success('تم استلام الطلب للتوصيل', 'Order picked up — heading to the customer');
+      setHandoffOrderId(null);
+      setHandoffInput('');
+      void availableOrders.reload();
+      void activeOrders.reload();
+    } else if (acceptMutation.error) {
+      if (acceptMutation.error.status === 409) {
+        toast.error('سبقك كابتن آخر إلى هذا الطلب', 'Another captain just claimed this order');
+        setHandoffOrderId(null);
+        setHandoffInput('');
+      } else if (acceptMutation.error.status === 400) {
+        // INVALID_HANDOFF_CODE: surface the server's remaining-attempts notice.
+        setHandoffAttemptMessage({
+          ar: acceptMutation.error.localizedMessage,
+          en: acceptMutation.error.localizedMessage,
+        });
+        setHandoffInput('');
+      } else {
+        toast.error('تعذّر قبول الطلب', acceptMutation.error.localizedMessage, { duration: 5_000 });
+        setHandoffOrderId(null);
+        setHandoffInput('');
+      }
+      void availableOrders.reload();
+    }
+    setHandoffCodeLoading(false);
   };
 
   const [pinModalOrderId, setPinModalOrderId] = useState<string | null>(null);
@@ -519,6 +569,12 @@ export function SamouGoCaptain() {
                       </Badge>
                       <span>{order.itemCount} items</span>
                     </div>
+                    {order.requiresHandoffCode && (
+                      <p className="mt-2 flex items-center gap-1.5 rounded-lg bg-brand-surface px-2.5 py-1.5 text-[11px] font-bold text-brand-dark">
+                        <KeyRound size={12} className="shrink-0" />
+                        {t('رمز تسليم مطلوب عند الاستلام', 'Pickup code required at handoff')}
+                      </p>
+                    )}
                     {canTransitionOrderStatus(order.status, OrderStatus.ON_THE_WAY) &&
                       canRoleSetOrderStatus(UserRole.CAPTAIN, OrderStatus.ON_THE_WAY) && (
                       <div className="mt-3 flex gap-2">
@@ -984,6 +1040,74 @@ export function SamouGoCaptain() {
           })}
         </div>
       </nav>
+      {/* Captain pickup handoff modal — captain recites the code the store gave
+          them at handover to claim the order. */}
+      {handoffOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-5">
+          <div className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-raised">
+            <h3 className="flex items-center justify-center gap-1.5 text-center text-sm font-extrabold">
+              <KeyRound size={16} className="text-brand" />
+              {t('أدخل رمز الاستلام', 'Enter handoff code')}
+            </h3>
+            <p className="mt-1 text-center text-[11px] text-ink-muted">
+              {t('اطلب رمز الاستلام من كاشير المتجر', 'Ask the store cashier for the handoff code')}
+            </p>
+            <div className="mt-4 flex justify-center gap-2" dir="ltr">
+              {[0, 1, 2, 3].map((i) => (
+                <input
+                  key={i}
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={1}
+                  autoFocus={i === 0}
+                  value={handoffInput[i] ?? ''}
+                  onChange={(e) => {
+                    const digit = e.target.value.replace(/\D/g, '').slice(0, 1);
+                    const next = (handoffInput.slice(0, i) + digit + handoffInput.slice(i + 1)).slice(0, 4);
+                    setHandoffInput(next);
+                    setHandoffAttemptMessage(null);
+                    const nextEmpty = next.length < 4 ? next.length : -1;
+                    if (nextEmpty >= 0) {
+                      document.querySelector<HTMLInputElement>(`[data-handoff-cell="${nextEmpty}"]`)?.focus();
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Backspace' && !handoffInput[i]) {
+                      e.preventDefault();
+                      setHandoffInput(handoffInput.slice(0, i));
+                      document.querySelector<HTMLInputElement>(`[data-handoff-cell="${Math.max(0, i - 1)}"]`)?.focus();
+                    }
+                  }}
+                  data-handoff-cell={i}
+                  className="h-14 w-12 rounded-xl border border-line bg-canvas text-center text-2xl font-black text-ink outline-none focus:border-brand"
+                />
+              ))}
+            </div>
+            {handoffAttemptMessage && (
+              <p className="mt-3 rounded-lg bg-danger-tint px-3 py-2 text-center text-[11px] font-bold text-danger-ink" role="alert">
+                {t(handoffAttemptMessage.ar, handoffAttemptMessage.en)}
+              </p>
+            )}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => { setHandoffOrderId(null); setHandoffInput(''); setHandoffAttemptMessage(null); }}
+                className="rounded-xl border border-line py-2.5 text-xs font-bold text-ink-soft transition hover:bg-canvas"
+              >
+                {t('إلغاء', 'Cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={handoffInput.length !== 4 || handoffCodeLoading}
+                onClick={() => { void handleAcceptWithHandoff(); }}
+                className="rounded-xl bg-brand py-2.5 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
+              >
+                {handoffCodeLoading ? <Loader2 size={14} className="mx-auto animate-spin" /> : t('تأكيد الاستلام', 'Confirm pickup')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Delivery PIN modal */}
       {pinModalOrderId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-5">

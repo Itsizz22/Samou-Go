@@ -385,6 +385,11 @@ function generateDeliveryPin(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
 
+/** Generate a random 4-digit store→captain pickup handoff code. */
+function generateHandoffCode(): string {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
 /** Reduce modifier groups to a short Arabic/English summary string. */
 function modifierSummary(modifiers: readonly { labelAr: string; labelEn: string; options: readonly { key: string; labelAr: string; labelEn: string }[] }[]): string {
   const parts: string[] = [];
@@ -580,7 +585,7 @@ export async function listOrders(
   ]);
 
   return {
-    items: rows.map((r: any) => toOrderSummary(r)),
+    items: rows.map((r: any) => toOrderSummary(r, actor.role)),
     page: query.page,
     pageSize: query.pageSize,
     total,
@@ -804,6 +809,16 @@ export async function updateOrderStatus(
     throw forbidden('طلبات الاستلام لا يحتاجون كابتن / Pickup orders do not need a captain');
   }
 
+  // Captain pickup-handoff code generation: the moment a delivery order becomes
+  // READY_FOR_PICKUP, the store is about to hand a package to a captain — mint
+  // a fresh 4-digit handoff code for that handover and reset the attempt
+  // counter. PICKUP orders (customer walks in) and orders that already carry a
+  // code (a store re-marking ready) keep their generated code stable.
+  const mintsHandoffCode =
+    next === OrderStatus.READY_FOR_PICKUP &&
+    order.fulfillmentType !== 'PICKUP' &&
+    order.captainHandoffCode === null;
+
   // Delivery PIN validation: when a captain transitions to DELIVERED,
   // they must provide the correct 4-digit PIN that the customer shares.
   // Rate-limited to 5 attempts per order to prevent brute-force.
@@ -827,6 +842,39 @@ export async function updateOrderStatus(
         remaining > 0
           ? `رمز التوصيل خاطئ — متبقي ${remaining} محاولات / Incorrect PIN — ${remaining} attempts remaining`
           : 'تم قفل رمز التوصيل due to too many failed attempts / Delivery PIN locked'
+      );
+    }
+  }
+
+  // Captain pickup-handoff code validation: a captain moving a coded delivery
+  // order from READY_FOR_PICKUP to ON_THE_WAY must enter the 4-digit code the
+  // store employee handed them with the package. Rate-limited to 5 attempts to
+  // prevent brute-forcing the handoff secret. Orders without a code (PICKUP,
+  // legacy) skip this gate entirely.
+  if (
+    actor.role === UserRole.CAPTAIN &&
+    next === OrderStatus.ON_THE_WAY &&
+    order.captainHandoffCode !== null
+  ) {
+    const MAX_HANDOFF_ATTEMPTS = 5;
+    if ((order.handoffCodeAttempts ?? 0) >= MAX_HANDOFF_ATTEMPTS) {
+      throw forbidden(
+        'تم استنفاد محاولات إدخال رمز الاستلام، يرجى التواصل مع إدارة المتجر / Handoff code attempts exhausted — contact the store manager'
+      );
+    }
+    if (!body.handoffCode || body.handoffCode !== order.captainHandoffCode) {
+      // Increment attempts atomically so concurrent guesses cannot race past
+      // the lock.
+      await prisma.order.update({
+        where: { id: orderId },
+        data: { handoffCodeAttempts: { increment: 1 } },
+      });
+      const remaining = MAX_HANDOFF_ATTEMPTS - ((order.handoffCodeAttempts ?? 0) + 1);
+      throw badState(
+        'INVALID_HANDOFF_CODE',
+        remaining > 0
+          ? `رمز الاستلام غير صحيح — متبقي ${remaining} محاولات / Invalid handoff code — ${remaining} attempts remaining`
+          : 'تم استنفاد محاولات إدخال رمز الاستلام، يرجى التواصل مع إدارة المتجر / Handoff code attempts exhausted — contact the store manager'
       );
     }
   }
@@ -855,6 +903,9 @@ export async function updateOrderStatus(
           status: next,
           ...(body.estimatedPrepMinutes !== undefined ? { estimatedPrepMinutes: body.estimatedPrepMinutes } : {}),
           ...(assignCaptainOnClaim ? { captainId: actor.sub } : {}),
+          ...(mintsHandoffCode
+            ? { captainHandoffCode: generateHandoffCode(), handoffCodeAttempts: 0 }
+            : {}),
           statusHistory: {
             create: {
               status: next,

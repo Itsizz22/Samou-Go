@@ -22,6 +22,7 @@ import {
   ClipboardList,
   Clock3,
   Home,
+  KeyRound,
   Loader2,
   Menu,
   X,
@@ -1224,10 +1225,35 @@ function OrderRow({ order, customerPhone, customerName, pending, onAccept, onSta
         </p>
       )}
       {order.status === OrderStatus.READY_FOR_PICKUP && order.fulfillmentType !== 'PICKUP' && (
-        <p className="mb-2 flex items-center gap-1.5 rounded-xl bg-info-tint px-3 py-2 text-[11px] font-semibold text-info-ink">
-          <ChevronRight size={14} className="shrink-0 rtl:rotate-180" />
-          <span>{t('جاهز — بانتظار كابتن التوصيل', 'Waiting for a captain')}</span>
-        </p>
+        <div className="mb-2 space-y-2">
+          <p className="flex items-center gap-1.5 rounded-xl bg-info-tint px-3 py-2 text-[11px] font-semibold text-info-ink">
+            <ChevronRight size={14} className="shrink-0 rtl:rotate-180" />
+            <span>{t('جاهز — بانتظار كابتن التوصيل', 'Waiting for a captain')}</span>
+          </p>
+          {order.captainHandoffCode && (
+            <div className="rounded-xl border border-brand/30 bg-brand-surface px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-[11px] font-extrabold text-brand-dark">
+                  <KeyRound size={14} className="shrink-0" />
+                  {t('رمز تسليم الطلب للكابتن', 'Captain handoff code')}
+                </span>
+                <span className="flex gap-1" dir="ltr">
+                  {order.captainHandoffCode.split('').map((digit, i) => (
+                    <span
+                      key={i}
+                      className="flex h-7 w-6 items-center justify-center rounded-md bg-brand text-sm font-black text-white shadow-sm"
+                    >
+                      {digit}
+                    </span>
+                  ))}
+                </span>
+              </div>
+              <p className="mt-1 text-[10px] font-semibold text-ink-soft">
+                {t('أعطِ هذا الرمز للكابتن عند استلام الطلب', 'Give this code to the captain at pickup')}
+              </p>
+            </div>
+          )}
+        </div>
       )}
 
       {(primaryAction || canCancel || customerPhone) && (
