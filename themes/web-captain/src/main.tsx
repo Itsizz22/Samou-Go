@@ -10,15 +10,8 @@ import App from './App.tsx';
 // source of truth in @samou-go/ui.
 bootstrapApp({ allowDarkMode: true });
 
-  // Register service worker for PWA offline capability.
-  // It will serve the app shell assets from cache and fallback to network for API data.
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/service-worker.js').then((reg) => {
-      console.log('SW registered: ', reg);
-    }).catch((err) => {
-      console.error('SW registration failed: ', err);
-    });
-  }
+// Service worker registration removed — no /service-worker.js exists in
+// public/. Background caching is not intended for this origin.
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

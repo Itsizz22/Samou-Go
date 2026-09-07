@@ -48,7 +48,8 @@ export function toCategory(category: PrismaCategory): Category {
   };
 }
 
-export function toProduct(product: PrismaProduct): Product {
+export function toProduct(product: PrismaProduct & { optionGroups?: any[] }): Product {
+  const raw = product as any;
   return {
     id: product.id,
     nameAr: product.nameAr,
@@ -58,6 +59,28 @@ export function toProduct(product: PrismaProduct): Product {
     isAvailable: product.isAvailable,
     categoryId: product.categoryId,
     storeId: product.storeId,
+    // Map option groups from DB shape to shared-types shape.
+    ...(raw.optionGroups
+      ? {
+          optionGroups: raw.optionGroups.map((g: any) => ({
+            id: g.id,
+            productId: g.productId,
+            name: g.name,
+            required: g.required,
+            minSelect: g.minSelect,
+            maxSelect: g.maxSelect,
+            sortOrder: g.sortOrder,
+            items: (g.items ?? []).map((i: any) => ({
+              id: i.id,
+              groupId: g.id,
+              name: i.name,
+              priceDelta: i.price,
+              sortOrder: i.sortOrder,
+              isActive: i.isActive,
+            })),
+          })),
+        }
+      : {}),
   };
 }
 

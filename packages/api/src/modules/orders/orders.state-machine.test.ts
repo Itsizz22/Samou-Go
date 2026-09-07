@@ -87,6 +87,8 @@ vi.mock('../../lib/prisma', () => ({
       }),
     },
     store: { findMany: vi.fn(async () => h.state.storeIds.map(id => ({ id }))) },
+    product: { findMany: vi.fn(async () => h.state.products ?? []) },
+    productOptionGroup: { findMany: vi.fn(async () => []) },
     user: { findUnique: vi.fn(async () => h.state.captainProfile) },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(h.tx),
   },

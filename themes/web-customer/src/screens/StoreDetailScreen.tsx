@@ -5,7 +5,7 @@
  * with their products inlined; the screen renders one sticky category bar and
  * a stepper per product. Basket state lives in the shared CartProvider.
  */
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, ArrowRight, Clock3, FolderOpen, Heart, Loader2, MessageCircle, Minus, Plus, RefreshCw, ShoppingCart, Star, Store } from 'lucide-react';
@@ -18,6 +18,7 @@ import { formatCurrency } from '@/lib/delivery';
 import { StoreStatus, STORE_STATUS_LABELS, formatWhatsAppLink } from '@samou-go/shared-types';
 import { hapticConfirm, hapticTap } from '@/lib/haptics';
 import { PageTransition } from '@/components/PageTransition';
+import { ProductOptionsSheet } from '@/components/ProductOptionsSheet';
 
 export function StoreDetailScreen() {
   const { storeId = '' } = useParams<{ storeId: string }>();
@@ -109,7 +110,15 @@ export function StoreDetailScreen() {
     ? categories.find((category) => category.id === active)?.products ?? []
     : [];
 
-  const handleAdd = (productId: string, product: (typeof products)[number]) => {
+  // Product that is currently showing the options sheet.
+  const [optionsProduct, setOptionsProduct] = useState<(typeof products)[number] | null>(null);
+
+  const handleAdd = useCallback((productId: string, product: (typeof products)[number]) => {
+    // If the product has option groups, open the options sheet instead.
+    if (product.optionGroups && product.optionGroups.length > 0) {
+      setOptionsProduct(product);
+      return;
+    }
     const line = cart.lineFor(productId);
     if (line) {
       cart.setQuantity(productId, line.quantity + 1);
@@ -118,7 +127,25 @@ export function StoreDetailScreen() {
     }
     cart.addItem(product, 1, '', current.nameAr);
     void hapticConfirm();
-  };
+  }, [cart, current.nameAr]);
+
+  const handleOptionsConfirm = useCallback((options: { groupId: string; optionId: string }[], quantity: number) => {
+    if (!optionsProduct) return;
+    // Map option IDs to SelectedOption objects.
+    const selectedOptions = options.map(o => {
+      const group = optionsProduct.optionGroups!.find(g => g.id === o.groupId);
+      const item = group?.items.find(i => i.id === o.optionId);
+      return {
+        id: o.optionId,
+        groupId: o.groupId,
+        name: item?.name ?? '',
+        priceDelta: item?.priceDelta ?? 0,
+      };
+    });
+    cart.addItem(optionsProduct, quantity, '', current.nameAr, selectedOptions);
+    setOptionsProduct(null);
+    void hapticConfirm();
+  }, [optionsProduct, cart, current.nameAr]);
 
   return (
     <PageTransition>
@@ -428,6 +455,16 @@ export function StoreDetailScreen() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Product options sheet */}
+        {optionsProduct && (
+          <ProductOptionsSheet
+            product={optionsProduct}
+            storeNameAr={current.nameAr}
+            onClose={() => setOptionsProduct(null)}
+            onConfirm={handleOptionsConfirm}
+          />
+        )}
       </main>
     </PageTransition>
   );

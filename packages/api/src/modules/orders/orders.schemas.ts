@@ -29,6 +29,11 @@ export const modifierGroupSchema = z.object({
   options: z.array(modifierOptionSchema).min(1, 'يجب توفر خيار على الأقل / At least one option required'),
 });
 
+export const selectedOptionSchema = z.object({
+  groupId: z.string().min(1, 'معرّف مجموعة الخيارات مطلوب / groupId is required'),
+  optionId: z.string().min(1, 'معرّف الخيار مطلوب / optionId is required'),
+});
+
 export const orderItemInputSchema = z.object({
   productId: z.string().min(1, 'معرّف المنتج مطلوب / productId is required'),
   quantity: z
@@ -38,6 +43,8 @@ export const orderItemInputSchema = z.object({
     .max(99, 'الحد الأقصى 99 لكل منتج / Maximum 99 per product'),
   note: z.string().trim().max(500).optional(),
   modifiers: z.array(modifierGroupSchema).optional(),
+  /** DB-backed selected options: array of { groupId, optionId }. Server validates against ProductOptionItem rows. */
+  selectedOptions: z.array(selectedOptionSchema).optional(),
   /** Standalone promotional offer fields. */
   isOfferItem: z.boolean().optional().default(false),
   offerId: z.string().optional(),

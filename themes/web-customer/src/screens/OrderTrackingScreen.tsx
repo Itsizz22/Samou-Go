@@ -251,6 +251,14 @@ export function OrderTrackingScreen() {
                       )}
                       <div className="min-w-0 flex-1 text-end">
                         <p className="truncate text-[11px] font-bold leading-relaxed">{item.product.nameAr}</p>
+                        {item.selectedOptions && item.selectedOptions.length > 0 && (
+                          <p className="text-[10px] text-ink-muted">
+                            {item.selectedOptions.map(o => o.name).join(' + ')}
+                            {item.selectedOptions.some(o => o.priceDelta > 0) && (
+                              <span className="text-brand-dark"> (+{formatCurrency(item.selectedOptions.reduce((s, o) => s + o.priceDelta, 0))})</span>
+                            )}
+                          </p>
+                        )}
                         <p className="text-micro text-ink-muted" dir="ltr">
                           {item.quantity} × {formatCurrency(item.unitPrice)}
                         </p>

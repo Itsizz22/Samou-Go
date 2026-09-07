@@ -324,6 +324,8 @@ export function SamouGoCaptain() {
   const [handoffInput, setHandoffInput] = useState('');
   const [handoffAttemptMessage, setHandoffAttemptMessage] = useState<{ ar: string; en: string } | null>(null);
   const [handoffCodeLoading, setHandoffCodeLoading] = useState(false);
+  // Pending delivery fee to apply after a coded order is claimed via handoff.
+  const [pendingDeliveryFee, setPendingDeliveryFee] = useState<{ orderId: string; fee: number } | null>(null);
 
   const handleAcceptWithHandoff = async () => {
     if (!handoffOrderId || handoffInput.length !== 4 || handoffCodeLoading) return;
@@ -331,6 +333,16 @@ export function SamouGoCaptain() {
     setHandoffAttemptMessage(null);
     const result = await acceptMutation.run({ orderId: handoffOrderId, status: OrderStatus.ON_THE_WAY, handoffCode: handoffInput });
     if (result) {
+      // Apply any pending delivery fee that was set before the handoff modal.
+      if (pendingDeliveryFee && pendingDeliveryFee.orderId === handoffOrderId) {
+        try {
+          await setOrderDeliveryFee(handoffOrderId, pendingDeliveryFee.fee);
+        } catch {
+          // Fee set is best-effort; the order is already claimed.
+          toast.error('تم قبول الطلب لكن تعذّر تحديد رسوم التوصيل', 'Order claimed but fee could not be set');
+        }
+        setPendingDeliveryFee(null);
+      }
       toast.success('تم استلام الطلب للتوصيل', 'Order picked up — heading to the customer');
       setHandoffOrderId(null);
       setHandoffInput('');
@@ -341,6 +353,7 @@ export function SamouGoCaptain() {
         toast.error('سبقك كابتن آخر إلى هذا الطلب', 'Another captain just claimed this order');
         setHandoffOrderId(null);
         setHandoffInput('');
+        setPendingDeliveryFee(null);
       } else if (acceptMutation.error.status === 400) {
         // INVALID_HANDOFF_CODE: surface the server's remaining-attempts notice.
         setHandoffAttemptMessage({
@@ -352,6 +365,7 @@ export function SamouGoCaptain() {
         toast.error('تعذّر قبول الطلب', acceptMutation.error.localizedMessage, { duration: 5_000 });
         setHandoffOrderId(null);
         setHandoffInput('');
+        setPendingDeliveryFee(null);
       }
       void availableOrders.reload();
     }
@@ -367,11 +381,12 @@ export function SamouGoCaptain() {
     }
     setDynamicFeeLoading(true);
     try {
-      // First set the delivery fee
-      await setOrderDeliveryFee(dynamicFeeOrderId, fee);
-      // Then accept the order — routing through the handoff modal if coded.
+      // Coded orders must go through the handoff-code modal first — the
+      // fee will be set after the captain successfully claims the order.
       const order = availableItems.find((o) => o.id === dynamicFeeOrderId);
       if (order?.requiresHandoffCode) {
+        // Store the pending fee so it can be applied after the handoff claim.
+        setPendingDeliveryFee({ orderId: dynamicFeeOrderId, fee });
         setDynamicFeeLoading(false);
         setHandoffOrderId(dynamicFeeOrderId);
         setHandoffInput('');
@@ -379,8 +394,12 @@ export function SamouGoCaptain() {
         setHandoffCodeLoading(false);
         return;
       }
+      // Non-coded: claim the order FIRST (assigns captainId), THEN set the
+      // delivery fee. Calling /set-delivery-fee before claiming triggers 403
+      // because the server requires order.captainId === actor.sub.
       const result = await acceptMutation.run({ orderId: dynamicFeeOrderId, status: OrderStatus.ON_THE_WAY });
       if (result) {
+        await setOrderDeliveryFee(dynamicFeeOrderId, fee);
         toast.success('تم استلام الطلب للتوصيل', 'Order picked up — heading to the customer');
         void availableOrders.reload();
         void activeOrders.reload();
@@ -1184,7 +1203,7 @@ export function SamouGoCaptain() {
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => { setHandoffOrderId(null); setHandoffInput(''); setHandoffAttemptMessage(null); }}
+                onClick={() => { setHandoffOrderId(null); setHandoffInput(''); setHandoffAttemptMessage(null); setPendingDeliveryFee(null); }}
                 className="rounded-xl border border-line py-2.5 text-xs font-bold text-ink-soft transition hover:bg-canvas"
               >
                 {t('إلغاء', 'Cancel')}

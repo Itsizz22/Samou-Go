@@ -109,6 +109,9 @@ function App() {
   const auth = useAuth();
   const [splashElapsed, setSplashElapsed] = useState(false);
   const platformSettings = usePlatformSettings();
+
+  // Session expiry is handled by SignInGate: when the token is cleared on 401,
+  // auth.user becomes null and the login form renders automatically.
   const gpsCaptureEnabled = platformSettings.data?.gpsCaptureEnabled ?? false;
 
   // Expose navigate globally so Capacitor push-notification listeners can

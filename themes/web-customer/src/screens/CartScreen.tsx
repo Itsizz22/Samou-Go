@@ -104,6 +104,14 @@ export function CartScreen() {
                             )}
                             <div className="min-w-0 flex-1 text-end">
                               <h3 className="truncate text-sm font-extrabold">{line.product.nameAr}</h3>
+                              {line.selectedOptions && line.selectedOptions.length > 0 && (
+                                <p className="mt-0.5 text-[11px] text-ink-muted">
+                                  {line.selectedOptions.map(o => o.name).join(' + ')}
+                                  {line.selectedOptions.some(o => o.priceDelta > 0) && (
+                                    <span className="text-brand-dark"> (+{formatCurrency(line.selectedOptions.reduce((s, o) => s + o.priceDelta, 0))})</span>
+                                  )}
+                                </p>
+                              )}
                               <p className="mt-0.5 text-xs font-bold text-brand-dark" dir="ltr">{formatCurrency(line.product.price)}</p>
                             </div>
                             <div className="flex shrink-0 items-center gap-2 rounded-full bg-brand px-1.5 py-1 text-white">
@@ -131,6 +139,14 @@ export function CartScreen() {
                         )}
                         <div className="min-w-0 flex-1 text-end">
                           <h3 className="truncate text-sm font-extrabold">{line.product.nameAr}</h3>
+                          {line.selectedOptions && line.selectedOptions.length > 0 && (
+                            <p className="mt-0.5 text-[11px] text-ink-muted">
+                              {line.selectedOptions.map(o => o.name).join(' + ')}
+                              {line.selectedOptions.some(o => o.priceDelta > 0) && (
+                                <span className="text-brand-dark"> (+{formatCurrency(line.selectedOptions.reduce((s, o) => s + o.priceDelta, 0))})</span>
+                              )}
+                            </p>
+                          )}
                           <p className="mt-0.5 text-xs font-bold text-brand-dark" dir="ltr">{formatCurrency(line.product.price)}</p>
                           <input value={line.note} onChange={(event) => cart.setNote(line.productId, event.target.value.slice(0, 500))} placeholder={t('ملاحظة للصنف', 'Item note')} aria-label={`ملاحظة للصنف ${line.product.nameAr}`} className="mt-2 w-full rounded-lg border border-line bg-canvas px-2 py-1.5 text-micro text-ink outline-none focus:border-brand" />
                         </div>

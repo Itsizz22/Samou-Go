@@ -181,7 +181,7 @@ export async function listManagedStores(managerId: string): Promise<Store[]> {
 
 /** One store with its whole menu — what the Store Details screen loads. */
 export async function getStoreWithCatalogue(storeId: string): Promise<StoreWithCatalogue> {
-  const store = await prisma.store.findUnique({
+  const store = await (prisma.store.findUnique as any)({
     where: { id: storeId },
     include: {
       categories: {
@@ -190,6 +190,14 @@ export async function getStoreWithCatalogue(storeId: string): Promise<StoreWithC
           products: {
             where: { isAvailable: true },
             orderBy: { nameAr: 'asc' },
+            include: {
+              optionGroups: {
+                orderBy: { sortOrder: 'asc' },
+                include: {
+                  items: { orderBy: { sortOrder: 'asc' } },
+                },
+              },
+            },
           },
         },
       },
@@ -197,13 +205,11 @@ export async function getStoreWithCatalogue(storeId: string): Promise<StoreWithC
   });
 
   if (!store) throw notFound('المتجر غير موجود / Store not found');
-  // A shop that is closed or not yet approved has no public page. Managers
-  // preview their own shop through the authenticated `/full` route instead.
   if (!store.isActive || !store.isApproved) {
     throw notFound('المتجر غير موجود / Store not found');
   }
 
-  return toStoreWithCatalogue(store);
+  return toStoreWithCatalogue(store as any);
 }
 
 /**
@@ -213,7 +219,7 @@ export async function getStoreWithCatalogue(storeId: string): Promise<StoreWithC
  * Never called from public-facing routes.
  */
 export async function getStoreWithFullCatalogue(storeId: string): Promise<StoreWithCatalogue> {
-  const store = await prisma.store.findUnique({
+  const store = await (prisma.store.findUnique as any)({
     where: { id: storeId },
     include: {
       dedicatedCaptains: {
@@ -224,8 +230,15 @@ export async function getStoreWithFullCatalogue(storeId: string): Promise<StoreW
         orderBy: [{ sortOrder: 'asc' }, { nameAr: 'asc' }],
         include: {
           products: {
-            // No isAvailable filter — the manager needs to see everything.
             orderBy: { nameAr: 'asc' },
+            include: {
+              optionGroups: {
+                orderBy: { sortOrder: 'asc' },
+                include: {
+                  items: { orderBy: { sortOrder: 'asc' } },
+                },
+              },
+            },
           },
         },
       },
@@ -234,7 +247,7 @@ export async function getStoreWithFullCatalogue(storeId: string): Promise<StoreW
 
   if (!store) throw notFound('المتجر غير موجود / Store not found');
 
-  return toStoreWithCatalogue(store);
+  return toStoreWithCatalogue(store as any);
 }
 
 export async function listStoreProducts(

@@ -144,3 +144,34 @@ storesRouter.delete(
   authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
   asyncHandler(offersController.deleteOfferHandler)
 );
+
+/* ---- Product option groups & items --------------------------------------- */
+import * as optionsController from './options.controller';
+
+storesRouter.get(
+  '/:storeId/products/:productId/options',
+  authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
+  asyncHandler(optionsController.listOptionGroupsHandler)
+);
+
+storesRouter.post(
+  '/:storeId/products/:productId/options',
+  authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
+  asyncHandler(optionsController.createOptionGroupHandler)
+);
+
+storesRouter.put(
+  '/:storeId/products/:productId/options/:groupId',
+  authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
+  asyncHandler(optionsController.updateOptionGroupHandler)
+);
+
+storesRouter.delete(
+  '/:storeId/products/:productId/options/:groupId',
+  authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
+  asyncHandler(optionsController.deleteOptionGroupHandler)
+);

@@ -295,6 +295,7 @@ model Product {
   store      Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
   offerProducts OfferProduct[]
+  optionGroups ProductOptionGroup[]
 
   @@index([storeId, isAvailable])
   @@index([categoryId])
@@ -381,9 +382,7 @@ model Order {
   @@index([deliveryZoneId])
   @@index([cartCheckoutId])
   @@map("orders")
-}
-
-/// One basket line. `unitPrice` and `totalPrice` are frozen at order time.
+}  /// One basket line. `unitPrice` and `totalPrice` are frozen at order time.
 model OrderItem {
   id         String  @id @default(cuid())
   orderId    String
@@ -398,6 +397,9 @@ model OrderItem {
   offerTitle  String? @db.VarChar(200)
   /// Reference to the standalone offer, if applicable.
   offerId     String?
+  /// Selected product options/addons as a JSON array of { id, groupId, name, priceDelta }.
+  /// Captured at order time so the option catalogue can change without rewriting history.
+  selectedOptions Json?
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -703,6 +705,47 @@ model PlatformSettings {
 /// FCM / APNs device token registered by a mobile client. One user may own
 /// many tokens (multiple devices). Stale tokens are cleaned up when sending
 /// fails with a `messaging/registration-token-not-registered` error.
+/// A product option group (e.g. "الإضافات", "الحجم", "الصلصات").
+/// Each group contains selectable items with optional extra price.
+model ProductOptionGroup {
+  id        String  @id @default(cuid())
+  productId String
+  name      String  @db.VarChar(120)
+  /// Whether the customer must select at least one option from this group.
+  required  Boolean @default(false)
+  /// Minimum number of options the customer must select (0 = optional).
+  minSelect Int     @default(0)
+  /// Maximum number of options the customer may select (1 = radio, >1 = checkboxes).
+  maxSelect Int     @default(1)
+  sortOrder Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  items   ProductOptionItem[]
+
+  @@index([productId, sortOrder])
+  @@map("product_option_groups")
+}
+
+/// An individual option within a group (e.g. "جبنة مضاعفة +5 ₪").
+model ProductOptionItem {
+  id      String  @id @default(cuid())
+  groupId String
+  name    String  @db.VarChar(120)
+  /// Extra cost in ILS added to the base price when selected.
+  price   Float   @default(0)
+  sortOrder Int   @default(0)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group ProductOptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, sortOrder])
+  @@map("product_option_items")
+}
+
 model DeviceToken {
   id        String   @id @default(cuid())
   userId    String

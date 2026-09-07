@@ -102,7 +102,7 @@ export function BottomNav() {
       className="fixed bottom-0 inset-x-0 z-20 border-t border-line/80 bg-surface/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 shadow-nav backdrop-blur-md"
       aria-label={t('التنقل السفلي', 'Bottom navigation')}
     >
-      <div className="mx-auto grid max-w-md grid-cols-5 items-stretch gap-0.5">
+      <div className="mx-auto grid max-w-md grid-cols-5 items-stretch gap-0.5 sm:grid-cols-5">
         {TABS.map(({ to, labelAr, labelEn, icon: Icon }) => (
           <NavLink
             key={to}
@@ -142,7 +142,7 @@ export function BottomNav() {
                 {isActive && (
                   <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-brand animate-[pillSlide_0.25s_var(--ease-spring)_both]" />
                 )}
-                <span className="leading-none">{t(labelAr, labelEn)}</span>
+                <span className="text-[10px] leading-tight font-bold truncate w-full text-center">{t(labelAr, labelEn)}</span>
               </>
             )}
           </NavLink>

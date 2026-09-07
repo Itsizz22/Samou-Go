@@ -11,7 +11,9 @@ import {
   AlertTriangle,
   Check,
   ChevronDown,
+  GripVertical,
   ImagePlus,
+  ListPlus,
   Loader2,
   Package,
   Pencil,
@@ -23,15 +25,18 @@ import {
 import {
   ApiError,
   createCategory,
+  createOptionGroup,
   createProduct,
-  deleteProduct,
+  deleteOptionGroup,
+  listOptionGroups,
   removeCurrentImage,
+  updateOptionGroup,
   updateProduct,
   useStoreManager,
   useToast,
   useUploadImage,
 } from '@samou-go/api-client';
-import type { Product } from '@samou-go/shared-types';
+import type { Product, ProductOptionGroup } from '@samou-go/shared-types';
 import { formatCurrency } from '@/lib/delivery';
 import { useLanguage } from '@samou-go/ui';
 
@@ -127,6 +132,98 @@ export function ProductCataloguePanel({ storeId }: Props) {
   const [categoryBusy, setCategoryBusy] = useState(false);
   const categoryInputRef = useRef<HTMLInputElement>(null);
 
+  /* ---- Option groups (edit mode) --------------------------------------- */
+  const [optionGroups, setOptionGroups] = useState<ProductOptionGroup[]>([]);
+  const [optionLoading, setOptionLoading] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupNameEn, setNewGroupNameEn] = useState('');
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemPrice, setNewItemPrice] = useState('');
+  const [addingToGroup, setAddingToGroup] = useState<string | null>(null);
+
+  const loadOptionGroups = async (productId: string) => {
+    setOptionLoading(true);
+    try {
+      const result = await listOptionGroups(storeId, productId);
+      setOptionGroups(result.items);
+    } catch {
+      setOptionGroups([]);
+    } finally {
+      setOptionLoading(false);
+    }
+  };
+
+  const handleCreateOptionGroup = async () => {
+    if (!newGroupName.trim() || !editTarget) return;
+    try {
+      const g = await createOptionGroup(storeId, editTarget.id, {
+        name: newGroupName.trim(),
+        required: false,
+        minSelect: 0,
+        maxSelect: 10,
+      });
+      setOptionGroups(prev => [...prev, g]);
+      setNewGroupName('');
+      toast.success('تم إنشاء المجموعة', 'Option group created');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error('تعذّر إنشاء المجموعة', msg);
+    }
+  };
+
+  const handleAddOptionItem = async (groupId: string) => {
+    if (!newItemName.trim() || !editTarget) return;
+    const price = parseFloat(newItemPrice) || 0;
+    const group = optionGroups.find(g => g.id === groupId);
+    if (!group) return;
+    try {
+      const updated = await updateOptionGroup(storeId, editTarget.id, groupId, {
+        name: group.name,
+        items: [
+          ...group.items.map(i => ({ name: i.name, price: i.priceDelta, sortOrder: i.sortOrder })),
+          { name: newItemName.trim(), price, sortOrder: group.items.length },
+        ],
+      });
+      setOptionGroups(prev => prev.map(g => g.id === groupId ? updated : g));
+      setNewItemName('');
+      setNewItemPrice('');
+      setAddingToGroup(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error('تعذّر إضافة الخيار', msg);
+    }
+  };
+
+  const handleRemoveOptionItem = async (groupId: string, itemIndex: number) => {
+    if (!editTarget) return;
+    const group = optionGroups.find(g => g.id === groupId);
+    if (!group) return;
+    try {
+      const updated = await updateOptionGroup(storeId, editTarget.id, groupId, {
+        name: group.name,
+        items: group.items
+          .filter((_, i) => i !== itemIndex)
+          .map(i => ({ name: i.name, price: i.priceDelta, sortOrder: i.sortOrder })),
+      });
+      setOptionGroups(prev => prev.map(g => g.id === groupId ? updated : g));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error('تعذّر حذف الخيار', msg);
+    }
+  };
+
+  const handleDeleteOptionGroup = async (groupId: string) => {
+    if (!editTarget) return;
+    try {
+      await deleteOptionGroup(storeId, editTarget.id, groupId);
+      setOptionGroups(prev => prev.filter(g => g.id !== groupId));
+      toast.success('تم حذف المجموعة', 'Option group deleted');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error('تعذّر حذف المجموعة', msg);
+    }
+  };
+
   useEffect(() => {
     if (categoryOpen) setTimeout(() => categoryInputRef.current?.focus(), 60);
   }, [categoryOpen]);
@@ -168,6 +265,8 @@ export function ProductCataloguePanel({ storeId }: Props) {
     setForm(formFromProduct(p));
     setFormError(null);
     setModal('edit');
+    // Load existing option groups for this product.
+    void loadOptionGroups(p.id);
   };
 
   const closeModal = () => {
@@ -404,6 +503,11 @@ export function ProductCataloguePanel({ storeId }: Props) {
                     <span className="block font-bold text-ink">{p.nameAr}</span>
                     {p.description && (
                       <span className="block max-w-[220px] truncate text-[11px] text-ink-muted">{p.description}</span>
+                    )}
+                    {((p as any).optionGroups ?? []).length > 0 && (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-brand-tint px-2 py-0.5 text-[10px] font-bold text-brand-deep">
+                        <ListPlus size={9} /> {((p as any).optionGroups ?? []).length} {t('خيارات', 'options')}
+                      </span>
                     )}
                   </td>
                   <td className="px-3 py-3 text-center text-[11px] text-ink-muted">{p.categoryName}</td>
@@ -665,6 +769,57 @@ export function ProductCataloguePanel({ storeId }: Props) {
                   <span className="h-5 w-5 rounded-full bg-surface shadow-card" />
                 </button>
               </label>
+
+              {/* Option Groups — edit mode only */}
+              {modal === 'edit' && editTarget && (
+                <div className="rounded-xl border border-line bg-canvas p-3">
+                  <div className="mb-2 flex items-center gap-2">
+                    <ListPlus size={14} className="text-brand" />
+                    <span className="text-xs font-bold text-ink">{t('إضافات وخيارات المنتج', 'Product Options & Addons')}</span>
+                  </div>
+                  {optionLoading && <p className="text-[11px] text-ink-muted">Loading...</p>}
+                  {!optionLoading && optionGroups.length === 0 && (
+                    <p className="text-[11px] text-ink-muted">{t('لا توجد مجموعات خيارات بعد', 'No option groups yet')}</p>
+                  )}
+                  {optionGroups.map(g => (
+                    <div key={g.id} className="mb-3 rounded-lg border border-line bg-surface p-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-ink">{g.name} <span className="text-ink-muted">({g.items.length})</span></span>
+                        <button type="button" onClick={() => void handleDeleteOptionGroup(g.id)} className="text-danger transition hover:text-danger-ink"><Trash2 size={12} /></button>
+                      </div>
+                      <div className="mt-1.5 space-y-1">
+                        {g.items.map((item, idx) => (
+                          <div key={item.id} className="flex items-center justify-between rounded bg-canvas px-2 py-1 text-[11px]">
+                            <span className="text-ink">{item.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-brand-dark" dir="ltr">{item.priceDelta > 0 ? `+${item.priceDelta} ₪` : 'مجاني'}</span>
+                              <button type="button" onClick={() => void handleRemoveOptionItem(g.id, idx)} className="text-ink-muted transition hover:text-danger"><X size={10} /></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {addingToGroup === g.id ? (
+                        <div className="mt-2 flex items-center gap-1">
+                          <input type="text" value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder={t('اسم الخيار', 'Option name')} className="min-w-0 flex-1 rounded border border-line bg-canvas px-2 py-1 text-[11px] outline-none focus:border-brand" />
+                          <input type="number" min="0" step="0.5" value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)} placeholder="₪" dir="ltr" className="w-14 rounded border border-line bg-canvas px-1 py-1 text-[11px] outline-none focus:border-brand" />
+                          <button type="button" onClick={() => void handleAddOptionItem(g.id)} className="rounded bg-brand px-2 py-1 text-[10px] font-bold text-white"><Check size={10} /></button>
+                          <button type="button" onClick={() => { setAddingToGroup(null); setNewItemName(''); setNewItemPrice(''); }} className="rounded px-1.5 py-1 text-[10px] text-ink-muted"><X size={10} /></button>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => setAddingToGroup(g.id)} className="mt-2 flex items-center gap-1 text-[11px] font-bold text-brand transition hover:text-brand-dark">
+                          <Plus size={10} /> {t('إضافة خيار', 'Add option')}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-2 mt-2">
+                    <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder={t('اسم المجموعة — مثال: الإضافات', 'Group name — e.g. Addons')} className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-1.5 text-[11px] outline-none focus:border-brand" />
+                    <button type="button" onClick={() => void handleCreateOptionGroup()} disabled={!newGroupName.trim()} className="flex h-7 items-center gap-1 rounded-lg bg-brand px-2.5 text-[10px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-50">
+                      <Plus size={10} /> {t('إضافة', 'Add')}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Error */}
               {formError && (

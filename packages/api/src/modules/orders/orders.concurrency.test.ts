@@ -116,6 +116,7 @@ const h = vi.hoisted(() => {
 const tx = {
     store: { findUnique: vi.fn(async () => state.store) },
     product: { findMany: vi.fn(async () => state.products) },
+    productOptionGroup: { findMany: vi.fn(async () => []) },
     dailyOrderSequence: {
       upsert: vi.fn(async () => {
         state.sequence += 1;
@@ -191,6 +192,7 @@ vi.mock('../../lib/prisma', () => ({
       findMany: vi.fn(async () => [{ id: 'store-1' }]),
     },
     product: { findMany: h.tx.product.findMany },
+    productOptionGroup: { findMany: vi.fn(async () => []) },
     user: { findUnique: vi.fn(async () => h.state.captainProfile) },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(h.tx),
   },

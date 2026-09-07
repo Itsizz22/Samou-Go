@@ -11,7 +11,7 @@
  * groups them by store and creates independent sub-orders per store.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { Product } from '@samou-go/shared-types';
+import type { Product, SelectedOption } from '@samou-go/shared-types';
 
 export interface CartLine {
   productId: string;
@@ -25,6 +25,8 @@ export interface CartLine {
   isOfferItem?: boolean;
   offerId?: string;
   offerTitle?: string;
+  /** Selected product options/addons captured at add-time. */
+  selectedOptions?: SelectedOption[];
 }
 
 /** Groups of lines by store, for the checkout screen to render per-store. */
@@ -55,7 +57,7 @@ export interface CartState {
   storeNameAr: string;
   /** Set a single-store context (used by reorder to pre-set the store). */
   setStore: (storeId: string, storeNameAr: string) => void;
-  addItem: (product: Product, quantity?: number, note?: string, storeNameAr?: string) => void;
+  addItem: (product: Product, quantity?: number, note?: string, storeNameAr?: string, selectedOptions?: SelectedOption[]) => void;
   /** Add a standalone promotional offer to the cart. Uses the offer's price as the unit price. */
   addOfferItem: (offer: { id: string; storeId: string; titleAr: string; price: number; imageUrl: string | null }, quantity?: number, storeNameAr?: string) => void;
   setNote: (productId: string, note: string) => void;
@@ -153,12 +155,35 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     // (OrdersScreen, OrderTrackingScreen call setStore before addItem).
   }, []);
 
-  const addItem = useCallback((product: Product, quantity = 1, note = '', storeNameAr?: string): void => {
+  const addItem = useCallback((product: Product, quantity = 1, note = '', storeNameAr?: string, selectedOptions?: SelectedOption[]): void => {
     setLines(current => {
-      const existing = current.find(line => line.productId === product.id);
+      // When options are present, always create a new line (different option combo = different line).
+      if (selectedOptions && selectedOptions.length > 0) {
+        const optKey = JSON.stringify(selectedOptions);
+        const existing = current.find(
+          line => line.productId === product.id && JSON.stringify(line.selectedOptions ?? []) === optKey,
+        );
+        if (existing) {
+          return current.map(line =>
+            line === existing
+              ? { ...line, quantity: Math.min(99, line.quantity + quantity), note: note || line.note }
+              : line,
+          );
+        }
+        return [...current, {
+          productId: product.id,
+          quantity,
+          product,
+          note,
+          storeId: product.storeId,
+          storeNameAr: storeNameAr ?? '',
+          selectedOptions,
+        }];
+      }
+      const existing = current.find(line => line.productId === product.id && !line.selectedOptions?.length);
       if (existing) {
         return current.map(line =>
-          line.productId === product.id
+          line === existing
             ? { ...line, quantity: Math.min(99, line.quantity + quantity), note: note || line.note }
             : line,
         );
@@ -252,7 +277,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [lines],
   );    const value = useMemo<CartState>(() => {
     const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0);
-    const subtotal = lines.reduce((sum, line) => sum + line.quantity * line.product.price, 0);
+    const subtotal = lines.reduce((sum, line) => {
+      const optionsExtra = (line.selectedOptions ?? []).reduce((s, o) => s + o.priceDelta, 0);
+      return sum + line.quantity * (line.product.price + optionsExtra);
+    }, 0);
 
     // Group lines by storeId for multi-store checkout display.
     const groupMap = new Map<string, CartStoreGroup>();

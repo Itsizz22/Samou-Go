@@ -34,14 +34,14 @@ export function OrderStatusTimeline({ status, className, compact = false }: Orde
   const reached = (index: number) => index <= currentIndex;
 
   return (
-<ol className={cn('flex items-start', className)} aria-label={isArabic ? 'حالة الطلب' : 'Order progress'}>
+<ol className={cn('flex items-start justify-between w-full px-1 py-2', className)} aria-label={isArabic ? 'حالة الطلب' : 'Order progress'}>
       {ORDER_STATUS_SEQUENCE.map((step, index) => {
         const done = reached(index);
         const isCurrent = index === currentIndex;
         const isLast = index === ORDER_STATUS_SEQUENCE.length - 1;
         const label = ORDER_STATUS_LABELS[step];
         return (
-          <li key={step} className="flex flex-1 flex-col items-center text-center">
+          <li key={step} className="flex flex-1 flex-col items-center text-center min-w-0">
             <div className="flex w-full items-center">
               {index > 0 && (
                 <span className={cn('h-0.5 flex-1', reached(index) ? 'bg-brand' : 'bg-line-soft')} />
@@ -52,15 +52,15 @@ export function OrderStatusTimeline({ status, className, compact = false }: Orde
                 animate={isCurrent ? { scale: 1 } : undefined}
                 transition={{ type: 'spring', stiffness: 260, damping: 14 }}
                 className={cn(
-                  'flex items-center justify-center rounded-full border-2 transition-colors',
-                  compact ? 'h-6 w-6' : 'h-8 w-8',
+                  'shrink-0 flex items-center justify-center rounded-full border-2 transition-colors',
+                  compact ? 'h-5 w-5 sm:h-6 sm:w-6' : 'h-6 w-6 sm:h-7 sm:w-7',
                   done
                     ? 'border-brand bg-brand text-white'
                     : 'border-line-soft bg-surface text-ink-muted'
                 )}
               >
                 {done ? (
-                  <Check size={compact ? 12 : 15} strokeWidth={3} />
+                  <Check size={compact ? 10 : 13} strokeWidth={3} />
                 ) : (
                   <span className="text-micro font-bold">{index + 1}</span>
                 )}
@@ -70,8 +70,8 @@ export function OrderStatusTimeline({ status, className, compact = false }: Orde
               )}
             </div>
             {!compact && (
-              <div className="mt-1.5">
-                <span className={cn('block text-micro font-bold', done ? 'text-brand-dark' : 'text-ink-muted')}>
+              <div className="mt-1 w-full px-0.5">
+                <span className={cn('block text-[9px] sm:text-[10px] leading-tight font-bold max-w-[48px] sm:max-w-[60px] mx-auto break-words', done ? 'text-brand-dark' : 'text-ink-muted')}>
                   {isArabic ? label.ar : label.en}
                 </span>
               </div>

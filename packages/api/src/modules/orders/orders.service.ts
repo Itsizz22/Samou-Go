@@ -73,6 +73,8 @@ interface PricedLine {
   productId: string;
   quantity: number;
   unitPrice: number;
+  /** Resolved selected options with server-verified prices. */
+  selectedOptions?: { id: string; groupId: string; name: string; priceDelta: number }[];
 }
 
 /** A voucher validated for use on a specific basket, with its discount computed. */
@@ -148,7 +150,7 @@ async function resolveVoucher(db: OrderDb, code: string, subtotal: number): Prom
 async function priceBasket(
   db: OrderDb,
   storeId: string,
-  items: readonly { productId: string; quantity: number; isOfferItem?: boolean; offerId?: string; offerTitle?: string }[]
+  items: readonly { productId: string; quantity: number; isOfferItem?: boolean; offerId?: string; offerTitle?: string; selectedOptions?: { groupId: string; optionId: string }[] }[]
 ): Promise<PricedLine[]> {
   const store = await db.store.findUnique({
     where: { id: storeId },
@@ -190,6 +192,24 @@ async function priceBasket(
 
   const byId = new Map(products.map(product => [product.id, product]));
 
+  // Fetch all option groups and items for the products in this basket,
+  // so we can validate selected options and price them server-side.
+  const productIds = [...merged.keys()];
+  const optionGroups = await (db as any).productOptionGroup.findMany({
+    where: { productId: { in: productIds } },
+    include: { items: { where: { isActive: true } } },
+  });
+  const optionGroupByProduct = new Map<string, typeof optionGroups>();
+  const optionItemById = new Map<string, { id: string; groupId: string; name: string; price: number }>();
+  for (const group of optionGroups) {
+    const existing = optionGroupByProduct.get(group.productId) ?? [];
+    existing.push(group);
+    optionGroupByProduct.set(group.productId, existing);
+    for (const item of group.items) {
+      optionItemById.set(item.id, { id: item.id, groupId: group.id, name: item.name, price: item.price });
+    }
+  }
+
   const lines: PricedLine[] = [];
   for (const [productId, { quantity, offerItem }] of merged) {
     // For standalone offer items, use the offer's DB price.
@@ -217,7 +237,60 @@ async function priceBasket(
         `المنتج غير متاح حالياً / Currently unavailable: ${product.nameAr}`
       );
     }
-    lines.push({ productId, quantity, unitPrice: Number(product.price) });
+
+    let basePrice = Number(product.price);
+    let resolvedOptions: PricedLine['selectedOptions'] = undefined;
+
+    // Validate and price selected options from the DB.
+    if (offerItem?.selectedOptions && offerItem.selectedOptions.length > 0) {
+      const groups: any[] = optionGroupByProduct.get(productId) ?? [];
+      const groupIds = new Set(groups.map(g => g.id));
+
+      resolvedOptions = [];
+      let optionsTotal = 0;
+
+      for (const sel of offerItem.selectedOptions) {
+        // Validate the group belongs to this product.
+        if (!groupIds.has(sel.groupId)) {
+          throw unprocessable(
+            'INVALID_OPTION_GROUP',
+            `مجموعة الخيارات غير صالحة لهذا المنتج / Invalid option group for this product: ${sel.groupId}`
+          );
+        }
+        // Validate the option item exists and belongs to the group.
+        const item = optionItemById.get(sel.optionId);
+        if (!item || item.groupId !== sel.groupId) {
+          throw unprocessable(
+            'INVALID_OPTION',
+            `الخيار غير صالح / Invalid option: ${sel.optionId}`
+          );
+        }
+        optionsTotal += item.price;
+        resolvedOptions.push({ id: item.id, groupId: sel.groupId, name: item.name, priceDelta: item.price });
+      }
+
+      // Validate min/max constraints per group.
+      for (const group of groups) {
+        if (!group.required && !resolvedOptions.some(o => o.groupId === group.id)) continue;
+        const count = resolvedOptions.filter(o => o.groupId === group.id).length;
+        if (group.required && count < group.minSelect) {
+          throw unprocessable(
+            'OPTION_MIN_REQUIRED',
+            `يجب اختيار ${group.minSelect} من "${group.name}" على الأقل / Must select at least ${group.minSelect} from "${group.name}"`
+          );
+        }
+        if (count > group.maxSelect) {
+          throw unprocessable(
+            'OPTION_MAX_EXCEEDED',
+            `الحد الأقصى لـ "${group.name}" هو ${group.maxSelect} / Max ${group.maxSelect} selections for "${group.name}"`
+          );
+        }
+      }
+
+      basePrice += optionsTotal;
+    }
+
+    lines.push({ productId, quantity, unitPrice: basePrice, ...(resolvedOptions ? { selectedOptions: resolvedOptions } : {}) });
   }
 
   return lines;
@@ -356,6 +429,8 @@ export async function createOrder(
               isOfferItem: itemSource?.isOfferItem ?? false,
               offerTitle: itemSource?.offerTitle ?? null,
               offerId: itemSource?.offerId ?? null,
+              // Store server-validated selected options as JSON.
+              selectedOptions: line.selectedOptions ? JSON.stringify(line.selectedOptions) : null,
               // Append modifier summary to note if present, for display in order detail
               ...(itemSource?.modifiers
                 ? itemSource?.note
@@ -484,6 +559,8 @@ export async function createCheckoutOrders(
                 unitPrice: line.unitPrice,
                 totalPrice: lineTotal(line.unitPrice, line.quantity),
                 note: itemSource?.note ?? null,
+                // Store server-validated selected options as JSON.
+                selectedOptions: line.selectedOptions ? JSON.stringify(line.selectedOptions) : null,
                 ...(itemSource?.modifiers
                   ? itemSource?.note
                     ? { note: `${itemSource.note} | ${modifierSummary(itemSource.modifiers)}` }

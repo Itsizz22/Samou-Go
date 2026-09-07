@@ -1,0 +1,225 @@
+import { prisma } from '../../lib/prisma';
+import { forbidden, notFound, unprocessable } from '../../lib/http-error';
+import { badState } from '../../lib/http-error';
+
+export interface OptionGroupDto {
+  id: string;
+  productId: string;
+  name: string;
+  required: boolean;
+  minSelect: number;
+  maxSelect: number;
+  sortOrder: number;
+  items: {
+    id: string;
+    groupId: string;
+    name: string;
+    priceDelta: number;
+    sortOrder: number;
+    isActive: boolean;
+  }[];
+}
+
+/**
+ * List all option groups for a product. Manager must own the store.
+ */
+export async function listOptionGroups(
+  actor: { sub: string; role: string },
+  storeId: string,
+  productId: string,
+): Promise<OptionGroupDto[]> {
+  await assertManagerOwnsStore(actor, storeId);
+
+  const product = await prisma.product.findUnique({ where: { id: productId } });
+  if (!product || product.storeId !== storeId) {
+    throw notFound('المنتج غير موجود / Product not found');
+  }
+
+  // @ts-expect-error — prisma-client-js generated types may be stale
+  const groups = await prisma.productOptionGroup.findMany({
+    where: { productId },
+    include: { items: { orderBy: { sortOrder: 'asc' } } },
+    orderBy: { sortOrder: 'asc' },
+  });
+
+  return groups.map(mapGroup);
+}
+
+/**
+ * Create a new option group with items for a product.
+ */
+export async function createOptionGroup(
+  actor: { sub: string; role: string },
+  storeId: string,
+  productId: string,
+  body: { name: string; required?: boolean; minSelect?: number; maxSelect?: number; sortOrder?: number; items?: { name: string; price?: number; sortOrder?: number }[] },
+): Promise<OptionGroupDto> {
+  await assertManagerOwnsStore(actor, storeId);
+
+  const product = await prisma.product.findUnique({ where: { id: productId } });
+  if (!product || product.storeId !== storeId) {
+    throw notFound('المنتج غير موجود / Product not found');
+  }
+
+  if (!body.name?.trim()) {
+    throw unprocessable('NAME_REQUIRED', 'اسم المجموعة مطلوب / Group name is required');
+  }
+  if ((body.minSelect ?? 0) < 0) throw unprocessable('MIN_INVALID', 'الحد الأدنى غير صالح / minSelect must be >= 0');
+  if ((body.maxSelect ?? 1) < 1) throw unprocessable('MAX_INVALID', 'الحد الأقصى غير صالح / maxSelect must be >= 1');
+  if ((body.minSelect ?? 0) > (body.maxSelect ?? 1)) {
+    throw unprocessable('MIN_GT_MAX', 'الحد الأدنى أكبر من الأقصى / minSelect > maxSelect');
+  }
+
+  // @ts-expect-error — prisma-client-js generated types may be stale
+  const group = await prisma.productOptionGroup.create({
+    data: {
+      productId,
+      name: body.name.trim(),
+      required: body.required ?? false,
+      minSelect: body.minSelect ?? 0,
+      maxSelect: body.maxSelect ?? 1,
+      sortOrder: body.sortOrder ?? 0,
+      items: {
+        create: (body.items ?? []).map((item, idx) => ({
+          name: item.name.trim(),
+          price: item.price ?? 0,
+          sortOrder: item.sortOrder ?? idx,
+        })),
+      },
+    },
+    include: { items: { orderBy: { sortOrder: 'asc' } } },
+  });
+
+  return mapGroup(group);
+}
+
+/**
+ * Update an option group and optionally sync its items (full replacement).
+ */
+export async function updateOptionGroup(
+  actor: { sub: string; role: string },
+  storeId: string,
+  groupId: string,
+  body: { name?: string; required?: boolean; minSelect?: number; maxSelect?: number; sortOrder?: number; items?: { id?: string; name: string; price?: number; sortOrder?: number; isActive?: boolean }[] },
+): Promise<OptionGroupDto> {
+  await assertManagerOwnsStore(actor, storeId);
+
+  // @ts-expect-error — prisma-client-js generated types may be stale
+  const existing = await prisma.productOptionGroup.findUnique({
+    where: { id: groupId },
+    include: { product: { select: { storeId: true } } },
+  });
+  if (!existing) throw notFound('مجموعة الخيارات غير موجودة / Option group not found');
+  if (existing.product.storeId !== storeId) {
+    throw forbidden('غير مصرح / Not authorized');
+  }
+
+  const group = await prisma.$transaction(async (tx) => {
+    // If items array provided, do a full replacement (delete old → create new).
+    if (body.items !== undefined) {
+      // @ts-expect-error — prisma-client-js generated types may be stale
+      await tx.productOptionItem.deleteMany({ where: { groupId } });
+      // @ts-expect-error — prisma-client-js generated types may be stale
+      await tx.productOptionGroup.update({
+        where: { id: groupId },
+        data: {
+          ...(body.name !== undefined ? { name: body.name.trim() } : {}),
+          ...(body.required !== undefined ? { required: body.required } : {}),
+          ...(body.minSelect !== undefined ? { minSelect: body.minSelect } : {}),
+          ...(body.maxSelect !== undefined ? { maxSelect: body.maxSelect } : {}),
+          ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
+          items: {
+            create: body.items.map((item, idx) => ({
+              name: item.name.trim(),
+              price: item.price ?? 0,
+              sortOrder: item.sortOrder ?? idx,
+              isActive: item.isActive ?? true,
+            })),
+          },
+        },
+        include: { items: { orderBy: { sortOrder: 'asc' } } },
+      });
+    } else {
+      // Partial update of group fields only.
+      // @ts-expect-error — prisma-client-js generated types may be stale
+      await tx.productOptionGroup.update({
+        where: { id: groupId },
+        data: {
+          ...(body.name !== undefined ? { name: body.name.trim() } : {}),
+          ...(body.required !== undefined ? { required: body.required } : {}),
+          ...(body.minSelect !== undefined ? { minSelect: body.minSelect } : {}),
+          ...(body.maxSelect !== undefined ? { maxSelect: body.maxSelect } : {}),
+          ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
+        },
+      });
+    }
+
+    // @ts-expect-error — prisma-client-js generated types may be stale
+    return prisma.productOptionGroup.findUnique({
+      where: { id: groupId },
+      include: { items: { orderBy: { sortOrder: 'asc' } } },
+    });
+  });
+
+  return mapGroup(group!);
+}
+
+/**
+ * Delete an option group and its items. Cascade handles items.
+ */
+export async function deleteOptionGroup(
+  actor: { sub: string; role: string },
+  storeId: string,
+  groupId: string,
+): Promise<void> {
+  await assertManagerOwnsStore(actor, storeId);
+
+  // @ts-expect-error — prisma-client-js generated types may be stale
+  const existing = await prisma.productOptionGroup.findUnique({
+    where: { id: groupId },
+    include: { product: { select: { storeId: true } } },
+  });
+  if (!existing) throw notFound('مجموعة الخيارات غير موجودة / Option group not found');
+  if (existing.product.storeId !== storeId) {
+    throw forbidden('غير مصرح / Not authorized');
+  }
+
+  // @ts-expect-error — prisma-client-js generated types may be stale
+  await prisma.productOptionGroup.delete({ where: { id: groupId } });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+async function assertManagerOwnsStore(
+  actor: { sub: string; role: string },
+  storeId: string,
+): Promise<void> {
+  if (actor.role === 'ADMIN') return;
+  if (actor.role !== 'STORE_MANAGER') throw forbidden('غير مصرح / Not authorized');
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { managerId: true } });
+  if (!store || store.managerId !== actor.sub) {
+    throw forbidden('هذا ليس متجرك / This is not your store');
+  }
+}
+
+function mapGroup(g: any): OptionGroupDto {
+  return {
+    id: g.id,
+    productId: g.productId,
+    name: g.name,
+    required: g.required,
+    minSelect: g.minSelect,
+    maxSelect: g.maxSelect,
+    sortOrder: g.sortOrder,
+    items: (g.items ?? []).map((i: any) => ({
+      id: i.id,
+      groupId: g.id,
+      name: i.name,
+      priceDelta: i.price,
+      sortOrder: i.sortOrder,
+      isActive: i.isActive,
+    })),
+  };
+}

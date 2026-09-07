@@ -94,6 +94,40 @@ export interface Category {
   sortOrder: number;
 }
 
+/** An individual selectable option within a group (e.g. "جبنة مضاعفة +5 ₪"). */
+export interface ProductOptionItem {
+  id: string;
+  groupId: string;
+  name: string;
+  /** Extra cost in ILS added to the base product price when selected. */
+  priceDelta: number;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+/** A product option group (e.g. "الإضافات", "الحجم", "الصلصات"). */
+export interface ProductOptionGroup {
+  id: string;
+  productId: string;
+  name: string;
+  /** Whether the customer must select at least one option from this group. */
+  required: boolean;
+  /** Minimum selections (0 = optional). */
+  minSelect: number;
+  /** Maximum selections (1 = radio, >1 = checkboxes). */
+  maxSelect: number;
+  sortOrder: number;
+  items: ProductOptionItem[];
+}
+
+/** A customer's selected option, captured at order time. */
+export interface SelectedOption {
+  id: string;
+  groupId: string;
+  name: string;
+  priceDelta: number;
+}
+
 export interface Product {
   id: string;
   nameAr: string;
@@ -104,6 +138,8 @@ export interface Product {
   isAvailable: boolean;
   categoryId: string | null;
   storeId: string;
+  /** Product option groups with their items — populated on catalogue endpoints. */
+  optionGroups?: ProductOptionGroup[];
 }
 
 /** A category with its products inlined — the shape the menu screen wants. */
@@ -208,6 +244,8 @@ export interface OrderItem {
   offerTitle: string | null;
   /** Reference to the standalone offer, if applicable. */
   offerId: string | null;
+  /** Selected product options/addons captured at order time. */
+  selectedOptions: SelectedOption[] | null;
 }
 
 export interface OrderStatusHistoryEntry {

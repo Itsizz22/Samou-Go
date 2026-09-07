@@ -133,6 +133,15 @@ export function CheckoutScreen() {
       productId: line.productId,
       quantity: line.quantity,
       ...((line.note ?? '').trim() ? { note: (line.note ?? '').trim() } : {}),
+      // Pass DB-backed selected options to the server for validation.
+      ...(line.selectedOptions && line.selectedOptions.length > 0
+        ? {
+            selectedOptions: line.selectedOptions.map(o => ({
+              groupId: o.groupId,
+              optionId: o.id,
+            })),
+          }
+        : {}),
     })),
     [cart?.lines]
   );
@@ -373,6 +382,9 @@ export function CheckoutScreen() {
             productId: line.productId,
             quantity: line.quantity,
             ...((line.note ?? '').trim() ? { note: (line.note ?? '').trim() } : {}),
+            ...(line.selectedOptions && line.selectedOptions.length > 0
+              ? { selectedOptions: line.selectedOptions.map(o => ({ groupId: o.groupId, optionId: o.id })) }
+              : {}),
           })),
           fulfillmentType: group.fulfillmentType,
         }));

@@ -302,6 +302,7 @@ model Product {
   store      Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
   offerProducts OfferProduct[]
+  optionGroups ProductOptionGroup[]
 
   @@index([storeId, isAvailable])
   @@index([categoryId])
@@ -402,6 +403,8 @@ model OrderItem {
   offerTitle  String?
   /// Reference to the standalone offer, if applicable.
   offerId     String?
+  /// Selected product options/addons as a JSON array of { id, groupId, name, priceDelta }.
+  selectedOptions Json?
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -708,6 +711,42 @@ model PlatformSettings {
   gpsCaptureEnabled Boolean @default(false)
   updatedAt DateTime @updatedAt
   @@map("platform_settings")
+}
+
+/// A product option group (e.g. "الإضافات", "الحجم", "الصلصات").
+model ProductOptionGroup {
+  id        String  @id @default(cuid())
+  productId String
+  name      String
+  required  Boolean @default(false)
+  minSelect Int     @default(0)
+  maxSelect Int     @default(1)
+  sortOrder Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  items   ProductOptionItem[]
+
+  @@index([productId, sortOrder])
+  @@map("product_option_groups")
+}
+
+/// An individual option within a group (e.g. "جبنة مضاعفة +5 ₪").
+model ProductOptionItem {
+  id      String  @id @default(cuid())
+  groupId String
+  name    String
+  price   Float   @default(0)
+  sortOrder Int   @default(0)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group ProductOptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, sortOrder])
+  @@map("product_option_items")
 }
 
 /// FCM / APNs device token registered by a mobile client.

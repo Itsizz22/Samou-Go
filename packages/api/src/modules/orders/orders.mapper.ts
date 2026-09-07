@@ -98,6 +98,15 @@ export function toOrder(order: PrismaOrder): Order {
 
 function toOrderItem(item: PrismaOrderItem & { product: PrismaProduct }): OrderItemWithProduct {
   const raw = item as any;
+  // Parse selectedOptions JSON if present.
+  let selectedOptions: any[] | null = null;
+  if (raw.selectedOptions) {
+    try {
+      selectedOptions = typeof raw.selectedOptions === 'string'
+        ? JSON.parse(raw.selectedOptions)
+        : raw.selectedOptions;
+    } catch { /* malformed JSON — return null */ }
+  }
   return {
     id: item.id,
     orderId: item.orderId,
@@ -109,12 +118,13 @@ function toOrderItem(item: PrismaOrderItem & { product: PrismaProduct }): OrderI
     isOfferItem: raw.isOfferItem ?? false,
     offerTitle: raw.offerTitle ?? null,
     offerId: raw.offerId ?? null,
+    selectedOptions,
     product: {
       id: item.product.id,
       nameAr: item.product.nameAr,
       imageUrl: item.product.imageUrl,
     },
-  };
+  } as any;
 }
 
 function toStatusHistoryEntry(entry: PrismaStatusHistory): OrderStatusHistoryEntry {

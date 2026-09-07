@@ -12,6 +12,28 @@
  */
 
 let sharedContext: AudioContext | null = null;
+let gestureListenerAttached = false;
+
+/**
+ * Register a ONE-TIME user-gesture listener that resumes the AudioContext.
+ * Browsers require AudioContext creation or resume inside a user interaction
+ * (click, tap, keydown). This fires once and then removes itself.
+ */
+function attachGestureResume(): void {
+  if (gestureListenerAttached || typeof window === 'undefined') return;
+  gestureListenerAttached = true;
+  const resume = () => {
+    if (sharedContext && sharedContext.state === 'suspended') {
+      sharedContext.resume().catch(() => {});
+    }
+    window.removeEventListener('click', resume);
+    window.removeEventListener('touchstart', resume);
+    window.removeEventListener('keydown', resume);
+  };
+  window.addEventListener('click', resume, { once: true });
+  window.addEventListener('touchstart', resume, { once: true });
+  window.addEventListener('keydown', resume, { once: true });
+}
 
 function getContext(): AudioContext | null {
   try {
@@ -21,9 +43,12 @@ function getContext(): AudioContext | null {
         (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!Ctor) return null;
       sharedContext = new Ctor();
-    }
-    if (sharedContext.state === 'suspended') {
-      void sharedContext.resume();
+      // Try to resume immediately (works if called after a gesture).
+      if (sharedContext.state === 'suspended') {
+        sharedContext.resume().catch(() => {});
+      }
+      // Also register a fallback listener for future gestures.
+      attachGestureResume();
     }
     return sharedContext;
   } catch {
@@ -55,13 +80,17 @@ function tone(ctx: AudioContext, frequency: number, startAt: number, duration: n
  * the browser blocks audio or the API is unavailable.
  */
 export function playNewOrderChime(): void {
-  const ctx = getContext();
-  if (!ctx) return;
+  try {
+    const ctx = getContext();
+    if (!ctx) return;
 
-  const now = ctx.currentTime;
+    const now = ctx.currentTime;
   // A friendly two-note "ding-dong" (E5 → A5), about 280 ms.
-  tone(ctx, 659.25, now, 0.16);
-  tone(ctx, 880.0, now + 0.12, 0.22);
+    tone(ctx, 659.25, now, 0.16);
+    tone(ctx, 880.0, now + 0.12, 0.22);
+  } catch {
+    /* Audio unavailable — silent no-op */
+  }
 }
 
 /**
@@ -73,8 +102,9 @@ export function playNewOrderChime(): void {
  * is a silent no-op that still returns a functional `stop()`.
  */
 export function createLoopingAlert(maxMs = 10_000): () => void {
-  const raw = getContext();
-  if (!raw) return () => {};
+  try {
+    const raw = getContext();
+    if (!raw) return () => {};
 
   // Narrow the type so closures capture a non-null AudioContext.
   const ctx: AudioContext = raw;
@@ -108,10 +138,13 @@ export function createLoopingAlert(maxMs = 10_000): () => void {
     playOnce();
   }, intervalMs);
 
-  return () => {
-    stopped = true;
-    clearInterval(timer);
-  };
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  } catch {
+    return () => {};
+  }
 }
 
 /**
@@ -122,8 +155,9 @@ export function createLoopingAlert(maxMs = 10_000): () => void {
  * Designed for new-order dispatch alerts in the store-manager app.
  */
 export function createInfiniteLoopingAlert(): () => void {
-  const raw = getContext();
-  if (!raw) return () => {};
+  try {
+    const raw = getContext();
+    if (!raw) return () => {};
   const ctx: AudioContext = raw;
 
   let stopped = false;
@@ -163,12 +197,15 @@ export function createInfiniteLoopingAlert(): () => void {
     playOnce();
   }, intervalMs);
 
-  return () => {
-    stopped = true;
-    clearInterval(timer);
-    if (vibrationInterval) clearInterval(vibrationInterval);
-    if (hasVibration) navigator.vibrate!(0);
-  };
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      if (vibrationInterval) clearInterval(vibrationInterval);
+      if (hasVibration) navigator.vibrate!(0);
+    };
+  } catch {
+    return () => {};
+  }
 }
 
 /**

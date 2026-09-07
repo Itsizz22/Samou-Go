@@ -25,6 +25,7 @@ import {
   KeyRound,
   Loader2,
   Menu,
+  MoreHorizontal,
   X,
   LogOut,
   MapPin,
@@ -117,11 +118,16 @@ const QUICK_ACTIONS = [
   { icon: BarChart3, ar: 'لوحة التحكم', en: 'Dashboard', tab: 'home' },
 ] as const;
 
+/** Primary bottom tabs — 5 max to prevent overflow on 320px viewports. */
 const BOTTOM_TABS = [
   { id: 'home', icon: Home, ar: 'الرئيسية', en: 'Home' },
   { id: 'orders', icon: Package, ar: 'الطلبات', en: 'Orders' },
   { id: 'products', icon: ShoppingBag, ar: 'المنتجات', en: 'Products' },
   { id: 'offers', icon: Megaphone, ar: 'العروض', en: 'Offers' },
+] as const;
+
+/** Secondary tabs hidden under the More overflow sheet. */
+const MORE_TABS = [
   { id: 'settings', icon: Settings, ar: 'إعدادات المتجر', en: 'Settings' },
   { id: 'custom-requests', icon: ClipboardList, ar: 'طلبات مخصصة', en: 'Requests' },
   { id: 'statement', icon: BarChart3, ar: 'كشف حساب', en: 'Statement' },
@@ -138,6 +144,16 @@ export function SamouGoStoreManager() {
 
   // Unified login: non-store-manager roles are sent to their own workspace.
   useRoleRedirect('store-manager');
+
+  // Show a clean toast when the session expires (401 → token cleared → user null).
+  const prevUserRef = useRef(auth.user);
+  useEffect(() => {
+    // If we had a user and now it's null (and ready), the session expired.
+    if (prevUserRef.current && !auth.user && auth.ready) {
+      toast.error('انتهت صلاحية الجلسة', 'Session expired — please sign in again');
+    }
+    prevUserRef.current = auth.user;
+  }, [auth.user, auth.ready]);
 
   /* -- Role gate --------------------------------------------------------- */
   const isManager = auth.user?.role === UserRole.STORE_MANAGER;
@@ -159,6 +175,7 @@ export function SamouGoStoreManager() {
   const [prepMinutes, setPrepMinutes] = useState(25);
   const [storeTogglePending, setStoreTogglePending] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('home');
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [menuView, setMenuView] = useState<'products' | 'sections'>('products');
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
@@ -1031,8 +1048,33 @@ export function SamouGoStoreManager() {
         </section>
       )}
 
+      {/* ── More overflow sheet ──────────────────────────────────────────── */}
+      {showMoreSheet && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowMoreSheet(false)} />
+          <div className="absolute bottom-0 inset-x-0 rounded-t-2xl bg-surface shadow-elevated safe-bottom animate-[slideUp_0.2s_ease-out]">
+            <div className="flex justify-center pt-3 pb-1"><span className="h-1 w-10 rounded-full bg-line-soft" /></div>
+            <div className="px-4 pb-4 pt-2 space-y-1">
+              {MORE_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => { setActiveTab(tab.id); setShowMoreSheet(false); }}
+                  className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition active:scale-[0.97] ${
+                    activeTab === tab.id ? 'bg-brand text-white' : 'text-ink hover:bg-canvas'
+                  }`}
+                >
+                  <tab.icon size={18} />
+                  <span>{t(tab.ar, tab.en)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav
-        className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface px-3 safe-bottom pt-2 shadow-raised md:hidden"
+        className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 shadow-nav backdrop-blur-md md:hidden"
         aria-label="التنقل السفلي"
       >
         <div className="mx-auto flex max-w-md items-center justify-around">
@@ -1041,14 +1083,25 @@ export function SamouGoStoreManager() {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`flex min-w-[62px] flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 transition focus:outline-none focus:ring-2 focus:ring-brand/30 ${
+              className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 transition focus:outline-none focus:ring-2 focus:ring-brand/30 ${
                 activeTab === tab.id ? 'text-brand' : 'text-ink-muted hover:text-ink-soft'
               }`}
             >
-              <tab.icon size={19} fill={activeTab === tab.id && tab.id === 'home' ? 'currentColor' : 'none'} />
-              <span className="text-micro font-bold">{t(tab.ar, tab.en)}</span>
+              <tab.icon size={20} strokeWidth={activeTab === tab.id ? 2.5 : 1.8} fill={activeTab === tab.id && tab.id === 'home' ? 'currentColor' : 'none'} />
+              <span className="text-[10px] leading-tight font-bold truncate w-full text-center">{t(tab.ar, tab.en)}</span>
             </button>
           ))}
+          {/* More overflow button */}
+          <button
+            type="button"
+            onClick={() => setShowMoreSheet(true)}
+            className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 transition focus:outline-none focus:ring-2 focus:ring-brand/30 ${
+              MORE_TABS.some((t) => t.id === activeTab) ? 'text-brand' : 'text-ink-muted hover:text-ink-soft'
+            }`}
+          >
+            <MoreHorizontal size={20} strokeWidth={MORE_TABS.some((t) => t.id === activeTab) ? 2.5 : 1.8} />
+            <span className="text-[10px] leading-tight font-bold truncate w-full text-center">{t('المزيد', 'More')}</span>
+          </button>
         </div>
       </nav>
       <SupportWhatsAppButton />

@@ -1346,6 +1346,93 @@ export function deleteProduct(
   );
 }
 
+/* ---- Product option groups --------------------------------------------- */
+
+interface OptionGroupInput {
+  name: string;
+  required?: boolean;
+  minSelect?: number;
+  maxSelect?: number;
+  sortOrder?: number;
+  items?: { id?: string; name: string; price?: number; sortOrder?: number; isActive?: boolean }[];
+}
+
+interface OptionItemDto {
+  id: string;
+  groupId: string;
+  name: string;
+  priceDelta: number;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface OptionGroupDto {
+  id: string;
+  productId: string;
+  name: string;
+  required: boolean;
+  minSelect: number;
+  maxSelect: number;
+  sortOrder: number;
+  items: OptionItemDto[];
+}
+
+/** List all option groups for a product. */
+export function listOptionGroups(
+  storeId: string,
+  productId: string,
+  signal?: AbortSignal,
+): Promise<{ items: OptionGroupDto[] }> {
+  return request(
+    "GET",
+    `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}/options`,
+    { auth: true, signal },
+  );
+}
+
+/** Create a new option group with items for a product. */
+export function createOptionGroup(
+  storeId: string,
+  productId: string,
+  input: OptionGroupInput,
+  signal?: AbortSignal,
+): Promise<OptionGroupDto> {
+  return request(
+    "POST",
+    `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}/options`,
+    { body: input, auth: true, signal },
+  );
+}
+
+/** Update an option group (replaces items if provided). */
+export function updateOptionGroup(
+  storeId: string,
+  productId: string,
+  groupId: string,
+  input: OptionGroupInput,
+  signal?: AbortSignal,
+): Promise<OptionGroupDto> {
+  return request(
+    "PUT",
+    `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}/options/${encodeURIComponent(groupId)}`,
+    { body: input, auth: true, signal },
+  );
+}
+
+/** Delete an option group and its items. */
+export function deleteOptionGroup(
+  storeId: string,
+  productId: string,
+  groupId: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  return request(
+    "DELETE",
+    `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}/options/${encodeURIComponent(groupId)}`,
+    { auth: true, signal },
+  );
+}
+
 /** Creates a menu section (category) inside a store. */
 export function createCategory(
   storeId: string,
