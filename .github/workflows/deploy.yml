@@ -194,7 +194,7 @@ jobs:
             # Vercel Build Output API v3 (.vercel/output/static/) and deploy.
 
             # 1. Link project + download env vars (creates .vercel/ at root)
-            npx --yes vercel@latest pull \
+            npx --yes vercel@59.11.7 pull \
               --yes \
               --environment=production \
               --token "${VERCEL_TOKEN}"
@@ -206,7 +206,7 @@ jobs:
             node scripts/write-vercel-output-config.mjs "$app"
 
             # 3. Deploy prebuilt output (rootDirectory resolves from repo root)
-            npx --yes vercel@latest deploy \
+            npx --yes vercel@59.11.7 deploy \
               --prebuilt \
               --prod \
               --yes \
