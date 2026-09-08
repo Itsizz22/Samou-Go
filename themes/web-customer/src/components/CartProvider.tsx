@@ -1,3 +1,6 @@
+import { normalizeSelectedOptions } from '@samou-go/shared-types';
+import { hapticConfirm, hapticTap } from '@/lib/haptics';
+import { trackCartOrigin, flyToCart } from '@/lib/sensory';
 /**
  * Samou' Go — shopping cart (multi-store).
  *
@@ -91,7 +94,7 @@ function readPersisted(): CartLine[] {
     const raw2 = localStorage.getItem(STORAGE_KEY);
     if (raw2) {
       const parsed = JSON.parse(raw2) as PersistedCartV2;
-      if (Array.isArray(parsed.lines)) return parsed.lines;
+      if (Array.isArray(parsed.lines)) return parsed.lines.filter(line => line && line.product).map(line => ({ ...line, selectedOptions: normalizeSelectedOptions(line.selectedOptions) }));
     }
 
     // Migrate from v1: inject storeId/storeNameAr into each line.
@@ -131,6 +134,7 @@ const CartContext = createContext<CartState | null>(null);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>(() => readPersisted());
   const hydrated = useRef(false);
+  useEffect(() => { document.addEventListener('pointerdown', trackCartOrigin, { passive: true }); return () => document.removeEventListener('pointerdown', trackCartOrigin); }, []);
 
   // Per-store fulfillment type (DELIVERY or PICKUP). Not persisted —
   // it's a checkout-time choice that resets when the cart is cleared.
@@ -156,6 +160,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addItem = useCallback((product: Product, quantity = 1, note = '', storeNameAr?: string, selectedOptions?: SelectedOption[]): void => {
+    void hapticConfirm();
+    flyToCart(product.nameAr);
     setLines(current => {
       // When options are present, always create a new line (different option combo = different line).
       if (selectedOptions && selectedOptions.length > 0) {
@@ -254,6 +260,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const removeItem = useCallback((productId: string) => {
+    void hapticTap();
     setLines(current => current.filter(line => line.productId !== productId));
   }, []);
 
@@ -278,7 +285,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );    const value = useMemo<CartState>(() => {
     const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0);
     const subtotal = lines.reduce((sum, line) => {
-      const optionsExtra = (line.selectedOptions ?? []).reduce((s, o) => s + o.priceDelta, 0);
+      const optionsExtra = normalizeSelectedOptions(line.selectedOptions).reduce((s, o) => s + o.priceDelta, 0);
       return sum + line.quantity * (line.product.price + optionsExtra);
     }, 0);
 
@@ -298,7 +305,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         groupMap.set(line.storeId, group);
       }
       group.lines.push(line);
-      const optionsExtra = (line.selectedOptions ?? []).reduce((sum, option) => sum + option.priceDelta, 0);
+      const optionsExtra = normalizeSelectedOptions(line.selectedOptions).reduce((sum, option) => sum + option.priceDelta, 0);
       group.subtotal += line.quantity * (line.product.price + optionsExtra);
       group.itemCount += line.quantity;
     }

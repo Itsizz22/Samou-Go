@@ -5,6 +5,7 @@ export function useShowcaseCarousel(count: number, intervalMs = 3500) {
   const [index, setIndex] = useState(0);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
+  const [touching, setTouching] = useState(false);
   const [stopped, setStopped] = useState(false);
   const [drag, setDrag] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -12,7 +13,7 @@ export function useShowcaseCarousel(count: number, intervalMs = 3500) {
   const start = useRef<{ x: number; y: number } | null>(null);
   const suppressClick = useRef(false);
   const active = Math.min(index, Math.max(0, count - 1));
-  const paused = hovered || focused || stopped || drag !== null || reducedMotion || !visible;
+  const paused = hovered || focused || touching || stopped || drag !== null || reducedMotion || !visible;
   const step = (delta: number) =>
     setIndex(current => (count ? (current + delta + count) % count : 0));
 
@@ -37,6 +38,7 @@ export function useShowcaseCarousel(count: number, intervalMs = 3500) {
   }, [paused, count, intervalMs, active]);
 
   const finish = (event: PointerEvent<HTMLDivElement>, cancel = false) => {
+    setTouching(false);
     if (!start.current) return;
     const dx = event.clientX - start.current.x;
     const dy = event.clientY - start.current.y;
@@ -68,6 +70,7 @@ export function useShowcaseCarousel(count: number, intervalMs = 3500) {
         if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
       },
       onPointerDown: (event: PointerEvent<HTMLDivElement>) => {
+        if (event.pointerType === 'touch') setTouching(true);
         suppressClick.current = false;
         if (
           event.button !== 0 ||

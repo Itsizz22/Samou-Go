@@ -1,3 +1,4 @@
+import { normalizeOptionGroups, resolveSelectedOptions } from '@samou-go/shared-types';
 /**
  * `/stores/:storeId` — a store's full catalogue with add-to-cart.
  *
@@ -8,7 +9,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, ArrowRight, Clock3, FolderOpen, Heart, Loader2, MessageCircle, Minus, Plus, RefreshCw, ShoppingCart, Star, Store } from 'lucide-react';
+import { Search, X, AlertTriangle, ArrowRight, Clock3, FolderOpen, Heart, Loader2, MessageCircle, Minus, Plus, RefreshCw, ShoppingCart, Star, Store } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
 import { useFavorites } from '@/components/FavoritesProvider';
 import { useStore, useOffersForStore } from '@/hooks/useApi';
@@ -36,10 +37,15 @@ export function StoreDetailScreen() {
 
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
 
-  const categories = useMemo(() => store.data?.categories ?? [], [store.data]);
+  const [menuSearch, setMenuSearch] = useState('');
+  const query = menuSearch.trim().toLocaleLowerCase();
+  const categories = useMemo(() => (store.data?.categories ?? []).map(category => ({
+    ...category,
+    products: category.products.filter(product => product.isAvailable && (!query || product.nameAr.toLocaleLowerCase().includes(query))),
+  })).filter(category => !query || category.products.length > 0), [store.data, query]);
 
   const active = useMemo(
-    () => activeCategoryId ?? categories[0]?.id ?? null,
+    () => categories.some(category => category.id === activeCategoryId) ? activeCategoryId : categories[0]?.id ?? null,
     [activeCategoryId, categories]
   );
 
@@ -53,7 +59,7 @@ export function StoreDetailScreen() {
   }, [offers.data]);
 
   const current = store.data!;
-  const products = active
+  const products = query ? categories.flatMap(category => category.products) : active
     ? categories.find((category) => category.id === active)?.products ?? []
     : [];
 
@@ -62,7 +68,7 @@ export function StoreDetailScreen() {
 
   const handleAdd = useCallback((productId: string, product: (typeof products)[number]) => {
     // If the product has option groups, open the options sheet instead.
-    if (product.optionGroups && product.optionGroups.length > 0) {
+    if (normalizeOptionGroups(product.optionGroups).length > 0) {
       setOptionsProduct(product);
       return;
     }
@@ -79,16 +85,7 @@ export function StoreDetailScreen() {
   const handleOptionsConfirm = useCallback((options: { groupId: string; optionId: string }[], quantity: number) => {
     if (!optionsProduct) return;
     // Map option IDs to SelectedOption objects.
-    const selectedOptions = options.map(o => {
-      const group = optionsProduct.optionGroups!.find(g => g.id === o.groupId);
-      const item = group?.items.find(i => i.id === o.optionId);
-      return {
-        id: o.optionId,
-        groupId: o.groupId,
-        name: item?.name ?? '',
-        priceDelta: item?.priceDelta ?? 0,
-      };
-    });
+    const selectedOptions = resolveSelectedOptions(optionsProduct.optionGroups, options);
     cart.addItem(optionsProduct, quantity, '', current.nameAr, selectedOptions);
     setOptionsProduct(null);
     void hapticConfirm();
@@ -262,6 +259,13 @@ export function StoreDetailScreen() {
             Constrained to the app's standard `max-w-md` column like every
             other section on the page, so the title, chips and arrows stay
             visually connected at any viewport width. */}
+        <div role="search" className="mx-auto w-full max-w-md px-5 pt-5">
+          <div className="flex h-11 items-center gap-2 rounded-xl border border-line bg-canvas/80 px-3 focus-within:border-brand focus-within:bg-surface focus-within:ring-2 focus-within:ring-brand/30">
+            <Search size={18} className="shrink-0 text-brand" />
+            <input value={menuSearch} onChange={event => setMenuSearch(event.target.value)} maxLength={120} aria-label={`ابحث في قائمة ${current.nameAr}`} placeholder={`ابحث في قائمة ${current.nameAr}...`} className="h-11 min-w-0 flex-1 bg-transparent text-sm outline-none" />
+            {menuSearch && <button type="button" aria-label="مسح بحث القائمة" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl focus-visible:ring-2 focus-visible:ring-brand" onClick={event => { setMenuSearch(''); event.currentTarget.parentElement?.querySelector('input')?.focus(); }}><X size={18} /></button>}
+          </div>
+        </div>
         <HorizontalScrollGallery
           titleAr={t('فئات المتجر', 'Categories')}
           titleEn={t('فئات المتجر', 'Categories')}
@@ -276,10 +280,11 @@ export function StoreDetailScreen() {
               type="button"
               onClick={() => {
                 setActiveCategoryId(category.id);
+                setMenuSearch('');
                 void hapticTap();
               }}
               aria-pressed={category.id === active}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+              className={`flex shrink-0 items-center gap-1.5 min-h-11 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
                 category.id === active ? 'bg-brand text-white' : 'bg-canvas text-ink-muted'
               }`}
             >
@@ -324,7 +329,7 @@ export function StoreDetailScreen() {
         <div className="mx-auto w-full max-w-md px-5 pt-5 min-w-0">
           {products.length === 0 ? (
             <p className="py-12 text-center text-xs text-ink-muted">
-              لا توجد منتجات في هذه الفئة حالياً
+              {query ? 'لا توجد نتائج مطابقة لبحثك في هذا المتجر' : 'لا توجد منتجات في هذه الفئة حالياً'}
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-3">
@@ -335,8 +340,8 @@ export function StoreDetailScreen() {
                   return (
                     <article
                       key={product.id}
-                      className="group relative grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-card product-card-enter"
-                      style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }}
+                      className="group relative grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-card sq-menu-enter"
+                      style={{ animationDelay: `${Math.min(index * 50, 500)}ms` }}
                     >
                       {/* Offer badge */}
                       {offerProductIds.has(product.id) && (

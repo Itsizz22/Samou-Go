@@ -15,3 +15,5 @@ export * from './roles';
 export * from './phone';
 export * from './identifiers';
 export * from './support';
+
+export * from './options';

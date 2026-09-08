@@ -1,3 +1,5 @@
+import { normalizeSelectedOptions } from '@samou-go/shared-types';
+import { DeliveryPin } from '@/components/MotionFeedback';
 /**
  * `/orders/:orderId` — live order tracking.
  *
@@ -210,14 +212,7 @@ export function OrderTrackingScreen() {
 
               {/* Delivery PIN — shown only when the captain is on the way */}
               {order.data.status === OrderStatus.ON_THE_WAY && order.data.deliveryPin && (
-                <section className="rounded-2xl border-2 border-brand bg-brand-surface p-4 text-center shadow-card">
-                  <p className="text-[11px] font-bold text-brand-dark leading-relaxed">
-                    {t('شارك هذا الرمز مع الكابتن عند التسليم', 'Share this code with the captain on delivery')}
-                  </p>
-                  <p dir="ltr" className="mt-2 text-2xl font-black tracking-[0.25em] text-brand-deep">
-                    {order.data.deliveryPin}
-                  </p>
-                </section>
+                <DeliveryPin pin={order.data.deliveryPin} />
               )}
 
               {/* Store + delivery model */}
@@ -253,9 +248,9 @@ export function OrderTrackingScreen() {
                         <p className="truncate text-[11px] font-bold leading-relaxed">{item.product.nameAr}</p>
                         {item.selectedOptions && item.selectedOptions.length > 0 && (
                           <p className="text-[10px] text-ink-muted">
-                            {item.selectedOptions.map(o => o.name).join(' + ')}
-                            {item.selectedOptions.some(o => o.priceDelta > 0) && (
-                              <span className="text-brand-dark"> (+{formatCurrency(item.selectedOptions.reduce((s, o) => s + o.priceDelta, 0))})</span>
+                            {normalizeSelectedOptions(item.selectedOptions).map(o => o.name).join(' + ')}
+                            {normalizeSelectedOptions(item.selectedOptions).some(o => o.priceDelta > 0) && (
+                              <span className="text-brand-dark"> (+{formatCurrency(normalizeSelectedOptions(item.selectedOptions).reduce((s, o) => s + o.priceDelta, 0))})</span>
                             )}
                           </p>
                         )}

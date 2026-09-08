@@ -144,6 +144,8 @@ export async function listStores(
       : {}),
   };
 
+  if (query.sort) return listDiscoveryStores(query, where);
+
   const [rows, total] = await Promise.all([
     prisma.store.findMany({
       where,
@@ -614,4 +616,77 @@ export async function getPopularProducts(limit = 12): Promise<PopularProduct[]> 
     return [{ ...product, storeNameAr: raw.store.nameAr, storeLogoUrl: raw.store.logoUrl,
       totalSold: row._sum?.quantity ?? 0, hasOptions: Boolean(product.optionGroups?.length) }];
   });
+}
+const recentSince = () => new Date(Date.now() - 30 * 86400000);
+
+async function listDiscoveryStores(query: StoreListQuery, where: Prisma.StoreWhereInput): Promise<Paginated<Store>> {
+  const limit = query.limit ?? Math.min(query.pageSize, 24);
+  const since = recentSince();
+  const ratings = await prisma.rating.groupBy({ by: ['storeId'], where: { store: where }, _avg: { storeRating: true }, _count: { id: true }, orderBy: [{ _avg: { storeRating: 'desc' } }, { _count: { id: 'desc' } }, { storeId: 'asc' }] });
+  const scores = new Map(ratings.map(row => [row.storeId, row]));
+  let ids: string[];
+  if (query.sort === 'rating') ids = ratings.map(row => row.storeId);
+  else {
+    const [recent, popular, remaining] = await Promise.all([
+      prisma.store.findMany({ where: { AND: [where, { createdAt: { gte: since } }] }, select: { id: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }] }),
+      prisma.order.groupBy({ by: ['storeId'], where: { store: where, status: 'DELIVERED' }, _count: { id: true }, orderBy: [{ _count: { id: 'desc' } }, { storeId: 'asc' }] }),
+      prisma.store.findMany({ where, select: { id: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }] }),
+    ]);
+    ids = [...new Set([...recent.map(row => row.id), ...popular.map(row => row.storeId), ...remaining.map(row => row.id)])];
+  }
+  const selected = ids.slice((query.page - 1) * limit, query.page * limit);
+  const rows = await prisma.store.findMany({ where: { AND: [where, { id: { in: selected } }] } });
+  const byId = new Map(rows.map(row => [row.id, row]));
+  const items = selected.flatMap(id => {
+    const row = byId.get(id); if (!row) return [];
+    const rating = scores.get(id);
+    return [{ ...toStore(row), isRecent: row.createdAt >= since, averageRating: rating?._avg.storeRating ?? null, ratingCount: rating?._count.id ?? 0 }];
+  });
+  return paginate(items, ids.length, query.page, limit);
+}
+
+export async function getNewProducts(limit: number): Promise<import('@samou-go/shared-types').DiscoveryProduct[]> {
+  const since = recentSince();
+  const where: Prisma.ProductWhereInput = { isAvailable: true, store: { isActive: true, isApproved: true, storeStatus: { not: 'CLOSED' } } };
+  const recent = await prisma.product.findMany({ where: { ...where, createdAt: { gte: since } }, select: { id: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], take: limit });
+  const popular = recent.length < limit ? await prisma.orderItem.groupBy({ by: ['productId'], where: { product: where, order: { status: 'DELIVERED' } }, _sum: { quantity: true }, orderBy: [{ _sum: { quantity: 'desc' } }, { productId: 'asc' }], take: limit }) : [];
+  const remaining = recent.length < limit ? await prisma.product.findMany({ where, select: { id: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], take: limit }) : [];
+  const ids = [...new Set([...recent.map(row => row.id), ...popular.flatMap(row => row.productId ? [row.productId] : []), ...remaining.map(row => row.id)])].slice(0, limit);
+  const rows = await prisma.product.findMany({ where: { ...where, id: { in: ids } }, include: { store: { select: { nameAr: true, logoUrl: true } }, optionGroups: { orderBy: { sortOrder: 'asc' }, include: { items: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } } } } });
+  const byId = new Map(rows.map(row => [row.id, row]));
+  return ids.flatMap(id => {
+    const row = byId.get(id); if (!row) return [];
+    const product = toProduct(row);
+    return [{ ...product, storeNameAr: row.store.nameAr, storeLogoUrl: row.store.logoUrl, hasOptions: Boolean(product.optionGroups?.length), totalSold: popular.find(p => p.productId === id)?._sum.quantity ?? 0, createdAt: row.createdAt.toISOString(), isRecent: row.createdAt >= since }];
+  });
+}
+
+/** Search the whole public catalogue; an empty query samples eligible products. */
+export async function searchProducts(search: string, page: number) {
+  const pageSize = 12;
+  const where: Prisma.ProductWhereInput = {
+    isAvailable: true,
+    store: { isActive: true, isApproved: true, storeStatus: { not: 'CLOSED' } },
+    ...(search ? { nameAr: caseInsensitiveContains(search) } : {}),
+  };
+  const total = await prisma.product.count({ where });
+  let ids: string[] | undefined;
+  if (!search) {
+    // Sample IDs only, then hydrate twelve cards including their live options.
+    const candidates = await prisma.product.findMany({ where, select: { id: true } });
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const item = candidates[i]!; candidates[i] = candidates[j]!; candidates[j] = item;
+    }
+    ids = candidates.slice(0, pageSize).map(item => item.id);
+  }
+  const rows = await prisma.product.findMany({
+    where: { ...where, ...(ids ? { id: { in: ids } } : {}) },
+    skip: search ? (page - 1) * pageSize : 0, take: pageSize,
+    orderBy: [{ nameAr: 'asc' }, { id: 'asc' }],
+    include: { store: { select: { nameAr: true, logoUrl: true } }, optionGroups: { orderBy: { sortOrder: 'asc' }, include: { items: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } } } },
+  });
+  const sampledIds = ids;
+  if (sampledIds) rows.sort((a, b) => sampledIds.indexOf(a.id) - sampledIds.indexOf(b.id));
+  return { items: rows.map(row => { const product = toProduct(row); return { ...product, storeNameAr: row.store.nameAr, storeLogoUrl: row.store.logoUrl, hasOptions: Boolean(product.optionGroups?.length), totalSold: 0 }; }), total, page, pageSize };
 }

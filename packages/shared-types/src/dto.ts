@@ -165,6 +165,8 @@ export interface JwtPayload {
  * ------------------------------------------------------------------------- */
 
 export interface StoreListQuery extends PaginationQuery {
+  sort?: "newest" | "rating";
+  limit?: number;
   /** Substring match against `nameAr` / `nameEn`. */
   search?: string;
   /** Defaults to `true` — inactive stores are hidden from the public catalogue. */

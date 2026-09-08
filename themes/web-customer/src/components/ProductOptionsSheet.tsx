@@ -1,10 +1,11 @@
+import { normalizeOptionGroups } from '@samou-go/shared-types';
 /**
  * Bottom sheet for selecting product options/addons before adding to cart.
  * Appears when a product has optionGroups — shows checkboxes/radios for each
  * group with live price calculation.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls, useReducedMotion } from 'framer-motion';
 import { X, Plus, Minus, ShoppingBag } from 'lucide-react';
 import type { Product, ProductOptionGroup } from '@samou-go/shared-types';
 import { useLanguage } from '@samou-go/ui';
@@ -19,7 +20,9 @@ interface Props {
 
 export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }: Props) {
   const { t } = useLanguage();
-  const groups = useMemo(() => product.optionGroups ?? [], [product.optionGroups]);
+  const dragControls = useDragControls();
+  const reduced = useReducedMotion();
+  const groups = useMemo(() => normalizeOptionGroups(product.optionGroups), [product.optionGroups]);
   const [quantity, setQuantity] = useState(1);
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -53,7 +56,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
       const selected = selections[group.id];
       if (!selected) continue;
       for (const item of group.items) {
-        if (selected.has(item.id)) total += item.priceDelta;
+        if (item.isActive && selected.has(item.id)) total += item.priceDelta;
       }
     }
     return total;
@@ -64,9 +67,8 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
 
   const isValid = useMemo(() => {
     for (const group of groups) {
-      if (!group.required) continue;
-      const count = selections[group.id]?.size ?? 0;
-      if (count < group.minSelect) return false;
+      const count = group.items.filter(item => item.isActive && selections[group.id]?.has(item.id)).length;
+      if (count < (group.required ? Math.max(1, group.minSelect) : group.minSelect) || count > group.maxSelect) return false;
     }
     return true;
   }, [groups, selections]);
@@ -77,7 +79,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
       const selected = selections[group.id];
       if (!selected) continue;
       for (const optionId of selected) {
-        result.push({ groupId: group.id, optionId });
+        if (group.items.some(item => item.id === optionId && item.isActive)) result.push({ groupId: group.id, optionId });
       }
     }
     return result;
@@ -98,13 +100,16 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
         onClick={onClose}
       />
       <motion.div
-        initial={{ y: '100%' }}
+        initial={reduced ? false : { y: '100%' }}
         animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        exit={reduced ? { opacity: 0 } : { y: '100%' }}
+        transition={reduced ? { duration: 0 } : { type: 'spring', damping: 25, stiffness: 300 }}
+        drag="y" dragControls={dragControls} dragListener={false} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0, bottom: .5 }} dragSnapToOrigin
+        onDragEnd={(_, info) => { if (info.offset.y > 100 || (info.offset.y > 20 && info.velocity.y > 600)) onClose(); }}
         className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-3xl bg-white"
         onClick={(e) => e.stopPropagation()}
       >
+        <button type="button" aria-label={t('اسحب لأسفل أو اضغط لإغلاق الخيارات', 'Drag down or tap to close options')} onClick={onClose} onPointerDown={event => dragControls.start(event)} className="flex min-h-11 w-full touch-none items-center justify-center"><span className="h-1 w-10 rounded-full bg-line" /></button>
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white px-5 py-4">
           <div className="min-w-0 flex-1">
@@ -191,7 +196,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
               >
                 <Minus size={14} />
               </button>
-              <span className="min-w-[24px] text-center text-sm font-bold">{quantity}</span>
+              <span className="min-w-6 text-center text-sm font-bold">{quantity}</span>
               <button
                 type="button"
                 onClick={() => setQuantity(q => Math.min(99, q + 1))}

@@ -171,3 +171,40 @@ it('serves ranked products on SQLite with complete option rules and numeric pric
   await fixture.db.store.update({ where: { id: 'store' }, data: { isActive: false } });
   expect((await request<unknown[]>('GET', '/stores/popular-products')).data).toEqual([]);
 });
+it('ranks discovery by recency and ratings, fills sparse feeds, and hides unpublished data', async () => {
+  const old = new Date('2020-01-01');
+  await fixture.db.store.update({ where: { id: 'store' }, data: { isActive: true, createdAt: old } });
+  await fixture.db.product.update({ where: { id: 'product' }, data: { createdAt: old, optionsEnabled: true } });
+  await fixture.db.store.create({ data: { id: 'new-store', nameAr: 'متجر جديد', nameEn: 'New', phone: '0599991099', managerId: 'STORE_MANAGER', isApproved: true } });
+  await fixture.db.store.create({ data: { id: 'hidden-store', nameAr: 'مخفي', nameEn: 'Hidden', phone: '0599991098', managerId: 'STORE_MANAGER', isApproved: false } });
+  await fixture.db.product.create({ data: { id: 'new-product', storeId: 'new-store', nameAr: 'جديد', price: 8 } });
+  await fixture.db.product.create({ data: { id: 'hidden-product', storeId: 'hidden-store', nameAr: 'مخفي', price: 9 } });
+  const stores = await request<import('@samou-go/shared-types').Paginated<import('@samou-go/shared-types').Store>>('GET', '/stores?sort=newest&limit=2');
+  expect(stores.status).toBe(200);
+  expect(stores.data.items.map(row => row.id)).toEqual(['new-store', 'store']);
+  expect(stores.data.items[1]?.isRecent).toBe(false);
+  const products = await request<import('@samou-go/shared-types').DiscoveryProduct[]>('GET', '/stores/new-products?limit=2');
+  expect(products.status).toBe(200);
+  expect(products.data.map(row => row.id)).toEqual(['new-product', 'product']);
+  expect(products.data[1]).toMatchObject({ isRecent: false, hasOptions: true, price: 12.5 });
+  const order = await fixture.db.order.findFirstOrThrow({ where: { storeId: 'store' } });
+  await fixture.db.rating.upsert({ where: { orderId: order.id }, create: { orderId: order.id, customerId: 'CUSTOMER', storeId: 'store', storeRating: 4 }, update: { storeRating: 4 } });
+  const rated = await request<import('@samou-go/shared-types').Paginated<import('@samou-go/shared-types').Store>>('GET', '/stores?sort=rating&limit=1');
+  expect(rated.data.items[0]).toMatchObject({ id: 'store', averageRating: 4, ratingCount: 1 });
+  expect((await request('GET', '/stores/new-products?limit=100')).status).toBe(422);
+  expect((await request('GET', '/stores?sort=newest&limit=0')).status).toBe(422);
+});
+
+it('searches the full public product catalogue and samples only eligible products', async () => {
+  type Results = { items: import('@samou-go/shared-types').PopularProduct[]; total: number };
+  const product = await fixture.db.product.findUniqueOrThrow({ where: { id: 'product' } });
+  const response = await request<Results>('GET', `/stores/search-products?search=${encodeURIComponent(product.nameAr)}`);
+  expect(response.status).toBe(200);
+  expect(response.data.items.find(item => item.id === 'product')).toMatchObject({ price: 12.5, hasOptions: true, optionGroups: [{ items: [{ priceDelta: 3.25 }] }] });
+  const sampled = await request<Results>('GET', '/stores/search-products');
+  expect(sampled.status).toBe(200);
+  expect(sampled.data.items.some(item => item.id === 'hidden-product')).toBe(false);
+  expect(new Set(sampled.data.items.map(item => item.id)).size).toBe(sampled.data.items.length);
+  expect((await request<Results>('GET', '/stores/search-products?search=zzzzzzzzzz')).data.items).toEqual([]);
+  expect((await request('GET', '/stores/search-products?page=0')).status).toBe(422);
+});

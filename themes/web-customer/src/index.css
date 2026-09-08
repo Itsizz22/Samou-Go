@@ -119,3 +119,30 @@
   .store-grid-stagger > *:nth-child(9) { animation-delay: 480ms; }
   .store-grid-stagger > *:nth-child(10) { animation-delay: 540ms; }
 }
+/* Sensory feedback: only active effects allocate compositor layers. */
+@layer components {
+  button:not(:disabled), a[href] { transition: scale 150ms ease-out; }
+  button:not(:disabled):active, a[href]:active { scale: .95; will-change: transform; }
+  .sq-roll { animation: sq-roll-in 260ms cubic-bezier(.2,.8,.2,1) both; }
+  .sq-glow { position: relative; isolation: isolate; }
+  .sq-glow::after { content: ''; position: absolute; inset: -3px; border-radius: inherit; box-shadow: 0 0 18px color-mix(in srgb, var(--color-brand) 35%, transparent); pointer-events: none; z-index: -1; animation: sq-glow-pulse 2s ease-in-out infinite; will-change: transform, opacity; }
+  .sq-pin-copied::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: var(--color-brand); pointer-events: none; animation: sq-ripple 500ms ease-out both; }
+  .sq-cart-flight { position: fixed; z-index: 100; pointer-events: none; will-change: transform; }
+  .sq-cart-flight > span { display: grid; place-items: center; width: 40px; height: 40px; margin-inline-start: -20px; margin-top: -20px; border-radius: 50%; background: var(--color-brand); color: white; font-weight: bold; will-change: transform, opacity; }
+  .sq-confetti { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 100; pointer-events: none; }
+  .skeleton { position: relative; overflow: hidden; background: var(--color-line-soft); animation: none; }
+  .skeleton::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-surface) 60%, transparent), transparent); animation: sq-shimmer 1.5s ease-in-out infinite; will-change: transform, opacity; }
+  .sq-scooter { animation: sq-scooter-bob 650ms ease-in-out infinite alternate; will-change: transform; }
+  .sq-menu-enter { animation: sq-list-in 300ms ease-out both; animation-delay: var(--entrance-delay, 0ms); }
+}
+@keyframes sq-roll-in { from { transform: translate3d(0, 90%, 0); opacity: 0; } to { transform: translate3d(0, 0, 0); opacity: 1; } }
+@keyframes sq-glow-pulse { 0%, 100% { opacity: .3; transform: scale(.98); } 50% { opacity: .8; transform: scale(1.02); } }
+@keyframes sq-ripple { from { transform: scale(.2); opacity: .35; } to { transform: scale(1.6); opacity: 0; } }
+@keyframes sq-shimmer { from { transform: translate3d(-100%,0,0); } to { transform: translate3d(100%,0,0); } }
+@keyframes sq-scooter-bob { from { transform: translate3d(0,-1px,0) rotate(-2deg); } to { transform: translate3d(0,1px,0) rotate(2deg); } }
+@keyframes sq-list-in { from { transform: translate3d(0,12px,0); opacity: 0; } to { transform: translate3d(0,0,0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active, a[href]:active { scale: 1; }
+  .sq-roll, .sq-menu-enter, .sq-scooter, .sq-glow::after, .sq-pin-copied::after, .skeleton::after { animation: none !important; will-change: auto; }
+  .sq-glow::after, .sq-pin-copied::after, .skeleton::after { display: none; }
+}

@@ -231,6 +231,11 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
                 "UNKNOWN",
                 cause instanceof Error ? cause.message : String(cause),
               );
+        if (!(cause instanceof ApiError)) {
+          Object.assign(apiError, {
+            cause: cause instanceof Error ? cause : new Error(String(cause)),
+          });
+        }
         if (mounted.current) setError(apiError);
         return null;
       } finally {

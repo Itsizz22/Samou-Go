@@ -1,3 +1,5 @@
+import { normalizeSelectedOptions } from '@samou-go/shared-types';
+import { RollingAmount } from '@/components/MotionFeedback';
 /**
  * `/cart` — the live basket: line items, quantities, and a display-only total.
  *
@@ -78,7 +80,7 @@ export function CartScreen() {
                       <div className="mb-2 flex items-center gap-2 border-b border-line pb-2">
                         <Store size={14} className="text-brand" />
                         <span className="text-xs font-extrabold text-ink">{group.storeNameAr || t('المتجر', 'Store')}</span>
-                        <span className="ms-auto text-[11px] font-semibold text-ink-muted">{formatCurrency(group.subtotal)}</span>
+                        <span className="ms-auto text-[11px] font-semibold text-ink-muted"><RollingAmount value={group.subtotal} /></span>
                       </div>
                       {/* Fulfillment type toggle per store */}
                       <div className="mb-2 flex gap-1 rounded-xl bg-canvas p-1">
@@ -109,9 +111,9 @@ export function CartScreen() {
                               <h3 className="truncate text-sm font-extrabold">{line.product.nameAr}</h3>
                               {line.selectedOptions && line.selectedOptions.length > 0 && (
                                 <p className="mt-0.5 text-[11px] text-ink-muted">
-                                  {line.selectedOptions.map(o => o.name).join(' + ')}
-                                  {line.selectedOptions.some(o => o.priceDelta > 0) && (
-                                    <span className="text-brand-dark"> (+{formatCurrency(line.selectedOptions.reduce((s, o) => s + o.priceDelta, 0))})</span>
+                                  {normalizeSelectedOptions(line.selectedOptions).map(o => o.name).join(' + ')}
+                                  {normalizeSelectedOptions(line.selectedOptions).some(o => o.priceDelta > 0) && (
+                                    <span className="text-brand-dark"> (+{formatCurrency(normalizeSelectedOptions(line.selectedOptions).reduce((s, o) => s + o.priceDelta, 0))})</span>
                                   )}
                                 </p>
                               )}
@@ -144,9 +146,9 @@ export function CartScreen() {
                           <h3 className="truncate text-sm font-extrabold">{line.product.nameAr}</h3>
                           {line.selectedOptions && line.selectedOptions.length > 0 && (
                             <p className="mt-0.5 text-[11px] text-ink-muted">
-                              {line.selectedOptions.map(o => o.name).join(' + ')}
-                              {line.selectedOptions.some(o => o.priceDelta > 0) && (
-                                <span className="text-brand-dark"> (+{formatCurrency(line.selectedOptions.reduce((s, o) => s + o.priceDelta, 0))})</span>
+                              {normalizeSelectedOptions(line.selectedOptions).map(o => o.name).join(' + ')}
+                              {normalizeSelectedOptions(line.selectedOptions).some(o => o.priceDelta > 0) && (
+                                <span className="text-brand-dark"> (+{formatCurrency(normalizeSelectedOptions(line.selectedOptions).reduce((s, o) => s + o.priceDelta, 0))})</span>
                               )}
                             </p>
                           )}
@@ -168,7 +170,7 @@ export function CartScreen() {
               <div className="mt-5 rounded-2xl bg-surface p-4 shadow-card">
                 <div className="flex justify-between text-xs text-ink-muted">
                   <span>المجموع الفرعي</span>
-                  <span dir="ltr" className="font-bold text-ink">{formatCurrency(cart.subtotal)}</span>
+                  <span dir="ltr" className="font-bold text-ink"><RollingAmount value={cart.subtotal} /></span>
                 </div>
                 <div className="mt-2 flex justify-between text-xs text-ink-muted">
                   <span>{deliveryFeeLabel(language)}</span>
@@ -181,7 +183,7 @@ export function CartScreen() {
                 </p>
                 <div className="mt-3 flex justify-between border-t border-line pt-3 text-sm">
                   <span className="font-extrabold">المجموع الفرعي</span>
-                  <span dir="ltr" className="font-extrabold text-brand-dark">{formatCurrency(cart.subtotal)}</span>
+                  <span dir="ltr" className="font-extrabold text-brand-dark"><RollingAmount value={cart.subtotal} /></span>
                 </div>
               </div>
 

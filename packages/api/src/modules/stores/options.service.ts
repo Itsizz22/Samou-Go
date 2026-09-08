@@ -70,7 +70,7 @@ export async function createOptionGroup(
     where: { productId },
     include: { items: { select: { id: true } } },
   });
-  const existingItemCount = existingGroups.reduce((sum: number, g: any) => sum + g.items.length, 0);
+  const existingItemCount = existingGroups.reduce((sum: number, g: any) => sum + (Array.isArray(g?.items) ? g.items.length : 0), 0);
   if (existingItemCount + incomingItemCount > 5) {
     throw unprocessable(
       'MAX_ITEMS_EXCEEDED',
@@ -132,7 +132,7 @@ export async function updateOptionGroup(
       where: { productId: existing.product.id, id: { not: groupId } },
       include: { items: { select: { id: true } } },
     });
-    const otherItemCount = otherGroups.reduce((sum: number, g: any) => sum + g.items.length, 0);
+    const otherItemCount = otherGroups.reduce((sum: number, g: any) => sum + (Array.isArray(g?.items) ? g.items.length : 0), 0);
     if (otherItemCount + incomingItemCount > 5) {
       throw unprocessable(
         'MAX_ITEMS_EXCEEDED',

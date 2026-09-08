@@ -5,6 +5,8 @@ import { parseWith } from '../../lib/validate';
 import { forbidden } from '../../lib/http-error';
 import { requireAuth } from '../../middleware/authenticate';
 import {
+  productSearchQuerySchema,
+  discoveryQuerySchema,
   categoryIdParamsSchema,
   createCategorySchema,
   createProductSchema,
@@ -152,4 +154,14 @@ export async function deleteCategoryHandler(req: Request, res: Response): Promis
 export async function popularProductsHandler(req: Request, res: Response): Promise<void> {
   const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 12, 1), 24);
   ok(res, await storesService.getPopularProducts(limit));
+}
+
+export async function newProductsHandler(req: Request, res: Response): Promise<void> {
+  const query = parseWith(discoveryQuerySchema, req.query);
+  ok(res, await storesService.getNewProducts(query.limit));
+}
+
+export async function searchProductsHandler(req: Request, res: Response): Promise<void> {
+  const query = parseWith(productSearchQuerySchema, req.query);
+  ok(res, await storesService.searchProducts(query.search, query.page));
 }

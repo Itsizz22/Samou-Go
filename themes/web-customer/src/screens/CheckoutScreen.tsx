@@ -1,3 +1,5 @@
+import { celebrateOrder } from '@/lib/sensory';
+import { RollingAmount } from '@/components/MotionFeedback';
 /**
  * `/checkout` — address + payment + live server quote, then order placement.
  *
@@ -33,7 +35,7 @@ import { MapPicker } from '@/components/MapPicker';
 import { CustomerAuthGate } from '@/components/CustomerAuthGate';
 import { useAuth, ENABLE_LOCATION, listActiveDeliveryZones } from '@/hooks/useApi';
 import { formatCurrency, DRIVER_FEE_LABEL, DRIVER_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
-import { hapticError, hapticSuccess } from '@/lib/haptics';
+import { hapticError, hapticSuccess, hapticConfirm } from '@/lib/haptics';
 import {
   ADDRESS_TAGS,
   ADDRESS_TAG_META,
@@ -68,6 +70,8 @@ const STALE_BASKET_CODES = new Set([
 ]);
 
 export function CheckoutScreen() {
+  const celebrationCleanup = useRef<(() => void) | null>(null);
+  useEffect(() => () => celebrationCleanup.current?.(), []);
   const auth = useAuth();
   const cart = useCart();
   const navigate = useNavigate();
@@ -329,6 +333,7 @@ export function CheckoutScreen() {
     // releases it; a leak here would permanently block further orders.
     if (submittingRef.current) return;
     submittingRef.current = true;
+    void hapticConfirm();
 
     try {
       setFieldError(null);
@@ -427,6 +432,8 @@ export function CheckoutScreen() {
           ...(finalVoiceNoteUrl ? { voiceNoteUrl: finalVoiceNoteUrl, voiceNoteDuration } : {}),
         });
         await hapticSuccess();
+        celebrationCleanup.current?.();
+        celebrationCleanup.current = celebrateOrder();
         cart.clear();
         setPlacedCheckout(result);
       } else {
@@ -448,6 +455,8 @@ export function CheckoutScreen() {
           ...(finalVoiceNoteUrl ? { voiceNoteUrl: finalVoiceNoteUrl, voiceNoteDuration } : {}),
         });
         await hapticSuccess();
+        celebrationCleanup.current?.();
+        celebrationCleanup.current = celebrateOrder();
         cart.clear();
         setPlacedOrder(created);
       }
@@ -915,7 +924,7 @@ export function CheckoutScreen() {
                 </div>
                 <div className="mt-2 flex justify-between border-t border-line pt-2 text-xs">
                   <span className="font-extrabold">{t('المجموع', 'Subtotal')}</span>
-                  <span dir="ltr" className="font-extrabold text-ink">{formatCurrency(group.subtotal)}</span>
+                  <span dir="ltr" className="font-extrabold text-ink"><RollingAmount value={group.subtotal} /></span>
                 </div>
               </div>
             ))}
@@ -931,7 +940,7 @@ export function CheckoutScreen() {
             <div className="mt-3 border-t border-line pt-3">
               <div className="flex justify-between text-sm font-extrabold">
                 <span>{t('الإجمالي', 'Total')}</span>
-                <span dir="ltr" className="text-brand-dark">{formatCurrency(cart.subtotal)}</span>
+                <span dir="ltr" className="text-brand-dark"><RollingAmount value={cart.subtotal} /></span>
               </div>
               <p className="mt-1 text-[10px] text-ink-muted text-center">{t('رسوم التوصيل تُحدّد بواسطة السائق', 'Delivery fee set by driver')}</p>
             </div>
@@ -948,7 +957,7 @@ export function CheckoutScreen() {
                 <div className="mt-3 space-y-1.5 text-xs">
                   <div className="flex justify-between text-ink-muted">
                     <span>المجموع الفرعي</span>
-                    <span dir="ltr" className="font-bold text-ink">{formatCurrency(quote.subtotal)}</span>
+                    <span dir="ltr" className="font-bold text-ink"><RollingAmount value={quote.subtotal} /></span>
                   </div>
                   <div className="flex justify-between text-ink-muted">
                     <span>{fulfillmentType === 'PICKUP' ? t('رسوم التوصيل', 'Delivery fee') : deliveryFeeLabel(language)}</span>
@@ -970,7 +979,7 @@ export function CheckoutScreen() {
                 </div>
                 <div className="mt-2 flex justify-between border-t border-line pt-2.5 text-sm">
                   <span className="font-extrabold">المجموع الفرعي</span>
-                  <span dir="ltr" className="font-extrabold text-brand-dark">{formatCurrency(quote.subtotal)}</span>
+                  <span dir="ltr" className="font-extrabold text-brand-dark"><RollingAmount value={quote.subtotal} /></span>
                 </div>
               </>
             ) : quoteError ? (

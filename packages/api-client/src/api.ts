@@ -2165,3 +2165,11 @@ export function updateSupportTicketStatus(
     signal,
   });
 }
+
+export function getNewProducts(limit = 12, signal?: AbortSignal): Promise<import("@samou-go/shared-types").DiscoveryProduct[]> {
+  return request("GET", "/stores/new-products", { query: { limit: String(limit), sort: "newest" }, signal });
+}
+
+export function searchProducts(search = '', page = 1, signal?: AbortSignal): Promise<{ items: import('@samou-go/shared-types').PopularProduct[]; total: number; page: number; pageSize: number }> {
+  return request('GET', '/stores/search-products', { query: { search, page: String(page) }, signal });
+}

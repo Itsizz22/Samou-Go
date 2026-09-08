@@ -30,6 +30,10 @@ storesRouter.get(
   asyncHandler(controller.popularProductsHandler)
 );
 
+storesRouter.get('/search-products', optionalAuthenticate, asyncHandler(controller.searchProductsHandler));
+
+storesRouter.get('/new-products', optionalAuthenticate, asyncHandler(controller.newProductsHandler));
+
 storesRouter.get('/:storeId', optionalAuthenticate, asyncHandler(controller.getStoreHandler));
 storesRouter.get(
   '/:storeId/full',

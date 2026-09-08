@@ -1,12 +1,19 @@
 import { z } from 'zod';
 import { StoreStatus, StoreType } from '@samou-go/shared-types';
 
+export const productSearchQuerySchema = z.object({
+  search: z.string().trim().max(120).default(''),
+  page: z.coerce.number().int().positive().default(1),
+});
+
 export const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(250).default(20),
 });
 
 export const storeListQuerySchema = paginationSchema.extend({
+  sort: z.enum(["newest", "rating"]).optional(),
+  limit: z.coerce.number().int().min(1).max(24).optional(),
   search: z.string().trim().min(1).max(120).optional(),
   /** Public catalogue hides closed shops; an admin dashboard can ask for all. */
   activeOnly: z
@@ -138,3 +145,5 @@ export type UpdateProductBody = z.infer<typeof updateProductSchema>;
 export type UpdateStoreBody = z.infer<typeof updateStoreSchema>;
 export type CreateCategoryBody = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryBody = z.infer<typeof updateCategorySchema>;
+
+export const discoveryQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(24).default(12), sort: z.literal("newest").optional() });

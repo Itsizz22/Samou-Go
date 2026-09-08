@@ -3,13 +3,13 @@
  * `ORDER_STATUS_SEQUENCE` from shared-types so the UI cannot drift from the
  * state machine. CANCELLED renders as a red aborted state.
  */
-import { Check, X } from 'lucide-react';
+import { Check, X, Bike } from 'lucide-react';
 import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_SEQUENCE,
   OrderStatus,
 } from '@samou-go/shared-types';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { cn, useLanguage } from '@samou-go/ui';
 
 interface OrderStatusTimelineProps {
@@ -20,6 +20,7 @@ interface OrderStatusTimelineProps {
 
 export function OrderStatusTimeline({ status, className, compact = false }: OrderStatusTimelineProps) {
   const { language } = useLanguage();
+  const reduced = useReducedMotion();
   const isArabic = language === 'ar';
   if (status === OrderStatus.CANCELLED) {
     return (
@@ -34,6 +35,13 @@ export function OrderStatusTimeline({ status, className, compact = false }: Orde
   const reached = (index: number) => index <= currentIndex;
 
   return (
+    <div>
+      {!compact && <div dir="ltr" className="relative mx-4 mb-5 h-8" aria-hidden="true">
+        <svg className="absolute inset-0 h-full w-full text-line" viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0 10 H100" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2" /></svg>
+        <motion.div className="absolute inset-0 text-brand" initial={false} animate={{ x: `${(isArabic ? 1 - Math.max(0, currentIndex) / (ORDER_STATUS_SEQUENCE.length - 1) : Math.max(0, currentIndex) / (ORDER_STATUS_SEQUENCE.length - 1)) * 100}%` }} transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 150, damping: 24 }}>
+          <span className="absolute top-1 -ms-3"><Bike size={24} className={status === OrderStatus.DELIVERED ? '' : 'sq-scooter'} /></span>
+        </motion.div>
+      </div>}
 <ol className={cn('flex items-start justify-between w-full px-1 py-2', className)} aria-label={isArabic ? 'حالة الطلب' : 'Order progress'}>
       {ORDER_STATUS_SEQUENCE.map((step, index) => {
         const done = reached(index);
@@ -48,11 +56,12 @@ export function OrderStatusTimeline({ status, className, compact = false }: Orde
               )}
               <motion.span
                 key={`${step}:${done}`}
-                initial={isCurrent ? { scale: 0.6 } : false}
+                initial={isCurrent && !reduced ? { scale: 0.6 } : false}
                 animate={isCurrent ? { scale: 1 } : undefined}
                 transition={{ type: 'spring', stiffness: 260, damping: 14 }}
                 className={cn(
                   'shrink-0 flex items-center justify-center rounded-full border-2 transition-colors',
+                  isCurrent && status !== OrderStatus.DELIVERED ? 'sq-glow' : '',
                   compact ? 'h-5 w-5 sm:h-6 sm:w-6' : 'h-7 w-7',
                   done
                     ? 'border-brand bg-brand text-white'
@@ -80,5 +89,6 @@ export function OrderStatusTimeline({ status, className, compact = false }: Orde
         );
       })}
     </ol>
+    </div>
   );
 }

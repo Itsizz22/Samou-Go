@@ -1,12 +1,4 @@
-import {
-  ChevronLeft,
-  ChevronRight,
-  Pause,
-  Play,
-  Plus,
-  SlidersHorizontal,
-  Store,
-} from 'lucide-react';
+import { Pause, Play, Plus, SlidersHorizontal, Store } from 'lucide-react';
 import { ImageWithFallback, useLanguage } from '@samou-go/ui';
 import type { PopularProduct } from '@samou-go/shared-types';
 import { useShowcaseCarousel } from '@/hooks/useShowcaseCarousel';
@@ -18,21 +10,23 @@ interface Props {
   onAdd: (product: PopularProduct) => void;
 }
 
-export function FeaturedProductsSlider({ products, loading, onAdd }: Props) {
+export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
   const { t, dir } = useLanguage();
   const carousel = useShowcaseCarousel(products.length);
   if (!products.length && !loading) return null;
   return (
     <section
-      className="mx-auto max-w-md px-5 pt-5"
-      aria-label={t('منتجات مميزة', 'Featured products')}
+      className="mx-auto max-w-md px-5 pt-5 font-sans"
+      aria-label={t('منتجات مميزة اخترناها لك', 'Featured products picked for you')}
       aria-busy={loading}
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-bold">{t('منتجات مميزة', 'Featured products')}</h2>
+          <h2 className="text-lg font-bold">
+            {t('منتجات مميزة اخترناها لك', 'Featured products picked for you')}
+          </h2>
           <p className="text-xs text-ink-muted">
-            {t('من الأكثر طلباً في متاجرنا', 'Best sellers from our stores')}
+            {t('أشهى الأطباق الأكثر طلباً من أفضل المطاعم', 'Popular dishes from top restaurants')}
           </p>
         </div>
         {products.length > 1 && (
@@ -50,12 +44,12 @@ export function FeaturedProductsSlider({ products, loading, onAdd }: Props) {
         )}
       </div>
       {loading && !products.length ? (
-        <div className="skeleton h-80 rounded-2xl" aria-hidden="true" />
+        <div className="skeleton h-80 rounded-3xl" aria-hidden="true" />
       ) : (
         <>
           <div
             {...carousel.bindings}
-            className="overflow-hidden rounded-2xl border border-line bg-surface"
+            className="overflow-hidden rounded-3xl border border-line bg-surface shadow-card"
             style={{ touchAction: 'pan-y' }}
           >
             {/* Track order is physical LTR; content remains RTL. Next moves right-to-left. */}
@@ -68,14 +62,14 @@ export function FeaturedProductsSlider({ products, loading, onAdd }: Props) {
                   aria-hidden={index !== carousel.active}
                   className="w-full min-w-0 shrink-0 basis-full"
                 >
-                  <div className="relative aspect-video overflow-hidden bg-canvas">
+                  <div className="group relative aspect-video overflow-hidden bg-canvas">
                     <ImageWithFallback
                       src={product.imageUrl ?? undefined}
                       alt={product.nameAr}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-105 motion-reduce:transition-none"
                       fallbackText={product.nameAr.slice(0, 2)}
                     />
-                    <div className="absolute inset-s-3 bottom-3 flex max-w-full items-center gap-2 rounded-full border border-line bg-surface px-2 py-1 text-xs shadow-card">
+                    <div className="absolute inset-s-3 bottom-3 flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-full border border-line bg-surface px-2 py-1 text-xs shadow-card">
                       {product.storeLogoUrl ? (
                         <ImageWithFallback
                           src={product.storeLogoUrl}
@@ -103,10 +97,16 @@ export function FeaturedProductsSlider({ products, loading, onAdd }: Props) {
                         onClick={() => onAdd(product)}
                         className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-4 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
                       >
-                        {product.hasOptions ? <SlidersHorizontal size={17} /> : <Plus size={17} />}
+                        {product.optionsEnabled && product.hasOptions ? (
+                          <SlidersHorizontal size={17} />
+                        ) : (
+                          <Plus size={17} />
+                        )}
                         {t(
-                          product.hasOptions ? 'تخصيص الطلب' : 'أضف للسلة',
-                          product.hasOptions ? 'Customize' : 'Add to cart'
+                          product.optionsEnabled && product.hasOptions
+                            ? 'تخصيص الطلب'
+                            : 'أضف للسلة',
+                          product.optionsEnabled && product.hasOptions ? 'Customize' : 'Add to cart'
                         )}
                       </button>
                     </div>
@@ -116,26 +116,27 @@ export function FeaturedProductsSlider({ products, loading, onAdd }: Props) {
             </div>
           </div>
           {products.length > 1 && (
-            <div dir="ltr" className="flex items-center justify-center gap-1">
-              <button
-                type="button"
-                onClick={() => carousel.step(-1)}
-                aria-label={t('المنتج السابق', 'Previous product')}
-                className="flex h-11 w-11 items-center justify-center"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <span className="min-w-12 text-center text-xs text-ink-muted" aria-live="off">
-                {carousel.active + 1} / {products.length}
-              </span>
-              <button
-                type="button"
-                onClick={() => carousel.step(1)}
-                aria-label={t('المنتج التالي', 'Next product')}
-                className="flex h-11 w-11 items-center justify-center"
-              >
-                <ChevronRight size={18} />
-              </button>
+            <div
+              {...carousel.bindings}
+              dir={dir}
+              className="flex flex-wrap items-center justify-center"
+              aria-label={t('اختيار المنتج', 'Choose product')}
+            >
+              {products.map((product, index) => (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() => carousel.setIndex(index)}
+                  aria-label={t(`عرض ${product.nameAr}`, `Show ${product.nameAr}`)}
+                  aria-pressed={index === carousel.active}
+                  className="flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`h-1.5 rounded-full transition-all duration-300 motion-reduce:transition-none ${index === carousel.active ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`}
+                  />
+                </button>
+              ))}
             </div>
           )}
         </>

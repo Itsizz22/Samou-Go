@@ -50,6 +50,9 @@ export interface PublicUser {
  * ------------------------------------------------------------------------- */
 
 export interface Store {
+  isRecent?: boolean;
+  averageRating?: number | null;
+  ratingCount?: number;
   id: string;
   nameAr: string;
   nameEn: string;
@@ -391,4 +394,9 @@ export interface OrderSummary {
   captainHandoffCode: string | null;
   /** Whether the order carries a pickup handoff code (visible to all roles). */
   requiresHandoffCode: boolean;
+}
+
+export interface DiscoveryProduct extends PopularProduct {
+  createdAt: string;
+  isRecent: boolean;
 }
