@@ -621,7 +621,7 @@ export function CheckoutScreen() {
                   <span className="text-[11px] font-bold text-ink-muted">المنطقة</span>
                   <select value={zoneId} onChange={(event) => setZoneId(event.target.value)} className="input-field mt-1.5 w-full">
                     <option value="">اختر المنطقة</option>
-                    {zones.map((zone) => <option key={zone.id} value={zone.id}>{zone.nameAr} {zone.allowCaptainPricing ? '(تحدد الرسوم من قبل الكابتن)' : `(${zone.deliveryFee} ₪)`}</option>)}
+                    {zones.map((zone) => <option key={zone.id} value={zone.id}>{zone.nameAr}</option>)}
                   </select>
                 </label>
               )}

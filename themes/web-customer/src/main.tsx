@@ -1,5 +1,5 @@
 import { AppErrorBoundary, LanguageProvider, OfflineBanner, bootstrapApp } from '@samou-go/ui';
-import { createRoot } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import './index.css';
@@ -64,7 +64,11 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
 }
 
-createRoot(document.getElementById('root')!).render(
+// Reuse the root when a shared-package rebuild re-evaluates this entry module.
+const hotData = import.meta.hot?.data as { root?: Root } | undefined;
+const root = hotData?.root ?? createRoot(document.getElementById('root')!);
+if (hotData) hotData.root = root;
+root.render(
   <AppErrorBoundary>
     <OfflineBanner />
     <LanguageProvider>

@@ -35,6 +35,9 @@ describe('option management authenticated actor', () => {
 
       await handler(req, res);
       expect(vi.mocked(serviceFn).mock.calls[0]?.[0]).toEqual(auth);
+      if (handler !== controller.deleteOptionGroupHandler) {
+        expect(res.json).toHaveBeenCalledWith({ success: true, data: handler === controller.listOptionGroupsHandler ? { items: [] } : { id: 'group-1' } });
+      }
     });
 
     it(`${handler.name} rejects a missing authenticated actor`, async () => {

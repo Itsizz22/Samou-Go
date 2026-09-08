@@ -92,14 +92,14 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
 
   return (
     <AnimatePresence>
-      <motion.div
+      <motion.div key="options-backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 bg-black/40"
         onClick={onClose}
       />
-      <motion.div
+      <motion.div key="options-panel"
         initial={reduced ? false : { y: '100%' }}
         animate={{ y: 0 }}
         exit={reduced ? { opacity: 0 } : { y: '100%' }}

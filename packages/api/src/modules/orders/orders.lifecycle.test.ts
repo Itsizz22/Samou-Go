@@ -208,3 +208,16 @@ it('searches the full public product catalogue and samples only eligible product
   expect((await request<Results>('GET', '/stores/search-products?search=zzzzzzzzzz')).data.items).toEqual([]);
   expect((await request('GET', '/stores/search-products?page=0')).status).toBe(422);
 });
+
+it('reorders addons at current prices and skips unavailable selections', async () => {
+  const original = await fixture.db.order.findFirstOrThrow({ where: { storeId: 'store' }, include: { items: true } });
+  const line = original.items[0]!;
+  await fixture.db.orderItem.update({ where: { id: line.id }, data: { selectedOptions: [{ id: 'showcase-option', groupId: 'showcase-group', name: 'جبنة', priceDelta: 1 }] } });
+  const response = await request<import('@samou-go/shared-types').ReorderResult>('POST', `/orders/${original.id}/reorder`, 'CUSTOMER');
+  expect(response.status).toBe(200);
+  expect(response.data.items[0]?.selectedOptions).toEqual([{ id: 'showcase-option', groupId: 'showcase-group', name: 'جبنة', priceDelta: 3.25 }]);
+  await fixture.db.productOptionItem.update({ where: { id: 'showcase-option' }, data: { isActive: false } });
+  const unavailable = await request<import('@samou-go/shared-types').ReorderResult>('POST', `/orders/${original.id}/reorder`, 'CUSTOMER');
+  expect(unavailable.data.items).toEqual([]);
+  expect(unavailable.data.skipped).toBe(1);
+});

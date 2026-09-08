@@ -1,3 +1,4 @@
+import { normalizeOptionGroups } from '@samou-go/shared-types';
 /**
  * Samou' Go — store manager catalogue management.
  *
@@ -152,7 +153,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
     setOptionLoading(true);
     try {
       const result = await listOptionGroups(storeId, productId);
-      setOptionGroups(result.items);
+      setOptionGroups(normalizeOptionGroups(result?.items));
     } catch {
       setOptionGroups([]);
     } finally {
@@ -169,7 +170,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
         minSelect: 0,
         maxSelect: 10,
       });
-      setOptionGroups(prev => [...prev, g]);
+      setOptionGroups(prev => normalizeOptionGroups([...prev, g]));
       setNewGroupName('');
       toast.success('تم إنشاء المجموعة', 'Option group created');
     } catch (err) {
@@ -191,7 +192,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
           { name: newItemName.trim(), price, sortOrder: group.items.length },
         ],
       });
-      setOptionGroups(prev => prev.map(g => g.id === groupId ? updated : g));
+      setOptionGroups(prev => normalizeOptionGroups(prev.map(g => g.id === groupId ? updated : g)));
       setNewItemName('');
       setNewItemPrice('');
       setAddingToGroup(null);
@@ -212,7 +213,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
           .filter((_, i) => i !== itemIndex)
           .map(i => ({ name: i.name, price: i.priceDelta, sortOrder: i.sortOrder })),
       });
-      setOptionGroups(prev => prev.map(g => g.id === groupId ? updated : g));
+      setOptionGroups(prev => normalizeOptionGroups(prev.map(g => g.id === groupId ? updated : g)));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error('تعذّر حذف الخيار', msg);
@@ -842,8 +843,8 @@ export function ProductCataloguePanel({ storeId }: Props) {
                         <div className="mt-2 flex items-center gap-1">
                           <input type="text" value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder={t('اسم الخيار', 'Option name')} className="min-w-0 flex-1 rounded border border-line bg-canvas px-2 py-1 text-[11px] outline-none focus:border-brand" />
                           <input type="number" min="0" step="0.5" value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)} placeholder="₪" dir="ltr" className="w-14 rounded border border-line bg-canvas px-1 py-1 text-[11px] outline-none focus:border-brand" />
-                          <button type="button" onClick={() => void handleAddOptionItem(g.id)} className="rounded bg-brand px-2 py-1 text-[10px] font-bold text-white"><Check size={10} /></button>
-                          <button type="button" onClick={() => { setAddingToGroup(null); setNewItemName(''); setNewItemPrice(''); }} className="rounded px-1.5 py-1 text-[10px] text-ink-muted"><X size={10} /></button>
+                          <button type="button" aria-label={t('حفظ الخيار', 'Save option')} onClick={() => void handleAddOptionItem(g.id)} className="min-h-11 min-w-11 rounded bg-brand px-2 py-1 text-[10px] font-bold text-white"><Check size={10} /></button>
+                          <button type="button" aria-label={t('إلغاء الخيار', 'Cancel option')} onClick={() => { setAddingToGroup(null); setNewItemName(''); setNewItemPrice(''); }} className="rounded px-1.5 py-1 text-[10px] text-ink-muted"><X size={10} /></button>
                         </div>
                       ) : maxItemsReached ? (
                         <p className="mt-2 text-[11px] font-semibold text-warning">{t('الحد الأقصى 5 إضافات', 'Max 5 addon items per product')}</p>

@@ -108,7 +108,7 @@ export function OrderTrackingScreen() {
         toast.error('لا يمكن إعادة الطلب — كل المنتجات غير متاحة حالياً', 'Nothing left to reorder');
         return;
       }
-      result.items.forEach((item) => cart.addItem(item.product, item.quantity, '', result.storeNameAr));
+      result.items.forEach((item) => cart.addItem(item.product, item.quantity, item.note ?? '', result.storeNameAr, item.selectedOptions));
       if (result.skipped > 0) {
         toast.info(
           `أُضيفت ${result.items.length} أصناف. ${result.skipped} منتجات لم تعد متاحة وتم تخطّيها`,

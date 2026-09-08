@@ -153,35 +153,31 @@ export function CategoriesPanel({ storeId }: Props) {
     setFormError(null);
 
     try {
-      // If a new file was selected, upload it first to get a URL.
+      // Upload ownership requires a persisted category. Keep its ID on failure
+      // so retrying the image cannot create a duplicate section.
+      let target = editTarget;
+      if (modal === 'create') {
+        target = await createCategory(storeId, { nameAr, nameEn: nameAr, sortOrder });
+        setEditTarget(target);
+        setModal('edit');
+        reload();
+      }
+      if (!target) return;
       let finalImageUrl = form.imageUrl.trim() || undefined;
       if (imageFile) {
         const { presignUpload, uploadRawFile, finalizeUpload } = await import('@samou-go/api-client');
         const { compressImage } = await import('@samou-go/api-client');
         const compressed = await compressImage(imageFile);
-        const presign = await presignUpload({ kind: 'category', resourceId: editTarget?.id ?? 'new', purpose: 'image', contentType: compressed.type || imageFile.type });
+        const presign = await presignUpload({ kind: 'category', resourceId: target.id, purpose: 'image', contentType: compressed.type || imageFile.type });
         await uploadRawFile(presign.key, compressed);
         const finalized = await finalizeUpload(presign.key, 'category');
         finalImageUrl = finalized.url;
       }
 
-      if (modal === 'create') {
-        await createCategory(storeId, {
-          nameAr,
-          nameEn: nameAr,
-          imageUrl: finalImageUrl,
-          sortOrder,
-        });
-        toast.success('تم إنشاء القسم', 'Section created');
-      } else if (modal === 'edit' && editTarget) {
-        await updateCategory(storeId, editTarget.id, {
-          nameAr,
-          nameEn: nameAr,
-          imageUrl: finalImageUrl ?? null,
-          sortOrder,
-        });
-        toast.success('تم تحديث القسم', 'Section updated');
-      }
+      await updateCategory(storeId, target.id, {
+        nameAr, nameEn: nameAr, imageUrl: finalImageUrl ?? null, sortOrder,
+      });
+      toast.success('تم حفظ القسم', 'Section saved');
       closeModal();
       reload();
     } catch (err) {

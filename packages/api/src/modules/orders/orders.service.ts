@@ -1,3 +1,4 @@
+import { normalizeSelectedOptions, resolveSelectedOptions, normalizeOptionGroups } from '@samou-go/shared-types';
 import type { Prisma, PrismaClient } from '../../lib/prisma-types';
 import { randomUUID } from 'node:crypto';
 import {
@@ -773,6 +774,7 @@ export async function reorderOrder(
 
   const currentProducts = await prisma.product.findMany({
     where: { id: { in: order.items.map(item => item.productId) } },
+    include: { optionGroups: { include: { items: true } } },
   });
   const byId = new Map(currentProducts.map(product => [product.id, product]));
 
@@ -784,7 +786,17 @@ export async function reorderOrder(
       skipped += 1;
       continue;
     }
-    items.push({ product: toProduct(product), quantity: item.quantity, ...(item.note ? { note: item.note } : {}) });
+    const dto = toProduct(product);
+    let raw: unknown = item.selectedOptions;
+    if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch { raw = []; } }
+    const previous = normalizeSelectedOptions(raw);
+    const selectedOptions = resolveSelectedOptions(dto.optionGroups, previous.map(option => ({ groupId: option.groupId, optionId: option.id })));
+    const invalidSelection = selectedOptions.length !== previous.length || normalizeOptionGroups(dto.optionGroups).some(group => {
+      const count = selectedOptions.filter(option => option.groupId === group.id).length;
+      return count < Math.max(group.minSelect, group.required ? 1 : 0) || count > group.maxSelect;
+    });
+    if (invalidSelection) { skipped += 1; continue; }
+    items.push({ product: dto, quantity: item.quantity, selectedOptions, ...(item.note ? { note: item.note } : {}) });
   }
 
   return {
