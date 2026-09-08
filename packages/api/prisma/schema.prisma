@@ -799,3 +799,13 @@ model DeviceToken {
   @@index([userId])
   @@map("device_tokens")
 }
+
+/// Durable processed media; local disk is only a disposable delivery cache.
+model StoredUpload {
+  key       String   @id
+  content   Bytes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("stored_uploads")
+}

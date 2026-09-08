@@ -1,3 +1,6 @@
+import path from 'node:path';
+import { storage } from './uploads/storage';
+import { asyncHandler } from './lib/async-handler';
 import cors from 'cors';
 import express from 'express';
 import type { Application, Request, Response } from 'express';
@@ -54,6 +57,16 @@ export function createApp(): Application {
       },
     })
   );
+  // Recover immutable processed media after a deployment discards the disk cache.
+  app.use('/uploads', asyncHandler(async (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') { next(); return; }
+    const key = req.path.slice(1);
+    if (!/^[a-zA-Z0-9_/-]+\.(webp|png|jpe?g|avif|gif|webm|mp4|m4a|ogg)$/i.test(key)) { next(); return; }
+    const data = await storage.readFinal(key);
+    if (!data) { next(); return; }
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.type(path.extname(key)).send(data);
+  }));
   // Missing image files can outlive their database URL after storage loss.
   // Render a visible placeholder without caching it, so restored files appear immediately.
   app.use('/uploads', (req: Request, res: Response) => {

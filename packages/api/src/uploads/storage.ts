@@ -1,3 +1,5 @@
+import { prisma } from '../lib/prisma';
+import { env } from '../config/env';
 import { createWriteStream } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -17,6 +19,7 @@ export interface StorageAdapter {
   streamRaw(rawKey: string, body: Readable): Promise<void>;
   readRaw(rawKey: string): Promise<Buffer | null>;
   writeFinal(finalKey: string, data: Buffer): Promise<void>;
+  readFinal(finalKey: string): Promise<Buffer | null>;
   removeRaw(rawKey: string): Promise<void>;
   removeFinal(finalKey: string): Promise<void>;
   /** Absolute public URL the browser can load the processed file from. */
@@ -79,6 +82,14 @@ export class LocalStorageAdapter implements StorageAdapter {
     await writeFile(target, data);
   }
 
+  async readFinal(finalKey: string): Promise<Buffer | null> {
+    try { return await readFile(resolveWithin(uploadDirs.finalDir, finalKey)); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw error;
+    }
+  }
+
   async removeRaw(rawKey: string): Promise<void> {
     await rm(resolveWithin(uploadDirs.rawDir, rawKey), { force: true });
   }
@@ -96,4 +107,34 @@ export class LocalStorageAdapter implements StorageAdapter {
   }
 }
 
-export const storage: StorageAdapter = new LocalStorageAdapter();
+/** Production writes must reach durable storage before an upload can be finalized. */
+export class PersistentStorageAdapter extends LocalStorageAdapter {
+  override async writeFinal(finalKey: string, data: Buffer): Promise<void> {
+    resolveWithin(uploadDirs.finalDir, finalKey);
+    await prisma.storedUpload.upsert({
+      where: { key: finalKey },
+      create: { key: finalKey, content: new Uint8Array(data) },
+      update: { content: new Uint8Array(data) },
+    });
+    // A full/unavailable local cache must not discard an otherwise durable upload.
+    await super.writeFinal(finalKey, data).catch(() => undefined);
+  }
+
+  override async readFinal(finalKey: string): Promise<Buffer | null> {
+    resolveWithin(uploadDirs.finalDir, finalKey);
+    const stored = await prisma.storedUpload.findUnique({ where: { key: finalKey } });
+    if (!stored) return null;
+    const data = Buffer.from(stored.content);
+    await super.writeFinal(finalKey, data).catch(() => undefined);
+    return data;
+  }
+
+  override async removeFinal(finalKey: string): Promise<void> {
+    await super.removeFinal(finalKey);
+    await prisma.storedUpload.deleteMany({ where: { key: finalKey } });
+  }
+}
+
+export const storage: StorageAdapter = env.isProduction
+  ? new PersistentStorageAdapter()
+  : new LocalStorageAdapter();
