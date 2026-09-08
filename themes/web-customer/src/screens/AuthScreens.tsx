@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Crosshair, Eye, EyeOff, Loader2, LockKeyhole, MapPin } from 'lucide-react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Crosshair, Eye, EyeOff, Loader2, MapPin } from 'lucide-react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
   ApiError,
   ENABLE_LOCATION,
   register,
   requestOtp,
   resetPassword,
-  setSessionPersistence,
   updateMyLocation,
   useAuth,
   useToast,
@@ -92,7 +91,7 @@ function PasswordInput({
         <button
           type="button"
           onClick={() => setVisible(!visible)}
-          className="absolute end-3 top-1/2 -translate-y-1/2 rounded p-1 text-ink-muted"
+          className="absolute inset-e-3 top-1/2 -translate-y-1/2 rounded p-1 text-ink-muted"
           aria-label={t(visible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور', visible ? 'Hide password' : 'Show password')}
         >
           {visible ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -116,96 +115,7 @@ function ErrorBanner({ error }: { error: string | LocalizedText | null }) {
   );
 }
 
-export function LoginScreen() {
-  const auth = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { t } = useLanguage();
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(true);
-
-  if (auth.ready && auth.user) return <Navigate to={roleHomePath(auth.user.role)} replace />;
-  const valid = phoneValid(phone) && password.length > 0;
-  return (
-    <AuthShell>
-      <h1 className="text-xl font-extrabold">{t('تسجيل الدخول', 'Sign in to your account')}</h1>
-      {location.state &&
-        typeof location.state === 'object' &&
-        'resetComplete' in location.state && (
-          <p
-            role="status"
-            className="mt-4 rounded-xl bg-brand-surface px-3 py-2 text-xs font-semibold text-brand-deep"
-          >
-            تم تحديث كلمة المرور. يمكنك تسجيل الدخول الآن.
-          </p>
-        )}
-      <form
-        noValidate
-        onSubmit={event => {
-          event.preventDefault();
-          if (!valid || auth.pending) return;
-          setSessionPersistence(remember);
-          void auth.signIn({ phone: normalizePhone(phone), password }).then(user => {
-            if (user) navigate(roleHomePath(user.role), { replace: true });
-          });
-        }}
-      >
-        <label className="mt-5 block text-sm font-bold">
-          رقم الجوال
-          <input
-            className="input-field mt-1.5 w-full"
-            dir="ltr"
-            inputMode="tel"
-            autoComplete="tel"
-            value={phone}
-            onChange={event => setPhone(event.target.value.replace(/[^\d+]/g, ''))}
-            placeholder="05XXXXXXXX"
-            aria-invalid={phone.length > 0 && !phoneValid(phone)}
-          />
-        </label>
-        {phone.length > 0 && !phoneValid(phone) && (
-          <p className="mt-1 text-xs text-danger-ink">
-            يرجى إدخال رقم جوال فلسطيني صالح يبدأ بـ 059 أو 056
-          </p>
-        )}
-        <PasswordInput label="كلمة المرور" value={password} onChange={setPassword} />
-        <div className="mt-4 flex items-center justify-between text-sm">
-          <Link to="/forgot-password" className="font-bold text-brand">
-            نسيت كلمة المرور؟
-          </Link>
-          <label className="flex items-center gap-2 text-ink-muted">
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={event => setRemember(event.target.checked)}
-            />{' '}
-            تذكرني
-          </label>
-        </div>
-        <ErrorBanner error={auth.error ? { ar: auth.error.message, en: auth.error.localizedMessage } : null} />
-        <button
-          type="submit"
-          disabled={!valid || auth.pending}
-          className="btn-primary mt-5 w-full justify-center disabled:opacity-60"
-        >
-          {auth.pending ? (
-            <Loader2 className="animate-spin" size={18} />
-          ) : (
-            <LockKeyhole size={18} />
-          )}{' '}
-          تسجيل الدخول
-        </button>
-      </form>
-      <p className="mt-4 text-center text-sm text-ink-muted">
-        ليس لديك حساب؟{' '}
-        <Link to="/register" className="font-bold text-brand">
-          أنشئ حساباً
-        </Link>
-      </p>
-    </AuthShell>
-  );
-}
+export { LoginScreen } from './LoginScreen';
 
 export function RegisterScreen() {
   const auth = useAuth();

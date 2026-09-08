@@ -181,10 +181,10 @@ export function ProfileScreen() {
               <ImageWithFallback
                 src={user.profileImageUrl}
                 alt={user.name}
-                className="h-14 w-14 shrink-0 rounded-2xl object-cover"
+                className="h-16 w-16 shrink-0 rounded-full object-cover"
               />
             ) : (
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-surface text-sm font-extrabold text-brand-deep">
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-surface text-sm font-extrabold text-brand-deep">
                 {user.name.slice(0, 2)}
               </span>
             )}
@@ -199,14 +199,14 @@ export function ProfileScreen() {
               onClick={() => (editing ? handleSave() : startEdit())}
               disabled={saving}
               aria-label={editing ? t('حفظ', 'Save') : t('تعديل', 'Edit')}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : editing ? <Save size={16} /> : <Pencil size={16} />}
             </button>
           </div>
 
           {/* Profile photo controls */}
-          <div className="mt-3 flex items-center gap-2 border-t border-line pt-3">
+          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl bg-brand-surface p-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
               <Camera size={16} />
             </span>
@@ -316,7 +316,7 @@ export function ProfileScreen() {
         {/* Saved addresses */}
         <section className="rounded-2xl border border-line bg-surface p-5 shadow-card">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
               <MapPin size={18} />
             </span>
             <div className="flex-1 text-end">
@@ -372,7 +372,7 @@ export function ProfileScreen() {
           onClick={() => navigate('/settings')}
           className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-end shadow-card transition hover:bg-brand-surface active:scale-[0.99]"
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
             <Settings size={18} />
           </span>
           <span className="flex-1">

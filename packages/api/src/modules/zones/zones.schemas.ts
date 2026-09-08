@@ -10,14 +10,16 @@ export const zoneFeeSchema = z
 export const createDeliveryZoneSchema = z.object({
   nameAr: z.string().trim().min(1, 'اسم المنطقة بالعربية مطلوب / Arabic name is required').max(160),
   nameEn: z.string().trim().min(1, 'English name is required').max(160),
-  fee: zoneFeeSchema,
+  deliveryFee: zoneFeeSchema.optional(),
+  fee: zoneFeeSchema.optional(),
+  allowCaptainPricing: z.boolean().optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(999).optional(),
 });
 
 export const updateDeliveryZoneSchema = createDeliveryZoneSchema
   .partial()
-  .refine(body => Object.keys(body).length > 0, {
+  .refine(body => Object.keys(body).length > 0 && (body.deliveryFee !== undefined || body.fee !== undefined || Object.keys(body).some(key => !['deliveryFee', 'fee'].includes(key))), {
     message: 'لا شيء للتحديث / Nothing to update',
   });
 

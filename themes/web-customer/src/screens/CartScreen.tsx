@@ -7,7 +7,7 @@
  * matching what the server will confirm.
  */
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, Minus, Plus, ShoppingBag, Store, Trash2 } from 'lucide-react';
+import { ArrowRight, Home, Minus, Plus, ShoppingBag, Store, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCart, type CartStoreGroup } from '@/components/CartProvider';
 import { formatCurrency, DRIVER_FEE_LABEL, DRIVER_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
@@ -40,6 +40,9 @@ export function CartScreen() {
               className="rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
             >
               <ArrowRight size={22} className="rtl:rotate-180" />
+            </button>
+            <button type="button" aria-label={t('الرئيسية', 'Home')} onClick={() => navigate('/home')} className="rounded-full p-2 transition hover:bg-surface/15 active:scale-95">
+              <Home size={20} />
             </button>
             <div className="flex-1 text-end">
               <h1 className="text-lg font-extrabold">{t('سلة المشتريات', 'Your cart')}</h1>

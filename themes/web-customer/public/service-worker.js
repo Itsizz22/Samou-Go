@@ -13,7 +13,7 @@
  *  - Cross-origin traffic (API, SMS verification) is never
  *    intercepted — network requests must always hit the origin.
  */
-const CACHE_NAME = 'samou-go-customer-v2';
+const CACHE_NAME = 'samou-go-customer-v3';
 const APP_SHELL = '/index.html';
 const API_HOSTNAME = 'samou-go.onrender.com';
 
@@ -56,10 +56,7 @@ self.addEventListener('fetch', (event) => {
 
   // The Render API is always live data. Do not cache it, even if a deployment
   // eventually proxies it through the same origin.
-  if (url.hostname === API_HOSTNAME) {
-    event.respondWith(networkOnly(request));
-    return;
-  }
+  if (url.hostname === API_HOSTNAME || url.pathname.startsWith('/api/')) return;
 
   // Only same-origin GETs participate in the cache. API calls and cross-origin
   // traffic stay network-only.

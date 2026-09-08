@@ -12,6 +12,7 @@
     }
   },
   "scripts": {
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.0.10",
-    "typescript": "~5.7.2"
+    "typescript": "~5.7.2",
+    "vitest": "^4.1.10"
   }
 }

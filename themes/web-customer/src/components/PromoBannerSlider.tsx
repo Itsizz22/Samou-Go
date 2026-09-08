@@ -70,7 +70,7 @@ export function PromoBannerSlider() {
   return (
     <section className="mx-auto max-w-md px-5 pt-5" aria-label="Feature banners">
       <div
-        className="relative overflow-hidden rounded-2xl shadow-card"
+        className="relative overflow-hidden rounded-2xl"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -86,14 +86,14 @@ export function PromoBannerSlider() {
           }}
         >
           {/* ---- Slide 1: Live Location Tracking ---- */}
-          <div className="min-w-full rounded-2xl bg-gradient-to-br from-brand-deep via-brand-dark to-brand px-5 py-6 text-white">
-            <div className="flex min-h-[110px] items-center justify-between gap-4">
-              <div className="flex-1 text-end">
+          <div className="relative min-w-full rounded-2xl bg-gradient-to-br from-emerald-950 via-emerald-800 to-emerald-600 px-4 py-4 text-white">
+            <div className="flex min-h-24 items-center justify-between gap-4">
+              <div className="flex-1 text-start">
                 <GoldBadge>
                   <Navigation size={10} className="text-ink" />
                   {t('قريباً', 'Coming soon')}
                 </GoldBadge>
-                <h3 className="mt-2 text-[18px] font-extrabold leading-snug">
+                <h3 className="mt-2 text-sm font-extrabold leading-snug text-white">
                   {t('إتاحة وتتبع الموقع المباشر', 'Live location tracking')}
                 </h3>
                 <p className="mt-1.5 text-[11px] leading-relaxed text-white/75">
@@ -113,14 +113,14 @@ export function PromoBannerSlider() {
           </div>
 
           {/* ---- Slide 2: Package Delivery ---- */}
-          <div className="min-w-full rounded-2xl bg-gradient-to-br from-brand-soft via-brand to-brand-dark px-5 py-6 text-white">
-            <div className="flex min-h-[110px] items-center justify-between gap-4">
-              <div className="flex-1 text-end">
+          <div className="relative min-w-full rounded-2xl bg-gradient-to-br from-slate-950 via-emerald-900 to-emerald-700 px-4 py-4 text-white">
+            <div className="flex min-h-24 items-center justify-between gap-4">
+              <div className="flex-1 text-start">
                 <GoldBadge>
                   <Package size={10} className="text-ink" />
                   {t('قريباً', 'Coming soon')}
                 </GoldBadge>
-                <h3 className="mt-2 text-[18px] font-extrabold leading-snug">
+                <h3 className="mt-2 text-sm font-extrabold leading-snug text-white">
                   {t('خدمة نقل الطرود وتوصيل الأمانات', 'Package & parcel delivery')}
                 </h3>
                 <p className="mt-1.5 text-[11px] leading-relaxed text-white/75">
@@ -142,14 +142,15 @@ export function PromoBannerSlider() {
       </div>
 
       {/* Pagination dots */}
-      <div className="mt-3 flex items-center justify-center gap-1.5">
+      <div className="flex items-center justify-center">
         {[0, 1].map(i => (
           <button
             key={i}
             type="button"
             aria-label={i === 0 ? 'Live location banner' : 'Package delivery banner'}
             onClick={() => setSlide(i)}
-            className="-m-2.5 p-2.5"
+            aria-pressed={slide === i}
+            className="flex min-h-11 min-w-11 items-center justify-center"
           >
             <span
               className={`block h-1.5 rounded-full transition-all duration-300 ${

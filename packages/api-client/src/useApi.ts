@@ -41,6 +41,10 @@ import {
   type WalletSummary,
   type AdminFinancials,
   type PopularProduct,
+  type SupportTicket,
+  type TicketMessage,
+  listSupportTickets, createSupportTicket, getSupportTicket, addSupportMessage, updateSupportTicketStatus,
+  type CreateTicketInput, type CreateMessageInput, type UpdateTicketStatusInput,
 } from './api';
 import type {
   AdminCreateCaptainInput,
@@ -109,7 +113,8 @@ export function useResource<T>(
 ): Resource<T> {
   const { enabled = true, pollMs, stopWhen } = options;
 
-  const [data, setData] = useState<T | null>(null);
+  const [result, setResult] = useState<{ key: string; data: T } | null>(null);
+  const data = enabled && result?.key === key ? result.data : null;
   const [error, setError] = useState<ApiError | null>(null);
   const [loading, setLoading] = useState(enabled);
   const [refreshing, setRefreshing] = useState(false);
@@ -121,6 +126,7 @@ export function useResource<T>(
 
   // Distinguishes "first load" (show a skeleton) from "refresh" (keep the data).
   const hasDataRef = useRef(false);
+  hasDataRef.current = data !== null;
 
   // Latest `stopWhen` without re-firing the polling effect on every render.
   const stopWhenRef = useRef(stopWhen);
@@ -131,6 +137,9 @@ export function useResource<T>(
   useEffect(() => {
     if (!enabled) {
       setLoading(false);
+      setRefreshing(false);
+      setResult(null);
+      setError(null);
       return;
     }
 
@@ -145,7 +154,7 @@ export function useResource<T>(
       .then((result) => {
         if (cancelled) return;
         hasDataRef.current = true;
-        setData(result);
+        setResult({ key, data: result });
         setError(null);
       })
       .catch((cause: unknown) => {
@@ -166,15 +175,14 @@ export function useResource<T>(
       cancelled = true;
       controller.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, enabled, nonce]);
 
   useEffect(() => {
-    if (!enabled || !pollMs) return;
+    if (!enabled || !pollMs || loading || refreshing || error?.status === 401 || error?.status === 403) return;
     if (stopWhenRef.current?.(data)) return;
     const timer = setInterval(reload, pollMs);
     return () => clearInterval(timer);
-  }, [enabled, pollMs, reload, data]);
+  }, [enabled, pollMs, reload, data, error, loading, refreshing]);
 
   return { data, loading, refreshing, error, reload, refresh: reload };
 }
@@ -582,4 +590,60 @@ export function hapticConfirm() {
 /** GET /platform/admin/financials — wallets, settlements and delivered revenue. */
 export function useAdminFinancials(options?: ResourceOptions<AdminFinancials>): Resource<AdminFinancials> {
   return useResource('admin-financials', signal => getAdminFinancials(signal), options);
+}
+
+/* ---------------------------------------------------------------------------
+  * Support — Support & Complaints Ticketing System
+  * ------------------------------------------------------------------------- */
+
+export interface UseSupportTicketsQuery {
+  status?: string;
+  priority?: string;
+  category?: string;
+}
+
+export function useSupportTickets(
+  query: UseSupportTicketsQuery = {},
+  options?: ResourceOptions<Paginated<SupportTicket>>,
+  auth = false,
+): Resource<Paginated<SupportTicket>> {
+  const key = `support-tickets:${auth ? 'auth:' : ''}${JSON.stringify(query)}`;
+  return useResource(key, (signal) => listSupportTickets(query, signal), options);
+}
+
+export function useCreateTicket(
+  input: CreateTicketInput,
+  options?: { onSuccess?: (ticket: SupportTicket) => void }
+): Mutation<CreateTicketInput, SupportTicket> {
+  return useMutation<CreateTicketInput, SupportTicket>(
+    (input, signal) => createSupportTicket(input, signal)
+  );
+}
+
+export function useTicketMessages(
+  ticketId: string,
+  options?: ResourceOptions<TicketMessage[]>
+): Resource<TicketMessage[]> {
+  const key = `ticket-messages:${ticketId}`;
+  return useResource(key, async (signal) => (await getSupportTicket(ticketId, signal)).messages ?? [], options);
+}
+
+export function useAddMessage(
+  ticketId: string,
+  input: CreateMessageInput,
+  options?: { onSuccess?: (message: TicketMessage) => void }
+): Mutation<CreateMessageInput, TicketMessage> {
+  return useMutation<CreateMessageInput, TicketMessage>(
+    (input, signal) => addSupportMessage(ticketId, input, signal)
+  );
+}
+
+export function useUpdateTicketStatus(
+  ticketId: string,
+  input: UpdateTicketStatusInput,
+  options?: { onSuccess?: (ticket: SupportTicket) => void }
+): Mutation<UpdateTicketStatusInput, SupportTicket> {
+  return useMutation<UpdateTicketStatusInput, SupportTicket>(
+    (input, signal) => updateSupportTicketStatus(ticketId, input, signal)
+  );
 }

@@ -24,7 +24,7 @@
  */
 
 import { localizeMessage, readAppLanguage } from './language';
-import { addAccount, updateCurrentSessionTokens } from './accountVault';
+import { addAccount } from './accountVault';
 import type {
   AdminCreateCaptainInput,
   AdminCreateStoreInput,
@@ -75,7 +75,6 @@ import type {
   UpdateStoreInput,
   UploadKind,
   UserListQuery,
-  UpdateUserInput,
   CreateDeliveryZoneInput,
   UpdateDeliveryZoneInput,
   DeliveryZone,
@@ -87,6 +86,12 @@ import type {
   RespondCustomRequestInput,
   PlatformSettings,
   UpdatePlatformSettingsInput,
+  UpdateUserInput,
+  SupportTicket,
+  TicketMessage,
+  CreateTicketInput,
+  CreateMessageInput,
+  UpdateTicketStatusInput,
 } from "@samou-go/shared-types";
 import type {
   DeliveryFeeConfig,
@@ -394,8 +399,8 @@ export function setRefreshToken(token: string | null): void {
 }
 
 export function clearTokens(): void {
-  clearToken();
   setRefreshToken(null);
+  clearToken();
 }
 
 /**
@@ -507,41 +512,58 @@ async function readEnvelope<T>(
  * expired access token at once, exactly one `/auth/refresh` round-trip happens
  * and the rest await the same promise, then retry with the fresh token.
  */
-let refreshInFlight: Promise<boolean> | null = null;
+let refreshInFlight: { token: string; promise: Promise<AuthResponse> } | null = null;
+let lastRotation: {
+  accessBefore: string | null;
+  refreshBefore: string;
+  accessAfter: string;
+  refreshAfter: string | null;
+} | null = null;
+
+function sessionChangedError(): ApiError {
+  return new ApiError(CLIENT_ERROR_CODES.ABORTED, 'Session changed while the request was in flight');
+}
+
+function restoreSession(refresh: string): Promise<AuthResponse> {
+  if (refreshInFlight?.token === refresh) return refreshInFlight.promise;
+  const accessBefore = getToken();
+  const promise = request<AuthResponse>('POST', '/auth/refresh', {
+    body: { refreshToken: refresh },
+    bypassRefreshRetry: true,
+  })
+    .then((result) => {
+      // A refresh for an account we have left must never replace the new session.
+      if (getRefreshToken() !== refresh || getToken() !== accessBefore) {
+        throw sessionChangedError();
+      }
+      lastRotation = { accessBefore, refreshBefore: refresh, accessAfter: result.accessToken, refreshAfter: result.refreshToken ?? null };
+      setRefreshToken(result.refreshToken ?? null);
+      setToken(result.accessToken);
+      addAccount({ user: result.user, accessToken: result.accessToken, refreshToken: result.refreshToken ?? null });
+      return result;
+    })
+    .catch((cause: unknown) => {
+      // Connectivity/503 failures do not revoke a session. Keep credentials for
+      // a later retry; only an explicit auth rejection invalidates this pair.
+      if (cause instanceof ApiError && (cause.status === 401 || cause.status === 403) &&
+          getRefreshToken() === refresh && getToken() === accessBefore) clearTokens();
+      throw cause;
+    })
+    .finally(() => {
+      if (refreshInFlight?.promise === promise) refreshInFlight = null;
+    });
+  refreshInFlight = { token: refresh, promise };
+  return promise;
+}
 
 async function refreshSessionIfPossible(): Promise<boolean> {
-  if (refreshInFlight) return refreshInFlight;
-
-  refreshInFlight = (async () => {
-    const refresh = getRefreshToken();
-    if (!refresh) {
-      clearTokens();
-      return false;
-    }
-    try {
-      const result = await request<AuthResponse>(
-        "POST",
-        "/auth/refresh",
-        { body: { refreshToken: refresh } },
-        true,
-      );
-      setToken(result.accessToken);
-      setRefreshToken(result.refreshToken ?? null);
-      // Rotated pair — keep the active vault snapshot in step (no user row is
-      // needed here; only the tokens change).
-      updateCurrentSessionTokens(result.accessToken, result.refreshToken ?? null);
-      return true;
-    } catch {
-      // Offline or rejected — the session is gone; drop the dead credentials so
-      // the UI can show a sign-in gate instead of infinite retries.
-      clearTokens();
-      return false;
-    } finally {
-      refreshInFlight = null;
-    }
-  })();
-
-  return refreshInFlight;
+  const refresh = getRefreshToken();
+  if (!refresh) {
+    clearTokens();
+    return false;
+  }
+  await restoreSession(refresh);
+  return true;
 }
 
 async function request<T>(
@@ -570,8 +592,15 @@ async function request<T>(
   if (isNgrokUrl(API_URL)) headers["ngrok-skip-browser-warning"] = "true";
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
+  const accessBefore = getToken();
+  const refreshBefore = getRefreshToken();
+
   if (auth) {
-    const token = getToken();
+    let token = getToken();
+    if (!token && !alreadyRefreshed && !bypassRefreshRetry && getRefreshToken()) {
+      if (await refreshSessionIfPossible()) return request<T>(method, path, options, true);
+      token = getToken();
+    }
     // `getToken()` already normalises away empty/"null"/"undefined" storage
     // values, but guard again so a phantom token can NEVER reach the wire as
     // `Authorization: Bearer null`.
@@ -626,6 +655,17 @@ async function request<T>(
 
   const envelope = await readEnvelope<T>(response);
 
+  // Discard responses belonging to a session that was cleared or replaced.
+  // In particular, a late 401 must not sign out a newly selected account.
+  if (auth && (getToken() !== accessBefore || getRefreshToken() !== refreshBefore)) {
+    if (!alreadyRefreshed && lastRotation?.accessBefore === accessBefore &&
+        lastRotation.refreshBefore === refreshBefore &&
+        lastRotation.accessAfter === getToken() && lastRotation.refreshAfter === getRefreshToken()) {
+      return request<T>(method, path, options, true);
+    }
+    throw sessionChangedError();
+  }
+
   if (envelope && envelope.success === false) {
     // An expired access token triggers ONE silent refresh, then a retry. A
     // second 401 (or a failed refresh) means the session is genuinely dead.
@@ -639,7 +679,7 @@ async function request<T>(
         return request<T>(method, path, options, true);
       }
     }
-    if (response.status === 401) clearToken();
+    if (response.status === 401 && auth) clearTokens();
     throw new ApiError(
       envelope.error.code,
       envelope.error.message,
@@ -659,7 +699,7 @@ async function request<T>(
         return request<T>(method, path, options, true);
       }
     }
-    if (response.status === 401) clearToken();
+    if (response.status === 401 && auth) clearTokens();
     throw new ApiError(
       `HTTP_${response.status}`,
       `تعذّر تنفيذ الطلب (${response.status}) / Request failed`,
@@ -823,7 +863,6 @@ export function createOrder(
 ): Promise<OrderDetail> {
   return request<OrderDetail>("POST", "/orders", {
     body: input,
-    auth: true,
     signal,
   });
 }
@@ -1073,19 +1112,11 @@ export async function refreshAccessToken(
   refreshToken: string,
   signal?: AbortSignal,
 ): Promise<AuthResponse> {
-  const auth = await request<AuthResponse>("POST", "/auth/refresh", {
-    body: { refreshToken },
-    signal,
-  });
-  setToken(auth.accessToken);
-  setRefreshToken(auth.refreshToken ?? null);
-  // Refresh ROTATES the pair — realign the active account's snapshot so a
-  // later switch does not hand the server a revoked refresh token.
-  addAccount({
-    user: auth.user,
-    accessToken: auth.accessToken,
-    refreshToken: auth.refreshToken ?? null,
-  });
+  if (signal?.aborted) throw sessionChangedError();
+  // All callers share rotation; aborting one effect must not abort another
+  // caller's refresh or consume the same single-use token twice.
+  const auth = await restoreSession(refreshToken);
+  if (signal?.aborted) throw sessionChangedError();
   return auth;
 }
 
@@ -1100,25 +1131,19 @@ export function me(signal?: AbortSignal): Promise<PublicUser> {
  *  token is unregistered, other devices of the same account stay signed in. Pass
  *  `opts.deviceToken` to override the registered token.
  *  Ordering contract: both tokens are read at the TOP of this function, and local
- *  storage is only cleared in `finally` — so the server round-trip always carries the
- *  credentials, yet a network failure still logs the session out cleanly. */
+ *  storage is cleared immediately after capture — the server still receives the
+ *  credentials and a delayed response cannot clear a subsequent sign-in. */
 export async function logout(opts?: {
   signal?: AbortSignal;
   deviceToken?: string;
 }): Promise<void> {
-  try {
-    const refresh = getRefreshToken();
-    const body: Record<string, unknown> = {};
-    if (refresh) body.refreshToken = refresh;
-    const deviceToken = opts?.deviceToken ?? getLogoutDeviceToken();
-    if (deviceToken) body.deviceToken = deviceToken;
-    await request<unknown>("POST", "/auth/logout", {
-      body,
-      signal: opts?.signal,
-    });
-  } finally {
-    clearTokens();
-  }
+  const refresh = getRefreshToken();
+  const body: Record<string, unknown> = {};
+  if (refresh) body.refreshToken = refresh;
+  const deviceToken = opts?.deviceToken ?? getLogoutDeviceToken();
+  if (deviceToken) body.deviceToken = deviceToken;
+  clearTokens();
+  await request<unknown>("POST", "/auth/logout", { body, signal: opts?.signal });
 }
 
 /**
@@ -1758,6 +1783,14 @@ export function setOrderDeliveryFee(
   );
 }
 
+export function quoteCaptainFee(orderId: string, deliveryFee: number, signal?: AbortSignal): Promise<OrderDetail> {
+  return request<OrderDetail>('POST', `/orders/${encodeURIComponent(orderId)}/quote-fee`, { body: { deliveryFee }, auth: true, signal });
+}
+
+export function acceptCaptainFee(orderId: string, signal?: AbortSignal): Promise<OrderDetail> {
+  return request<OrderDetail>('POST', `/orders/${encodeURIComponent(orderId)}/accept-fee`, { auth: true, signal });
+}
+
 /* ---------------------------------------------------------------------------
  * /api/v1/users — location
  * ------------------------------------------------------------------------- */
@@ -2075,6 +2108,69 @@ export interface WalletStatement {
 
 export function getWalletStatement(page = 1, pageSize = 50, signal?: AbortSignal): Promise<WalletStatement> {
   return request<WalletStatement>('GET', `/platform/wallet/statement?page=${page}&pageSize=${pageSize}`, {
+    auth: true,
+    signal,
+  });
+}
+
+/* ---------------------------------------------------------------------------
+  * /api/v1/support — Support & Complaints Ticketing System
+  * ------------------------------------------------------------------------- */
+
+/** POST /api/v1/support/tickets — Create a new support ticket + initial message. */
+export type { SupportTicket, TicketMessage, CreateTicketInput, CreateMessageInput, UpdateTicketStatusInput } from '@samou-go/shared-types';
+
+export function createSupportTicket(
+  input: CreateTicketInput,
+  signal?: AbortSignal,
+): Promise<SupportTicket> {
+  return request<SupportTicket>('POST', '/support', { body: input, auth: true, signal });
+}
+
+/** GET /api/v1/support/tickets — List user's tickets, or all tickets if Admin. */
+export function listSupportTickets(
+  query: { status?: string; priority?: string; category?: string } = {},
+  signal?: AbortSignal,
+): Promise<Paginated<SupportTicket>> {
+  return request<Paginated<SupportTicket>>('GET', '/support', {
+    query: { ...query },
+    auth: true,
+    signal,
+  });
+}
+
+/** GET /api/v1/support/tickets/:id — Get ticket details & message thread. */
+export function getSupportTicket(
+  id: string,
+  signal?: AbortSignal,
+): Promise<SupportTicket> {
+  return request<SupportTicket>('GET', `/support/${encodeURIComponent(id)}`, {
+    auth: true,
+    signal,
+  });
+}
+
+/** POST /api/v1/support/tickets/:id/messages — Add a reply to a ticket. */
+export function addSupportMessage(
+  id: string,
+  input: CreateMessageInput,
+  signal?: AbortSignal,
+): Promise<TicketMessage> {
+  return request<TicketMessage>('POST', `/support/${encodeURIComponent(id)}/messages`, {
+    body: input,
+    auth: true,
+    signal,
+  });
+}
+
+/** PATCH /api/v1/support/tickets/:id/status — Update status/priority (Admin/Support). */
+export function updateSupportTicketStatus(
+  id: string,
+  input: UpdateTicketStatusInput,
+  signal?: AbortSignal,
+): Promise<SupportTicket> {
+  return request<SupportTicket>('PATCH', `/support/${encodeURIComponent(id)}/status`, {
+    body: input,
     auth: true,
     signal,
   });

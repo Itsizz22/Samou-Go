@@ -228,6 +228,8 @@ export interface CreateOrderInput {
   voiceNoteUrl?: string;
   /** Voice note duration in seconds. */
   voiceNoteDuration?: number;
+  deliveryZoneId?: string;
+  guestCustomerInfo?: { phone: string; name?: string; zoneId?: string };
 }
 
 export interface UpdateOrderStatusInput {
@@ -262,6 +264,7 @@ export interface QuoteOrderInput {
   items: CreateOrderItemInput[];
   voucherCode?: string;
   deliveryRegion?: DeliveryRegion | null;
+  deliveryZoneId?: string;
 }
 
 export interface OrderQuote {
@@ -327,6 +330,7 @@ export interface CreateProductInput {
   imageUrl?: string;
   isAvailable?: boolean;
   categoryId?: string;
+  optionsEnabled?: boolean;
 }
 
 export interface UpdateProductInput {
@@ -336,6 +340,7 @@ export interface UpdateProductInput {
   imageUrl?: string;
   isAvailable?: boolean;
   categoryId?: string;
+  optionsEnabled?: boolean;
 }
 
 /** POST /stores/:storeId/categories — `nameEn` is optional, the API derives it. */
@@ -502,7 +507,10 @@ export interface CreateDeliveryZoneInput {
   nameAr: string;
   nameEn: string;
   /** The full delivery fee for the zone, in ILS. */
-  fee: number;
+  deliveryFee?: number;
+  /** @deprecated Use deliveryFee. */
+  fee?: number;
+  allowCaptainPricing?: boolean;
   isActive?: boolean;
   sortOrder?: number;
 }
@@ -510,7 +518,10 @@ export interface CreateDeliveryZoneInput {
 export interface UpdateDeliveryZoneInput {
   nameAr?: string;
   nameEn?: string;
+  deliveryFee?: number;
+  /** @deprecated Use deliveryFee. */
   fee?: number;
+  allowCaptainPricing?: boolean;
   isActive?: boolean;
   sortOrder?: number;
 }

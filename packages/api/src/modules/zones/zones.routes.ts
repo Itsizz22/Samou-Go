@@ -21,4 +21,5 @@ deliveryZonesRouter.get('/', asyncHandler(listActiveZonesHandler));
 deliveryZonesRouter.get('/manage', authenticate, authorize(UserRole.ADMIN), asyncHandler(listAllZonesHandler));
 deliveryZonesRouter.post('/', authenticate, authorize(UserRole.ADMIN), asyncHandler(createZoneHandler));
 deliveryZonesRouter.patch('/:zoneId', authenticate, authorize(UserRole.ADMIN), asyncHandler(updateZoneHandler));
+deliveryZonesRouter.put('/:zoneId', authenticate, authorize(UserRole.ADMIN), asyncHandler(updateZoneHandler));
 deliveryZonesRouter.delete('/:zoneId', authenticate, authorize(UserRole.ADMIN), asyncHandler(deleteZoneHandler));

@@ -12,6 +12,7 @@ import {
   orderListQuerySchema,
   quoteOrderSchema,
   setDeliveryFeeSchema,
+  quoteCaptainFeeSchema,
   reviewSchema,
   updateOrderStatusSchema,
 } from './orders.schemas';
@@ -95,14 +96,29 @@ export async function quoteOrderHandler(req: Request, res: Response): Promise<vo
   ok(res, await ordersService.quoteOrder(body));
 }
 
+export async function quoteCaptainFeeHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const { orderId } = parseWith(orderIdParamsSchema, req.params);
+  const { deliveryFee } = parseWith(quoteCaptainFeeSchema, req.body);
+  ok(res, await ordersService.quoteCaptainFee(auth, orderId, deliveryFee));
+}
+
+export async function acceptCaptainFeeHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const { orderId } = parseWith(orderIdParamsSchema, req.params);
+  ok(res, await ordersService.acceptCaptainFee(auth, orderId));
+}
+
 /** POST /api/v1/orders */
 export async function createOrderHandler(req: Request, res: Response): Promise<void> {
-  const auth = requireAuth(req);
-  if (auth.role !== UserRole.CUSTOMER && auth.role !== UserRole.ADMIN) {
+  const auth = req.auth;
+  if (auth && auth.role !== UserRole.CUSTOMER && auth.role !== UserRole.ADMIN) {
     throw forbidden('الطلبات يُنشئها الزبائن فقط / Only customers may place orders');
   }
   const body = parseWith(createOrderSchema, req.body);
-  const result = await ordersService.createOrder(auth.sub, body);
+  if (!auth && !body.guestCustomerInfo) throw forbidden('رقم الهاتف مطلوب لإتمام طلب الضيف / Phone is required for guest checkout');
+  const customerId = auth?.sub ?? await ordersService.resolveGuestCustomer(body.guestCustomerInfo!);
+  const result = await ordersService.createOrder(customerId, body);
   emitPlatformEvent('order:created', { orderId: result.id, storeId: result.storeId, status: result.status });
 
   // Push: notify all store managers + dedicated captains of the new order.

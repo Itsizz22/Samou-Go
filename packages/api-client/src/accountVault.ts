@@ -44,13 +44,29 @@ export interface VaultAccount {
   refreshToken: string | null;
   /** `profileImageUrl`, so the list can show the right avatar. */
   avatar: string | null;
+  /** Dedicated store ID for store managers. */
+  assignedStoreId?: string | null;
+  /** Active toggle for delivery captains. */
+  isAvailable?: boolean;
+  /** Verification status for captains. */
+  isVerified?: boolean;
   /** ISO timestamp; LRU order decides which account is evicted at the cap. */
   lastActiveAt: string;
 }
 
 /** What `addAccount`/`syncActiveSession` need to record or update an account. */
 export interface VaultSessionInput {
-  user: Pick<PublicUser, 'id' | 'name' | 'phone' | 'role' | 'profileImageUrl'>;
+  user: Pick<
+    PublicUser,
+    | 'id'
+    | 'name'
+    | 'phone'
+    | 'role'
+    | 'profileImageUrl'
+    | 'assignedStoreId'
+    | 'isAvailable'
+    | 'isVerified'
+  >;
   accessToken: string | null;
   refreshToken: string | null;
 }
@@ -155,13 +171,18 @@ export function getSavedAccounts(): VaultAccount[] {
 export function getActiveAccountId(): string | null {
   const stored = readActiveId();
   const accounts = readAccounts();
-  if (stored && accounts.some((account) => account.id === stored)) return stored;
 
   const live = getToken();
   if (usableToken(live)) {
     const byToken = accounts.find((account) => account.token === live);
     if (byToken) return byToken.id;
   }
+  const refresh = getRefreshToken();
+  if (usableToken(refresh)) {
+    const byRefresh = accounts.find((account) => account.refreshToken === refresh);
+    if (byRefresh) return byRefresh.id;
+  }
+  if (stored && accounts.some((account) => account.id === stored)) return stored;
   const newest = [...accounts].sort(
     (a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime(),
   )[0];
@@ -192,6 +213,9 @@ export function addAccount(session: VaultSessionInput): VaultAccount {
       ? session.refreshToken
       : (existing?.refreshToken ?? null),
     avatar: session.user.profileImageUrl ?? existing?.avatar ?? null,
+    assignedStoreId: session.user.assignedStoreId !== undefined ? session.user.assignedStoreId : (existing?.assignedStoreId ?? null),
+    isAvailable: session.user.isAvailable !== undefined ? session.user.isAvailable : (existing?.isAvailable ?? false),
+    isVerified: session.user.isVerified !== undefined ? session.user.isVerified : (existing?.isVerified ?? false),
     lastActiveAt: now(),
   };
 
@@ -281,7 +305,7 @@ export function removeAccount(accountId: string): VaultAccount | null {
  * that store a token without `login()` (SSO hand-off, self-registration).
  */
 export function syncActiveSession(
-  user: Pick<PublicUser, 'id' | 'name' | 'phone' | 'role' | 'profileImageUrl'>,
+  user: VaultSessionInput['user'],
 ): VaultAccount | null {
   const token = getToken();
   if (!usableToken(token)) return getActiveAccount();

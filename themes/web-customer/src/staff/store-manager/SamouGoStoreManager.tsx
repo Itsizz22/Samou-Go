@@ -110,7 +110,8 @@ const QUICK_ACTIONS = [
   { icon: Megaphone, ar: 'إدارة العروض', en: 'Manage Offers', tab: 'offers' },
   { icon: Settings, ar: 'إعدادات المتجر', en: 'Store Settings', tab: 'settings' },
   { icon: Package, ar: 'الطلبات النشطة', en: 'Active Orders', tab: 'orders' },
-  { icon: BarChart3, ar: 'لوحة التحكم', en: 'Dashboard', tab: 'home' },
+  { icon: BarChart3, ar: 'كشف الحساب', en: 'Statement', tab: 'statement' },
+  { icon: ClipboardList, ar: 'الطلبات المخصصة', en: 'Custom requests', tab: 'custom-requests' },
 ] as const;
 
 const BOTTOM_TABS = [
@@ -374,7 +375,7 @@ export function SamouGoStoreManager() {
   if (!auth.ready) {
     return (
       <main className="min-h-screen bg-canvas pb-24" aria-busy="true">
-        <header className="bg-brand px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
+        <header className={`px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] ${activeTab === 'home' ? 'bg-brand text-white' : 'border-b border-line bg-surface text-ink'}`}>
           <div className="mx-auto flex max-w-md items-center justify-between" aria-hidden="true">
             <span className="h-10 w-10 rounded-xl bg-surface/15" />
             <span className="h-5 w-40 rounded bg-surface/20" />
@@ -405,8 +406,8 @@ export function SamouGoStoreManager() {
   /* ---- Render ------------------------------------------------------------ */
 
   return (
-    <main className="min-h-screen bg-canvas pb-28 font-sans text-ink md:ps-60">
-      <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل مدير المتجر">
+    <main data-view={activeTab} className="sq-staff sq-store min-h-screen bg-canvas pb-28 font-sans text-ink md:ps-60">
+      <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col bg-slate-900 px-4 py-6 text-white md:flex" aria-label="تنقل مدير المتجر">
         <p className="px-3 text-lg font-extrabold">Samou Quick</p>
         <p className="px-3 text-[11px] text-white/70">مدير المتجر</p>
         <nav className="mt-8 flex-1 space-y-1">
@@ -442,16 +443,17 @@ export function SamouGoStoreManager() {
       <header className="bg-brand px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="التنقل الرئيسي">
           <div className="flex-1 text-center leading-tight">
-            <h1 className="text-[15px] font-extrabold">{t('لوحة المتجر', 'Store Manager')}</h1>
+            <h1 className="text-[15px] font-extrabold">{t(BOTTOM_TABS.find(tab => tab.id === activeTab)?.ar ?? 'لوحة المتجر', BOTTOM_TABS.find(tab => tab.id === activeTab)?.en ?? 'Store Manager')}</h1>
+            <p className="mt-1 text-xs opacity-80">{managedStore.data ? t(managedStore.data.nameAr, managedStore.data.nameEn) : auth.user?.name}</p>
           </div>
           <div className="flex items-center gap-2" dir="ltr">
-            <LanguageToggle onDark />
-            <ThemeToggle onDark />
+            <LanguageToggle onDark={activeTab === 'home'} />
+            <ThemeToggle onDark={activeTab === 'home'} />
             <NotificationBell
               notifications={bellNotifications}
               storageKey="store-manager"
               chimeOnNew
-              onDark
+              onDark={activeTab === 'home'}
               max={10}
             />
             <button
@@ -459,13 +461,13 @@ export function SamouGoStoreManager() {
               onClick={auth.signOut}
               aria-label="تسجيل الخروج"
               title="تسجيل الخروج"
-              className="rounded-lg p-2 text-white/80 transition hover:bg-surface/10 hover:text-white"
+              className="rounded-lg p-2 text-current transition hover:bg-ink/10"
             >
               <LogOut size={17} />
             </button>
           </div>
         </nav>
-        <div className="mx-auto mt-3 max-w-md rounded-xl bg-brand-dark px-3 py-2.5">
+        <div className="sq-store-status mx-auto mt-3 max-w-md rounded-xl bg-brand-dark px-3 py-2.5">
           <div className="flex items-center gap-2 text-[11px] font-bold text-white/90">
             <Store size={13} />
             <span>{t('حالة المتجر', 'Store Status')}</span>
@@ -499,7 +501,7 @@ export function SamouGoStoreManager() {
         <StoreLocationPrompt store={managedStore.data} storeId={managedStore.data.id} onSaved={() => managedStore.refresh()} />
       )}
 
-      {managedStore.data?.dedicatedCaptains && (
+      {activeTab === 'home' && managedStore.data?.dedicatedCaptains && (
         <section className="mx-auto max-w-md px-4 pt-5" aria-label="Dedicated captains">
           <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
             <div className="flex items-center justify-between">
@@ -648,7 +650,7 @@ export function SamouGoStoreManager() {
         </div>
       </section>
 
-      {/* Quick actions — presentational, no API call behind them yet */}
+      {/* Shortcuts to the store management panels */}
       <section className="mx-auto max-w-md px-4 pt-7" aria-labelledby="quick-title">
         <div className="mb-4 flex items-end justify-between">
           <div>
@@ -909,16 +911,17 @@ export function SamouGoStoreManager() {
       )}
 
       <nav
-        className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface px-3 safe-bottom pt-2 shadow-raised md:hidden"
+        className="sq-bottom-nav fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface px-3 md:hidden"
         aria-label="التنقل السفلي"
       >
         <div className="mx-auto flex max-w-md items-center justify-around">
-          {BOTTOM_TABS.map((tab) => (
+          {BOTTOM_TABS.filter(tab => ['home', 'orders', 'products', 'settings'].includes(tab.id)).map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`flex min-w-[62px] flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 transition focus:outline-none focus:ring-2 focus:ring-brand/30 ${
+              aria-current={activeTab === tab.id ? 'page' : undefined}
+              className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 transition focus:outline-none focus:ring-2 focus:ring-brand/30 ${
                 activeTab === tab.id ? 'text-brand' : 'text-ink-muted hover:text-ink-soft'
               }`}
             >

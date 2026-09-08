@@ -26,7 +26,8 @@ export async function createZone(body: CreateDeliveryZoneBody): Promise<Delivery
     data: {
       nameAr: body.nameAr,
       nameEn: body.nameEn,
-      fee: body.fee,
+      deliveryFee: body.deliveryFee ?? body.fee ?? 0,
+      allowCaptainPricing: body.allowCaptainPricing ?? false,
       isActive: body.isActive ?? true,
       sortOrder: body.sortOrder ?? 0,
     },
@@ -46,7 +47,8 @@ export async function updateZone(
     data: {
       ...(body.nameAr !== undefined ? { nameAr: body.nameAr } : {}),
       ...(body.nameEn !== undefined ? { nameEn: body.nameEn } : {}),
-      ...(body.fee !== undefined ? { fee: body.fee } : {}),
+      ...(body.deliveryFee !== undefined || body.fee !== undefined ? { deliveryFee: body.deliveryFee ?? body.fee } : {}),
+      ...(body.allowCaptainPricing !== undefined ? { allowCaptainPricing: body.allowCaptainPricing } : {}),
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
       ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
     },

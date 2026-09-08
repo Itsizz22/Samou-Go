@@ -10,7 +10,9 @@ export function toDeliveryZone(zone: ZoneRow): DeliveryZone {
     id: zone.id,
     nameAr: zone.nameAr,
     nameEn: zone.nameEn,
-    fee: decimalToNumber(zone.fee),
+    deliveryFee: decimalToNumber(zone.deliveryFee),
+    fee: decimalToNumber(zone.deliveryFee),
+    allowCaptainPricing: zone.allowCaptainPricing,
     isActive: zone.isActive,
     sortOrder: zone.sortOrder,
   };

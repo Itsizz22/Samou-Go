@@ -298,7 +298,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         groupMap.set(line.storeId, group);
       }
       group.lines.push(line);
-      group.subtotal += line.quantity * line.product.price;
+      const optionsExtra = (line.selectedOptions ?? []).reduce((sum, option) => sum + option.priceDelta, 0);
+      group.subtotal += line.quantity * (line.product.price + optionsExtra);
       group.itemCount += line.quantity;
     }
     const storeGroups = Array.from(groupMap.values());

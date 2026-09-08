@@ -15,8 +15,89 @@
 
 @import '@samou-go/ui/styles';
 
+/* Figma 4:7 login. Scope the requested palette and Cairo to this view. */
+@layer components {
+  .customer-login {
+    --font-sans: 'Cairo', system-ui, sans-serif;
+    --font-body: var(--font-sans);
+    --font-heading: var(--font-sans);
+    --font-english: var(--font-sans);
+    --color-brand: #059669;
+    --color-brand-dark: #047857;
+    --color-brand-deep: #047857;
+    --color-brand-surface: #ecfdf5;
+    --color-canvas: #f8fafc;
+    --color-surface: #ffffff;
+    --color-ink: #0f172a;
+    --color-ink-muted: #64748b;
+    --color-ink-subtle: #94a3b8;
+    --color-line: #e2e8f0;
+    --radius-field: 0.875rem;
+    color-scheme: light;
+    padding-block-start: env(safe-area-inset-top, 0px);
+    padding-block-end: env(safe-area-inset-bottom, 0px);
+  }
+
+  .customer-login__content {
+    padding-inline: clamp(1rem, 6.154vw, 1.5rem);
+  }
+
+  .customer-login__field,
+  .customer-login__checkbox {
+    border-width: 1.5px;
+  }
+
+  .customer-login__field:focus-within {
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 15%, transparent);
+  }
+
+  .customer-login__checkbox {
+    border-radius: 0.375rem;
+  }
+
+  .customer-login__input:focus-visible {
+    box-shadow: none;
+    outline: none;
+  }
+
+  @media (min-width: 640px) {
+    .customer-login {
+      padding-block-start: max(2rem, env(safe-area-inset-top, 0px));
+    }
+
+    .customer-login__screen {
+      overflow: hidden;
+      border: 1px solid var(--color-line);
+      border-radius: 2rem;
+    }
+  }
+}
+
 /* Customer-specific animation enhancements */
 @layer utilities {
+  .customer-home .best-seller-ticker {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    overflow-x: hidden;
+    white-space: nowrap;
+    background: rgb(2 44 34);
+    color: rgb(209 250 229);
+    padding: .625rem 1rem;
+    font-size: .75rem;
+    font-weight: 600;
+  }
+  .customer-home .best-seller-ticker__track { animation-duration: 28s; }
+  .customer-home .best-seller-ticker:hover .best-seller-ticker__track,
+  .customer-home .best-seller-ticker:focus-within .best-seller-ticker__track { animation-play-state: paused; }
+  .cart-bump { animation: cart-bump .32s ease-out both; }
+  @keyframes cart-bump { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+  .best-seller-ticker { overflow: hidden; }
+  .best-seller-ticker__track { display: flex; width: max-content; gap: .5rem; padding: .45rem 1rem; animation: bestSellerMarquee 28s linear infinite; }
+  .best-seller-ticker:hover .best-seller-ticker__track, .best-seller-ticker:focus-within .best-seller-ticker__track { animation-play-state: paused; }
+  @media (prefers-reduced-motion: reduce) { .best-seller-ticker__track { animation: none; overflow-x: auto; width: auto; } }
+  @keyframes bestSellerMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
   /* Add-to-cart button checkmark feedback — use with state-driven class toggle */
   .add-to-cart-active {
     animation: addCheck 0.4s var(--ease-spring) both;

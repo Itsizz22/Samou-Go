@@ -36,7 +36,7 @@ export function StoreDetailScreen() {
 
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
 
-  const categories = store.data?.categories ?? [];
+  const categories = useMemo(() => store.data?.categories ?? [], [store.data]);
 
   const active = useMemo(
     () => activeCategoryId ?? categories[0]?.id ?? null,
@@ -51,6 +51,48 @@ export function StoreDetailScreen() {
     }
     return ids;
   }, [offers.data]);
+
+  const current = store.data!;
+  const products = active
+    ? categories.find((category) => category.id === active)?.products ?? []
+    : [];
+
+  // Product that is currently showing the options sheet.
+  const [optionsProduct, setOptionsProduct] = useState<(typeof products)[number] | null>(null);
+
+  const handleAdd = useCallback((productId: string, product: (typeof products)[number]) => {
+    // If the product has option groups, open the options sheet instead.
+    if (product.optionGroups && product.optionGroups.length > 0) {
+      setOptionsProduct(product);
+      return;
+    }
+    const line = cart.lineFor(productId);
+    if (line) {
+      cart.setQuantity(productId, line.quantity + 1);
+      void hapticConfirm();
+      return;
+    }
+    cart.addItem(product, 1, '', current.nameAr);
+    void hapticConfirm();
+  }, [cart, current?.nameAr]);
+
+  const handleOptionsConfirm = useCallback((options: { groupId: string; optionId: string }[], quantity: number) => {
+    if (!optionsProduct) return;
+    // Map option IDs to SelectedOption objects.
+    const selectedOptions = options.map(o => {
+      const group = optionsProduct.optionGroups!.find(g => g.id === o.groupId);
+      const item = group?.items.find(i => i.id === o.optionId);
+      return {
+        id: o.optionId,
+        groupId: o.groupId,
+        name: item?.name ?? '',
+        priceDelta: item?.priceDelta ?? 0,
+      };
+    });
+    cart.addItem(optionsProduct, quantity, '', current.nameAr, selectedOptions);
+    setOptionsProduct(null);
+    void hapticConfirm();
+  }, [optionsProduct, cart, current?.nameAr]);
 
   if (store.loading && !store.data) {
     return (
@@ -105,53 +147,15 @@ export function StoreDetailScreen() {
     );
   }
 
-  const current = store.data!;
-  const products = active
-    ? categories.find((category) => category.id === active)?.products ?? []
-    : [];
-
-  // Product that is currently showing the options sheet.
-  const [optionsProduct, setOptionsProduct] = useState<(typeof products)[number] | null>(null);
-
-  const handleAdd = useCallback((productId: string, product: (typeof products)[number]) => {
-    // If the product has option groups, open the options sheet instead.
-    if (product.optionGroups && product.optionGroups.length > 0) {
-      setOptionsProduct(product);
-      return;
-    }
-    const line = cart.lineFor(productId);
-    if (line) {
-      cart.setQuantity(productId, line.quantity + 1);
-      void hapticConfirm();
-      return;
-    }
-    cart.addItem(product, 1, '', current.nameAr);
-    void hapticConfirm();
-  }, [cart, current.nameAr]);
-
-  const handleOptionsConfirm = useCallback((options: { groupId: string; optionId: string }[], quantity: number) => {
-    if (!optionsProduct) return;
-    // Map option IDs to SelectedOption objects.
-    const selectedOptions = options.map(o => {
-      const group = optionsProduct.optionGroups!.find(g => g.id === o.groupId);
-      const item = group?.items.find(i => i.id === o.optionId);
-      return {
-        id: o.optionId,
-        groupId: o.groupId,
-        name: item?.name ?? '',
-        priceDelta: item?.priceDelta ?? 0,
-      };
-    });
-    cart.addItem(optionsProduct, quantity, '', current.nameAr, selectedOptions);
-    setOptionsProduct(null);
-    void hapticConfirm();
-  }, [optionsProduct, cart, current.nameAr]);
+  if (!current) return null;
 
   return (
     <PageTransition>
-      <main className="min-h-screen bg-canvas pb-28 text-ink">
-        <header className="safe-top bg-brand px-5 pb-4 pt-4 text-white">
-          <div className="mx-auto flex max-w-md items-center justify-between gap-3">
+      <main className="sq-store-menu min-h-screen bg-canvas pb-28 font-sans text-ink">
+        <header className="safe-top relative isolate min-h-52 overflow-hidden bg-brand-deep px-5 pb-5 pt-4 text-white">
+          {current.coverUrl && <img src={current.coverUrl} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover" />}
+          <div className="absolute inset-0 -z-10 bg-gradient-to-t from-brand-deep via-brand-deep/70 to-brand-deep/30" />
+          <div className="mx-auto grid min-h-40 max-w-md grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-start gap-3">
             <button
               type="button"
               aria-label={t('رجوع', 'Back')}
@@ -160,8 +164,8 @@ export function StoreDetailScreen() {
             >
               <ArrowRight size={22} className="rtl:rotate-180" />
             </button>
-            <div className="min-w-0 flex-1 text-end">
-              <h1 className="truncate text-lg font-extrabold">{t(current.nameAr, current.nameEn)}</h1>
+            <div className="order-last col-span-3 min-w-0 self-end text-start">
+              <h1 className="text-lg font-extrabold">{t(current.nameAr, current.nameEn)}</h1>
               {current.isRecommended && (
                 <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-micro font-bold text-white">
                   <Star size={10} fill="currentColor" />
@@ -191,7 +195,7 @@ export function StoreDetailScreen() {
               aria-pressed={favorites.isFavorite(storeId)}
               onClick={() => void handleToggleFavorite()}
               disabled={favorites.pending.includes(storeId)}
-              className="rounded-full p-2 text-white transition hover:bg-surface/15 active:scale-95 disabled:opacity-60"
+              className="justify-self-end rounded-full p-2 text-white transition hover:bg-surface/15 active:scale-95 disabled:opacity-60"
             >
               <Heart size={20} fill={favorites.isFavorite(storeId) ? 'currentColor' : 'none'} />
             </button>
@@ -232,7 +236,7 @@ export function StoreDetailScreen() {
                 </p>
                 {current.openingTime && current.closingTime && (
                   <p className="mt-0.5 text-[11px] text-ink-muted">
-                    {t(`يفتح الساعة ${current.openingTime} ويسغل ${current.closingTime}`, `Opens at ${current.openingTime}, closes at ${current.closingTime}`)}
+                    {t(`يفتح الساعة ${current.openingTime} ويغلق ${current.closingTime}`, `Opens at ${current.openingTime}, closes at ${current.closingTime}`)}
                   </p>
                 )}
               </div>
@@ -254,18 +258,6 @@ export function StoreDetailScreen() {
           </div>
         )}
 
-        {/* Cover banner — uploaded by the store manager (uploads pipeline,
-            `store` kind with `cover` purpose); falls back to no banner. */}
-        {current.coverUrl && (
-          <div className="mx-auto max-w-md px-5 pt-4">
-            <ImageWithFallback
-              src={current.coverUrl}
-              alt={t(current.nameAr, current.nameEn)}
-              className="h-32 w-full rounded-2xl object-cover shadow-card"
-            />
-          </div>
-        )}
-
         {/* Quick-browse rail — horizontal scrollable categories.
             Constrained to the app's standard `max-w-md` column like every
             other section on the page, so the title, chips and arrows stay
@@ -276,7 +268,7 @@ export function StoreDetailScreen() {
           ariaLabel={t('فئات المتجر', 'Categories')}
           className="mx-auto w-full max-w-md px-5 pt-5"
           trackClassName="gap-2"
-          showArrows={categories.length > 1}
+          showArrows={false}
         >
           {categories.map((category) => (
             <button
@@ -329,13 +321,13 @@ export function StoreDetailScreen() {
           );
         })()}
 
-        <div className="mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 min-w-0">
+        <div className="mx-auto w-full max-w-md px-5 pt-5 min-w-0">
           {products.length === 0 ? (
             <p className="py-12 text-center text-xs text-ink-muted">
               لا توجد منتجات في هذه الفئة حالياً
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-3">
               {products
                 .filter((product) => product.isAvailable)
                 .map((product, index) => {
@@ -343,7 +335,7 @@ export function StoreDetailScreen() {
                   return (
                     <article
                       key={product.id}
-                      className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised sm:p-4 product-card-enter"
+                      className="group relative grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-card product-card-enter"
                       style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }}
                     >
                       {/* Offer badge */}
@@ -354,7 +346,7 @@ export function StoreDetailScreen() {
                       )}
 
                       {/* Media — fixed aspect ratio; elegant gradient fallback */}
-                      <div className="relative mb-3 aspect-square overflow-hidden rounded-xl bg-gradient-to-br from-brand-tint to-brand-surface">
+                      <div className="relative row-span-2 h-18 w-18 overflow-hidden rounded-xl bg-gradient-to-br from-brand-tint to-brand-surface">
                         {product.imageUrl ? (
                           <ImageWithFallback
                             src={product.imageUrl}
@@ -370,8 +362,8 @@ export function StoreDetailScreen() {
                       </div>
 
                       {/* Text & Price */}
-                      <div className="flex min-w-0 flex-1 flex-col text-end">
-                        <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-bold text-ink">
+                      <div className="flex min-w-0 flex-col text-start">
+                        <h3 className="line-clamp-2 text-sm font-bold text-ink">
                           {product.nameAr}
                         </h3>
                         {product.description && (
@@ -385,7 +377,7 @@ export function StoreDetailScreen() {
                       </div>
 
                       {/* Counter / add */}
-                      <div className="mt-3 flex justify-end">
+                      <div className="col-start-2 mt-2 flex justify-end">
                         {line ? (
                           <div className="flex items-center gap-1 rounded-full bg-brand px-1 py-1 text-white">
                             <button
@@ -438,7 +430,7 @@ export function StoreDetailScreen() {
               initial={{ y: 80, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 80, opacity: 0 }}
-              className="fixed inset-x-0 bottom-16 z-20 px-5"
+              className="fixed inset-x-0 bottom-5 z-20 px-5 safe-bottom"
             >
               <button
                 type="button"

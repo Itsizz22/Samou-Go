@@ -305,14 +305,14 @@ export function ProductCataloguePanel({ storeId }: Props) {
           placeholder={t('بحث', 'Search…')}
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          className="h-9 min-w-0 flex-1 rounded-xl border border-line bg-canvas px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          className="h-11 min-w-0 basis-full rounded-xl sm:basis-auto sm:flex-1 border border-line bg-canvas px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
           aria-label="Search products"
         />
         <div className="relative">
           <select
             value={filterCategoryId}
             onChange={e => setFilterCategoryId(e.target.value)}
-            className="h-9 appearance-none rounded-xl border border-line bg-canvas pe-8 ps-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+            className="h-11 appearance-none rounded-xl border border-line bg-canvas pe-8 ps-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
             aria-label="Filter by category"
           >
             <option value="">{t('كل الأقسام', 'All')}</option>
@@ -320,7 +320,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
               <option key={c.id} value={c.id}>{c.nameAr}</option>
             ))}
           </select>
-          <ChevronDown size={14} className="pointer-events-none absolute end-2.5 top-2.5 text-ink-muted" />
+          <ChevronDown size={14} className="pointer-events-none absolute inset-e-2.5 top-2.5 text-ink-muted" />
         </div>
         <button
           type="button"
@@ -609,7 +609,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                         <option key={c.id} value={c.id}>{c.nameAr}</option>
                       ))}
                     </select>
-                    <ChevronDown size={13} className="pointer-events-none absolute end-2.5 top-3 text-ink-muted" />
+                    <ChevronDown size={13} className="pointer-events-none absolute inset-e-2.5 top-3 text-ink-muted" />
                   </div>
                 </label>
               </div>

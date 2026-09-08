@@ -34,20 +34,20 @@ ordersRouter.get(
 );
 
 // Everything below requires a token.
-ordersRouter.use(authenticate);
-
 ordersRouter.post(
   '/',
-  authorize(UserRole.CUSTOMER, UserRole.ADMIN),
+  optionalAuthenticate,
   orderLimiter,
   asyncHandler(controller.createOrderHandler)
 );
 ordersRouter.post(
   '/checkout',
-  authorize(UserRole.CUSTOMER, UserRole.ADMIN),
+  optionalAuthenticate,
   orderLimiter,
   asyncHandler(controller.checkoutHandler)
 );
+// All remaining order operations require a signed-in account.
+ordersRouter.use(authenticate);
 ordersRouter.get('/', asyncHandler(controller.listOrdersHandler));
 ordersRouter.get('/:orderId', asyncHandler(controller.getOrderHandler));
 
@@ -131,3 +131,5 @@ ordersRouter.patch(
   authorize(UserRole.CAPTAIN, UserRole.ADMIN),
   asyncHandler(controller.setOrderDeliveryFeeHandler)
 );
+ordersRouter.post('/:orderId/quote-fee', authorize(UserRole.CAPTAIN), asyncHandler(controller.quoteCaptainFeeHandler));
+ordersRouter.post('/:orderId/accept-fee', authorize(UserRole.CUSTOMER), asyncHandler(controller.acceptCaptainFeeHandler));

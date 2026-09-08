@@ -26,8 +26,6 @@ platformRouter.get('/orders/:orderId/chat', asyncHandler(controller.listOrderCha
 
 platformRouter.post('/orders/:orderId/chat', asyncHandler(controller.sendOrderChatHandler));
 
-platformRouter.post('/support/tickets', asyncHandler(controller.createSupportTicketHandler));
-
 platformRouter.get('/wallet', asyncHandler(controller.getWalletHandler));
 platformRouter.get('/wallet/statement', asyncHandler(controller.getWalletStatementHandler));
 

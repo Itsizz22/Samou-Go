@@ -1,0 +1,116 @@
+/* Layout measurements from Samou Quick's customer, store, captain and admin frames. */
+@layer components {
+  .sq-store > header h1, .sq-store-menu > header h1 { color: inherit; }
+  .sq-store:not([data-view='home']) .sq-store-status { display: none; }
+  .sq-staff > header > nav { flex-wrap: wrap; }
+  .sq-staff > header > nav > div:last-child { flex-wrap: wrap; }
+  .sq-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 44px;
+    min-block-size: 44px;
+  }
+  .sq-page-header {
+    border-block-end: 1px solid var(--color-line);
+    padding-block: max(12px, env(safe-area-inset-top)) 12px;
+  }
+  .sq-bottom-nav {
+    padding-block: 8px max(8px, env(safe-area-inset-bottom));
+    min-block-size: 72px;
+  }
+  .sq-panel {
+    border: 1px solid var(--color-line);
+    border-radius: 20px;
+    background: var(--color-surface);
+    box-shadow: 0 2px 6px rgb(15 23 42 / 2%);
+  }
+  .sq-customer-screen :where(button, a),
+  .sq-store-menu :where(button, a),
+  .sq-tracking :where(button, a),
+  .sq-staff :where(button, a),
+  .sq-admin :where(button, a) {
+    min-block-size: 44px;
+  }
+  .sq-customer-screen :where(button:has(> svg:only-child)),
+  .sq-store-menu :where(button:has(> svg:only-child)),
+  .sq-staff :where(button:has(> svg:only-child)) {
+    min-inline-size: 44px;
+  }
+  .sq-staff > section,
+  .sq-staff-content {
+    max-inline-size: 448px;
+    margin-inline: auto;
+    padding-inline: 20px;
+  }
+  .sq-staff > header {
+    padding-block: max(12px, env(safe-area-inset-top)) 20px;
+  }
+  .sq-staff > header > nav {
+    gap: 12px;
+  }
+  .sq-staff :where(article, .shadow-card) {
+    border: 1px solid var(--color-line);
+    box-shadow: 0 2px 6px rgb(15 23 42 / 3%);
+  }
+  .sq-staff > nav[aria-label='Bottom navigation'] {
+    min-block-size: 72px;
+    padding-block-end: max(8px, env(safe-area-inset-bottom));
+    box-shadow: none;
+  }
+  .sq-staff > aside {
+    background: var(--color-slate-900);
+  }
+  .sq-captain > header {
+    background: var(--color-surface);
+    color: var(--color-ink);
+    border-block-end: 1px solid var(--color-line);
+  }
+  .sq-captain > header :where(button, p, span) {
+    color: inherit;
+  }
+  .sq-earnings-hero {
+    padding: 20px;
+    border-radius: 20px;
+    background: linear-gradient(160deg, var(--color-brand), var(--color-brand-dark));
+    color: white;
+  }
+  .sq-earnings-hero :where(h2, h3, p, span) { color: inherit; }
+  .sq-status-grid > :last-child { grid-column: 1 / -1; }
+  .sq-admin-sidebar {
+    inline-size: 280px;
+    background: var(--color-slate-900);
+  }
+  .sq-admin-sidebar nav button { min-block-size: 44px; }
+  .sq-admin-content > header { min-block-size: 68px; box-shadow: none; }
+  .sq-admin-content > div { max-inline-size: 1600px; }
+  .sq-admin :where(table) {
+    inline-size: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+  }
+  .sq-admin :where(th) {
+    background: var(--color-canvas);
+    color: var(--color-ink-muted);
+    font-weight: 600;
+    text-align: start;
+    padding: 14px 16px;
+  }
+  .sq-admin :where(td) {
+    padding: 16px;
+    border-block-start: 1px solid var(--color-line);
+    vertical-align: middle;
+  }
+  .sq-admin :where(tbody tr:hover) { background: var(--color-brand-surface); }
+  .sq-admin :where(input:not([type='checkbox']), select) { min-block-size: 44px; }
+  .sq-admin :where(.shadow-card, .shadow-raised) { box-shadow: 0 2px 6px rgb(15 23 42 / 2%); }
+  @media (min-width: 768px) {
+    .sq-admin-content { padding-inline-start: 280px; }
+    .sq-staff > section,
+    .sq-staff-content { max-inline-size: 880px; padding-inline: 24px; }
+  }
+  @media (max-width: 767px) {
+    .sq-admin-content > header { flex-wrap: wrap; gap: 8px; padding-block: 12px; }
+    .sq-admin-content > div { padding-inline: 16px; }
+  }
+}

@@ -17,6 +17,7 @@ import { OrderTrackingScreen } from './screens/OrderTrackingScreen';
 import { CustomRequestsScreen } from './screens/CustomRequestsScreen';
 import { OffersScreen } from './screens/OffersScreen';
 import { ForgotPasswordScreen, LoginScreen, RegisterScreen } from './screens/AuthScreens';
+import { SupportScreen } from './screens/SupportScreen';
 
 import { BootScreen } from './components/BootScreen';
 import { NavigationDrawer, NavigationDrawerProvider } from './components/NavigationDrawer';
@@ -161,8 +162,11 @@ function ProtectedRoute({ auth, children }: { auth: Auth; children: React.ReactN
   // avoids mounting/unmounting BootScreen inside the route tree (which causes
   // remount loops and "Throttling navigation" warnings).
   if (!auth.ready || !auth.user) return <Navigate to="/login" replace />;
-  if (auth.user.role !== UserRole.CUSTOMER) {
-    return <Navigate to={roleHomePath(auth.user.role)} replace />;
+  if (auth.user.role === UserRole.CAPTAIN) {
+    return <Navigate to="/captain/dashboard" replace />;
+  }
+  if (auth.user.role === UserRole.STORE_MANAGER) {
+    return <Navigate to="/store-manager/orders" replace />;
   }
   return <>{children}</>;
 }
@@ -202,10 +206,10 @@ function StartupRoutes({ auth }: { auth: Auth }) {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/home" replace />} />
-      <Route path="/home" element={<ProtectedRoute auth={auth}><SamouGoHome /></ProtectedRoute>} />
-      <Route path="/stores/:storeId" element={<ProtectedRoute auth={auth}><StoreDetailScreen /></ProtectedRoute>} />
-      <Route path="/cart" element={<ProtectedRoute auth={auth}><CartScreen /></ProtectedRoute>} />
-      <Route path="/checkout" element={<ProtectedRoute auth={auth}><CheckoutScreen /></ProtectedRoute>} />
+      <Route path="/home" element={<SamouGoHome />} />
+      <Route path="/stores/:storeId" element={<StoreDetailScreen />} />
+      <Route path="/cart" element={<CartScreen />} />
+      <Route path="/checkout" element={<CheckoutScreen />} />
       <Route path="/orders" element={<ProtectedRoute auth={auth}><OrdersScreen /></ProtectedRoute>} />
       <Route path="/orders/:orderId" element={<ProtectedRoute auth={auth}><OrderTrackingScreen /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute auth={auth}><ProfileScreen /></ProtectedRoute>} />
@@ -214,6 +218,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
       <Route path="/favorites" element={<ProtectedRoute auth={auth}><FavoritesScreen /></ProtectedRoute>} />
       <Route path="/search" element={<ProtectedRoute auth={auth}><SearchScreen /></ProtectedRoute>} />
       <Route path="/custom-requests" element={<ProtectedRoute auth={auth}><CustomRequestsScreen /></ProtectedRoute>} />
+      <Route path="/support" element={<ProtectedRoute auth={auth}><SupportScreen /></ProtectedRoute>} />
       <Route path="/login" element={<AuthRoute auth={auth}><LoginScreen /></AuthRoute>} />
       <Route path="/register" element={<AuthRoute auth={auth}><RegisterScreen /></AuthRoute>} />
       <Route path="/forgot-password" element={<AuthRoute auth={auth}><ForgotPasswordScreen /></AuthRoute>} />

@@ -6,7 +6,7 @@
  * state (`activeNav`) lives in the dashboard; this component is purely presentational.
  */
 import {
-  ClipboardList,
+  LayoutDashboard,
   LogOut,
   MapPin,
   Megaphone,
@@ -28,7 +28,7 @@ export interface AdminNavItem {
 }
 
 export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
-  { id: 'Dashboard', ar: 'نظرة عامة', icon: ClipboardList },
+  { id: 'Dashboard', ar: 'نظرة عامة', icon: LayoutDashboard },
   { id: 'Stores', ar: 'المتاجر والمطاعم', icon: Store },
   { id: 'Captains', ar: 'السائقين', icon: Truck },
   { id: 'Users', ar: 'العملاء', icon: Users },
@@ -53,7 +53,7 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
   const { t } = useLanguage();
   return (
     <aside
-      className={`fixed inset-y-0 start-0 z-30 w-[244px] flex-col bg-brand-deep px-4 py-6 text-white transition-transform duration-200 ${
+      className={`sq-admin-sidebar fixed inset-y-0 start-0 z-30 flex-col bg-slate-900 px-4 py-6 text-white transition-transform duration-200 ${
         open ? 'flex translate-x-0' : 'hidden translate-x-full md:flex md:translate-x-0'
       }`}
       aria-label={t('قائمة الإدارة', 'Admin sidebar')}
@@ -86,6 +86,7 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
               <li key={item.id}>
                 <button
                   type="button"
+                  aria-current={active ? 'page' : undefined}
                   onClick={() => onNavigate(item.id)}
                   className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start transition ${
                     active ? 'bg-brand text-white shadow-raised' : 'text-white/75 hover:bg-surface/10 hover:text-white'

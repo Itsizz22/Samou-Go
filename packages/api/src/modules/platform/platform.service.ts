@@ -95,7 +95,7 @@ export async function sendOrderChat(orderId: string, auth: JwtPayload, rawBody: 
 }
 
 export async function createSupportTicket(auth: JwtPayload, body: TicketBody) {
-  return prisma.supportTicket.create({ data: { userId: auth.sub, role: auth.role, ...body } });
+  return prisma.supportTicket.create({ data: { userId: auth.sub, ticketNumber: `TKT-${Date.now()}`, category: 'GENERAL', ...body } });
 }
 
 export async function getWallet(auth: JwtPayload) {

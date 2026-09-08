@@ -27,6 +27,7 @@ import {
   createCategory,
   createOptionGroup,
   createProduct,
+  deleteProduct,
   deleteOptionGroup,
   listOptionGroups,
   removeCurrentImage,
@@ -426,14 +427,14 @@ export function ProductCataloguePanel({ storeId }: Props) {
           placeholder={t('بحث', 'Search…')}
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          className="h-9 min-w-0 flex-1 rounded-xl border border-line bg-canvas px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          className="h-11 min-w-0 basis-full rounded-xl sm:basis-auto sm:flex-1 border border-line bg-canvas px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
           aria-label="Search products"
         />
         <div className="relative">
           <select
             value={filterCategoryId}
             onChange={e => setFilterCategoryId(e.target.value)}
-            className="h-9 appearance-none rounded-xl border border-line bg-canvas pe-8 ps-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+            className="h-11 appearance-none rounded-xl border border-line bg-canvas pe-8 ps-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
             aria-label="Filter by category"
           >
             <option value="">{t('كل الأقسام', 'All')}</option>
@@ -527,9 +528,9 @@ export function ProductCataloguePanel({ storeId }: Props) {
                     {p.description && (
                       <span className="block max-w-[220px] truncate text-[11px] text-ink-muted">{p.description}</span>
                     )}
-                    {((p as any).optionGroups ?? []).length > 0 && (
+                    {(p.optionGroups ?? []).length > 0 && (
                       <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-brand-tint px-2 py-0.5 text-[10px] font-bold text-brand-deep">
-                        <ListPlus size={9} /> {((p as any).optionGroups ?? []).length} {t('خيارات', 'options')}
+                        <ListPlus size={9} /> {(p.optionGroups ?? []).length} {t('خيارات', 'options')}
                       </span>
                     )}
                   </td>

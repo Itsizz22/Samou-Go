@@ -1,9 +1,9 @@
 import type { Request, Response } from 'express';
+import { requireAuth } from '../../middleware/authenticate';
 import { listOptionGroups, createOptionGroup, updateOptionGroup, deleteOptionGroup } from './options.service';
 
 function actorFromReq(req: Request) {
-  const user = (req as any).user;
-  return { sub: user.id as string, role: user.role as string };
+  return requireAuth(req);
 }
 
 export async function listOptionGroupsHandler(req: Request, res: Response) {

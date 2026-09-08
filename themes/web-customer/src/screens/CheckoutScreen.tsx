@@ -31,7 +31,7 @@ import { OrderSuccess, Button, useLanguage, VoiceRecorder, useNetworkStatus } fr
 import { useCart } from '@/components/CartProvider';
 import { MapPicker } from '@/components/MapPicker';
 import { CustomerAuthGate } from '@/components/CustomerAuthGate';
-import { useAuth, ENABLE_LOCATION } from '@/hooks/useApi';
+import { useAuth, ENABLE_LOCATION, listActiveDeliveryZones } from '@/hooks/useApi';
 import { formatCurrency, DRIVER_FEE_LABEL, DRIVER_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
 import { hapticError, hapticSuccess } from '@/lib/haptics';
 import {
@@ -45,7 +45,7 @@ import {
   type SavedAddress,
 } from '@/lib/address-book';
 import { PageTransition } from '@/components/PageTransition';
-import type { DeliveryRegion, OrderDetail } from '@samou-go/shared-types';
+import type { DeliveryRegion, DeliveryZone, OrderDetail } from '@samou-go/shared-types';
 import type { CheckoutResult } from '@samou-go/api-client';
 
 /**
@@ -80,6 +80,10 @@ export function CheckoutScreen() {
   const [addressText, setAddressText] = useState('');
   const [addressNote, setAddressNote] = useState('');
   const [deliveryRegion, setDeliveryRegion] = useState<DeliveryRegion>('central');
+  const [zones, setZones] = useState<DeliveryZone[]>([]);
+  const [zoneId, setZoneId] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [guestName, setGuestName] = useState('');
   const [orderNote, setOrderNote] = useState('');
   const [saveForNextTime, setSaveForNextTime] = useState(true);
   /** Home / Work / Other — persisted with the saved address, shown as a chip. */
@@ -174,6 +178,17 @@ export function CheckoutScreen() {
   // changes shape. The voucher is only sent to the server once the customer
   // presses "apply" (`appliedVoucher`), never on every keystroke.
   useEffect(() => {
+    listActiveDeliveryZones().then(setZones).catch(() => setZones([]));
+    try {
+      const session = JSON.parse(window.localStorage.getItem('samou_customer_session') ?? '{}') as { phone?: string; name?: string; zoneId?: string; addressNote?: string };
+      setGuestPhone(session.phone ?? '');
+      setGuestName(session.name ?? '');
+      setZoneId(session.zoneId ?? '');
+      if (session.addressNote) setAddressNote(session.addressNote);
+    } catch { /* local storage is optional */ }
+  }, []);
+
+  useEffect(() => {
     if (!cart?.storeId || (items ?? []).length === 0) {
       setQuote(null);
       return;
@@ -187,6 +202,7 @@ export function CheckoutScreen() {
         items,
         voucherCode: appliedVoucher || undefined,
         deliveryRegion,
+        deliveryZoneId: zoneId || undefined,
       },
       controller.signal
     )
@@ -213,7 +229,7 @@ export function CheckoutScreen() {
       cancelled = true;
       controller.abort();
     };
-  }, [cart.storeId, items, appliedVoucher, deliveryRegion, auth.user?.id, quoteRevision]);
+  }, [cart.storeId, items, appliedVoucher, deliveryRegion, zoneId, auth.user?.id, quoteRevision]);
 
   if (!auth.ready) {
     return (
@@ -226,7 +242,7 @@ export function CheckoutScreen() {
   }
 
   // Orders are personal — an anonymous visitor must sign in before checkout.
-  if (!auth.user) {
+  if (!auth.user && false) {
     return (
       <PageTransition>
         <CustomerAuthGate auth={auth} reasonAr="سجّل الدخول لإتمام طلبك" reasonEn="Sign in to place your order" />
@@ -244,7 +260,7 @@ export function CheckoutScreen() {
         <main className="flex min-h-screen flex-col bg-canvas text-ink">
           <OrderSuccess
             orderNumber={placedOrder.orderNumber}
-            eta={placedOrder.estimatedPrepMinutes ? `وصول الكابتن خلال ~${placedOrder.estimatedPrepMinutes} دقيقة` : undefined}
+            eta={placedOrder.estimatedPrepMinutes ? `وقت التحضير المتوقع ~${placedOrder.estimatedPrepMinutes} دقيقة` : undefined}
             actions={
               <>
                 <Button
@@ -325,6 +341,17 @@ export function CheckoutScreen() {
         setFieldError(t('يرجى إدخال عنوان التوصيل', 'Please enter a delivery address'));
         await hapticError();
         return;
+      }
+      if (!auth.user && !guestPhone.trim()) {
+        setFieldError('رقم الهاتف مطلوب لإتمام الطلب');
+        return;
+      }
+      if (fulfillmentType === 'DELIVERY' && !zoneId) {
+        setFieldError('يرجى اختيار منطقة التوصيل');
+        return;
+      }
+      if (!auth.user) {
+        window.localStorage.setItem('samou_customer_session', JSON.stringify({ phone: guestPhone.trim(), name: guestName.trim(), zoneId, addressNote: addressNote.trim() }));
       }
       if (!cart?.storeId || (items ?? []).length === 0) {
         setSubmitError(
@@ -416,6 +443,8 @@ export function CheckoutScreen() {
           longitude: fulfillmentType === 'PICKUP' ? undefined : pickedLng,
           voucherCode: appliedVoucher || undefined,
           fulfillmentType,
+          deliveryZoneId: fulfillmentType === 'DELIVERY' ? zoneId || undefined : undefined,
+          ...(!auth.user ? { guestCustomerInfo: { phone: guestPhone.trim(), name: guestName.trim() || undefined, zoneId: zoneId || undefined } } : {}),
           ...(finalVoiceNoteUrl ? { voiceNoteUrl: finalVoiceNoteUrl, voiceNoteDuration } : {}),
         });
         await hapticSuccess();
@@ -572,6 +601,21 @@ export function CheckoutScreen() {
                   className="input-field mt-1.5 w-full"
                 />
               </label>
+              {!auth.user && (
+                <div className="grid grid-cols-1 gap-3 rounded-xl bg-brand-tint p-3">
+                  <label className="block"><span className="text-[11px] font-bold text-ink-muted">رقم الهاتف</span><input value={guestPhone} onChange={(event) => setGuestPhone(event.target.value)} inputMode="tel" className="input-field mt-1.5 w-full" required /></label>
+                  <label className="block"><span className="text-[11px] font-bold text-ink-muted">الاسم</span><input value={guestName} onChange={(event) => setGuestName(event.target.value)} className="input-field mt-1.5 w-full" /></label>
+                </div>
+              )}
+              {fulfillmentType === 'DELIVERY' && zones.length > 0 && (
+                <label className="block">
+                  <span className="text-[11px] font-bold text-ink-muted">المنطقة</span>
+                  <select value={zoneId} onChange={(event) => setZoneId(event.target.value)} className="input-field mt-1.5 w-full">
+                    <option value="">اختر المنطقة</option>
+                    {zones.map((zone) => <option key={zone.id} value={zone.id}>{zone.nameAr} {zone.allowCaptainPricing ? '(تحدد الرسوم من قبل الكابتن)' : `(${zone.deliveryFee} ₪)`}</option>)}
+                  </select>
+                </label>
+              )}
               {zonesEnabled && (
               <label className="block">
                 <span className="text-[11px] font-bold text-ink-muted">{t('منطقة التوصيل', 'Delivery region')}</span>

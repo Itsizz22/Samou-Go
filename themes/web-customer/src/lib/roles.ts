@@ -12,5 +12,6 @@ import { UserRole, type UserRole as UserRoleValue } from '@samou-go/shared-types
 export function roleHomePath(role: UserRoleValue): string {
   if (role === UserRole.CAPTAIN) return '/captain/dashboard';
   if (role === UserRole.STORE_MANAGER) return '/store-manager/orders';
-  return '/';
+  if (role === UserRole.ADMIN) return '/home';
+  return '/home';
 }

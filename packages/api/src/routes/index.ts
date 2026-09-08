@@ -16,6 +16,7 @@ import { adminRouter } from '../modules/admin/admin.routes';
 import { favoritesRouter } from '../modules/favorites/favorites.routes';
 import { uploadsRouter } from '../uploads/uploads.routes';
 import { platformRouter } from '../modules/platform/platform.routes';
+import { supportRouter } from '../modules/Support/support.routes';
 import { deliveryZonesRouter } from '../modules/zones/zones.routes';
 import { devicesRouter } from '../modules/devices/devices.routes';
 import {
@@ -60,9 +61,12 @@ apiRouter.use('/captains', captainsRouter);
 apiRouter.use('/admin', adminRouter);
 apiRouter.use('/favorites', favoritesRouter);
 apiRouter.use('/uploads', uploadsRouter);
-/* Platform router handles authenticated routes (wallet, rating, admin settings, etc.) */
 apiRouter.use('/platform', platformRouter);
+apiRouter.use('/support', supportRouter);
 apiRouter.use('/devices', devicesRouter);
 apiRouter.use('/delivery-zones', deliveryZonesRouter);
+// Canonical short customer endpoint and explicit admin CRUD endpoint.
+apiRouter.use('/zones', deliveryZonesRouter);
+apiRouter.use('/admin/zones', deliveryZonesRouter);
 apiRouter.use('/customer/custom-requests', customerCustomRequestsRouter);
 apiRouter.use('/store/custom-requests', storeCustomRequestsRouter);

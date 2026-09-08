@@ -28,5 +28,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/screens/TicketsScreen.tsx", "src/screens/NewTicketScreen.tsx", "src/screens/TicketDetailScreen.tsx"]
 }

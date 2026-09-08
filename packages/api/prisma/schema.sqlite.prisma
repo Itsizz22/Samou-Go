@@ -121,7 +121,7 @@ enum StoreType {
 /// reliably have email.
 model User {
   id           String   @id @default(cuid())
-  name         String  
+  name         String
   /// Human-friendly reference code (e.g. CUST-XXXXX / CAPT-XXXXX).
   userCode     String?  @unique
   /// Canonical Palestinian mobile: 10 digits, `05XXXXXXXX`.
@@ -218,13 +218,13 @@ model Store {
   id         String   @id @default(cuid())
   /// URL-safe slug derived from store name, used for public-facing URLs.
   slug       String?  @unique
-  nameAr     String  
-  nameEn     String  
+  nameAr     String
+  nameEn     String
   logoUrl    String?
   /// Wide hero image behind the store header — processed by the uploads
   /// pipeline (`store` kind, `cover` purpose).
   coverUrl   String?
-  phone      String  
+  phone      String
   isActive   Boolean  @default(true)
   /// New stores stay hidden from the public catalogue until an admin approves.
   isApproved Boolean  @default(false)
@@ -268,8 +268,8 @@ model Store {
 /// A menu section, scoped to one store. Two stores may both have "مشروبات".
 model Category {
   id        String   @id @default(cuid())
-  nameAr    String  
-  nameEn    String  
+  nameAr    String
+  nameEn    String
   imageUrl  String?
   storeId   String
   sortOrder Int      @default(0)
@@ -288,9 +288,9 @@ model Category {
 /// `unitPrice` so repricing never rewrites history.
 model Product {
   id          String   @id @default(cuid())
-  nameAr      String  
-  description String? 
-  price       Decimal 
+  nameAr      String
+  description String?
+  price       Decimal
   imageUrl    String?
   isAvailable Boolean  @default(true)
   optionsEnabled Boolean @default(true)
@@ -330,7 +330,7 @@ model Order {
   fulfillmentType FulfillmentType @default(DELIVERY)
 
   /// Free-text destination: neighbourhood, street, landmark. No GPS by design.
-  customerAddressText String 
+  customerAddressText String
   /// Optional extra directions, e.g. "بجانب مسجد عمر، الطابق الثاني".
   addressNote         String?
   /// Customer instruction for the whole order (e.g. delivery presets + freeform).
@@ -357,15 +357,20 @@ model Order {
   /// Duration of the voice note in seconds.
   voiceNoteDuration Int?
 
-  subtotal      Decimal      
-  deliveryFee   Decimal      
+  subtotal      Decimal
+  deliveryFee   Decimal
   /// Voucher savings, in ILS — 0 when no voucher was applied.
   discount      Decimal       @default(0)
-  totalAmount   Decimal      
+  totalAmount   Decimal
   paymentMethod PaymentMethod @default(COD)
   voucherId     String?
   /// Fee zone chosen by the assigned captain — fee is derived from it server-side.
   deliveryZoneId String?
+
+  isCaptainPriced Boolean @default(false)
+  driverQuotedFee Float?
+  /// APPROVED | PENDING_CUSTOMER_ACCEPTANCE
+  feeApprovalStatus String @default("APPROVED")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -426,7 +431,7 @@ model OrderStatusHistory {
   status          OrderStatus
   /// Null for system-driven transitions (e.g. auto-expiry jobs).
   changedByUserId String?
-  note            String?    
+  note            String?
   createdAt       DateTime    @default(now())
 
   order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -444,15 +449,15 @@ model Voucher {
   id            String              @id @default(cuid())
   /// Case-insensitive match code, stored uppercase, e.g. `RAMADAN10`.
   code          String              @unique
-  labelAr       String             
-  labelEn       String             
+  labelAr       String
+  labelEn       String
   discountType  VoucherDiscountType @default(PERCENT)
   /// PERCENT → 0–100; FIXED → ILS amount off.
-  discountValue Decimal            
+  discountValue Decimal
   /// Ignored until the basket's subtotal reaches this, in ILS.
-  minSubtotal   Decimal?           
+  minSubtotal   Decimal?
   /// Hard cap on the savings (matters for PERCENT vouchers).
-  maxDiscount   Decimal?           
+  maxDiscount   Decimal?
   isActive      Boolean             @default(true)
   /// Optional dispatch window.
   startsAt      DateTime?
@@ -477,7 +482,9 @@ model DeliveryZone {
   nameAr    String
   nameEn    String
   /// The full delivery fee for this zone, in ILS.
-  fee       Decimal
+  deliveryFee Decimal @default(0)
+  /// Toggle to let captain set/quote fee for this zone
+  allowCaptainPricing Boolean @default(false)
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -638,16 +645,30 @@ model ChatMessage {
 
 model SupportTicket {
   id String @id @default(cuid())
+  ticketNumber String @unique
   userId String
-  role UserRole
+  orderId String?
+  category String
   subject String
-  description String
-  status TicketStatus @default(OPEN)
+  priority String @default("NORMAL")
+  status String @default("OPEN")
   createdAt DateTime @default(now())
-  resolvedAt DateTime?
+  updatedAt DateTime @updatedAt
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages TicketMessage[]
   @@index([status, createdAt])
   @@map("support_tickets")
+}
+
+model TicketMessage {
+  id String @id @default(cuid())
+  ticketId String
+  senderId String
+  senderRole String
+  message String
+  attachments Json?
+  createdAt DateTime @default(now())
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 }
 
 model Wallet {

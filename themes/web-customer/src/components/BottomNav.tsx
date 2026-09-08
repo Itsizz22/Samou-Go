@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Home, Heart, Package, Search, User, BadgePercent, type LucideIcon } from 'lucide-react';
+import { Home, Heart, FileText, User, BadgePercent, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useLanguage } from '@samou-go/ui';
-import { useAuth } from '@/hooks/useApi';
-import { API_URL, getToken, clearToken } from '@samou-go/api-client';
+import { useAuth, useOrders } from '@/hooks/useApi';
 import { OrderStatus } from '@samou-go/shared-types';
 
 /**
@@ -28,7 +27,7 @@ interface TabItem {
 const TABS: readonly TabItem[] = [
   { to: '/home', labelAr: 'الرئيسية', labelEn: 'Home', icon: Home },
   { to: '/offers', labelAr: 'العروض', labelEn: 'Offers', icon: BadgePercent },
-  { to: '/orders', labelAr: 'طلباتي', labelEn: 'Orders', icon: Package },
+  { to: '/orders', labelAr: 'طلباتي', labelEn: 'Orders', icon: FileText },
   { to: '/favorites', labelAr: 'المفضلة', labelEn: 'Favorites', icon: Heart },
   { to: '/profile', labelAr: 'حسابي', labelEn: 'Profile', icon: User },
 ];
@@ -40,47 +39,18 @@ const TERMINAL: ReadonlySet<string> = new Set([OrderStatus.DELIVERED, OrderStatu
  * Lightweight hook: polls for active order count every 30 s (unauthenticated
  * users get 0). No-op when logged out.
  */
-function useActiveOrderCount(): number {
+function useActiveOrderCount() {
   const auth = useAuth();
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    if (!auth.user) { setCount(0); return; }
-
-    let cancelled = false;
-
-    async function fetchCount(): Promise<void> {
-      try {
-        const token = getToken();
-        if (!token) return;
-        // Fetch active orders — any status that is not DELIVERED or CANCELLED.
-        // We fetch all statuses the server supports and count non-terminal ones.
-        const res = await fetch(`${API_URL}/orders?pageSize=50`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.status === 401) { clearToken(); auth.setUser(null); return; }
-        if (!res.ok || cancelled) return;
-        const json = await res.json() as { data?: { items?: Array<{ status: string }> } };
-        const items = json.data?.items ?? [];
-        const active = items.filter((o) => !TERMINAL.has(o.status as OrderStatus)).length;
-        if (!cancelled) setCount(active);
-      } catch {
-        // Network error — keep previous count.
-      }
-    }
-
-    void fetchCount();
-    const timer = setInterval(() => void fetchCount(), 30_000);
-
-    return () => { cancelled = true; clearInterval(timer); };
-  }, [auth.user]);
-
-  return count;
+  const orders = useOrders({ pageSize: 50 }, { enabled: Boolean(auth.user), pollMs: 30_000 });
+  const count = auth.ready && auth.user
+    ? orders.data?.items.filter((order) => !TERMINAL.has(order.status)).length ?? 0
+    : 0;
+  return { count, error: orders.error, refresh: orders.refresh };
 }
 
 export function BottomNav() {
   const { t } = useLanguage();
-  const activeOrders = useActiveOrderCount();
+  const { count: activeOrders, error: ordersError, refresh: refreshOrders } = useActiveOrderCount();
   const [cartBounce, setCartBounce] = useState(false);
   const [cartRipple, setCartRipple] = useState(false);
 
@@ -99,9 +69,17 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-20 border-t border-line/80 bg-surface/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 shadow-nav backdrop-blur-md"
+      className="sq-bottom-nav fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface px-4"
       aria-label={t('التنقل السفلي', 'Bottom navigation')}
     >
+      {ordersError && (
+        <p role="status" className="mx-auto flex max-w-md items-center justify-between gap-2 text-xs text-danger">
+          <span>{ordersError.localizedMessage}</span>
+          <button type="button" onClick={refreshOrders} className="shrink-0 underline">
+            {t('إعادة المحاولة', 'Retry')}
+          </button>
+        </p>
+      )}
       <div className="mx-auto grid max-w-md grid-cols-5 items-stretch gap-0.5 sm:grid-cols-5">
         {TABS.map(({ to, labelAr, labelEn, icon: Icon }) => (
           <NavLink
@@ -109,10 +87,10 @@ export function BottomNav() {
             to={to}
             end={to === '/home'}
             className={({ isActive }) =>
-              `relative flex min-h-13 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-bold transition-all duration-200 active:scale-[0.95] ${
+              `relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-xs font-medium transition-colors ${
                 isActive
-                  ? 'bg-brand-tint text-brand-deep shadow-sm'
-                  : 'text-ink-muted active:bg-canvas'
+                  ? 'text-brand'
+                  : 'text-ink-muted hover:bg-canvas'
               }`
             }
           >
@@ -122,7 +100,7 @@ export function BottomNav() {
                   <Icon
                     size={21}
                     strokeWidth={isActive ? 2.5 : 1.8}
-                    fill={isActive && to === '/home' ? 'currentColor' : 'none'}
+                    fill="none"
                     className={`${
                       to === '/orders' && cartBounce ? 'cart-bounce' : ''
                     } ${
@@ -138,11 +116,7 @@ export function BottomNav() {
                     </span>
                   )}
                 </span>
-                {/* Sliding pill indicator for active tab */}
-                {isActive && (
-                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-brand animate-[pillSlide_0.25s_var(--ease-spring)_both]" />
-                )}
-                <span className="text-[10px] leading-tight font-bold truncate w-full text-center">{t(labelAr, labelEn)}</span>
+                <span className="text-[11px] leading-4 truncate w-full text-center">{t(labelAr, labelEn)}</span>
               </>
             )}
           </NavLink>

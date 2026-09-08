@@ -3,7 +3,7 @@
  * Appears when a product has optionGroups — shows checkboxes/radios for each
  * group with live price calculation.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Minus, ShoppingBag } from 'lucide-react';
 import type { Product, ProductOptionGroup } from '@samou-go/shared-types';
@@ -21,6 +21,11 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
   const { t } = useLanguage();
   const groups = useMemo(() => product.optionGroups ?? [], [product.optionGroups]);
   const [quantity, setQuantity] = useState(1);
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previous; };
+  }, []);
   // selections[groupId] = Set<optionId>
   const [selections, setSelections] = useState<Record<string, Set<string>>>(() => {
     const init: Record<string, Set<string>> = {};

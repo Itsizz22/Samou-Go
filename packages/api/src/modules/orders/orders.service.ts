@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from '../../lib/prisma-types';
+import { randomUUID } from 'node:crypto';
 import {
   OrderStatus,
   PaymentMethod,
@@ -20,6 +21,7 @@ import { prisma } from '../../lib/prisma';
 import { badState, conflict, forbidden, notFound, unprocessable } from '../../lib/http-error';
 import { decimalToNumber } from '../../lib/decimal';
 import { formatOrderNumber, startOfDay } from '../../lib/order-number';
+import { hashPassword } from '../../lib/password';
 import { toOrderDetail, toOrderSummary } from './orders.mapper';
 import { toProduct } from '../stores/stores.mapper';
 import { creditDeliveredOrder } from '../platform/platform.service';
@@ -35,6 +37,26 @@ import type {
   CheckoutResult,
   CheckoutStoreResult,
 } from './orders.schemas';
+
+/** Creates a phone-bound CUSTOMER for guest checkout, or reuses an existing customer. */
+export async function resolveGuestCustomer(guest: NonNullable<CreateOrderBody['guestCustomerInfo']>): Promise<string> {
+  const existing = await prisma.user.findUnique({ where: { phone: guest.phone } });
+  if (existing) {
+    // A known number belongs to an account. Reusing it anonymously would let
+    // an attacker inject orders into another customer's history.
+    throw conflict('هذا الرقم مسجل بالفعل، سجّل الدخول لإتمام الطلب / This phone already has an account; please sign in');
+  }
+  const user = await prisma.user.create({
+    data: {
+      name: guest.name?.trim() || 'ضيف',
+      phone: guest.phone,
+      passwordHash: await hashPassword(`guest:${guest.phone}:${randomUUID()}`),
+      role: UserRole.CUSTOMER,
+      isVerified: false,
+    },
+  });
+  return user.id;
+}
 
 /** The relation graph `toOrderDetail` expects. */
 export const DETAIL_INCLUDE = {
@@ -195,7 +217,7 @@ async function priceBasket(
   // Fetch all option groups and items for the products in this basket,
   // so we can validate selected options and price them server-side.
   const productIds = [...merged.keys()];
-  const optionGroups = await (db as any).productOptionGroup.findMany({
+  const optionGroups = await db.productOptionGroup.findMany({
     where: { productId: { in: productIds } },
     include: { items: { where: { isActive: true } } },
   });
@@ -242,14 +264,19 @@ async function priceBasket(
     let resolvedOptions: PricedLine['selectedOptions'] = undefined;
 
     // Validate and price selected options from the DB.
-    if (offerItem?.selectedOptions && offerItem.selectedOptions.length > 0) {
-      const groups: any[] = optionGroupByProduct.get(productId) ?? [];
+    if (optionGroupByProduct.has(productId) || offerItem?.selectedOptions?.length) {
+      const groups = optionGroupByProduct.get(productId) ?? [];
       const groupIds = new Set(groups.map(g => g.id));
 
       resolvedOptions = [];
       let optionsTotal = 0;
 
-      for (const sel of offerItem.selectedOptions) {
+      const selectedIds = new Set<string>();
+      for (const sel of offerItem?.selectedOptions ?? []) {
+        if (selectedIds.has(sel.optionId)) {
+          throw unprocessable('DUPLICATE_OPTION', 'Cannot select the same option more than once');
+        }
+        selectedIds.add(sel.optionId);
         // Validate the group belongs to this product.
         if (!groupIds.has(sel.groupId)) {
           throw unprocessable(
@@ -273,10 +300,11 @@ async function priceBasket(
       for (const group of groups) {
         if (!group.required && !resolvedOptions.some(o => o.groupId === group.id)) continue;
         const count = resolvedOptions.filter(o => o.groupId === group.id).length;
-        if (group.required && count < group.minSelect) {
+        const minimum = group.required ? Math.max(1, group.minSelect) : group.minSelect;
+        if (count < minimum) {
           throw unprocessable(
             'OPTION_MIN_REQUIRED',
-            `يجب اختيار ${group.minSelect} من "${group.name}" على الأقل / Must select at least ${group.minSelect} from "${group.name}"`
+            `يجب اختيار ${minimum} من "${group.name}" على الأقل / Must select at least ${minimum} from "${group.name}"`
           );
         }
         if (count > group.maxSelect) {
@@ -305,6 +333,11 @@ export async function quoteOrder(body: QuoteOrderBody): Promise<OrderQuote> {
   // Normalize null → undefined so the default 'central' zone kicks in.
   const region = body.deliveryRegion ?? undefined;
   const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, region);
+  const zone = body.deliveryZoneId
+    ? await prisma.deliveryZone.findFirst({ where: { id: body.deliveryZoneId, isActive: true } })
+    : null;
+  if (body.deliveryZoneId && !zone) throw unprocessable('ZONE_INACTIVE', 'منطقة التوصيل غير متاحة / Delivery zone is unavailable');
+  const deliveryFee = zone?.allowCaptainPricing ? 0 : zone ? decimalToNumber(zone.deliveryFee) : totals.deliveryFee;
 
   if (totals.subtotal <= 0) {
     throw unprocessable('EMPTY_BASKET', 'السلة فارغة / The basket is empty');
@@ -319,8 +352,9 @@ export async function quoteOrder(body: QuoteOrderBody): Promise<OrderQuote> {
 
   return {
     ...totals,
+    deliveryFee,
     discount,
-    totalAmount: roundMoney(totals.totalAmount - discount),
+    totalAmount: roundMoney(totals.subtotal + deliveryFee - discount),
     currency: env.deliveryFeeConfig.currency,
     deliveryFeeLabel: deliveryFeeLabel('both'),
     voucher: voucher
@@ -347,6 +381,15 @@ export async function createOrder(
     const lines = await priceBasket(tx, body.storeId, body.items);
     const region = body.deliveryRegion ?? undefined;
     const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, region);
+    const requestedZoneId = body.fulfillmentType === 'PICKUP'
+      ? undefined
+      : body.deliveryZoneId ?? body.guestCustomerInfo?.zoneId;
+    const zone = requestedZoneId
+      ? await tx.deliveryZone.findFirst({ where: { id: requestedZoneId, isActive: true } })
+      : null;
+    if (requestedZoneId && !zone) throw unprocessable('ZONE_INACTIVE', 'منطقة التوصيل غير متاحة / Delivery zone is unavailable');
+    const captainPricing = zone?.allowCaptainPricing === true;
+    const deliveryFee = body.fulfillmentType === 'PICKUP' ? 0 : captainPricing ? 0 : zone ? decimalToNumber(zone.deliveryFee) : totals.deliveryFee;
 
     if (totals.subtotal <= 0) {
       throw unprocessable('EMPTY_BASKET', 'السلة فارغة / The basket is empty');
@@ -406,12 +449,16 @@ export async function createOrder(
         latitude: body.latitude ?? null,
         longitude: body.longitude ?? null,
         subtotal: totals.subtotal,
-        // PICKUP orders have no delivery fee and no delivery PIN.
-        deliveryFee: body.fulfillmentType === 'PICKUP' ? 0 : totals.deliveryFee,
+        // Zones are priced only from the admin-owned row, never from the client.
+        deliveryZoneId: zone?.id ?? null,
+        isCaptainPriced: captainPricing,
+        driverQuotedFee: null,
+        feeApprovalStatus: captainPricing ? 'PENDING_CUSTOMER_ACCEPTANCE' : 'APPROVED',
+        deliveryFee,
         discount,
         totalAmount: body.fulfillmentType === 'PICKUP'
           ? roundMoney(totals.subtotal - discount)
-          : roundMoney(totals.totalAmount - discount),
+          : roundMoney(totals.subtotal + deliveryFee - discount),
         voucherId: voucher?.id ?? null,
         paymentMethod: PaymentMethod.COD,
         deliveryPin: body.fulfillmentType === 'PICKUP' ? null : generateDeliveryPin(),
@@ -1136,7 +1183,7 @@ export async function setOrderDeliveryZone(
   // Money math stays server-side: the fee comes from the zone row and the
   // total is recomputed from the persisted subtotal/discount, never from the
   // request body.
-  const deliveryFee = roundMoney(decimalToNumber(zone.fee));
+  const deliveryFee = zone.allowCaptainPricing ? 0 : roundMoney(decimalToNumber(zone.deliveryFee));
   const totalAmount = roundMoney(
     decimalToNumber(order.subtotal) - decimalToNumber(order.discount) + deliveryFee
   );
@@ -1150,6 +1197,9 @@ export async function setOrderDeliveryZone(
       data: {
         deliveryZoneId: zone.id,
         deliveryFee,
+        isCaptainPriced: zone.allowCaptainPricing,
+        driverQuotedFee: null,
+        feeApprovalStatus: zone.allowCaptainPricing ? 'PENDING_CUSTOMER_ACCEPTANCE' : 'APPROVED',
         totalAmount,
         statusHistory: {
           create: {
@@ -1175,6 +1225,40 @@ export async function setOrderDeliveryZone(
     }
     throw err;
   }
+}
+
+/** Assigned captain proposes a fee for an admin-enabled flexible zone. */
+export async function quoteCaptainFee(actor: { sub: string; role: UserRole }, orderId: string, deliveryFee: number): Promise<OrderDetail> {
+  const order = await loadOrderOrThrow(orderId);
+  if (actor.role !== UserRole.CAPTAIN || order.captainId !== actor.sub) throw forbidden();
+  if (!order.deliveryZone?.allowCaptainPricing) throw unprocessable('ZONE_FIXED_FEE', 'هذه المنطقة لا تسمح برسوم مخصصة / This zone has a fixed fee');
+  if (isTerminalOrderStatus(order.status)) throw badState('ORDER_CLOSED', 'الطلب مغلق / Order is closed');
+  const updated = await prisma.order.update({
+    where: { id: orderId },
+    data: { isCaptainPriced: true, driverQuotedFee: roundMoney(deliveryFee), feeApprovalStatus: 'PENDING_CUSTOMER_ACCEPTANCE' },
+    include: DETAIL_INCLUDE,
+  });
+  return toOrderDetail(updated as any, actor.role);
+}
+
+/** Customer accepts the captain's proposed fee; totals are recomputed server-side. */
+export async function acceptCaptainFee(actor: { sub: string; role: UserRole }, orderId: string): Promise<OrderDetail> {
+  const order = await loadOrderOrThrow(orderId);
+  if (actor.role !== UserRole.CUSTOMER || order.customerId !== actor.sub) throw forbidden();
+  if (order.feeApprovalStatus !== 'PENDING_CUSTOMER_ACCEPTANCE' || order.driverQuotedFee === null) {
+    throw badState('FEE_NOT_PENDING', 'لا توجد رسوم معلقة للموافقة / No delivery fee is awaiting approval');
+  }
+  const deliveryFee = roundMoney(order.driverQuotedFee);
+  const updated = await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      deliveryFee,
+      totalAmount: roundMoney(decimalToNumber(order.subtotal) - decimalToNumber(order.discount) + deliveryFee),
+      feeApprovalStatus: 'APPROVED',
+    },
+    include: DETAIL_INCLUDE,
+  });
+  return toOrderDetail(updated as any, actor.role);
 }
 
 /* ---------------------------------------------------------------------------

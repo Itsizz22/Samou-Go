@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { Menu } from 'lucide-react';
-import { BrandLogo, useLanguage } from '@samou-go/ui';
+import { ArrowRight, Menu } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '@samou-go/ui';
 import { BottomNav } from '@/components/BottomNav';
 import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import { useDrawer } from '@/components/NavigationDrawer';
@@ -20,25 +21,26 @@ interface ScreenShellProps {
 export function ScreenShell({ title, subtitle, children }: ScreenShellProps) {
   const { openDrawer } = useDrawer();
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   return (
-    <main className="min-h-[100dvh] bg-canvas pb-28 text-ink">
-      <header className="bg-brand px-4 pb-5 pt-[max(1rem,env(safe-area-inset-top))] text-white shadow-brand">
+    <main className="sq-customer-screen min-h-svh bg-canvas pb-28 font-sans text-ink">
+      <header className="sq-page-header bg-surface px-5 text-ink">
         <div className="mx-auto flex max-w-md items-center justify-between gap-2">
           <button
             type="button"
-            aria-label={t('القائمة', 'Menu')}
-            onClick={openDrawer}
-            className="me-2 shrink-0 rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
+            aria-label={t('رجوع', 'Back')}
+            onClick={() => navigate(-1)}
+            className="sq-icon-button shrink-0 rounded-xl bg-canvas text-ink"
           >
-            <Menu size={22} />
+            <ArrowRight size={22} className="ltr:rotate-180" />
           </button>
           <div className="flex items-center gap-2">
-            <BrandLogo size={28} />
             <div className="flex-1 text-end">
-              <p className="font-heading text-sm font-bold leading-relaxed tracking-[-0.015em]">{t(title, subtitle)}</p>
+              <h1 className="font-sans text-lg font-bold">{t(title, subtitle)}</h1>
             </div>
           </div>
+          <button type="button" onClick={openDrawer} aria-label={t('القائمة', 'Menu')} className="sq-icon-button rounded-xl text-ink-muted"><Menu size={22} /></button>
         </div>
       </header>
 

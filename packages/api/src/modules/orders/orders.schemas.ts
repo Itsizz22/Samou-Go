@@ -80,6 +80,12 @@ export const createOrderSchema = z.object({
   fulfillmentType: z.enum(['DELIVERY', 'PICKUP']).default('DELIVERY'),
   voiceNoteUrl: z.string().url().max(500).optional(),
   voiceNoteDuration: z.number().int().min(1).max(30).optional(),
+  deliveryZoneId: z.string().min(1).optional(),
+  guestCustomerInfo: z.object({
+    phone: z.string().trim().min(8).max(20),
+    name: z.string().trim().min(1).max(120).optional(),
+    zoneId: z.string().min(1).optional(),
+  }).optional(),
 });
 
 /** Same body as create, minus the address — used to preview the delivery fee. */
@@ -96,6 +102,7 @@ export const quoteOrderSchema = createOrderSchema.pick({
   items: true,
   voucherCode: true,
   deliveryRegion: true,
+  deliveryZoneId: true,
 }).extend({
   deliveryRegion: z.enum(['central', 'outer', 'remote']).nullable().optional(),
 });
@@ -133,6 +140,10 @@ export const orderListQuerySchema = paginationSchema.extend({
 /** PATCH /orders/:orderId/set-delivery-fee — driver sets a custom delivery fee (when dynamic fee mode is enabled). */
 export const setDeliveryFeeSchema = z.object({
   deliveryFee: z.number().min(0).max(1000, 'رسوم التوصيل يجب أن تكون بين 0 و 1000 ₪ / Delivery fee must be between 0 and 1000 ₪'),
+});
+
+export const quoteCaptainFeeSchema = z.object({
+  deliveryFee: z.number().finite().min(0).max(1000),
 });
 
 /**
@@ -199,3 +210,4 @@ export type AssignCaptainBody = z.infer<typeof assignCaptainSchema>;
 export type OrderListQuery = z.infer<typeof orderListQuerySchema>;
 export type SetReviewBody = z.infer<typeof reviewSchema>;
 export type SetDeliveryFeeBody = z.infer<typeof setDeliveryFeeSchema>;
+export type QuoteCaptainFeeBody = z.infer<typeof quoteCaptainFeeSchema>;

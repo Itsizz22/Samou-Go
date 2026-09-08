@@ -364,6 +364,11 @@ model Order {
   /// Fee zone chosen by the assigned captain — fee is derived from it server-side.
   deliveryZoneId String?
 
+  isCaptainPriced Boolean @default(false)
+  driverQuotedFee Float?
+  /// Workflow state for captain-quoted fees: APPROVED | PENDING_CUSTOMER_ACCEPTANCE
+  feeApprovalStatus String @default("APPROVED")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -473,7 +478,9 @@ model DeliveryZone {
   nameAr    String   @db.VarChar(160)
   nameEn    String   @db.VarChar(160)
   /// The full delivery fee for this zone, in ILS.
-  fee       Decimal  @db.Decimal(10, 2)
+  deliveryFee Decimal @db.Decimal(10, 2) @default(0)
+  /// Toggle to let captain set/quote fee for this zone
+  allowCaptainPricing Boolean @default(false)
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -630,17 +637,32 @@ model ChatMessage {
 }
 model SupportTicket {
   id String @id @default(cuid())
+  ticketNumber String @unique
   userId String
-  role UserRole
+  orderId String?
+  category String
   subject String
-  description String
-  status TicketStatus @default(OPEN)
+  priority String @default("NORMAL")
+  status String @default("OPEN")
   createdAt DateTime @default(now())
-  resolvedAt DateTime?
+  updatedAt DateTime @updatedAt
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages TicketMessage[]
   @@index([status, createdAt])
   @@map("support_tickets")
 }
+
+model TicketMessage {
+  id String @id @default(cuid())
+  ticketId String
+  senderId String
+  senderRole String
+  message String
+  attachments Json?
+  createdAt DateTime @default(now())
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
 model Wallet {
   id String @id @default(cuid())
   userId String? @unique

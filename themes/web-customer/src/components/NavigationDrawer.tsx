@@ -27,6 +27,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { UserRole } from '@samou-go/shared-types';
 import {
   Heart,
+  Headphones,
   Home as HomeIcon,
   LogOut,
   Moon,
@@ -90,6 +91,7 @@ const NAV_ITEMS = [
   { to: '/search', labelAr: 'البحث', labelEn: 'Search', icon: Search },
   { to: '/orders', labelAr: 'طلباتي', labelEn: 'Orders', icon: Package },
   { to: '/favorites', labelAr: 'المفضلة', labelEn: 'Favorites', icon: Heart },
+  { to: '/support', labelAr: 'المساعدة والدعم', labelEn: 'Support', icon: Headphones },
   { to: '/profile', labelAr: 'ملفي', labelEn: 'Profile', icon: UserRound },
   { to: '/settings', labelAr: 'الإعدادات', labelEn: 'Settings', icon: Settings },
 ] as const;
@@ -182,7 +184,7 @@ export function NavigationDrawer() {
   };
 
   const isActive = (to: string) =>
-    to === '/' ? location.pathname === '/' : location.pathname.startsWith(to);
+    to === '/' ? ['/', '/home'].includes(location.pathname) : location.pathname.startsWith(to);
 
   return (
     <AnimatePresence>
@@ -220,7 +222,7 @@ export function NavigationDrawer() {
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
           >
           <div
-            className={`flex h-full w-[290px] max-w-[85vw] flex-col bg-surface text-ink shadow-raised will-change-transform ${
+            className={`flex h-full w-75 max-w-[85vw] flex-col bg-surface text-ink shadow-raised will-change-transform ${
               dragging ? '' : 'transition-transform duration-300 ease-out'
             }`}
             style={dragX ? { transform: `translateX(${dragX}px)` } : undefined}
@@ -238,7 +240,7 @@ export function NavigationDrawer() {
                 type="button"
                 onClick={closeDrawer}
                 aria-label={t('إغلاق', 'Close')}
-                className="rounded-full p-2 transition hover:bg-white/15 active:scale-95"
+                className="sq-icon-button rounded-full p-2 transition hover:bg-white/15 active:scale-95"
               >
                 <X size={20} />
               </button>
@@ -246,7 +248,7 @@ export function NavigationDrawer() {
 
             {/* Signed-in identity — or a sign-in shortcut. */}
             {auth.user ? (
-              <div className="flex items-center gap-3 border-b border-line px-5 py-4">
+              <div className="flex items-center gap-3 rounded-b-3xl bg-brand px-5 pb-6 pt-2 text-white">
                 {auth.user.profileImageUrl ? (
                   <img
                     src={auth.user.profileImageUrl}
@@ -260,7 +262,7 @@ export function NavigationDrawer() {
                 )}
                 <div className="min-w-0 text-end">
                   <p className="truncate text-sm font-extrabold">{auth.user.name}</p>
-                  <p className="truncate text-[11px] text-ink-muted" dir="ltr">
+                  <p className="truncate text-[11px] text-white/80" dir="ltr">
                     {auth.user.phone}
                   </p>
                 </div>

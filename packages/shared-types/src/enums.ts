@@ -82,7 +82,9 @@ export type CustomRequestStatus = (typeof CustomRequestStatus)[keyof typeof Cust
 /** Lifecycle of a customer support ticket. */
 export const TicketStatus = {
   OPEN: 'OPEN',
+  IN_PROGRESS: 'IN_PROGRESS',
   RESOLVED: 'RESOLVED',
+  CLOSED: 'CLOSED',
 } as const;
 export type TicketStatus = (typeof TicketStatus)[keyof typeof TicketStatus];
 
@@ -126,6 +128,31 @@ export const STORE_TYPE_LABELS: Record<StoreType, { ar: string; en: string }> = 
   [StoreType.BAKERY_SWEETS]: { ar: 'حلويات ومخابز', en: 'Bakeries & Sweets' },
   [StoreType.BUTCHERY]: { ar: 'لحوم ودواجن', en: 'Butcheries' },
   [StoreType.VEGETABLES_FRUITS]: { ar: 'خضار وفواكه', en: 'Fruits & Vegetables' },
+};
+
+/** Bilingual labels for ticket status. */
+export const TICKET_STATUS_LABELS: Record<TicketStatus, { ar: string; en: string }> = {
+  [TicketStatus.OPEN]: { ar: 'مفتوحة', en: 'Open' },
+  [TicketStatus.IN_PROGRESS]: { ar: 'قيد المعالجة', en: 'In Progress' },
+  [TicketStatus.RESOLVED]: { ar: '已解决', en: 'Resolved' },
+  [TicketStatus.CLOSED]: { ar: 'مغلقة', en: 'Closed' },
+};
+
+/** Priority level of a support ticket. */
+export const TicketPriority = {
+  LOW: 'LOW',
+  NORMAL: 'NORMAL',
+  HIGH: 'HIGH',
+  URGENT: 'URGENT',
+} as const;
+export type TicketPriority = (typeof TicketPriority)[keyof typeof TicketPriority];
+
+/** Bilingual labels for ticket priority. */
+export const TICKET_PRIORITY_LABELS: Record<TicketPriority, { ar: string; en: string }> = {
+  [TicketPriority.LOW]: { ar: 'منخفضة', en: 'Low' },
+  [TicketPriority.NORMAL]: { ar: 'طبيعية', en: 'Normal' },
+  [TicketPriority.HIGH]: { ar: 'عالية', en: 'High' },
+  [TicketPriority.URGENT]: { ar: 'عاجلة', en: 'Urgent' },
 };
 
 /** Type of a wallet ledger movement (earnings in, settlements out). */

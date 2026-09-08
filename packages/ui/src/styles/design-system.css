@@ -16,12 +16,10 @@
    rounded-card, shadow-raised, animate-shimmer, …).
    ========================================================================== */
 
-/* Arabic-first pairing. Readex Pro carries headings in both scripts, Cairo the
-   Arabic body, Plus Jakarta Sans the `dir="ltr"` islands (prices, codes, IDs).
-   Weights are deliberately trimmed to 400–700: the old URL pulled 800 for two
-   families and nothing used it. */
-@import url('https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&family=Cairo:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+/* Cairo across headings, body copy, and LTR numeric islands. */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap');
 @import 'tailwindcss';
+@import './figma-ui.css';
 
 @plugin "tailwindcss-animate";
 
@@ -47,23 +45,23 @@
    -------------------------------------------------------------------------- */
 @theme {
   /* -- Brand: vibrant emerald ------------------------------------------- */
-  --color-brand: #10b981; /* Primary */
-  --color-brand-dark: #059669; /* Hover / active */
+  --color-brand: #059669; /* Figma implementation: emerald-600 */
+  --color-brand-dark: #047857; /* Hover / active */
   --color-brand-deep: #047857; /* Deep surfaces, text on tint */
   --color-brand-tint: #d1fae5; /* Light accent */
   --color-brand-surface: #ecfdf5; /* Palest wash */
   --color-brand-soft: #6ee7b7; /* Secondary fills, charts */
 
   /* -- Neutrals: light mode. Dark overrides live in `.dark` only -------- */
-  --color-ink: #111827; /* Primary text */
+  --color-ink: #0f172a; /* Primary text */
   --color-ink-soft: #4b5563; /* Strong secondary text */
-  --color-ink-muted: #6b7280; /* Secondary text */
-  --color-ink-subtle: #9ca3af; /* Tertiary text, hints */
+  --color-ink-muted: #64748b; /* Secondary text */
+  --color-ink-subtle: #94a3b8; /* Tertiary text, hints */
   --color-surface: #ffffff; /* Cards, sheets */
-  --color-surface-sunken: #f9fafb; /* Inset rows, table stripes */
-  --color-canvas: #f3f4f6; /* Page background */
-  --color-line: #e5e7eb; /* Borders */
-  --color-line-soft: #f3f4f6; /* Faint dividers */
+  --color-surface-sunken: #f1f5f9; /* Inset rows, table stripes */
+  --color-canvas: #f8fafc; /* Page background */
+  --color-line: #e2e8f0; /* Borders */
+  --color-line-soft: #f1f5f9; /* Faint dividers */
 
   /* -- Status ----------------------------------------------------------- */
   --color-danger: #ef4444;
@@ -87,12 +85,12 @@
 @theme {
   /* -- Typography -------------------------------------------------------- */
   /* `--font-sans` is the body default; `dir="ltr"` islands swap to English. */
-  --font-sans: 'Cairo', 'Readex Pro', system-ui, sans-serif;
-  --font-body: 'Cairo', 'Readex Pro', system-ui, sans-serif;
-  --font-heading: 'Readex Pro', 'Cairo', system-ui, sans-serif;
-  --font-english: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-sans: 'Cairo', system-ui, sans-serif;
+  --font-body: 'Cairo', system-ui, sans-serif;
+  --font-heading: 'Cairo', system-ui, sans-serif;
+  --font-english: 'Cairo', system-ui, sans-serif;
   /* Kept for compatibility: themes referenced `var(--font-arabic)` directly. */
-  --font-arabic: 'Cairo', 'Readex Pro', system-ui, sans-serif;
+  --font-arabic: 'Cairo', system-ui, sans-serif;
 
   /* Scale — text-display … text-caption, each with its own leading. Arabic
      needs looser leading than Latin, hence the generous line-heights. */

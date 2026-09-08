@@ -13,7 +13,7 @@
  * hand-off from any other query string.
  */
 
-import { getToken, setToken } from './api';
+import { getToken, setToken, setRefreshToken } from './api';
 import type { UserRole } from '@samou-go/shared-types';
 
 const TOKEN_PARAM = 'token';
@@ -67,6 +67,9 @@ export function consumeSsoToken(allowedRoles?: readonly UserRole[]): string | nu
 
   if (!roleAllowed) return null;
 
+  // This hand-off contains only an access token. A previous account's refresh
+  // token must not restore that account if the incoming token later expires.
+  if (token !== getToken()) setRefreshToken(null);
   setToken(token);
   return token;
 }

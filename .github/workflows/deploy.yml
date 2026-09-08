@@ -203,7 +203,7 @@ jobs:
             rm -rf .vercel/output
             mkdir -p .vercel/output/static
             cp -r "themes/$app/dist/"* .vercel/output/static/
-            echo '{"version":3}' > .vercel/output/config.json
+            node scripts/write-vercel-output-config.mjs "$app"
 
             # 3. Deploy prebuilt output (rootDirectory resolves from repo root)
             npx --yes vercel@latest deploy \

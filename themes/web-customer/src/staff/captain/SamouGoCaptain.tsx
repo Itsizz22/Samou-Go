@@ -444,7 +444,7 @@ export function SamouGoCaptain() {
   if (!auth.ready) {
     return (
       <main className="min-h-screen bg-canvas pb-24" aria-busy="true">
-        <header className="bg-brand px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
+        <header className="bg-surface px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-ink">
           <div className="mx-auto flex max-w-md items-center justify-between" aria-hidden="true">
             <span className="h-10 w-10 rounded-full bg-surface/15" />
             <span className="h-5 w-32 rounded bg-surface/20" />
@@ -479,7 +479,7 @@ export function SamouGoCaptain() {
    * ------------------------------------------------------------------------- */
 
   const earningsSection = (
-    <section aria-labelledby="earnings-title" className="-mt-1 rounded-b-[24px] bg-gradient-to-br from-brand-dark via-brand to-brand px-5 pb-5 pt-4 text-white shadow-raised">
+    <section aria-labelledby="earnings-title" className="sq-earnings-hero">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[12px] font-semibold text-white/85">{t('أرباح اليوم', "Today's Earnings")}</p>
@@ -667,8 +667,8 @@ export function SamouGoCaptain() {
   /* ---- Render ------------------------------------------------------------ */
 
   return (
-    <main className="min-h-screen bg-canvas pb-28 font-sans text-ink md:ps-60">
-      <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col bg-brand-deep px-4 py-6 text-white md:flex" aria-label="تنقل الكابتن">
+    <main data-view={activeTab} className="sq-staff sq-captain min-h-screen bg-canvas pb-28 font-sans text-ink md:ps-60">
+      <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col bg-slate-900 px-4 py-6 text-white md:flex" aria-label="تنقل الكابتن">
         <p className="px-3 text-lg font-extrabold">Samou Quick</p>
         <p className="px-3 text-[11px] text-white/70">الكابتن</p>
         <nav className="mt-8 flex-1 space-y-1">
@@ -701,22 +701,21 @@ export function SamouGoCaptain() {
           </div>
         </div>
       </aside>
-      <header className="bg-brand px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
+      <header className="bg-surface px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-ink">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Captain navigation">
           <button type="button" aria-label="Profile" onClick={() => setActiveTab('account')} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-surface/15 transition hover:bg-surface/25">
             <UserRound size={21} />
           </button>
           <div className="text-center leading-tight">
-            <p className="text-[16px] font-extrabold">{t(`مرحباً ${captainName} 👋`, `Hello, ${captainName}`)}</p>
+            <p className="text-[16px] font-extrabold">{activeTab === 'home' ? t(`مرحباً ${captainName} 👋`, `Hello, ${captainName}`) : t(NAV_ITEMS.find(item => item.id === activeTab)?.label ?? 'الكابتن', NAV_ITEMS.find(item => item.id === activeTab)?.english ?? 'Captain')}</p>
           </div>
           <div className="flex items-center gap-2" dir="ltr">
-            <LanguageToggle onDark />
-            <ThemeToggle onDark />
+            <LanguageToggle />
+            <ThemeToggle />
             <NotificationBell
               notifications={bellNotifications}
               storageKey="captain"
               chimeOnNew={false}
-              onDark
               max={10}
             />
             <button
@@ -725,7 +724,7 @@ export function SamouGoCaptain() {
               disabled={availabilityMutation.pending}
               onClick={() => void handleToggleAvailability()}
               className={`flex items-center gap-1 rounded-full px-2.5 py-1.5 text-micro font-bold transition disabled:opacity-60 ${
-                available ? 'bg-surface text-brand-dark' : 'bg-black/20 text-white'
+                available ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'
               }`}
             >
               {availabilityMutation.pending ? (
@@ -739,7 +738,7 @@ export function SamouGoCaptain() {
         </nav>
       </header>
 
-      <div className="mx-auto max-w-md px-4">
+      <div className="sq-staff-content pt-5">
         {activeTab === 'home' && (
           <>
             {earningsSection}
@@ -768,7 +767,7 @@ export function SamouGoCaptain() {
 
             {/* Active deliveries */}
             {activeItems.length > 0 && (
-              <section aria-labelledby="active-delivery-title" className="mt-5 rounded-2xl border border-warning-tint bg-surface p-4 shadow-card">
+              <section aria-label={t('التوصيلات الجارية', 'Active deliveries')} className="mt-5 rounded-2xl border border-warning-tint bg-surface p-4 shadow-card">
                 <div className="flex items-center justify-between">
                   <span className="rounded-full bg-warning-tint px-2.5 py-1 text-micro font-extrabold text-warning-ink">
                     {t('جاري التوصيل', 'Active')}
@@ -780,13 +779,13 @@ export function SamouGoCaptain() {
                     <div key={order.id} className="mt-3 border-t border-line-soft pt-3">
                       <div className="flex items-start justify-between">
                         <div>
-                          <h2 id="active-delivery-title" className="text-[15px] font-extrabold">{order.storeNameAr}</h2>
+                          <h2 className="text-[15px] font-extrabold">{order.storeNameAr}</h2>
                           <p className="mt-1 text-[11px] text-ink-muted">
                             {t(time.ar, time.en)}
                           </p>
                         </div>
                         <div className="text-start">
-                          <p className="text-lg font-black text-brand-dark">
+                          <p className="max-w-36 text-xs font-semibold text-brand-dark">
                             {t(DRIVER_FEE_LABEL.ar, DRIVER_FEE_LABEL.en)}
                           </p>
                         </div>
@@ -839,7 +838,7 @@ export function SamouGoCaptain() {
                           onSet={handleZoneSet}
                         />
                       )}
-                      <div className="mt-4 flex gap-2">
+                      <div className="sq-delivery-actions mt-4 grid grid-cols-2 gap-2">
                         <a
                           href={activeOrderDetail.data?.store ? mapsDirections({
                             latitude: activeOrderDetail.data.store.latitude,
@@ -875,8 +874,7 @@ export function SamouGoCaptain() {
                             target="_blank"
                             rel="noreferrer"
                             aria-label={t('تواصل عبر واتساب', 'Contact via WhatsApp')}
-                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] py-2.5 text-[11px] font-bold text-white transition hover:bg-[#1ea952] active:scale-95"
-                            style={{ backgroundColor: '#25D366' }}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand py-2.5 text-[11px] font-bold text-white transition hover:bg-brand-dark active:scale-95"
                           >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.263.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.67m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378 3.094 3.094 0 01-.988-.77 9.86 9.86 0 004.776-5.684 3.072 3.072 0 011.228-.378c1.613 0 2.612 1.228 2.612 2.944 0 1.85-1.54 3.325-3.328 3.724-.34.074-.68.148-1.02.222-.34.074-.567.075-.827-.074-.26-.148-.774-.865-1.077-1.488-.302-.622-.373-1.1-.074-1.328s.722-.148 1.095-.074c.373.075.68.3 1.02.623.623.56 1.096 1.592 1.314 2.56.183.78.173 1.558.048 2.068-.099.404-.404.828-.758 1.096-.353.267-.827.374-1.327.312-.488-.062-.948-.136-1.267-.375l-.57-.373c-.43-.238-.675-.286-1.12-.173-.352.123-1.121.375-1.582.81-.507.475-1.53 1.146-1.53 2.104 0 1.137.985 2.14 2.17 2.357.267.049.52.049.804.049.373 0 .747-.099 1.095-.272.34-.173.64-.397.89-.748.267-.373.39-.85.323-1.096-.074-.26-.468-.436-.967-.623-.373-.148-.847-.148-1.24-.074-.622.075-1.106.507-1.342 1.137-.21.576-.21 1.127-.105 1.274.105.15.423.624 1.096 1.517.788.975 2.03 2.18 2.03 3.558 0 2.374-2.778 2.374-2.778 2.914" />
@@ -899,7 +897,7 @@ export function SamouGoCaptain() {
                           type="button"
                           disabled={deliverMutation.pending}
                           onClick={() => { setPinModalOrderId(order.id); setPinInput(''); }}
-                          className="flex flex-[1.35] items-center justify-center gap-1.5 rounded-xl bg-brand py-2.5 text-[11px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
+                          className="col-span-2 flex items-center justify-center gap-1.5 rounded-xl bg-brand py-2.5 text-[11px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
                         >
                           {deliverMutation.pending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                           <span>{t('تم التوصيل', 'Delivered')}</span>
@@ -1020,7 +1018,7 @@ export function SamouGoCaptain() {
         )}
       </div>
 
-      <nav className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface/95 px-2 pb-[max(9px,env(safe-area-inset-bottom))] pt-2 shadow-raised backdrop-blur md:hidden" aria-label="Bottom navigation">
+      <nav className="sq-bottom-nav fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface px-2 md:hidden" aria-label="Bottom navigation">
         <div className="mx-auto flex max-w-md items-center justify-around">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
@@ -1302,7 +1300,7 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
       <form onSubmit={(event) => void submit(event)} className="space-y-4">
         <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
           <div className="flex items-center gap-3 border-b border-line-soft pb-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-tint text-base font-extrabold text-brand-deep">
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-tint text-base font-extrabold text-brand-deep">
               {user.name.slice(0, 2)}
             </span>
             <div>

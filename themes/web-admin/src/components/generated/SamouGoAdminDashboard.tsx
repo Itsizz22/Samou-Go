@@ -213,7 +213,7 @@ export function SamouGoAdminDashboard() {
 
   return (
     <main
-      className="min-h-screen w-full bg-canvas font-sans text-ink"
+      className="sq-admin min-h-screen w-full bg-canvas font-sans text-ink"
     >
       {/* Sidebar */}
       <AdminSidebar
@@ -229,8 +229,8 @@ export function SamouGoAdminDashboard() {
       />
 
       {/* Main content */}
-      <section className="flex min-h-screen w-full flex-col md:ps-61">
-        <header className="sticky top-0 z-20 flex min-h-19.5 items-center justify-between border-b border-line bg-surface/95 px-5 shadow-card backdrop-blur md:px-8">
+      <section className="sq-admin-content flex min-h-screen w-full flex-col">
+        <header className="sticky top-0 z-20 flex min-h-17 items-center justify-between border-b border-line bg-surface/95 px-5 shadow-card backdrop-blur md:px-8">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -639,9 +639,9 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
             <CalendarDays size={15} className="text-brand" />
             {(
               [
-                ['today', 'Today'],
-                ['week', 'This week'],
-                ['month', 'This month'],
+                ['today', t('اليوم', 'Today')],
+                ['week', t('هذا الأسبوع', 'This week')],
+                ['month', t('هذا الشهر', 'This month')],
               ] as const
             ).map(([value, label]) => (
               <button
@@ -658,7 +658,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
               </button>
             ))}
             <span className="text-micro text-ink-muted">
-              Pipeline data refreshes every 10 seconds.
+              {t('تتحدث الطلبات تلقائياً كل 10 ثوانٍ', 'Orders refresh automatically every 10 seconds.')}
             </span>
           </div>
         </div>
@@ -715,7 +715,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
           })}
         </div>
 
-        <div className="mt-5 grid gap-4 grid-cols-2 xl:grid-cols-4">
+        <div className="sq-status-grid mt-5 grid gap-4 grid-cols-2 xl:grid-cols-4">
           <StatusKpi
             label="بانتظار الموافقة"
             en="Pending"
@@ -820,7 +820,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
                         </li>
                       ))}
                       {column.length === 0 && (
-                        <li className="pt-4 text-center text-micro text-ink-muted">No orders</li>
+                        <li className="pt-4 text-center text-micro text-ink-muted">{t('لا توجد طلبات', 'No orders')}</li>
                       )}
                     </ul>
                   </div>
@@ -846,12 +846,12 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
               <table className="w-full min-w-160 text-start">
                 <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
                   <tr>
-                    <th className="px-5 py-3">Order ID</th>
-                    <th className="px-3 py-3">Store</th>
-                    <th className="px-3 py-3">Items</th>
-                    <th className="px-3 py-3">Status</th>
-                    <th className="px-3 py-3">Time</th>
-                    <th className="px-5 py-3 text-end">Amount</th>
+                    <th className="px-5 py-3">{t('رقم الطلب', 'Order ID')}</th>
+                    <th className="px-3 py-3">{t('المتجر', 'Store')}</th>
+                    <th className="px-3 py-3">{t('الأصناف', 'Items')}</th>
+                    <th className="px-3 py-3">{t('الحالة', 'Status')}</th>
+                    <th className="px-3 py-3">{t('الوقت', 'Time')}</th>
+                    <th className="px-5 py-3 text-end">{t('المبلغ', 'Amount')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line-soft">

@@ -176,7 +176,7 @@ export async function updateOptionGroup(
       });
     }
 
-    return prisma.productOptionGroup.findUnique({
+    return tx.productOptionGroup.findUnique({
       where: { id: groupId },
       include: { items: { orderBy: { sortOrder: 'asc' } } },
     });

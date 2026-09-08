@@ -149,8 +149,8 @@ export function OrderTrackingScreen() {
 
   return (
     <PageTransition>
-      <main className="min-h-screen bg-canvas pb-16 text-ink">
-        <header className="safe-top bg-brand px-5 pb-4 pt-4 text-white">
+      <main className="sq-tracking min-h-screen bg-canvas pb-16 text-ink">
+        <header className="safe-top bg-surface px-5 pb-4 pt-4 text-ink">
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
             <button
               type="button"

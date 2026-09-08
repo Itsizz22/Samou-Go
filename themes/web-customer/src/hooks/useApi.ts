@@ -13,7 +13,24 @@
  * infinite redirect loop (the "Throttling navigation" blank-screen bug).
  */
 
+import { listOrders, useResource, type ResourceOptions } from '@samou-go/api-client';
+import type { OrderListQuery, OrderSummary, Paginated } from '@samou-go/shared-types';
+import { useSharedAuth } from '@/contexts/AuthContext';
+
 export * from '@samou-go/api-client';
+
+/** Orders belong to the verified session, including when switching saved accounts. */
+export function useOrders(
+  query: OrderListQuery = {},
+  options: ResourceOptions<Paginated<OrderSummary>> = {},
+) {
+  const auth = useSharedAuth();
+  return useResource(
+    `orders:${auth.user?.id ?? ''}:${JSON.stringify(query)}`,
+    (signal) => listOrders(query, signal),
+    { ...options, enabled: auth.ready && Boolean(auth.user) && (options.enabled ?? true) },
+  );
+}
 
 // Re-export the original standalone hook under a different name so App.tsx
 // can call it to CREATE the shared auth instance.

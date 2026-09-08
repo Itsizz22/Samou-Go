@@ -54,7 +54,12 @@ if ('serviceWorker' in navigator && import.meta.env.PROD && !isNative) {
  */
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const auth = useAuth({
-    allowedRoles: [UserRole.CUSTOMER, UserRole.CAPTAIN, UserRole.STORE_MANAGER],
+    allowedRoles: [
+      UserRole.CUSTOMER,
+      UserRole.CAPTAIN,
+      UserRole.STORE_MANAGER,
+      UserRole.ADMIN,
+    ],
   });
   return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
 }

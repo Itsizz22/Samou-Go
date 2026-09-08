@@ -212,34 +212,36 @@ export function SamouGoHome() {
     }));
   }, [auth.user, orders.data]);
 
-  return <main className="min-h-screen bg-canvas pb-28 text-ink">
-      <header className="bg-brand px-4 pb-6 pt-[max(1rem,env(safe-area-inset-top))] text-white">
-        <nav className="mx-auto flex max-w-md items-center justify-between gap-2" aria-label="Main navigation">
+
+
+  return <main dir="rtl" className="customer-home sq-customer-screen min-h-screen bg-canvas pb-28 font-sans text-ink">
+      <header className="bg-canvas px-5 py-4">
+        <nav className="mx-auto flex max-w-lg items-center justify-between gap-2" aria-label="Main navigation">
           <button
             type="button"
             aria-label={t('القائمة', 'Menu')}
             onClick={openDrawer}
-            className="me-2 shrink-0 rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
+            className="inline-flex items-center justify-center min-h-11 min-w-11 shrink-0 rounded-full p-2 text-slate-700 transition hover:bg-slate-100 active:scale-95"
           >
             <Menu size={22} />
           </button>
-          <div className="flex items-center gap-2" dir="ltr">
+          <div className="flex items-center gap-2">
             <BrandLogo size={34} />
-            <span className="text-[17px] font-bold tracking-tight">Samou Quick</span>
+            <span className="text-[17px] font-bold tracking-tight text-slate-950">سموع كويك</span>
           </div>
-          <div className="flex shrink-0 items-center gap-0.5" dir="ltr">
+          <div className="flex shrink-0 items-center gap-0.5">
             <NotificationBell
               notifications={bellNotifications}
               storageKey="customer"
-              onDark
               onNavigate={(href) => { navigate(href); }}
             />
             <Link
               to="/cart"
               aria-label="Cart"
-              className="relative rounded-full p-2 transition hover:bg-surface/15"
+              className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100"
             >
               <ShoppingCart size={20} />
+              {cart.itemCount > 0 && <span key={cart.itemCount} className="cart-bump absolute inset-e-0 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-bold text-white">{cart.itemCount}</span>}
             </Link>
           </div>
         </nav>
@@ -252,7 +254,7 @@ export function SamouGoHome() {
       </header>
 
       <section className="mx-auto max-w-md px-5" role="search" aria-label="Search">
-        <label className="-mt-6 flex h-[52px] cursor-text items-center gap-3 rounded-2xl bg-surface px-4 text-ink-muted shadow-raised transition-all duration-200 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
+        <label className="mt-4 flex h-12 cursor-text items-center gap-3 rounded-xl border border-line bg-surface px-4 text-ink-muted transition-all duration-200 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
           <Search size={20} className="shrink-0 text-brand" />
           <input
             value={searchTerm}
@@ -329,7 +331,7 @@ export function SamouGoHome() {
           {STORE_CATEGORIES.map(category => {
           const Icon = CATEGORY_ICONS[category.key];
           const active = activeCategory === category.key;
-          return <button key={category.key} type="button" aria-pressed={active} onClick={() => setActiveCategory(category.key)} className={`flex min-w-[82px] flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center transition-all duration-200 ${active ? 'border-brand bg-brand-tint text-brand-dark shadow-card' : 'border-transparent bg-surface text-ink-soft shadow-card hover:border-brand/30 hover:shadow-raised'}`}><span className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ${active ? 'bg-brand text-white shadow-brand' : 'bg-brand-surface text-brand'}`}><Icon size={20} /></span><span className="text-[11px] font-bold leading-tight">{t(category.ar, category.en)}</span></button>;
+          return <button key={category.key} type="button" aria-pressed={active} onClick={() => setActiveCategory(category.key)} className={`flex min-w-20.5 flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center transition-all duration-200 ${active ? 'border-brand bg-brand-tint text-brand-dark shadow-card' : 'border-transparent bg-surface text-ink-soft shadow-card hover:border-brand/30 hover:shadow-raised'}`}><span className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ${active ? 'bg-brand text-white shadow-brand' : 'bg-brand-surface text-brand'}`}><Icon size={20} /></span><span className="text-[11px] font-bold leading-tight">{t(category.ar, category.en)}</span></button>;
         })}
         </div>
         <div className="mt-3 flex gap-2" aria-label="Store availability filter">
@@ -347,7 +349,7 @@ export function SamouGoHome() {
         {offers.loading ? (
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
             {[0, 1, 2].map(index => (
-              <div key={index} className="skeleton min-w-[220px] overflow-hidden rounded-2xl shadow-card" aria-hidden="true">
+              <div key={index} className="skeleton min-w-55 overflow-hidden rounded-2xl shadow-card" aria-hidden="true">
                 <div className="h-28 bg-line-soft" />
                 <div className="space-y-2 p-3">
                   <div className="ms-auto h-3 w-2/3 rounded bg-line-soft" />
@@ -362,7 +364,7 @@ export function SamouGoHome() {
               <Link
                 key={offer.id}
                 to={`/stores/${encodeURIComponent(offer.storeId)}`}
-                className="min-w-[220px] overflow-hidden rounded-2xl bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40"
+                className="min-w-55 overflow-hidden rounded-2xl bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40"
               >
                 {offer.imageUrl ? (
                   <img
@@ -372,7 +374,7 @@ export function SamouGoHome() {
                     loading="lazy"
                   />
                 ) : (
-                  <div className="flex h-28 items-center justify-center bg-gradient-to-br from-brand/10 to-brand/5">
+                  <div className="flex h-28 items-center justify-center bg-linear-to-br from-brand/10 to-brand/5">
                     <Star size={28} className="text-brand/30" />
                   </div>
                 )}
@@ -424,18 +426,18 @@ export function SamouGoHome() {
         <div className="mb-4 flex items-end justify-between"><div><h2 id="featured-title" className="text-lg font-extrabold">{t('المتاجر المميزة', 'Featured stores')}</h2></div><button type="button" onClick={() => document.getElementById('nearby-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="text-xs font-bold text-brand">{t('عرض الكل', 'See all')}</button></div>
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
           {stores.loading
-            ? [0, 1, 2].map(index => <div key={index} className="skeleton min-w-[196px] overflow-hidden rounded-2xl shadow-card" aria-hidden="true"><div className="h-24 bg-line-soft" /><div className="space-y-2 p-3"><div className="ms-auto h-3 w-2/3 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-1/2 rounded bg-line-soft" /><div className="h-5 w-20 rounded-full bg-line-soft" /></div></div>)
+            ? [0, 1, 2].map(index => <div key={index} className="skeleton min-w-49 overflow-hidden rounded-2xl shadow-card" aria-hidden="true"><div className="h-24 bg-line-soft" /><div className="space-y-2 p-3"><div className="ms-auto h-3 w-2/3 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-1/2 rounded bg-line-soft" /><div className="h-5 w-20 rounded-full bg-line-soft" /></div></div>)
             : featured.map(({ store, category, initials, gradient }) => (
-                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="min-w-[196px] overflow-hidden rounded-2xl bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
+                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="min-w-49 overflow-hidden rounded-2xl bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
                   <article>
-                    <div className={`relative flex h-24 items-center justify-center bg-gradient-to-br ${gradient}`}>
+                    <div className={`relative flex h-24 items-center justify-center bg-linear-to-br ${gradient}`}>
                       {store.logoUrl ? <ImageWithFallback src={store.logoUrl} alt="" className="h-full w-full object-cover" fallbackText={initials} /> : <span className="text-3xl font-black text-white/40">{initials}</span>}
-                      {store.isRecommended && <span className="absolute top-2 start-2 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-1 text-micro font-bold text-white shadow-card" title={t('ينصح به لدينا', 'Recommended by us')}><Star size={10} fill="currentColor" />{t('موصى به', 'Recommended')}</span>}
-                      {store.badges?.includes('badge_popular') && <span className="absolute top-2 end-2 inline-flex items-center gap-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('الأكثر طلباً', 'Most popular')}><Flame size={9} />{t('الأكثر طلباً', 'Popular')}</span>}
-                      {store.badges?.includes('badge_fast') && <span className="absolute top-10 end-2 inline-flex items-center gap-0.5 rounded-full bg-blue-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('سريع التجهيز', 'Fast prep')}><Zap size={9} />{t('سريع', 'Fast')}</span>}
-                      {store.badges?.includes('badge_has_offers') && <span className="absolute top-[68px] end-2 inline-flex items-center gap-0.5 rounded-full bg-emerald-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('عرض حصري', 'Special offer')}><Tag size={9} />{t('عرض', 'Offer')}</span>}
-                      <span className={`absolute bottom-2 start-2 rounded-full px-2 py-1 text-micro font-bold ${store.isActive ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{store.isActive ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
-                      <button type="button" aria-label={t(`إضافة ${store.nameAr} إلى المفضلة`, `Favorite ${store.nameEn}`)} aria-pressed={favorites.isFavorite(store.id)} onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggleLike(store.id); }} disabled={favorites.pending.includes(store.id)} className="absolute end-2 top-2 rounded-full bg-surface/85 p-2 text-brand"><Heart size={15} fill={favorites.isFavorite(store.id) ? 'currentColor' : 'none'} /></button>
+                      {store.isRecommended && <span className="absolute inset-s-2 top-2 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-1 text-micro font-bold text-white shadow-card" title={t('ينصح به لدينا', 'Recommended by us')}><Star size={10} fill="currentColor" />{t('موصى به', 'Recommended')}</span>}
+                      {store.badges?.includes('badge_popular') && <span className="absolute inset-e-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('الأكثر طلباً', 'Most popular')}><Flame size={9} />{t('الأكثر طلباً', 'Popular')}</span>}
+                      {store.badges?.includes('badge_fast') && <span className="absolute inset-e-2 top-10 inline-flex items-center gap-0.5 rounded-full bg-blue-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('سريع التجهيز', 'Fast prep')}><Zap size={9} />{t('سريع', 'Fast')}</span>}
+                      {store.badges?.includes('badge_has_offers') && <span className="absolute inset-e-2 top-17 inline-flex items-center gap-0.5 rounded-full bg-emerald-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('عرض حصري', 'Special offer')}><Tag size={9} />{t('عرض', 'Offer')}</span>}
+                      <span className={`absolute inset-s-2 bottom-2 rounded-full px-2 py-1 text-micro font-bold ${store.isActive ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{store.isActive ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
+                      <button type="button" aria-label={t(`إضافة ${store.nameAr} إلى المفضلة`, `Favorite ${store.nameEn}`)} aria-pressed={favorites.isFavorite(store.id)} onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggleLike(store.id); }} disabled={favorites.pending.includes(store.id)} className="absolute inset-e-2 top-2 rounded-full bg-surface/85 p-2 text-brand"><Heart size={15} fill={favorites.isFavorite(store.id) ? 'currentColor' : 'none'} /></button>
                     </div>
                     <div className="p-3 text-end">
                       <h3 className="truncate text-sm font-extrabold">{t(store.nameAr, store.nameEn)}</h3>
@@ -457,7 +459,7 @@ export function SamouGoHome() {
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
             {popular.loading
               ? [0, 1, 2, 3].map(i => (
-                  <div key={i} className="skeleton min-w-[150px] overflow-hidden rounded-2xl shadow-card" aria-hidden="true">
+                  <div key={i} className="skeleton min-w-37.5 overflow-hidden rounded-2xl shadow-card" aria-hidden="true">
                     <div className="h-32 bg-line-soft" />
                     <div className="space-y-2 p-3"><div className="h-3 w-2/3 rounded bg-line-soft" /><div className="h-2.5 w-1/2 rounded bg-line-soft" /><div className="h-5 w-16 rounded-full bg-line-soft" /></div>
                   </div>
@@ -465,30 +467,30 @@ export function SamouGoHome() {
               : (popular.data ?? []).map((product) => (
                   <article
                     key={product.id}
-                    className="group relative min-w-[150px] overflow-hidden rounded-2xl bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised"
+                    className="group relative flex min-w-42 flex-col justify-between overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(0,0,0,0.08)]"
                   >
                     {/* Product image */}
-                    <div className="relative h-32 overflow-hidden bg-gradient-to-br from-brand-tint to-brand-surface">
+                    <div className="relative aspect-4/3 overflow-hidden bg-slate-100">
                       {product.imageUrl ? (
                         <ImageWithFallback src={product.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" fallbackText={product.nameAr.slice(0, 2)} />
                       ) : (
                         <span className="flex h-full w-full items-center justify-center text-2xl font-black text-brand-dark/30">{product.nameAr.slice(0, 2)}</span>
                       )}
                       {/* Store name badge */}
-                      <span className="absolute bottom-2 end-2 rounded-full bg-surface/90 px-2 py-0.5 text-micro font-bold text-ink shadow-card">{product.storeNameAr}</span>
+                      <span className="absolute inset-e-2 bottom-2 rounded-full bg-surface/90 px-2 py-0.5 text-micro font-bold text-ink shadow-card">{product.storeNameAr}</span>
                     </div>
                     {/* Text & Price */}
                     <div className="p-3 text-end">
-                      <h3 className="line-clamp-2 min-h-[2rem] text-sm font-bold text-ink">{product.nameAr}</h3>
-                      <p className="mt-1 text-xs font-bold text-brand-dark" dir="ltr">{formatCurrency(product.price)}</p>
+                      <h3 className="line-clamp-2 min-h-8 text-sm font-bold text-ink">{product.nameAr}</h3>
+                      <p className="mt-1 text-base font-extrabold text-emerald-700" dir="ltr">{formatCurrency(product.price)}</p>
                       <div className="mt-2 flex items-center justify-end">
                         <button
                           type="button"
                           onClick={() => handlePopularAdd(product)}
-                          className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-tint text-brand-dark transition active:scale-90"
+                          className="min-h-9 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-600/20 transition-colors hover:bg-emerald-600 hover:text-white active:scale-95"
                           aria-label={`أضف ${product.nameAr} إلى السلة`}
                         >
-                          <Plus size={16} strokeWidth={2.5} />
+                          {product.hasOptions ? t('تخصيص', 'Customize') : t('إضافة', 'Add')}
                         </button>
                       </div>
                     </div>

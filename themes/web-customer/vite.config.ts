@@ -5,7 +5,9 @@ import tailwindcss from '@tailwindcss/vite';
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  // React Router serves nested URLs; icons and chunks must resolve from the
+  // origin root, also used by Capacitor's local web server.
+  base: '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

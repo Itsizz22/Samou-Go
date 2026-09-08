@@ -35,7 +35,7 @@ import {
   refreshAccessToken,
   subscribeTokenChange,
 } from "./api";
-import { syncActiveSession } from "./accountVault";
+import { getActiveAccount, syncActiveSession } from "./accountVault";
 import { consumeSsoToken } from "./sso";
 
 export interface Auth {
@@ -86,9 +86,10 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
   const [ready, setReady] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const bootController = useRef<AbortController | null>(null);
 
-  // Roles are fixed for an app's lifetime; the ref keeps the boot effect
-  // (deps `[]`) stable while still giving it the app's allowed roles.
+  // Roles are fixed for an app's lifetime; the ref lets stable callbacks
+  // read the app's allowed roles without restarting the boot effect.
   const allowedRolesRef = useRef(options.allowedRoles);
   allowedRolesRef.current = options.allowedRoles;
 
@@ -155,7 +156,32 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
       };
     }
 
+    // Seed session optimistically from vault so role, store, and captain status
+    // are available immediately without waiting for me() roundtrip.
+    const cached = getActiveAccount();
+    const cacheMatchesSession = cached && (
+      getToken() ? cached.token === getToken() : cached.refreshToken === getRefreshToken()
+    );
+    if (cached && cacheMatchesSession && acceptsRole(cached.role)) {
+      setUserState({
+        id: cached.id,
+        name: cached.name,
+        phone: cached.phone,
+        role: cached.role,
+        isActive: true,
+        isVerified: cached.isVerified ?? true,
+        isAvailable: cached.isAvailable ?? false,
+        assignedStoreId: cached.assignedStoreId ?? null,
+        latitude: null,
+        longitude: null,
+        profileImageUrl: cached.avatar,
+        createdAt: cached.lastActiveAt,
+        updatedAt: cached.lastActiveAt,
+      });
+    }
+
     const controller = new AbortController();
+    bootController.current = controller;
 
     // No access token but a refresh token present → the previous session's
     // access token was dropped (or expired); restore it silently so app kills
@@ -164,39 +190,32 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
       if (!getToken() && getRefreshToken()) {
         const refresh = getRefreshToken();
         if (refresh) {
-          try {
-            const restored = await refreshAccessToken(
-              refresh,
-              controller.signal,
-            );
-            if (mounted.current) committedProfile(restored.user);
-            return;
-          } catch {
-            // Offline or rejected — `me()` below surfaces the failure.
-          }
+          const restored = await refreshAccessToken(refresh, controller.signal);
+          if (mounted.current && !controller.signal.aborted) committedProfile(restored.user);
+          return;
         }
       }
       const profile = await me(controller.signal);
-      if (mounted.current) committedProfile(profile);
+      if (mounted.current && !controller.signal.aborted) committedProfile(profile);
     };
 
     ensureAccessToken()
       .catch((cause: unknown) => {
-        if (!mounted.current) return;
-        // An expired or revoked token is already cleared by `request()` on a
-        // 401; do it here too so an offline probe does not leave a half state.
+        if (!mounted.current || controller.signal.aborted) return;
+        // Only explicit authentication rejection invalidates stored credentials.
         if (cause instanceof ApiError && cause.isAuthError) clearTokens();
+        if (cause instanceof ApiError && !cause.isAborted) setError(cause);
         setUserState(null);
       })
       .finally(() => {
-        if (mounted.current) setReady(true);
+        if (mounted.current && !controller.signal.aborted) setReady(true);
       });
 
     return () => {
       mounted.current = false;
       controller.abort();
     };
-  }, []);
+  }, [acceptsRole, committedProfile]);
 
   // Listen for token lifecycle changes (login / signOut / 401-clear).
   // IMPORTANT: We must NOT call me() here — it causes a redirect loop when
@@ -216,6 +235,7 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
 
   const signIn = useCallback(
     async (input: LoginInput): Promise<PublicUser | null> => {
+      bootController.current?.abort();
       setPending(true);
       setError(null);
       try {
@@ -236,25 +256,30 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
         if (mounted.current) setError(apiError);
         return null;
       } finally {
-        if (mounted.current) setPending(false);
+        if (mounted.current) {
+          setPending(false);
+          setReady(true);
+        }
       }
     },
-    [],
+    [committedProfile],
   );
 
   const signOut = useCallback(() => {
+    bootController.current?.abort();
+    setReady(true);
     // Ordered deliberately for multi-device selective logout:
     // 1. UI state drops immediately so the screen reacts even when offline.
     // 2. `logout()` captures the refresh token + this device's FCM token at the
     //    TOP of its body — BEFORE storage is cleared — and posts them to
     //    `/auth/logout` so the server revokes the session and unregisters only
     //    THIS device. Other devices of the same account stay signed in.
-    // 3. `logout()` clears local storage tokens in its `finally`, so a failed
-    //    network round-trip still logs the session out cleanly.
+    // 3. `logout()` clears local tokens immediately after capturing them, so
+    //    in-flight requests cannot restore a session while revocation runs.
     setUserState(null);
     setError(null);
     void logout().catch(() => {
-      /* Tokens are cleared in logout()'s finally either way. */
+      /* Local logout already completed; server revocation was best-effort. */
     });
   }, []);
 
@@ -270,6 +295,8 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
 
   const setUser = useCallback(
     (next: PublicUser | null) => {
+      bootController.current?.abort();
+      setReady(true);
       if (mounted.current) committedProfile(next);
     },
     [committedProfile],

@@ -41,7 +41,7 @@ export function OrderStatusTimeline({ status, className, compact = false }: Orde
         const isLast = index === ORDER_STATUS_SEQUENCE.length - 1;
         const label = ORDER_STATUS_LABELS[step];
         return (
-          <li key={step} className="flex flex-1 flex-col items-center text-center min-w-0">
+          <li key={step} aria-current={isCurrent ? 'step' : undefined} className="flex flex-1 flex-col items-center text-center min-w-0">
             <div className="flex w-full items-center">
               {index > 0 && (
                 <span className={cn('h-0.5 flex-1', reached(index) ? 'bg-brand' : 'bg-line-soft')} />
@@ -53,7 +53,7 @@ export function OrderStatusTimeline({ status, className, compact = false }: Orde
                 transition={{ type: 'spring', stiffness: 260, damping: 14 }}
                 className={cn(
                   'shrink-0 flex items-center justify-center rounded-full border-2 transition-colors',
-                  compact ? 'h-5 w-5 sm:h-6 sm:w-6' : 'h-6 w-6 sm:h-7 sm:w-7',
+                  compact ? 'h-5 w-5 sm:h-6 sm:w-6' : 'h-7 w-7',
                   done
                     ? 'border-brand bg-brand text-white'
                     : 'border-line-soft bg-surface text-ink-muted'

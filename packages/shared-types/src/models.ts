@@ -156,7 +156,11 @@ export interface DeliveryZone {
   nameAr: string;
   nameEn: string;
   /** The full delivery fee for this zone, in ILS. */
+  deliveryFee: number;
+  /** @deprecated Use deliveryFee. Retained for older captain surfaces. */
   fee: number;
+  /** When true, the captain proposes a fee that the customer must accept. */
+  allowCaptainPricing: boolean;
   isActive: boolean;
   sortOrder: number;
 }
@@ -317,6 +321,9 @@ export interface Order {
   voucherId: string | null;
   /** Fee zone chosen by the assigned captain (fee derived server-side). */
   deliveryZoneId: string | null;
+  isCaptainPriced: boolean;
+  driverQuotedFee: number | null;
+  feeApprovalStatus: 'APPROVED' | 'PENDING_CUSTOMER_ACCEPTANCE';
   totalAmount: number;
   paymentMethod: PaymentMethod;
   createdAt: IsoDateTime;
