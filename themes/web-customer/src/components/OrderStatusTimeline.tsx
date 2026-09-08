@@ -71,7 +71,7 @@ export function OrderStatusTimeline({ status, className, compact = false }: Orde
             </div>
             {!compact && (
               <div className="mt-1 w-full px-0.5">
-                <span className={cn('block text-[9px] sm:text-[10px] leading-tight font-bold max-w-[48px] sm:max-w-[60px] mx-auto break-words', done ? 'text-brand-dark' : 'text-ink-muted')}>
+                <span className={cn('block text-[9px] sm:text-[10px] leading-tight font-bold max-w-12 sm:max-w-15 mx-auto wrap-break-word', done ? 'text-brand-dark' : 'text-ink-muted')}>
                   {isArabic ? label.ar : label.en}
                 </span>
               </div>

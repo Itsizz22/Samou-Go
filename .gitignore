@@ -12,6 +12,7 @@ themes/*/dist/
 
 # capacitor native project (regenerable via `npx cap add|sync android`)
 themes/*/android/
+!themes/web-customer/android/
 
 # environment — never commit real secrets
 .env

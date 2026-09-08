@@ -10,7 +10,6 @@ import android.os.Bundle;
 import android.util.Log;
 
 import com.getcapacitor.BridgeActivity;
-import com.getcapacitor.plugins.PushNotifications;
 
 public class MainActivity extends BridgeActivity {
 
@@ -24,15 +23,11 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Register local plugins before Capacitor creates its bridge.
+        registerPlugin(StopAlarmPlugin.class);
+        registerPlugin(SettingsPlugin.class);
         super.onCreate(savedInstanceState);
         createNotificationChannels();
-
-        // Register the OrderAlarm Capacitor plugin so JS can stop the alarm
-        bridge.addPlugin(new StopAlarmPlugin());
-
-        // Register the Settings plugin so JS can read/write ring preference
-        // (SharedPreferences bridge for native FirebaseMessagingService)
-        bridge.addPlugin(new SettingsPlugin());
 
         // Handle notification tap — start alarm service if it's an order notification
         handleNotificationIntent(getIntent());

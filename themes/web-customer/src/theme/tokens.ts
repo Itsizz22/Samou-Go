@@ -12,12 +12,12 @@
 
 export const tokens = {
   // Brand — Vibrant Emerald Green
-  brand: '#10B981',
-  brandDark: '#059669',
-  brandDeep: '#047857',
-  brandTint: '#D1FAE5',
-  brandSurface: '#ECFDF5',
-  brandSoft: '#6EE7B7',
+  brand: 'var(--color-brand)',
+  brandDark: 'var(--color-brand-dark)',
+  brandDeep: 'var(--color-brand-deep)',
+  brandTint: 'var(--color-brand-tint)',
+  brandSurface: 'var(--color-brand-surface)',
+  brandSoft: 'var(--color-brand-soft)',
 
   // Neutrals
   ink: '#111827',
@@ -53,7 +53,7 @@ export const radius = {
 export const shadow = {
   card: '0 1px 2px 0 rgb(17 24 39 / 0.05)',
   raised: '0 4px 12px -2px rgb(17 24 39 / 0.08)',
-  brand: '0 8px 20px -4px rgb(16 185 129 / 0.35)',
+  brand: 'var(--shadow-brand)',
 } as const;
 
 /**

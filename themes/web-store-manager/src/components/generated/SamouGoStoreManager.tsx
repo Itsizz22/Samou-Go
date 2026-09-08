@@ -462,7 +462,7 @@ export function SamouGoStoreManager() {
     <main className={`min-h-screen bg-canvas pb-28 font-sans text-ink transition-[padding] duration-300 ${sidebarOpen ? 'md:ps-60' : ''}`}>
       <OfflineBanner />
       {sidebarOpen && <button type="button" aria-label={t('إغلاق القائمة', 'Close navigation')} onClick={() => setSidebarOpen(false)} className="fixed inset-0 z-20 bg-ink/40 md:hidden" />}
-      <aside inert={!sidebarOpen} className={`fixed inset-y-0 start-0 z-30 flex w-60 flex-col border-e border-line bg-surface px-4 py-6 text-ink shadow-overlay transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'rtl:translate-x-full ltr:-translate-x-full'}`} aria-label={t('تنقل مدير المتجر', 'Store manager navigation')}>
+      <aside inert={!sidebarOpen} className={`fixed inset-y-0 inset-s-0 z-30 flex w-60 flex-col border-e border-line bg-surface px-4 py-6 text-ink shadow-overlay transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'rtl:translate-x-full ltr:-translate-x-full'}`} aria-label={t('تنقل مدير المتجر', 'Store manager navigation')}>
         <p className="px-3 text-lg font-extrabold">Samou Quick</p>
         <p className="px-3 text-[11px] text-ink-muted">مدير المتجر</p>
         <nav className="mt-8 flex-1 space-y-1">
@@ -494,7 +494,7 @@ export function SamouGoStoreManager() {
             </button>
           </div>
         </div>
-        <button type="button" onClick={() => setSidebarOpen(false)} aria-label={t('إغلاق القائمة', 'Close navigation')} className="absolute end-3 top-3 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-ink-muted hover:bg-canvas md:hidden"><X size={18} /></button>
+        <button type="button" onClick={() => setSidebarOpen(false)} aria-label={t('إغلاق القائمة', 'Close navigation')} className="absolute inset-e-3 top-3 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-ink-muted hover:bg-canvas md:hidden"><X size={18} /></button>
       </aside>
       <header className="bg-brand px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="التنقل الرئيسي">
@@ -815,7 +815,7 @@ export function SamouGoStoreManager() {
 
       {/* Orders tab — focused inbox across all kitchen stages */}
       {activeTab === 'orders' && (
-        <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="orders-tab-title">
+        <section className="mx-auto max-w-180 px-4 pt-7 pb-8" aria-labelledby="orders-tab-title">
           <div className="mb-4 flex items-end justify-between">
             <div>
               <h2 id="orders-tab-title" className="text-lg font-extrabold">{t('الطلبات', 'All active orders')}</h2>
@@ -862,7 +862,7 @@ export function SamouGoStoreManager() {
 
       {/* Products tab */}
       {activeTab === 'products' && (
-        <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="products-tab-title">
+        <section className="mx-auto max-w-180 px-4 pt-7 pb-8" aria-labelledby="products-tab-title">
           <div className="mb-5">
             <h2 id="products-tab-title" className="text-lg font-extrabold">{t('إدارة القائمة', 'Menu Management')}</h2>
             {/* Products ↔ Sections sub-toggle */}
@@ -929,7 +929,7 @@ export function SamouGoStoreManager() {
 
       {/* Offers tab */}
       {activeTab === 'offers' && (
-        <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="offers-tab-title">
+        <section className="mx-auto max-w-180 px-4 pt-7 pb-8" aria-labelledby="offers-tab-title">
           <div className="mb-5">
             <h2 id="offers-tab-title" className="text-lg font-extrabold">{t('العروض الترويجية', 'Promotional Offers')}</h2>
           </div>
@@ -967,7 +967,7 @@ export function SamouGoStoreManager() {
 
       {/* Store profile tab */}
       {activeTab === 'settings' && (
-        <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="profile-tab-title">
+        <section className="mx-auto max-w-180 px-4 pt-7 pb-8" aria-labelledby="profile-tab-title">
           <div className="mb-5">
             <h2 id="profile-tab-title" className="text-lg font-extrabold">{t('إعدادات المتجر', 'Store Profile & Settings')}</h2>
           </div>
@@ -1127,7 +1127,7 @@ interface KpiTileProps {
 function KpiTile({ icon, labelAr, labelEn, value, suffix, isLoading }: KpiTileProps) {
   const { t } = useLanguage();
   return (
-    <article className="min-w-[126px] flex-1 rounded-2xl border border-line bg-surface p-3 shadow-card">
+    <article className="min-w-31.5 flex-1 rounded-2xl border border-line bg-surface p-3 shadow-card">
       <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-xl bg-brand-tint text-brand">
         {icon}
       </div>

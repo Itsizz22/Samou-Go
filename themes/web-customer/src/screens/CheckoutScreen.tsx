@@ -516,7 +516,7 @@ export function CheckoutScreen() {
                 onClick={() => setFulfillmentType('DELIVERY')}
                 className={`flex-1 rounded-lg py-2.5 px-3 text-xs font-bold transition-all duration-200 ${
                   fulfillmentType === 'DELIVERY'
-                    ? 'bg-emerald-600 text-white shadow-sm'
+                    ? 'bg-brand-600 text-white shadow-sm'
                     : 'bg-transparent text-gray-500 dark:text-gray-400'
                 }`}
               >
@@ -527,7 +527,7 @@ export function CheckoutScreen() {
                 onClick={() => setFulfillmentType('PICKUP')}
                 className={`flex-1 rounded-lg py-2.5 px-3 text-xs font-bold transition-all duration-200 ${
                   fulfillmentType === 'PICKUP'
-                    ? 'bg-emerald-600 text-white shadow-sm'
+                    ? 'bg-brand-600 text-white shadow-sm'
                     : 'bg-transparent text-gray-500 dark:text-gray-400'
                 }`}
               >
@@ -752,18 +752,18 @@ export function CheckoutScreen() {
           ) : (
           <section className="rounded-2xl bg-surface p-4 shadow-card">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
                 <StoreIcon size={18} />
               </span>
               <div className="flex-1 text-end">
-                <h2 className="text-sm font-extrabold text-emerald-800">{t('استلام من المتجر', 'Store Pickup')}</h2>
-                <p className="text-[11px] text-emerald-600">
+                <h2 className="text-sm font-extrabold text-brand-800">{t('استلام من المتجر', 'Store Pickup')}</h2>
+                <p className="text-[11px] text-brand-600">
                   {t('توجه إلى المتجر لاستلام طلبك مباشرة فور جاهزيته', 'Go to the store to pick up your order when ready')}
                 </p>
               </div>
             </div>
-            <div className="mt-3 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-center">
-              <p className="text-[11px] font-semibold text-emerald-800">
+            <div className="mt-3 rounded-xl bg-brand-50 border border-brand-200 p-3 text-center">
+              <p className="text-[11px] font-semibold text-brand-800">
                 {t('لا توجد رسوم توصيل لهذا الطلب (0 ₪)', 'No delivery fee for this order (0 ₪)')}
               </p>
             </div>

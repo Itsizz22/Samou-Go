@@ -32,6 +32,7 @@ import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import { useDrawer } from '@/components/NavigationDrawer';
 import { DeliveryFee } from '@samou-go/ui';
 import { API_URL, ENABLE_LOCATION } from '@/hooks/useApi';
+import { FeaturedProductsSlider } from '@/components/FeaturedProductsSlider';
 import { PromoBannerSlider } from '@/components/PromoBannerSlider';
 import { useApiMeta, useOrders, useStores, useAuth, useAllOffers, usePopularProducts, type PopularProduct } from '@/hooks/useApi';
 import { useFavorites } from '@/components/FavoritesProvider';
@@ -154,17 +155,7 @@ export function SamouGoHome() {
       setOptionsProduct(product);
       return;
     }
-    // Add directly to cart (synthesize a Product-like object).
-    cart.addItem({
-      id: product.id,
-      nameAr: product.nameAr,
-      description: product.description,
-      price: product.price,
-      imageUrl: product.imageUrl,
-      isAvailable: product.isAvailable,
-      categoryId: null,
-      storeId: product.storeId,
-    } as any, 1, '', product.storeNameAr);
+    cart.addItem(product, 1, '', product.storeNameAr);
     void hapticConfirm();
   };
 
@@ -180,16 +171,7 @@ export function SamouGoHome() {
         priceDelta: item?.priceDelta ?? 0,
       };
     });
-    cart.addItem({
-      id: optionsProduct.id,
-      nameAr: optionsProduct.nameAr,
-      description: optionsProduct.description,
-      price: optionsProduct.price,
-      imageUrl: optionsProduct.imageUrl,
-      isAvailable: optionsProduct.isAvailable,
-      categoryId: null,
-      storeId: optionsProduct.storeId,
-    } as any, quantity, '', optionsProduct.storeNameAr, selectedOptions);
+    cart.addItem(optionsProduct, quantity, '', optionsProduct.storeNameAr, selectedOptions);
     setOptionsProduct(null);
     void hapticConfirm();
   };
@@ -241,7 +223,7 @@ export function SamouGoHome() {
               className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100"
             >
               <ShoppingCart size={20} />
-              {cart.itemCount > 0 && <span key={cart.itemCount} className="cart-bump absolute inset-e-0 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-bold text-white">{cart.itemCount}</span>}
+              {cart.itemCount > 0 && <span key={cart.itemCount} className="cart-bump absolute inset-e-0 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1 text-[10px] font-bold text-white">{cart.itemCount}</span>}
             </Link>
           </div>
         </nav>
@@ -277,6 +259,7 @@ export function SamouGoHome() {
           (id: banners-slider-placeholder) so the injection point is always locatable.
           ======================================================================== */}
       <PromoBannerSlider />
+      <FeaturedProductsSlider products={popular.data ?? []} loading={popular.loading} onAdd={handlePopularAdd} />
 
       {/* Custom Order quick-action banner */}
       <section className="mx-auto max-w-md px-5 pt-5" aria-label="Custom order">
@@ -435,7 +418,7 @@ export function SamouGoHome() {
                       {store.isRecommended && <span className="absolute inset-s-2 top-2 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-1 text-micro font-bold text-white shadow-card" title={t('ينصح به لدينا', 'Recommended by us')}><Star size={10} fill="currentColor" />{t('موصى به', 'Recommended')}</span>}
                       {store.badges?.includes('badge_popular') && <span className="absolute inset-e-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('الأكثر طلباً', 'Most popular')}><Flame size={9} />{t('الأكثر طلباً', 'Popular')}</span>}
                       {store.badges?.includes('badge_fast') && <span className="absolute inset-e-2 top-10 inline-flex items-center gap-0.5 rounded-full bg-blue-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('سريع التجهيز', 'Fast prep')}><Zap size={9} />{t('سريع', 'Fast')}</span>}
-                      {store.badges?.includes('badge_has_offers') && <span className="absolute inset-e-2 top-17 inline-flex items-center gap-0.5 rounded-full bg-emerald-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('عرض حصري', 'Special offer')}><Tag size={9} />{t('عرض', 'Offer')}</span>}
+                      {store.badges?.includes('badge_has_offers') && <span className="absolute inset-e-2 top-17 inline-flex items-center gap-0.5 rounded-full bg-brand-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('عرض حصري', 'Special offer')}><Tag size={9} />{t('عرض', 'Offer')}</span>}
                       <span className={`absolute inset-s-2 bottom-2 rounded-full px-2 py-1 text-micro font-bold ${store.isActive ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{store.isActive ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
                       <button type="button" aria-label={t(`إضافة ${store.nameAr} إلى المفضلة`, `Favorite ${store.nameEn}`)} aria-pressed={favorites.isFavorite(store.id)} onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggleLike(store.id); }} disabled={favorites.pending.includes(store.id)} className="absolute inset-e-2 top-2 rounded-full bg-surface/85 p-2 text-brand"><Heart size={15} fill={favorites.isFavorite(store.id) ? 'currentColor' : 'none'} /></button>
                     </div>
@@ -450,70 +433,10 @@ export function SamouGoHome() {
         </div>
       </section>}
 
-      {/* Popular Products Section */}
-      {(!popular.loading || (popular.data ?? []).length > 0) && (
-        <section className="mx-auto max-w-md px-5 pt-8" aria-labelledby="popular-title" aria-busy={popular.loading}>
-          <div className="mb-4 flex items-end justify-between">
-            <h2 id="popular-title" className="text-lg font-extrabold">{t('الأكثر مبيعاً', 'Best sellers')}</h2>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-            {popular.loading
-              ? [0, 1, 2, 3].map(i => (
-                  <div key={i} className="skeleton min-w-37.5 overflow-hidden rounded-2xl shadow-card" aria-hidden="true">
-                    <div className="h-32 bg-line-soft" />
-                    <div className="space-y-2 p-3"><div className="h-3 w-2/3 rounded bg-line-soft" /><div className="h-2.5 w-1/2 rounded bg-line-soft" /><div className="h-5 w-16 rounded-full bg-line-soft" /></div>
-                  </div>
-                ))
-              : (popular.data ?? []).map((product) => (
-                  <article
-                    key={product.id}
-                    className="group relative flex min-w-42 flex-col justify-between overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(0,0,0,0.08)]"
-                  >
-                    {/* Product image */}
-                    <div className="relative aspect-4/3 overflow-hidden bg-slate-100">
-                      {product.imageUrl ? (
-                        <ImageWithFallback src={product.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" fallbackText={product.nameAr.slice(0, 2)} />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center text-2xl font-black text-brand-dark/30">{product.nameAr.slice(0, 2)}</span>
-                      )}
-                      {/* Store name badge */}
-                      <span className="absolute inset-e-2 bottom-2 rounded-full bg-surface/90 px-2 py-0.5 text-micro font-bold text-ink shadow-card">{product.storeNameAr}</span>
-                    </div>
-                    {/* Text & Price */}
-                    <div className="p-3 text-end">
-                      <h3 className="line-clamp-2 min-h-8 text-sm font-bold text-ink">{product.nameAr}</h3>
-                      <p className="mt-1 text-base font-extrabold text-emerald-700" dir="ltr">{formatCurrency(product.price)}</p>
-                      <div className="mt-2 flex items-center justify-end">
-                        <button
-                          type="button"
-                          onClick={() => handlePopularAdd(product)}
-                          className="min-h-9 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-600/20 transition-colors hover:bg-emerald-600 hover:text-white active:scale-95"
-                          aria-label={`أضف ${product.nameAr} إلى السلة`}
-                        >
-                          {product.hasOptions ? t('تخصيص', 'Customize') : t('إضافة', 'Add')}
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-          </div>
-        </section>
-      )}
-
       {/* Product Options Sheet (for popular products with addons) */}
       {optionsProduct && (
         <ProductOptionsSheet
-          product={{
-            id: optionsProduct.id,
-            nameAr: optionsProduct.nameAr,
-            description: optionsProduct.description,
-            price: optionsProduct.price,
-            imageUrl: optionsProduct.imageUrl,
-            isAvailable: optionsProduct.isAvailable,
-            categoryId: null,
-            storeId: optionsProduct.storeId,
-            optionGroups: optionsProduct.optionGroups,
-          } as any}
+          product={optionsProduct}
           storeNameAr={optionsProduct.storeNameAr}
           onClose={() => setOptionsProduct(null)}
           onConfirm={handlePopularOptionsConfirm}

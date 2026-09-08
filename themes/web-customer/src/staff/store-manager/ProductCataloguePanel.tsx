@@ -404,7 +404,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                   <td className="px-4 py-3">
                     <span className="block font-bold text-ink">{p.nameAr}</span>
                     {p.description && (
-                      <span className="block max-w-[220px] truncate text-[11px] text-ink-muted">{p.description}</span>
+                      <span className="block max-w-55 truncate text-[11px] text-ink-muted">{p.description}</span>
                     )}
                   </td>
                   <td className="px-3 py-3 text-center text-[11px] text-ink-muted">{p.categoryName}</td>

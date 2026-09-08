@@ -144,6 +144,14 @@ export interface Product {
   optionGroups?: ProductOptionGroup[];
 }
 
+/** Public showcase product, ranked using completed orders in the last 90 days. */
+export interface PopularProduct extends Product {
+  storeNameAr: string;
+  storeLogoUrl: string | null;
+  totalSold: number;
+  hasOptions: boolean;
+}
+
 /** A category with its products inlined — the shape the menu screen wants. */
 export interface CategoryWithProducts extends Category {
   products: Product[];

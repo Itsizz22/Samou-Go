@@ -407,7 +407,7 @@ export function SamouGoStoreManager() {
 
   return (
     <main data-view={activeTab} className="sq-staff sq-store min-h-screen bg-canvas pb-28 font-sans text-ink md:ps-60">
-      <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col border-e border-line bg-surface px-4 py-6 text-ink md:flex" aria-label="تنقل مدير المتجر">
+      <aside className="fixed inset-y-0 inset-s-0 z-30 hidden w-60 flex-col border-e border-line bg-surface px-4 py-6 text-ink md:flex" aria-label="تنقل مدير المتجر">
         <p className="px-3 text-lg font-extrabold">Samou Quick</p>
         <p className="px-3 text-[11px] text-ink-muted">مدير المتجر</p>
         <nav className="mt-8 flex-1 space-y-1">
@@ -713,7 +713,7 @@ export function SamouGoStoreManager() {
 
       {/* Orders tab — focused inbox across all kitchen stages */}
       {activeTab === 'orders' && (
-        <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="orders-tab-title">
+        <section className="mx-auto max-w-180 px-4 pt-7 pb-8" aria-labelledby="orders-tab-title">
           <div className="mb-4 flex items-end justify-between">
             <div>
               <h2 id="orders-tab-title" className="text-lg font-extrabold">{t('الطلبات', 'All active orders')}</h2>
@@ -760,7 +760,7 @@ export function SamouGoStoreManager() {
 
       {/* Products tab */}
       {activeTab === 'products' && (
-        <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="products-tab-title">
+        <section className="mx-auto max-w-180 px-4 pt-7 pb-8" aria-labelledby="products-tab-title">
           <div className="mb-5">
             <h2 id="products-tab-title" className="text-lg font-extrabold">{t('إدارة القائمة', 'Menu Management')}</h2>
             {/* Products ↔ Sections sub-toggle */}
@@ -827,7 +827,7 @@ export function SamouGoStoreManager() {
 
       {/* Offers tab */}
       {activeTab === 'offers' && (
-        <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="offers-tab-title">
+        <section className="mx-auto max-w-180 px-4 pt-7 pb-8" aria-labelledby="offers-tab-title">
           <div className="mb-5">
             <h2 id="offers-tab-title" className="text-lg font-extrabold">{t('العروض الترويجية', 'Promotional Offers')}</h2>
           </div>
@@ -874,7 +874,7 @@ export function SamouGoStoreManager() {
       )}
 
       {activeTab === 'settings' && (
-        <section className="mx-auto max-w-[720px] px-4 pt-7 pb-8" aria-labelledby="profile-tab-title">
+        <section className="mx-auto max-w-180 px-4 pt-7 pb-8" aria-labelledby="profile-tab-title">
           <div className="mb-5">
             <h2 id="profile-tab-title" className="text-lg font-extrabold">{t('إعدادات المتجر', 'Store Profile & Settings')}</h2>
           </div>
@@ -952,7 +952,7 @@ interface KpiTileProps {
 function KpiTile({ icon, labelAr, labelEn, value, suffix, isLoading }: KpiTileProps) {
   const { t } = useLanguage();
   return (
-    <article className="min-w-[126px] flex-1 rounded-2xl border border-line bg-surface p-3 shadow-card">
+    <article className="min-w-31.5 flex-1 rounded-2xl border border-line bg-surface p-3 shadow-card">
       <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-xl bg-brand-tint text-brand">
         {icon}
       </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Bike, CheckCheck, Eye, EyeOff, KeyRound, Loader2, Smartphone } from 'lucide-react';
+import { CheckCheck, Eye, EyeOff, KeyRound, Loader2, Smartphone } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { useLanguage } from '@samou-go/ui';
+import { BrandLogo, useLanguage } from '@samou-go/ui';
 import { setSessionPersistence, useAuth, useToast } from '@/hooks/useApi';
 import { isValidPalestinianMobile, normalizePhone } from '@/lib/phone';
 import { roleHomePath } from '@/lib/roles';
@@ -46,7 +46,7 @@ export function LoginScreen() {
             dir="ltr"
             className="relative flex items-center gap-2 rounded-full bg-surface px-4 py-2 text-brand shadow-sm"
           >
-            <Bike size={24} className="shrink-0" aria-hidden="true" />
+            <BrandLogo size={24} />
             <span className="text-lg font-bold leading-7">Samou Quick</span>
           </div>
         </header>

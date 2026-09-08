@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 
-const COLORS = ['#10b981', '#6ee7b7', '#d1fae5', '#f59e0b', '#3b82f6', '#ef4444'];
+const COLORS = ['var(--color-brand-500)', 'var(--color-brand-300)', 'var(--color-brand-100)', '#f59e0b', '#3b82f6', '#ef4444'];
 const PARTICLE_COUNT = 24;
 
 interface Particle {

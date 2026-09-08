@@ -151,3 +151,23 @@ it('authenticates support conversations and derives ownership from the session',
   expect((await request('PATCH', `${route}/status`, 'CUSTOMER', { status: 'RESOLVED' })).status).toBe(403);
   expect((await request('PATCH', `${route}/status`, 'ADMIN', { status: 'RESOLVED' })).status).toBe(200);
 });
+
+it('serves ranked products on SQLite with complete option rules and numeric prices', async () => {
+  await fixture.db.productOptionGroup.create({ data: {
+    id: 'showcase-group', productId: 'product', name: 'إضافات', minSelect: 0, maxSelect: 2,
+    items: { create: { id: 'showcase-option', name: 'جبنة', price: 3.25 } },
+  } });
+  const response = await request<import('@samou-go/shared-types').PopularProduct[]>('GET', '/stores/popular-products');
+  expect(response.status).toBe(200);
+  expect(response.data[0]).toMatchObject({
+    id: 'product', price: 12.5, totalSold: 2, storeLogoUrl: null, hasOptions: true,
+    optionGroups: [{ id: 'showcase-group', minSelect: 0, maxSelect: 2, required: false,
+      items: [{ id: 'showcase-option', priceDelta: 3.25, isActive: true }] }],
+  });
+  await fixture.db.product.update({ where: { id: 'product' }, data: { optionsEnabled: false } });
+  const disabled = await request<import('@samou-go/shared-types').PopularProduct[]>('GET', '/stores/popular-products');
+  expect(disabled.data[0]?.hasOptions).toBe(false);
+  expect(disabled.data[0]?.optionGroups).toBeUndefined();
+  await fixture.db.store.update({ where: { id: 'store' }, data: { isActive: false } });
+  expect((await request<unknown[]>('GET', '/stores/popular-products')).data).toEqual([]);
+});

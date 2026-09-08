@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useShowcaseCarousel } from '@/hooks/useShowcaseCarousel';
 import { MapPin, Navigation, Package, PackageOpen } from 'lucide-react';
 import { useLanguage } from '@samou-go/ui';
 
@@ -10,7 +10,7 @@ import { useLanguage } from '@samou-go/ui';
  */
 
 const ROTATION_INTERVAL_MS = 5500;
-const SWIPE_THRESHOLD = 50;
+
 
 /** Quick-touch icon wrapper that animates badge entrance. */
 function GoldBadge({ children }: { children: React.ReactNode }) {
@@ -23,70 +23,20 @@ function GoldBadge({ children }: { children: React.ReactNode }) {
 
 export function PromoBannerSlider() {
   const { t, dir } = useLanguage();
-  const isRTL = dir === 'rtl';
-  const [slide, setSlide] = useState(0);
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
-  const touchDelta = useRef(0);
-  const isDragging = useRef(false);
-
-  /* Auto-rotate ---------------------------------------------------------- */
-  useEffect(() => {
-    const id = setInterval(() => setSlide(p => (p === 0 ? 1 : 0)), ROTATION_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, []);
-
-  /* Touch handlers ------------------------------------------------------- */
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-    isDragging.current = true;
-    touchDelta.current = 0;
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging.current) return;
-    const dx = e.touches[0].clientX - touchStartX.current;
-    const dy = e.touches[0].clientY - touchStartY.current;
-    if (Math.abs(dy) > Math.abs(dx)) {
-      isDragging.current = false;
-      return;
-    }
-    touchDelta.current = dx;
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    if (!isDragging.current) return;
-    isDragging.current = false;
-    if (Math.abs(touchDelta.current) > SWIPE_THRESHOLD) {
-      const isRTL = document.documentElement.dir === 'rtl';
-      // In RTL, a right-swipe (positive delta) advances; LSW goes back.
-      const shouldAdvance = isRTL ? touchDelta.current > 0 : touchDelta.current < 0;
-      setSlide(prev => (shouldAdvance ? (prev === 0 ? 1 : 0) : (prev === 1 ? 0 : 1)));
-    }
-    touchDelta.current = 0;
-  }, []);
+  const carousel = useShowcaseCarousel(2, ROTATION_INTERVAL_MS);
+  const slide = carousel.active;
+  const setSlide = carousel.setIndex;
 
   return (
     <section className="mx-auto max-w-md px-5 pt-5" aria-label="Feature banners">
       <div
         className="relative overflow-hidden rounded-2xl"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        {...carousel.bindings}
         style={{ touchAction: 'pan-y' }}
       >
-        {/* Slides container — smooth translate + live drag offset.
-            Direction-aware: in RTL the next slide sits on the physical LEFT
-            of the current one, so the track must move +x; in LTR it moves -x. */}
-        <div
-          className="flex transition-transform duration-500 ease-out"
-          style={{
-            transform: `translateX(${slide === 0 ? '0%' : isRTL ? '100%' : '-100%'})`,
-          }}
-        >
+        <div dir="ltr" className="flex" style={carousel.trackStyle}>
           {/* ---- Slide 1: Live Location Tracking ---- */}
-          <div className="relative min-w-full rounded-2xl bg-gradient-to-br from-emerald-950 via-emerald-800 to-emerald-600 px-4 py-4 text-white">
+          <div dir={dir} className="relative min-w-full rounded-2xl bg-linear-to-br from-brand-950 via-brand-800 to-brand-600 px-4 py-4 text-white">
             <div className="flex min-h-24 items-center justify-between gap-4">
               <div className="flex-1 text-start">
                 <GoldBadge>
@@ -113,7 +63,7 @@ export function PromoBannerSlider() {
           </div>
 
           {/* ---- Slide 2: Package Delivery ---- */}
-          <div className="relative min-w-full rounded-2xl bg-gradient-to-br from-slate-950 via-emerald-900 to-emerald-700 px-4 py-4 text-white">
+          <div dir={dir} className="relative min-w-full rounded-2xl bg-linear-to-br from-slate-950 via-brand-900 to-brand-700 px-4 py-4 text-white">
             <div className="flex min-h-24 items-center justify-between gap-4">
               <div className="flex-1 text-start">
                 <GoldBadge>

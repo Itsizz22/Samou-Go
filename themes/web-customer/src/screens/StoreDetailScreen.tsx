@@ -154,7 +154,7 @@ export function StoreDetailScreen() {
       <main className="sq-store-menu min-h-screen bg-canvas pb-28 font-sans text-ink">
         <header className="safe-top relative isolate min-h-52 overflow-hidden bg-brand-deep px-5 pb-5 pt-4 text-white">
           {current.coverUrl && <img src={current.coverUrl} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover" />}
-          <div className="absolute inset-0 -z-10 bg-gradient-to-t from-brand-deep via-brand-deep/70 to-brand-deep/30" />
+          <div className="absolute inset-0 -z-10 bg-linear-to-t from-brand-deep via-brand-deep/70 to-brand-deep/30" />
           <div className="mx-auto grid min-h-40 max-w-md grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-start gap-3">
             <button
               type="button"
@@ -213,7 +213,7 @@ export function StoreDetailScreen() {
                     initial={{ scale: 0.4 }}
                     animate={{ scale: [0.4, 1.15, 0.92, 1] }}
                     transition={{ duration: 0.45 }}
-                    className="absolute -top-0.5 -end-0.5 flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-micro font-bold text-white"
+                    className="absolute -top-0.5 -end-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-danger px-1 text-micro font-bold text-white"
                   >
                     {cart.itemCount > 99 ? '99+' : cart.itemCount}
                   </motion.span>
@@ -340,13 +340,13 @@ export function StoreDetailScreen() {
                     >
                       {/* Offer badge */}
                       {offerProductIds.has(product.id) && (
-                        <span className="absolute start-2 top-2 z-10 rounded-full bg-brand px-2 py-0.5 text-micro font-bold text-white shadow-sm">
+                        <span className="absolute inset-s-2 top-2 z-10 rounded-full bg-brand px-2 py-0.5 text-micro font-bold text-white shadow-sm">
                           {t('عرض', 'Offer')}
                         </span>
                       )}
 
                       {/* Media — fixed aspect ratio; elegant gradient fallback */}
-                      <div className="relative row-span-2 h-18 w-18 overflow-hidden rounded-xl bg-gradient-to-br from-brand-tint to-brand-surface">
+                      <div className="relative row-span-2 h-18 w-18 overflow-hidden rounded-xl bg-linear-to-br from-brand-tint to-brand-surface">
                         {product.imageUrl ? (
                           <ImageWithFallback
                             src={product.imageUrl}
@@ -391,7 +391,7 @@ export function StoreDetailScreen() {
                             >
                               <Minus size={14} />
                             </button>
-                            <span className="min-w-[18px] text-center text-xs font-bold">
+                            <span className="min-w-4.5 text-center text-xs font-bold">
                               {line.quantity}
                             </span>
                             <button

@@ -402,7 +402,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
               <p className="text-[11px] text-ink-muted">{t('نوافذ طلب الموقع للعملاء والمديرين', 'Location prompts for customers and managers')}</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${gpsCaptureEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{gpsCaptureEnabled ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${gpsCaptureEnabled ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500'}`}>{gpsCaptureEnabled ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
               <button type="button" role="switch" aria-checked={gpsCaptureEnabled} onClick={() => setGpsCaptureEnabled(v => !v)} className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${gpsCaptureEnabled ? 'justify-end bg-brand' : 'justify-start bg-line'}`}><span className="h-5 w-5 rounded-full bg-white" /></button>
             </div>
           </label>
@@ -416,7 +416,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
               <p className="text-[11px] text-ink-muted">{t('يحدد السائق الرسوم يدوياً', 'Captain sets fee manually upon acceptance')}</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${isDriverDynamicFeeEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{isDriverDynamicFeeEnabled ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${isDriverDynamicFeeEnabled ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500'}`}>{isDriverDynamicFeeEnabled ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
               <button type="button" role="switch" aria-checked={isDriverDynamicFeeEnabled} onClick={() => setIsDriverDynamicFeeEnabled(v => !v)} className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${isDriverDynamicFeeEnabled ? 'justify-end bg-brand' : 'justify-start bg-line'}`}><span className="h-5 w-5 rounded-full bg-white" /></button>
             </div>
           </label>
@@ -430,7 +430,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
               <p className="text-[11px] text-ink-muted">{t('اختيار منطقة من القائمة عند التعطيل يحدد يدوياً', 'Select zone from list (when off, captain sets manually)')}</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${enableDeliveryZones ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{enableDeliveryZones ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${enableDeliveryZones ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500'}`}>{enableDeliveryZones ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
               <button type="button" role="switch" aria-checked={enableDeliveryZones} onClick={() => setEnableDeliveryZones(v => !v)} className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${enableDeliveryZones ? 'justify-end bg-brand' : 'justify-start bg-line'}`}><span className="h-5 w-5 rounded-full bg-white" /></button>
             </div>
           </label>
@@ -444,7 +444,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
               <p className="text-[11px] text-ink-muted">{t('تعيين الطلبات تلقائياً لأقرب سائق', 'Reserve for a future auto-assignment engine')}</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${autoAssign ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{autoAssign ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${autoAssign ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500'}`}>{autoAssign ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
               <button type="button" role="switch" aria-checked={autoAssign} onClick={() => setAutoAssign(v => !v)} className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${autoAssign ? 'justify-end bg-brand' : 'justify-start bg-line'}`}><span className="h-5 w-5 rounded-full bg-white" /></button>
             </div>
           </label>
@@ -458,7 +458,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
               <p className="text-[11px] text-ink-muted">{t('طلب أول أو تغيير هاتف أو إعادة تعيين كلمة المرور', 'First order, phone change, or password reset')}</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${requireOtpForSensitiveActions ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{requireOtpForSensitiveActions ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${requireOtpForSensitiveActions ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500'}`}>{requireOtpForSensitiveActions ? t('مفعل', 'ON') : t('معطل', 'OFF')}</span>
               <button type="button" role="switch" aria-checked={requireOtpForSensitiveActions} onClick={() => setRequireOtpForSensitiveActions(v => !v)} className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors ${requireOtpForSensitiveActions ? 'justify-end bg-brand' : 'justify-start bg-line'}`}><span className="h-5 w-5 rounded-full bg-white" /></button>
             </div>
           </label>

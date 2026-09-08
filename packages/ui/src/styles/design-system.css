@@ -44,13 +44,25 @@
    1. TOKENS → utility classes
    -------------------------------------------------------------------------- */
 @theme {
+  /* Samou Quick teal brand ramp; semantic aliases below remain the public API. */
+  --color-brand-50: #effcf7;
+  --color-brand-100: #d1faee;
+  --color-brand-200: #a6f4dd;
+  --color-brand-300: #6de7c7;
+  --color-brand-400: #2ed0ab;
+  --color-brand-500: #00a884;
+  --color-brand-600: #008d70;
+  --color-brand-700: #00715d;
+  --color-brand-800: #005b4c;
+  --color-brand-900: #004a3f;
+  --color-brand-950: #002a25;
   /* -- Brand: vibrant emerald ------------------------------------------- */
-  --color-brand: #059669; /* Figma implementation: emerald-600 */
-  --color-brand-dark: #047857; /* Hover / active */
-  --color-brand-deep: #047857; /* Deep surfaces, text on tint */
-  --color-brand-tint: #d1fae5; /* Light accent */
-  --color-brand-surface: #ecfdf5; /* Palest wash */
-  --color-brand-soft: #6ee7b7; /* Secondary fills, charts */
+  --color-brand: var(--color-brand-500); /* Primary identity */
+  --color-brand-dark: var(--color-brand-600); /* Hover / active */
+  --color-brand-deep: var(--color-brand-700); /* Deep surfaces, text on tint */
+  --color-brand-tint: var(--color-brand-100); /* Light accent */
+  --color-brand-surface: var(--color-brand-50); /* Palest wash */
+  --color-brand-soft: var(--color-brand-300); /* Secondary fills, charts */
 
   /* -- Neutrals: light mode. Dark overrides live in `.dark` only -------- */
   --color-ink: #0f172a; /* Primary text */
@@ -76,9 +88,9 @@
   --color-info-tint: #dbeafe;
   --color-info-ink: #1d4ed8;
 
-  --color-success: #10b981;
-  --color-success-tint: #d1fae5;
-  --color-success-ink: #047857;
+  --color-success: var(--color-brand-500);
+  --color-success-tint: var(--color-brand-100);
+  --color-success-ink: var(--color-brand-700);
 }
 
 /* Second `@theme` block — Tailwind merges them; split for readability. */
@@ -129,7 +141,7 @@
   --shadow-raised: 0 4px 14px -3px rgb(6 78 59 / 0.1), 0 2px 6px -2px rgb(6 78 59 / 0.06);
   --shadow-overlay: 0 24px 48px -12px rgb(6 78 59 / 0.22), 0 8px 24px -6px rgb(6 78 59 / 0.12);
   --shadow-nav: 0 -2px 16px -4px rgb(6 78 59 / 0.08);
-  --shadow-brand: 0 8px 24px -4px rgb(16 185 129 / 0.4), 0 2px 8px -2px rgb(16 185 129 / 0.2);
+  --shadow-brand: 0 8px 24px -4px color-mix(in srgb, var(--color-brand) 40%, transparent), 0 2px 8px -2px color-mix(in srgb, var(--color-brand) 20%, transparent);
 
   /* -- Layout: shared containers and fixed chrome heights ---------------- */
   --container-app: 32rem; /* phone-first app shell (customer, captain) */
@@ -229,35 +241,35 @@
   --popover: #ffffff;
   --popover-foreground: #111827;
 
-  --primary: #10b981;
+  --primary: var(--color-brand-500);
   --primary-foreground: #ffffff;
-  --secondary: #047857;
+  --secondary: var(--color-brand-700);
   --secondary-foreground: #ffffff;
 
   --muted: #f3f4f6;
   --muted-foreground: #6b7280;
-  --accent: #d1fae5;
-  --accent-foreground: #047857;
+  --accent: var(--color-brand-100);
+  --accent-foreground: var(--color-brand-700);
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
 
   --border: #e5e7eb;
   --input: #e5e7eb;
-  --ring: #10b981;
+  --ring: var(--color-brand-500);
 
-  --sidebar: #047857;
+  --sidebar: var(--color-brand-700);
   --sidebar-foreground: #ffffff;
-  --sidebar-primary: #10b981;
+  --sidebar-primary: var(--color-brand-500);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #059669;
+  --sidebar-accent: var(--color-brand-500);
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgb(255 255 255 / 0.12);
-  --sidebar-ring: #6ee7b7;
+  --sidebar-ring: var(--color-brand-300);
 
-  --chart-1: #10b981;
-  --chart-2: #6ee7b7;
-  --chart-3: #d1fae5;
+  --chart-1: var(--color-brand-500);
+  --chart-2: var(--color-brand-300);
+  --chart-3: var(--color-brand-100);
   --chart-4: #f59e0b;
   --chart-5: #3b82f6;
 }
@@ -270,22 +282,22 @@
   --popover: #111827;
   --popover-foreground: #f9fafb;
 
-  --primary: #10b981;
+  --primary: var(--color-brand-500);
   --primary-foreground: #052e16;
-  --secondary: #059669;
+  --secondary: var(--color-brand-500);
   --secondary-foreground: #ffffff;
 
   --muted: #1f2937;
   --muted-foreground: #9ca3af;
-  --accent: #064e3b;
-  --accent-foreground: #d1fae5;
+  --accent: var(--color-brand-900);
+  --accent-foreground: var(--color-brand-100);
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
 
   --border: #374151;
   --input: #374151;
-  --ring: #10b981;
+  --ring: var(--color-brand-500);
 
   /* THE fix: semantic surfaces flip here, so `bg-surface` / `bg-canvas` /
      `border-line` / `text-ink` adapt with no per-card `dark:*` overrides. */
@@ -300,25 +312,25 @@
   --color-ink-subtle: #6b7280;
 
   /* Tints are washes on white; on a dark canvas they need to be deep. */
-  --color-brand-tint: #064e3b;
-  --color-brand-surface: #052e1a;
+  --color-brand-tint: var(--color-brand-900);
+  --color-brand-surface: var(--color-brand-950);
   --color-danger-tint: #4c1d1d;
   --color-danger-ink: #fca5a5;
   --color-warning-tint: #4a2c07;
   --color-warning-ink: #fcd34d;
   --color-info-tint: #1e2a4a;
   --color-info-ink: #93c5fd;
-  --color-success-tint: #064e3b;
-  --color-success-ink: #6ee7b7;
+  --color-success-tint: var(--color-brand-900);
+  --color-success-ink: var(--color-brand-300);
 
-  --sidebar: #064e3b;
+  --sidebar: var(--color-brand-900);
   --sidebar-foreground: #f9fafb;
-  --sidebar-primary: #10b981;
+  --sidebar-primary: var(--color-brand-500);
   --sidebar-primary-foreground: #052e16;
-  --sidebar-accent: #047857;
+  --sidebar-accent: var(--color-brand-700);
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgb(255 255 255 / 0.1);
-  --sidebar-ring: #6ee7b7;
+  --sidebar-ring: var(--color-brand-300);
 
   --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.4);
   --shadow-raised: 0 4px 12px -2px rgb(0 0 0 / 0.5);
@@ -753,9 +765,9 @@
   .dark .skeleton-shimmer {
     background: linear-gradient(
       90deg,
-      rgb(16 185 129 / 0.08) 25%,
-      rgb(16 185 129 / 0.14) 50%,
-      rgb(16 185 129 / 0.08) 75%
+      color-mix(in srgb, var(--color-brand) 8%, transparent) 25%,
+      color-mix(in srgb, var(--color-brand) 14.000000000000002%, transparent) 50%,
+      color-mix(in srgb, var(--color-brand) 8%, transparent) 75%
     );
     background-size: 200% 100%;
   }
@@ -777,9 +789,9 @@
     background-image: linear-gradient(
       90deg,
       transparent 0%,
-      rgb(16 185 129 / 0.10) 30%,
-      rgb(16 185 129 / 0.18) 50%,
-      rgb(16 185 129 / 0.10) 70%,
+      color-mix(in srgb, var(--color-brand) 10%, transparent) 30%,
+      color-mix(in srgb, var(--color-brand) 18%, transparent) 50%,
+      color-mix(in srgb, var(--color-brand) 10%, transparent) 70%,
       transparent 100%
     );
     animation: shimmer 1.6s var(--ease-in-out-soft) infinite;
@@ -789,9 +801,9 @@
     background-image: linear-gradient(
       90deg,
       transparent 0%,
-      rgb(16 185 129 / 0.08) 30%,
-      rgb(16 185 129 / 0.14) 50%,
-      rgb(16 185 129 / 0.08) 70%,
+      color-mix(in srgb, var(--color-brand) 8%, transparent) 30%,
+      color-mix(in srgb, var(--color-brand) 14.000000000000002%, transparent) 50%,
+      color-mix(in srgb, var(--color-brand) 8%, transparent) 70%,
       transparent 100%
     );
   }
@@ -1038,13 +1050,13 @@
 
 @keyframes pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 rgb(16 185 129 / 0.4);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 40%, transparent);
   }
   70% {
-    box-shadow: 0 0 0 0.75rem rgb(16 185 129 / 0);
+    box-shadow: 0 0 0 0.75rem color-mix(in srgb, var(--color-brand) 0%, transparent);
   }
   100% {
-    box-shadow: 0 0 0 0 rgb(16 185 129 / 0);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 0%, transparent);
   }
 }
 
@@ -1070,16 +1082,16 @@
 
 /* Pulsing aura ring for the active timeline step. */
 @keyframes pulseAura {
-  0%   { box-shadow: 0 0 0 0 rgb(16 185 129 / 0.50); }
-  70%  { box-shadow: 0 0 0 0.625rem rgb(16 185 129 / 0); }
-  100% { box-shadow: 0 0 0 0 rgb(16 185 129 / 0); }
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 50%, transparent); }
+  70%  { box-shadow: 0 0 0 0.625rem color-mix(in srgb, var(--color-brand) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 0%, transparent); }
 }
 
 /* Smooth glowing ring — softer, wider pulse for emphasis. */
 @keyframes pulseGlow {
-  0%   { box-shadow: 0 0 0 0 rgb(16 185 129 / 0.35), 0 0 8px 0 rgb(16 185 129 / 0.20); }
-  50%  { box-shadow: 0 0 0 0.5rem rgb(16 185 129 / 0), 0 0 16px 2px rgb(16 185 129 / 0); }
-  100% { box-shadow: 0 0 0 0 rgb(16 185 129 / 0), 0 0 8px 0 rgb(16 185 129 / 0); }
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 35%, transparent), 0 0 8px 0 color-mix(in srgb, var(--color-brand) 20%, transparent); }
+  50%  { box-shadow: 0 0 0 0.5rem color-mix(in srgb, var(--color-brand) 0%, transparent), 0 0 16px 2px color-mix(in srgb, var(--color-brand) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 0%, transparent), 0 0 8px 0 color-mix(in srgb, var(--color-brand) 0%, transparent); }
 }
 
 /* Cart badge pop — tight bouncy scale for counter increments. */
@@ -1118,9 +1130,9 @@
 
 /* Green ripple flash around an icon. */
 @keyframes greenRipple {
-  0%   { box-shadow: 0 0 0 0 rgb(16 185 129 / 0.40); }
-  70%  { box-shadow: 0 0 0 0.5rem rgb(16 185 129 / 0); }
-  100% { box-shadow: 0 0 0 0 rgb(16 185 129 / 0); }
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 40%, transparent); }
+  70%  { box-shadow: 0 0 0 0.5rem color-mix(in srgb, var(--color-brand) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 0%, transparent); }
 }
 
 /* Sliding pill background for active tab. */

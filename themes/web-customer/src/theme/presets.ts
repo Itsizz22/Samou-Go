@@ -18,7 +18,7 @@ export interface AccentOption {
 }
 
 export const ACCENT_OPTIONS: AccentOption[] = [
-  { key: 'emerald', swatch: '#10b981', labelAr: 'زمردي', labelEn: 'Emerald' },
+  { key: 'emerald', swatch: 'var(--color-brand-500)', labelAr: 'زمردي', labelEn: 'Emerald' },
   { key: 'warm-yellow', swatch: '#f59e0b', labelAr: 'أصفر دافئ', labelEn: 'Warm Yellow' },
   { key: 'muted-red', swatch: '#e57373', labelAr: 'وردي هادئ', labelEn: 'Muted Red' },
 ];

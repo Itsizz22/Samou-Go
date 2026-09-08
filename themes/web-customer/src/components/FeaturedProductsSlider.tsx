@@ -1,0 +1,145 @@
+import {
+  ChevronLeft,
+  ChevronRight,
+  Pause,
+  Play,
+  Plus,
+  SlidersHorizontal,
+  Store,
+} from 'lucide-react';
+import { ImageWithFallback, useLanguage } from '@samou-go/ui';
+import type { PopularProduct } from '@samou-go/shared-types';
+import { useShowcaseCarousel } from '@/hooks/useShowcaseCarousel';
+import { formatCurrency } from '@/lib/delivery';
+
+interface Props {
+  products: PopularProduct[];
+  loading: boolean;
+  onAdd: (product: PopularProduct) => void;
+}
+
+export function FeaturedProductsSlider({ products, loading, onAdd }: Props) {
+  const { t, dir } = useLanguage();
+  const carousel = useShowcaseCarousel(products.length);
+  if (!products.length && !loading) return null;
+  return (
+    <section
+      className="mx-auto max-w-md px-5 pt-5"
+      aria-label={t('منتجات مميزة', 'Featured products')}
+      aria-busy={loading}
+    >
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-bold">{t('منتجات مميزة', 'Featured products')}</h2>
+          <p className="text-xs text-ink-muted">
+            {t('من الأكثر طلباً في متاجرنا', 'Best sellers from our stores')}
+          </p>
+        </div>
+        {products.length > 1 && (
+          <button
+            type="button"
+            onClick={() => carousel.setStopped(!carousel.stopped)}
+            aria-label={t(
+              carousel.stopped ? 'تشغيل العرض التلقائي' : 'إيقاف العرض التلقائي',
+              carousel.stopped ? 'Start slideshow' : 'Pause slideshow'
+            )}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted"
+          >
+            {carousel.stopped ? <Play size={17} /> : <Pause size={17} />}
+          </button>
+        )}
+      </div>
+      {loading && !products.length ? (
+        <div className="skeleton h-80 rounded-2xl" aria-hidden="true" />
+      ) : (
+        <>
+          <div
+            {...carousel.bindings}
+            className="overflow-hidden rounded-2xl border border-line bg-surface"
+            style={{ touchAction: 'pan-y' }}
+          >
+            {/* Track order is physical LTR; content remains RTL. Next moves right-to-left. */}
+            <div dir="ltr" className="flex" style={carousel.trackStyle}>
+              {products.map((product, index) => (
+                <article
+                  key={product.id}
+                  dir={dir}
+                  inert={index !== carousel.active}
+                  aria-hidden={index !== carousel.active}
+                  className="w-full min-w-0 shrink-0 basis-full"
+                >
+                  <div className="relative aspect-video overflow-hidden bg-canvas">
+                    <ImageWithFallback
+                      src={product.imageUrl ?? undefined}
+                      alt={product.nameAr}
+                      className="h-full w-full object-cover"
+                      fallbackText={product.nameAr.slice(0, 2)}
+                    />
+                    <div className="absolute inset-s-3 bottom-3 flex max-w-full items-center gap-2 rounded-full border border-line bg-surface px-2 py-1 text-xs shadow-card">
+                      {product.storeLogoUrl ? (
+                        <ImageWithFallback
+                          src={product.storeLogoUrl}
+                          alt=""
+                          className="h-7 w-7 shrink-0 rounded-full object-contain"
+                        />
+                      ) : (
+                        <Store size={18} className="text-brand" />
+                      )}
+                      <span className="line-clamp-1 pe-1 font-semibold">{product.storeNameAr}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2 p-4">
+                    <h3 className="line-clamp-2 min-h-6 text-base font-bold">{product.nameAr}</h3>
+                    <p className="line-clamp-2 min-h-10 text-xs leading-5 text-ink-muted">
+                      {product.description}
+                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span dir="ltr" className="text-lg font-extrabold text-brand">
+                        {formatCurrency(product.price)}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={!product.isAvailable}
+                        onClick={() => onAdd(product)}
+                        className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-4 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
+                      >
+                        {product.hasOptions ? <SlidersHorizontal size={17} /> : <Plus size={17} />}
+                        {t(
+                          product.hasOptions ? 'تخصيص الطلب' : 'أضف للسلة',
+                          product.hasOptions ? 'Customize' : 'Add to cart'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+          {products.length > 1 && (
+            <div dir="ltr" className="flex items-center justify-center gap-1">
+              <button
+                type="button"
+                onClick={() => carousel.step(-1)}
+                aria-label={t('المنتج السابق', 'Previous product')}
+                className="flex h-11 w-11 items-center justify-center"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <span className="min-w-12 text-center text-xs text-ink-muted" aria-live="off">
+                {carousel.active + 1} / {products.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => carousel.step(1)}
+                aria-label={t('المنتج التالي', 'Next product')}
+                className="flex h-11 w-11 items-center justify-center"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}

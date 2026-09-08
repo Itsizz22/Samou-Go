@@ -9,6 +9,8 @@
 
 const PALESTINE_PREFIXES = ['059', '056'];
 
+const cleanPhone = (phone: string): string => phone.replace(/[\s\-\(\)]/g, '');
+
 /**
  * Normalises a local phone number to international E.164 format.
  *
@@ -24,7 +26,7 @@ const PALESTINE_PREFIXES = ['059', '056'];
 export function normalizePhoneNumber(phone: string): string {
   if (!phone) return '';
 
-  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+  const cleaned = cleanPhone(phone);
 
   // Already in international format with +
   if (cleaned.startsWith('+')) {
@@ -54,19 +56,20 @@ export function normalizePhoneNumber(phone: string): string {
 }
 
 /**
- * Builds a WhatsApp click-to-chat URL.
- *
- * @param phone - Phone number in any supported format
- * @param message - Optional pre-filled message (will be URL-encoded)
- * @returns WhatsApp Web/App URL or empty string if phone is invalid
+ * Formats a WhatsApp number without changing an explicitly supplied country code.
+ * Supports international 00 notation; returns empty for malformed/ambiguous input.
  */
-export function formatWhatsAppLink(phone: string, message?: string): string {
-  const normalized = normalizePhoneNumber(phone);
+export function toWhatsAppE164(phone: string): string {
+  const cleaned = cleanPhone(phone);
+  const normalized = normalizePhoneNumber(cleaned.startsWith('00') ? `+${cleaned.slice(2)}` : cleaned);
+  // Preserve an explicit country code: WhatsApp account identity is not carrier routing.
+  return /^\+[1-9]\d{9,14}$/.test(normalized) ? normalized : '';
+}
 
-  // Basic validation: must start with + and have 10-15 digits after
-  if (!normalized.startsWith('+') || normalized.length < 11 || normalized.length > 16) {
-    return '';
-  }
+/** Builds a click-to-chat URL and encodes the optional prefilled message. */
+export function formatWhatsAppLink(phone: string, message?: string): string {
+  const normalized = toWhatsAppE164(phone);
+  if (!normalized) return '';
 
   // Remove + for wa.me format
   const waNumber = normalized.slice(1);

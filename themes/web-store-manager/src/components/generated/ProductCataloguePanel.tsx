@@ -442,7 +442,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
               <option key={c.id} value={c.id}>{c.nameAr}</option>
             ))}
           </select>
-          <ChevronDown size={14} className="pointer-events-none absolute end-2.5 top-2.5 text-ink-muted" />
+          <ChevronDown size={14} className="pointer-events-none absolute inset-e-2.5 top-2.5 text-ink-muted" />
         </div>
         <button
           type="button"
@@ -526,7 +526,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                   <td className="px-4 py-3">
                     <span className="block font-bold text-ink">{p.nameAr}</span>
                     {p.description && (
-                      <span className="block max-w-[220px] truncate text-[11px] text-ink-muted">{p.description}</span>
+                      <span className="block max-w-55 truncate text-[11px] text-ink-muted">{p.description}</span>
                     )}
                     {(p.optionGroups ?? []).length > 0 && (
                       <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-brand-tint px-2 py-0.5 text-[10px] font-bold text-brand-deep">
@@ -736,7 +736,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                         <option key={c.id} value={c.id}>{c.nameAr}</option>
                       ))}
                     </select>
-                    <ChevronDown size={13} className="pointer-events-none absolute end-2.5 top-3 text-ink-muted" />
+                    <ChevronDown size={13} className="pointer-events-none absolute inset-e-2.5 top-3 text-ink-muted" />
                   </div>
                 </label>
               </div>

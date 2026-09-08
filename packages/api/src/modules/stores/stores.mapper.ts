@@ -1,4 +1,5 @@
 import type {
+  Prisma,
   Category as PrismaCategory,
   Product as PrismaProduct,
   Store as PrismaStore,
@@ -48,43 +49,26 @@ export function toCategory(category: PrismaCategory): Category {
   };
 }
 
-export function toProduct(product: PrismaProduct & { optionGroups?: any[]; optionsEnabled?: boolean }): Product {
-  const raw = product as any;
+type ProductWithOptions = PrismaProduct & Partial<Pick<Prisma.ProductGetPayload<{
+  include: { optionGroups: { include: { items: true } } };
+}>, 'optionGroups'>>;
+
+export function toProduct(product: ProductWithOptions): Product {
   return {
-    id: product.id,
-    nameAr: product.nameAr,
-    description: product.description,
-    price: decimalToNumber(product.price),
-    imageUrl: product.imageUrl,
-    isAvailable: product.isAvailable,
-    categoryId: product.categoryId,
-    storeId: product.storeId,
-    // Map option groups from DB shape to shared-types shape.
-    // When optionsEnabled is false, omit optionGroups entirely from the customer view.
-    ...((raw.optionGroups && raw.optionsEnabled !== false)
-      ? {
-          optionGroups: raw.optionGroups.map((g: any) => ({
-            id: g.id,
-            productId: g.productId,
-            name: g.name,
-            required: g.required,
-            minSelect: g.minSelect,
-            maxSelect: g.maxSelect,
-            sortOrder: g.sortOrder,
-            items: (g.items ?? []).map((i: any) => ({
-              id: i.id,
-              groupId: g.id,
-              name: i.name,
-              priceDelta: i.price,
-              sortOrder: i.sortOrder,
-              isActive: i.isActive,
-            })),
-          })),
-        }
-      : {}),
-    // optionsEnabled added after shared-types rebuild — cast needed until dist is refreshed.
-    optionsEnabled: raw.optionsEnabled ?? true,
-  } as Product;
+    id: product.id, nameAr: product.nameAr, description: product.description,
+    price: decimalToNumber(product.price), imageUrl: product.imageUrl,
+    isAvailable: product.isAvailable, categoryId: product.categoryId, storeId: product.storeId,
+    optionsEnabled: product.optionsEnabled,
+    ...(product.optionGroups && product.optionsEnabled ? {
+      optionGroups: product.optionGroups.map(group => ({
+        id: group.id, productId: group.productId, name: group.name,
+        required: group.required, minSelect: group.minSelect, maxSelect: group.maxSelect,
+        sortOrder: group.sortOrder,
+        items: group.items.map(item => ({ id: item.id, groupId: group.id, name: item.name,
+          priceDelta: item.price, sortOrder: item.sortOrder, isActive: item.isActive })),
+      })),
+    } : {}),
+  };
 }
 
 export function toStoreWithCatalogue(

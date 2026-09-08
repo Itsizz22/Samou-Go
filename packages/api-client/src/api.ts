@@ -1,3 +1,4 @@
+import type { PopularProduct } from '@samou-go/shared-types';
 /**
  * Samou' Go — HTTP client for the Express API.
  *
@@ -800,19 +801,7 @@ export function getMyStores(signal?: AbortSignal): Promise<Store[]> {
 }
 
 /** Top best-selling products across all active, approved stores. */
-export interface PopularProduct {
-  id: string;
-  nameAr: string;
-  description: string | null;
-  price: number;
-  imageUrl: string | null;
-  isAvailable: boolean;
-  storeId: string;
-  storeNameAr: string;
-  totalSold: number;
-  hasOptions: boolean;
-  optionGroups?: { id: string; name: string; items: { id: string; name: string; priceDelta: number; isActive: boolean }[] }[];
-}
+export type { PopularProduct } from '@samou-go/shared-types';
 
 export function getPopularProducts(limit = 12, signal?: AbortSignal): Promise<PopularProduct[]> {
   return request<PopularProduct[]>("GET", "/stores/popular-products", {
