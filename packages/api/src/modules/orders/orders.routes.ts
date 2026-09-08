@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { UserRole } from '@samou-go/shared-types';
 import { asyncHandler } from '../../lib/async-handler';
-import { authenticate, authenticateIfPresent, authorize, optionalAuthenticate } from '../../middleware/authenticate';
+import { authenticate, authorize, optionalAuthenticate } from '../../middleware/authenticate';
 import { orderLimiter, quoteLimiter } from '../../middleware/rate-limit';
 import * as controller from './orders.controller';
 
@@ -33,16 +33,18 @@ ordersRouter.get(
   asyncHandler(controller.orderEventSSEHandler)
 );
 
-// Guests may order, but expired sessions must return 401 so clients can refresh.
+// Submission requires authentication; quotes remain public.
 ordersRouter.post(
   '/',
-  authenticateIfPresent,
+  authenticate,
+  authorize(UserRole.CUSTOMER),
   orderLimiter,
   asyncHandler(controller.createOrderHandler)
 );
 ordersRouter.post(
   '/checkout',
-  authenticateIfPresent,
+  authenticate,
+  authorize(UserRole.CUSTOMER),
   orderLimiter,
   asyncHandler(controller.checkoutHandler)
 );

@@ -1,3 +1,4 @@
+import { automaticDeliveryPricing } from './pricing';
 import { normalizeSelectedOptions, resolveSelectedOptions, normalizeOptionGroups } from '@samou-go/shared-types';
 import type { Prisma, PrismaClient } from '../../lib/prisma-types';
 import { randomUUID } from 'node:crypto';
@@ -338,7 +339,12 @@ export async function quoteOrder(body: QuoteOrderBody): Promise<OrderQuote> {
     ? await prisma.deliveryZone.findFirst({ where: { id: body.deliveryZoneId, isActive: true } })
     : null;
   if (body.deliveryZoneId && !zone) throw unprocessable('ZONE_INACTIVE', 'منطقة التوصيل غير متاحة / Delivery zone is unavailable');
-  const deliveryFee = zone?.allowCaptainPricing ? 0 : zone ? decimalToNumber(zone.deliveryFee) : totals.deliveryFee;
+  const settings = await prisma.platformSettings.findUnique({ where: { id: 'platform' } });
+  const pricing = automaticDeliveryPricing({ enabled: settings?.autoPricingEnabled ?? false,
+    zoneFee: zone ? decimalToNumber(zone.deliveryFee) : null, baseFee: decimalToNumber(settings?.baseDeliveryFee ?? 0),
+    legacyFee: zone?.allowCaptainPricing ? 0 : zone ? decimalToNumber(zone.deliveryFee) : totals.deliveryFee,
+    pickup: false, captainSharePercentage: decimalToNumber(settings?.captainSharePercentage ?? 100) });
+  const { deliveryFee } = pricing;
 
   if (totals.subtotal <= 0) {
     throw unprocessable('EMPTY_BASKET', 'السلة فارغة / The basket is empty');
@@ -353,6 +359,7 @@ export async function quoteOrder(body: QuoteOrderBody): Promise<OrderQuote> {
 
   return {
     ...totals,
+    autoPricingEnabled: pricing.autoPriced,
     deliveryFee,
     discount,
     totalAmount: roundMoney(totals.subtotal + deliveryFee - discount),
@@ -389,8 +396,13 @@ export async function createOrder(
       ? await tx.deliveryZone.findFirst({ where: { id: requestedZoneId, isActive: true } })
       : null;
     if (requestedZoneId && !zone) throw unprocessable('ZONE_INACTIVE', 'منطقة التوصيل غير متاحة / Delivery zone is unavailable');
-    const captainPricing = zone?.allowCaptainPricing === true;
-    const deliveryFee = body.fulfillmentType === 'PICKUP' ? 0 : captainPricing ? 0 : zone ? decimalToNumber(zone.deliveryFee) : totals.deliveryFee;
+    const settings = await tx.platformSettings.findUnique({ where: { id: 'platform' } });
+    const captainPricing = body.fulfillmentType !== 'PICKUP' && !settings?.autoPricingEnabled && zone?.allowCaptainPricing === true;
+    const pricing = automaticDeliveryPricing({ enabled: settings?.autoPricingEnabled ?? false,
+      zoneFee: zone ? decimalToNumber(zone.deliveryFee) : null, baseFee: decimalToNumber(settings?.baseDeliveryFee ?? 0),
+      legacyFee: captainPricing ? 0 : zone ? decimalToNumber(zone.deliveryFee) : totals.deliveryFee,
+      pickup: body.fulfillmentType === 'PICKUP', captainSharePercentage: decimalToNumber(settings?.captainSharePercentage ?? 100) });
+    const { deliveryFee } = pricing;
 
     if (totals.subtotal <= 0) {
       throw unprocessable('EMPTY_BASKET', 'السلة فارغة / The basket is empty');
@@ -451,6 +463,8 @@ export async function createOrder(
         longitude: body.longitude ?? null,
         subtotal: totals.subtotal,
         // Zones are priced only from the admin-owned row, never from the client.
+        autoPriced: pricing.autoPriced,
+        captainSharePercentage: pricing.captainSharePercentage,
         deliveryZoneId: zone?.id ?? null,
         isCaptainPriced: captainPricing,
         driverQuotedFee: null,
@@ -567,6 +581,14 @@ export async function createCheckoutOrders(
       const lines = await priceBasket(tx, storeGroup.storeId, storeGroup.items);
       const checkoutRegion = body.deliveryRegion ?? undefined;
       const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, checkoutRegion);
+      const zone = body.deliveryZoneId ? await tx.deliveryZone.findFirst({ where: { id: body.deliveryZoneId, isActive: true } }) : null;
+      if (body.deliveryZoneId && !zone) throw unprocessable('ZONE_INACTIVE', 'منطقة التوصيل غير متاحة / Delivery zone unavailable');
+      const settings = await tx.platformSettings.findUnique({ where: { id: 'platform' } });
+      const pricing = automaticDeliveryPricing({ enabled: settings?.autoPricingEnabled ?? false,
+        zoneFee: zone ? decimalToNumber(zone.deliveryFee) : null, baseFee: decimalToNumber(settings?.baseDeliveryFee ?? 0),
+        legacyFee: zone?.allowCaptainPricing ? 0 : zone ? decimalToNumber(zone.deliveryFee) : totals.deliveryFee, pickup: storeGroup.fulfillmentType === 'PICKUP',
+        captainSharePercentage: decimalToNumber(settings?.captainSharePercentage ?? 100) });
+
 
       if (totals.subtotal <= 0) {
         throw unprocessable('EMPTY_BASKET', 'السلة فارغة / The basket is empty');
@@ -590,11 +612,16 @@ export async function createCheckoutOrders(
           longitude: body.longitude ?? null,
           subtotal: totals.subtotal,
           // PICKUP orders have no delivery fee.
-          deliveryFee: storeGroup.fulfillmentType === 'PICKUP' ? 0 : totals.deliveryFee,
+          deliveryFee: pricing.deliveryFee,
+          isCaptainPriced: storeGroup.fulfillmentType !== 'PICKUP' && !settings?.autoPricingEnabled && zone?.allowCaptainPricing === true,
+          feeApprovalStatus: storeGroup.fulfillmentType !== 'PICKUP' && !settings?.autoPricingEnabled && zone?.allowCaptainPricing ? 'PENDING_CUSTOMER_ACCEPTANCE' : 'APPROVED',
+          autoPriced: pricing.autoPriced,
+          captainSharePercentage: pricing.captainSharePercentage,
+          deliveryZoneId: storeGroup.fulfillmentType === 'PICKUP' ? null : zone?.id ?? null,
           discount: 0,
           totalAmount: storeGroup.fulfillmentType === 'PICKUP'
             ? totals.subtotal
-            : totals.totalAmount,
+            : roundMoney(totals.subtotal + pricing.deliveryFee),
           voucherId: null,
           paymentMethod: PaymentMethod.COD,
           deliveryPin: storeGroup.fulfillmentType === 'PICKUP' ? null : generateDeliveryPin(),
@@ -1065,6 +1092,8 @@ export async function updateOrderStatus(
           captainId: order.captainId,
           subtotal: order.subtotal,
           deliveryFee: order.deliveryFee,
+          autoPriced: order.autoPriced,
+          captainSharePercentage: order.captainSharePercentage,
           orderNumber: order.orderNumber,
         });
       }
@@ -1170,6 +1199,7 @@ export async function setOrderDeliveryZone(
   zoneId: string
 ): Promise<OrderDetail> {
   const order = await loadOrderOrThrow(orderId);
+  if (order.autoPriced) throw conflict('التسعير التلقائي مثبت لهذا الطلب / Automatic pricing is fixed for this order');
 
   if (actor.role === UserRole.CAPTAIN) {
     if (order.captainId !== actor.sub) {
@@ -1242,6 +1272,7 @@ export async function setOrderDeliveryZone(
 /** Assigned captain proposes a fee for an admin-enabled flexible zone. */
 export async function quoteCaptainFee(actor: { sub: string; role: UserRole }, orderId: string, deliveryFee: number): Promise<OrderDetail> {
   const order = await loadOrderOrThrow(orderId);
+  if (order.autoPriced) throw conflict('التسعير التلقائي مثبت لهذا الطلب / Automatic pricing is fixed for this order');
   if (actor.role !== UserRole.CAPTAIN || order.captainId !== actor.sub) throw forbidden();
   if (!order.deliveryZone?.allowCaptainPricing) throw unprocessable('ZONE_FIXED_FEE', 'هذه المنطقة لا تسمح برسوم مخصصة / This zone has a fixed fee');
   if (isTerminalOrderStatus(order.status)) throw badState('ORDER_CLOSED', 'الطلب مغلق / Order is closed');
@@ -1379,6 +1410,7 @@ export async function setOrderDeliveryFee(
   deliveryFee: number
 ): Promise<OrderDetail> {
   const order = await loadOrderOrThrow(orderId);
+  if (order.autoPriced) throw conflict('التسعير التلقائي مثبت لهذا الطلب / Automatic pricing is fixed for this order');
 
   // Check platform setting: fee entry is allowed when zones are disabled
   // (captain sets fee manually) OR when dynamic fee mode is explicitly enabled.

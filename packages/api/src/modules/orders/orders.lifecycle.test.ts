@@ -221,3 +221,46 @@ it('reorders addons at current prices and skips unavailable selections', async (
   expect(unavailable.data.items).toEqual([]);
   expect(unavailable.data.skipped).toBe(1);
 });
+
+it('blocks anonymous order submission while keeping public quotes available', async () => {
+  const before = await fixture.db.order.count();
+  expect((await request('POST', '/orders', undefined, { guestCustomerInfo: { phone: '0599999000' } })).status).toBe(401);
+  expect((await request('POST', '/orders/checkout', undefined, {})).status).toBe(401);
+  expect(await fixture.db.order.count()).toBe(before);
+});
+
+it('prices from zones only when enabled and snapshots the captain share', async () => {
+  await fixture.db.product.create({ data: { id: 'pricing-product', storeId: 'store', nameAr: 'تجربة تسعير', price: 10, isAvailable: true } });
+  const body = { storeId: 'store', items: [{ productId: 'pricing-product', quantity: 1 }], deliveryZoneId: 'zone', customerAddressText: 'عنوان اختبار بجانب المتجر' };
+  const enabled = await request('PATCH', '/admin/settings/pricing', 'ADMIN', { autoPricingEnabled: true, baseDeliveryFee: 3, captainSharePercentage: 75 });
+  expect(enabled.status).toBe(200);
+  const quote = await request<import('@samou-go/shared-types').OrderQuote>('POST', '/orders/quote', undefined, body);
+  expect(quote.data).toMatchObject({ autoPricingEnabled: true, deliveryFee: 7, totalAmount: 17 });
+  const fallback = await request<import('@samou-go/shared-types').OrderQuote>('POST', '/orders/quote', undefined, { ...body, deliveryZoneId: undefined });
+  expect(fallback.data.deliveryFee).toBe(3);
+  const created = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', body);
+  expect(created.status, JSON.stringify(created.error)).toBe(201);
+  const saved = await fixture.db.order.findUniqueOrThrow({ where: { id: created.data.id } });
+  expect(saved.autoPriced).toBe(true);
+  expect(Number(saved.captainSharePercentage)).toBe(75);
+  expect((await request('PATCH', `/orders/${saved.id}/set-delivery-fee`, 'ADMIN', { deliveryFee: 99 })).status).toBe(409);
+  await fixture.db.store.create({ data: { id: 'pricing-store-two', managerId: 'STORE_MANAGER', nameAr: 'Pricing second store', nameEn: 'Pricing second store', phone: '0599991098', isApproved: true } });
+  await fixture.db.product.create({ data: { id: 'pricing-product-two', storeId: 'pricing-store-two', nameAr: 'Second item', price: 10 } });
+  for (const fulfillmentType of ['DELIVERY', 'PICKUP']) {
+    const checkout = await request<{ orders: OrderDetail[] }>('POST', '/orders/checkout', 'CUSTOMER', {
+      customerAddressText: body.customerAddressText, deliveryZoneId: 'zone',
+      stores: [{ storeId: 'store', items: body.items, fulfillmentType }, { storeId: 'pricing-store-two', items: [{ productId: 'pricing-product-two', quantity: 1 }], fulfillmentType }],
+    });
+    expect(checkout.status, JSON.stringify(checkout.error)).toBe(201);
+    expect(checkout.data.orders[0]?.deliveryFee).toBe(fulfillmentType === 'PICKUP' ? 0 : 7);
+    expect(checkout.data.orders[0]?.totalAmount).toBe(fulfillmentType === 'PICKUP' ? 10 : 17);
+  }
+
+  await request('PATCH', '/admin/settings/pricing', 'ADMIN', { autoPricingEnabled: false, captainSharePercentage: 10 });
+  const off = await request<import('@samou-go/shared-types').OrderQuote>('POST', '/orders/quote', undefined, { ...body, deliveryZoneId: undefined });
+  expect(off.data.autoPricingEnabled).toBe(false);
+  expect(off.data.deliveryFee).toBe(0);
+  expect(Number((await fixture.db.order.findUniqueOrThrow({ where: { id: saved.id } })).captainSharePercentage)).toBe(75);
+  expect((await request('PATCH', '/admin/settings/pricing', 'CUSTOMER', { autoPricingEnabled: true })).status).toBe(403);
+  expect((await request('PATCH', '/admin/settings/pricing', 'ADMIN', { captainSharePercentage: 101 })).status).toBe(422);
+});

@@ -1,3 +1,4 @@
+import { FEATURE_FLAGS } from './config/features';
 /**
  * Samou' Go — runtime feature flags, resolved from Vite env at build time.
  *
@@ -17,6 +18,6 @@ const envTrue = (value: unknown): boolean =>
  * location" buttons). Underlying hooks/services are untouched — they simply
  * stop being rendered when this is falsy.
  */
-export const ENABLE_LOCATION: boolean = envTrue(
+export const ENABLE_LOCATION: boolean = FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && envTrue(
   import.meta.env.VITE_ENABLE_LOCATION,
 );

@@ -1,3 +1,4 @@
+import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
  * Samou' Go — store profile management panel.
  *
@@ -134,6 +135,7 @@ export function StoreProfilePanel({ storeId }: Props) {
   };
 
   const captureStoreLocation = () => {
+    if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING) return;
     if (locBusy || !('geolocation' in navigator)) {
       setLocMessage({ ar: 'تحديد الموقع غير مدعوم', en: 'Geolocation is unavailable' });
       return;
@@ -471,6 +473,7 @@ export function StoreProfilePanel({ storeId }: Props) {
           </div>
 
           {/* Store location */}
+          {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <>
           <div className="rounded-xl border border-line bg-canvas p-3">
             <span className="mb-2 flex items-center gap-1.5 text-xs font-bold text-ink">
               <MapPin size={13} className="text-brand" />
@@ -511,6 +514,7 @@ export function StoreProfilePanel({ storeId }: Props) {
             )}
           </div>
 
+          </>}
           {/* Error */}
           {saveError && (
             <p className="flex items-center gap-1.5 rounded-xl bg-danger-tint px-3 py-2 text-xs font-semibold text-danger-ink">

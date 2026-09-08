@@ -24,3 +24,5 @@ export * from './useToast';
 export * from './roles';
 export * from './realtime';
 export * from './sso';
+
+export * from './config/features';

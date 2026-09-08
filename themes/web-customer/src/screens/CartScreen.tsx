@@ -1,3 +1,7 @@
+import { AutomaticPricingPreview } from '@/components/AutomaticPricingPreview';
+import { useState } from 'react';
+import { CheckoutAuthGate } from '@/components/CheckoutAuthGate';
+import { useAuth } from '@/hooks/useApi';
 import { normalizeSelectedOptions } from '@samou-go/shared-types';
 import { RollingAmount } from '@/components/MotionFeedback';
 /**
@@ -21,17 +25,20 @@ import { usePlatformSettings } from '@/hooks/useApi';
 
 export function CartScreen() {
   const cart = useCart();
+  const auth = useAuth();
+  const [authGate, setAuthGate] = useState(false);
   const navigate = useNavigate();
   const { t, language } = useLanguage();
   const isArabic = language === 'ar';
 
   // Estimate with the server's live tariff, falling back to the vendored copy
   // only while the meta call is in flight — same pattern as the home badge.
-  const platformSettings = usePlatformSettings();
+  const platformSettings = usePlatformSettings({ pollMs: 15000 });
 
 
   return (
     <PageTransition>
+      {authGate && <CheckoutAuthGate onClose={() => setAuthGate(false)} onSuccess={() => { setAuthGate(false); navigate('/checkout'); }} />}
       <main className="min-h-screen bg-canvas pb-28 text-ink">
         <header className="safe-top bg-brand px-5 pb-4 pt-4 text-white">
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
@@ -172,6 +179,7 @@ export function CartScreen() {
                   <span>المجموع الفرعي</span>
                   <span dir="ltr" className="font-bold text-ink"><RollingAmount value={cart.subtotal} /></span>
                 </div>
+                {!platformSettings.data?.autoPricingEnabled && <>
                 <div className="mt-2 flex justify-between text-xs text-ink-muted">
                   <span>{deliveryFeeLabel(language)}</span>
                   <span dir="ltr" className="font-bold text-brand-dark">
@@ -181,15 +189,17 @@ export function CartScreen() {
                 <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
                   {t(DRIVER_FEE_NOTICE.ar, DRIVER_FEE_NOTICE.en)}
                 </p>
+                </>}
                 <div className="mt-3 flex justify-between border-t border-line pt-3 text-sm">
                   <span className="font-extrabold">المجموع الفرعي</span>
                   <span dir="ltr" className="font-extrabold text-brand-dark"><RollingAmount value={cart.subtotal} /></span>
                 </div>
               </div>
 
+              <AutomaticPricingPreview />
               <button
                 type="button"
-                onClick={() => navigate('/checkout')}
+                onClick={() => auth.user ? navigate('/checkout') : setAuthGate(true)}
                 className="btn-primary mt-5 w-full justify-center"
               >
                 {t('إتمام الطلب', 'Checkout')}

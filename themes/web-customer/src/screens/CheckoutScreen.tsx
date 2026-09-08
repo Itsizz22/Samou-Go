@@ -1,3 +1,6 @@
+import { AutomaticPricingPreview } from '@/components/AutomaticPricingPreview';
+import { CheckoutAuthGate } from '@/components/CheckoutAuthGate';
+import { useDeliveryZone } from '@/components/ZoneProvider';
 import { celebrateOrder } from '@/lib/sensory';
 import { RollingAmount } from '@/components/MotionFeedback';
 /**
@@ -28,12 +31,11 @@ import {
   Ticket,
 } from 'lucide-react';
 import type { ApiError } from '@samou-go/api-client';
-import { createOrder, checkoutOrders, quoteOrder, getPlatformSettings } from '@/hooks/useApi';
+import { createOrder, checkoutOrders, quoteOrder, usePlatformSettings } from '@/hooks/useApi';
 import { OrderSuccess, Button, useLanguage, VoiceRecorder, useNetworkStatus } from '@samou-go/ui';
 import { useCart } from '@/components/CartProvider';
 import { MapPicker } from '@/components/MapPicker';
-import { CustomerAuthGate } from '@/components/CustomerAuthGate';
-import { useAuth, ENABLE_LOCATION, listActiveDeliveryZones } from '@/hooks/useApi';
+import { useAuth, ENABLE_LOCATION } from '@/hooks/useApi';
 import { formatCurrency, DRIVER_FEE_LABEL, DRIVER_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
 import { hapticError, hapticSuccess, hapticConfirm } from '@/lib/haptics';
 import {
@@ -47,7 +49,7 @@ import {
   type SavedAddress,
 } from '@/lib/address-book';
 import { PageTransition } from '@/components/PageTransition';
-import type { DeliveryRegion, DeliveryZone, OrderDetail } from '@samou-go/shared-types';
+import type { DeliveryRegion, OrderDetail } from '@samou-go/shared-types';
 import type { CheckoutResult } from '@samou-go/api-client';
 
 /**
@@ -73,6 +75,9 @@ export function CheckoutScreen() {
   const celebrationCleanup = useRef<(() => void) | null>(null);
   useEffect(() => () => celebrationCleanup.current?.(), []);
   const auth = useAuth();
+  const pricingSettings = usePlatformSettings({ pollMs: 15000 });
+  const zoneContext = useDeliveryZone();
+  const [authGate, setAuthGate] = useState(false);
   const cart = useCart();
   const navigate = useNavigate();
   const { t, language } = useLanguage();
@@ -84,10 +89,8 @@ export function CheckoutScreen() {
   const [addressText, setAddressText] = useState('');
   const [addressNote, setAddressNote] = useState('');
   const [deliveryRegion, setDeliveryRegion] = useState<DeliveryRegion>('central');
-  const [zones, setZones] = useState<DeliveryZone[]>([]);
-  const [zoneId, setZoneId] = useState('');
-  const [guestPhone, setGuestPhone] = useState('');
-  const [guestName, setGuestName] = useState('');
+  const zones = zoneContext.zones;
+  const zoneId = zoneContext.activeZone?.id ?? '';
   const [orderNote, setOrderNote] = useState('');
   const [saveForNextTime, setSaveForNextTime] = useState(true);
   /** Home / Work / Other — persisted with the saved address, shown as a chip. */
@@ -102,6 +105,7 @@ export function CheckoutScreen() {
   const [fulfillmentType, setFulfillmentType] = useState<'DELIVERY' | 'PICKUP'>(() => cart.storeGroups[0]?.fulfillmentType ?? 'DELIVERY');
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [quote, setQuote] = useState<{
+    autoPricingEnabled?: boolean;
     subtotal: number;
     deliveryFee: number;
     discount: number;
@@ -139,6 +143,8 @@ export function CheckoutScreen() {
   const items = useMemo(
     () => (cart?.lines ?? []).map((line) => ({
       productId: line.productId,
+      isOfferItem: line.isOfferItem,
+      offerId: line.offerId,
       quantity: line.quantity,
       ...((line.note ?? '').trim() ? { note: (line.note ?? '').trim() } : {}),
       // Pass DB-backed selected options to the server for validation.
@@ -167,27 +173,18 @@ export function CheckoutScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [(saved ?? []).length]);
 
-  // Fetch delivery zone setting to control region selector visibility.
   useEffect(() => {
-    let cancelled = false;
-    getPlatformSettings()
-      .then((settings) => {
-        if (!cancelled) setZonesEnabled(settings.enableDeliveryZones);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
+    if (pricingSettings.data) setZonesEnabled(pricingSettings.data.enableDeliveryZones);
+  }, [pricingSettings.data]);
 
   // Live quote — re-priced whenever the basket, the voucher, or the session
   // changes shape. The voucher is only sent to the server once the customer
   // presses "apply" (`appliedVoucher`), never on every keystroke.
   useEffect(() => {
-    listActiveDeliveryZones().then(setZones).catch(() => setZones([]));
     try {
       const session = JSON.parse(window.localStorage.getItem('samou_customer_session') ?? '{}') as { phone?: string; name?: string; zoneId?: string; addressNote?: string };
-      setGuestPhone(session.phone ?? '');
-      setGuestName(session.name ?? '');
-      setZoneId(session.zoneId ?? '');
+
+
       if (session.addressNote) setAddressNote(session.addressNote);
     } catch { /* local storage is optional */ }
   }, []);
@@ -203,7 +200,7 @@ export function CheckoutScreen() {
     quoteOrder(
       {
         storeId: cart.storeId,
-        items,
+        items: cart.isMultiStore ? items.filter(item => cart.storeGroups[0]?.lines.some(line => line.productId === item.productId)) : items,
         voucherCode: appliedVoucher || undefined,
         deliveryRegion,
         deliveryZoneId: zoneId || undefined,
@@ -213,6 +210,7 @@ export function CheckoutScreen() {
       .then((result) => {
         if (cancelled) return;
         setQuote({
+          autoPricingEnabled: result.autoPricingEnabled,
           subtotal: result.subtotal,
           deliveryFee: result.deliveryFee,
           discount: result.discount,
@@ -233,7 +231,7 @@ export function CheckoutScreen() {
       cancelled = true;
       controller.abort();
     };
-  }, [cart.storeId, items, appliedVoucher, deliveryRegion, zoneId, auth.user?.id, quoteRevision]);
+  }, [cart.storeId, items, appliedVoucher, deliveryRegion, zoneId, auth.user?.id, quoteRevision, pricingSettings.data?.updatedAt]);
 
   if (!auth.ready) {
     return (
@@ -245,14 +243,7 @@ export function CheckoutScreen() {
     );
   }
 
-  // Orders are personal — an anonymous visitor must sign in before checkout.
-  if (!auth.user && false) {
-    return (
-      <PageTransition>
-        <CustomerAuthGate auth={auth} reasonAr="سجّل الدخول لإتمام طلبك" reasonEn="Sign in to place your order" />
-      </PageTransition>
-    );
-  }
+
 
   const useSavedAddress = saved.find((entry) => entry.id === selectedAddressId) ?? null;
 
@@ -331,6 +322,7 @@ export function CheckoutScreen() {
     // Double-tap guard: only one placement in flight, ever. The latch lives in
     // a try/finally so EVERY exit path — validation short-circuits included —
     // releases it; a leak here would permanently block further orders.
+    if (!auth.user) { setAuthGate(true); return; }
     if (submittingRef.current) return;
     submittingRef.current = true;
     void hapticConfirm();
@@ -347,17 +339,11 @@ export function CheckoutScreen() {
         await hapticError();
         return;
       }
-      if (!auth.user && !guestPhone.trim()) {
-        setFieldError('رقم الهاتف مطلوب لإتمام الطلب');
-        return;
-      }
       if (fulfillmentType === 'DELIVERY' && !zoneId) {
         setFieldError('يرجى اختيار منطقة التوصيل');
         return;
       }
-      if (!auth.user) {
-        window.localStorage.setItem('samou_customer_session', JSON.stringify({ phone: guestPhone.trim(), name: guestName.trim(), zoneId, addressNote: addressNote.trim() }));
-      }
+
       if (!cart?.storeId || (items ?? []).length === 0) {
         setSubmitError(
           Object.assign(new Error(t('سلتك فارغة', 'Your cart is empty')), {
@@ -412,6 +398,8 @@ export function CheckoutScreen() {
           storeId: group.storeId,
           items: group.lines.map(line => ({
             productId: line.productId,
+      isOfferItem: line.isOfferItem,
+      offerId: line.offerId,
             quantity: line.quantity,
             ...((line.note ?? '').trim() ? { note: (line.note ?? '').trim() } : {}),
             ...(line.selectedOptions && line.selectedOptions.length > 0
@@ -422,6 +410,7 @@ export function CheckoutScreen() {
         }));
         const result = await checkoutOrders({
           stores: storeGroups,
+          deliveryZoneId: zoneId || undefined,
           customerAddressText: finalText,
           deliveryRegion,
           addressNote: addressNote.trim() || useSavedAddress?.addressNote || undefined,
@@ -451,7 +440,7 @@ export function CheckoutScreen() {
           voucherCode: appliedVoucher || undefined,
           fulfillmentType,
           deliveryZoneId: fulfillmentType === 'DELIVERY' ? zoneId || undefined : undefined,
-          ...(!auth.user ? { guestCustomerInfo: { phone: guestPhone.trim(), name: guestName.trim() || undefined, zoneId: zoneId || undefined } } : {}),
+
           ...(finalVoiceNoteUrl ? { voiceNoteUrl: finalVoiceNoteUrl, voiceNoteDuration } : {}),
         });
         await hapticSuccess();
@@ -481,6 +470,7 @@ export function CheckoutScreen() {
 
   return (
     <PageTransition>
+      {authGate && <CheckoutAuthGate onClose={() => setAuthGate(false)} onSuccess={() => setAuthGate(false)} />}
       <main className="min-h-screen bg-canvas pb-16 text-ink">
         <header className="safe-top bg-brand px-5 pb-4 pt-4 text-white">
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
@@ -610,16 +600,11 @@ export function CheckoutScreen() {
                   className="input-field mt-1.5 w-full"
                 />
               </label>
-              {!auth.user && (
-                <div className="grid grid-cols-1 gap-3 rounded-xl bg-brand-tint p-3">
-                  <label className="block"><span className="text-[11px] font-bold text-ink-muted">رقم الهاتف</span><input value={guestPhone} onChange={(event) => setGuestPhone(event.target.value)} inputMode="tel" className="input-field mt-1.5 w-full" required /></label>
-                  <label className="block"><span className="text-[11px] font-bold text-ink-muted">الاسم</span><input value={guestName} onChange={(event) => setGuestName(event.target.value)} className="input-field mt-1.5 w-full" /></label>
-                </div>
-              )}
+
               {fulfillmentType === 'DELIVERY' && zones.length > 0 && (
                 <label className="block">
                   <span className="text-[11px] font-bold text-ink-muted">المنطقة</span>
-                  <select value={zoneId} onChange={(event) => setZoneId(event.target.value)} className="input-field mt-1.5 w-full">
+                  <select value={zoneId} onChange={(event) => zoneContext.selectZone(event.target.value)} className="input-field mt-1.5 w-full">
                     <option value="">اختر المنطقة</option>
                     {zones.map((zone) => <option key={zone.id} value={zone.id}>{zone.nameAr}</option>)}
                   </select>
@@ -928,7 +913,9 @@ export function CheckoutScreen() {
                 </div>
               </div>
             ))}
+            <AutomaticPricingPreview />
             {/* Split-delivery notice for multi-store orders */}
+            {!quote?.autoPricingEnabled && <>
             <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-center">
               <p className="text-[11px] font-semibold text-amber-800">
                 {t(
@@ -944,6 +931,7 @@ export function CheckoutScreen() {
               </div>
               <p className="mt-1 text-[10px] text-ink-muted text-center">{t('رسوم التوصيل تُحدّد بواسطة السائق', 'Delivery fee set by driver')}</p>
             </div>
+            </>}
           </section>
           ) : (
           <section className="rounded-2xl bg-surface p-4 shadow-card">
@@ -962,10 +950,10 @@ export function CheckoutScreen() {
                   <div className="flex justify-between text-ink-muted">
                     <span>{fulfillmentType === 'PICKUP' ? t('رسوم التوصيل', 'Delivery fee') : deliveryFeeLabel(language)}</span>
                     <span dir="ltr" className="font-bold text-brand-dark">
-                      {fulfillmentType === 'PICKUP' ? '0 ₪' : (isArabic ? DRIVER_FEE_LABEL.ar : DRIVER_FEE_LABEL.en)}
+                      {fulfillmentType === 'PICKUP' ? formatCurrency(0) : quote.autoPricingEnabled ? formatCurrency(quote.deliveryFee) : (isArabic ? DRIVER_FEE_LABEL.ar : DRIVER_FEE_LABEL.en)}
                     </span>
                   </div>
-                  {fulfillmentType === 'DELIVERY' && (
+                  {fulfillmentType === 'DELIVERY' && !quote.autoPricingEnabled && (
                   <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
                     {t(DRIVER_FEE_NOTICE.ar, DRIVER_FEE_NOTICE.en)}
                   </p>
@@ -979,7 +967,7 @@ export function CheckoutScreen() {
                 </div>
                 <div className="mt-2 flex justify-between border-t border-line pt-2.5 text-sm">
                   <span className="font-extrabold">المجموع الفرعي</span>
-                  <span dir="ltr" className="font-extrabold text-brand-dark"><RollingAmount value={quote.subtotal} /></span>
+                  <span dir="ltr" className="font-extrabold text-brand-dark"><RollingAmount value={quote.autoPricingEnabled ? (fulfillmentType === 'PICKUP' ? quote.subtotal - quote.discount : quote.totalAmount) : quote.subtotal - quote.discount} /></span>
                 </div>
               </>
             ) : quoteError ? (

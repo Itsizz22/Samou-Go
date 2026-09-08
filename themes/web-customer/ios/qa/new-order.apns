@@ -1,0 +1,12 @@
+{
+  "Simulator Target Bundle": "com.samougo.customer",
+  "aps": {
+    "alert": { "title": "طلب جديد للمتجر", "body": "لديك طلب جديد في متجر الاختبار\nرقم الطلب: SQ-IOS-QA\nافتح الطلب لمراجعة التفاصيل وتأكيد القبول." },
+    "sound": "default",
+    "category": "SAMOU_NEW_ORDER"
+  },
+  "type": "NEW_ORDER_ALERT",
+  "orderId": "qa-ios-local",
+  "title": "طلب جديد للمتجر",
+  "body": "لديك طلب جديد في متجر الاختبار\nرقم الطلب: SQ-IOS-QA"
+}

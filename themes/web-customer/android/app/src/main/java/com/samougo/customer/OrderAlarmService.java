@@ -32,13 +32,17 @@ import android.util.Log;
 public class OrderAlarmService extends Service {
 
     private static final String TAG = "OrderAlarmService";
-    private static final String CHANNEL_ID = "orders_high_priority";
+    private static final String CHANNEL_ID = "order_alarm_playback";
     private static final int FOREGROUND_NOTIFICATION_ID = 9999;
     private static final long MAX_RING_DURATION_MS = 60_000; // 60 seconds
 
     private MediaPlayer mediaPlayer;
     private PowerManager.WakeLock wakeLock;
     private boolean isPlaying = false;
+    private String orderId;
+    private String title;
+    private String body;
+    private final android.os.Handler timeoutHandler = new android.os.Handler(android.os.Looper.getMainLooper());
 
     /** Timeout handler — stops the alarm after MAX_RING_DURATION_MS. */
     private final Runnable timeoutRunnable = () -> {
@@ -54,11 +58,17 @@ public class OrderAlarmService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.i(TAG, "OrderAlarmService started");
+        orderId = intent != null ? intent.getStringExtra("orderId") : null;
+        title = intent != null ? intent.getStringExtra("title") : null;
+        body = intent != null ? intent.getStringExtra("body") : null;
+        if (title == null || title.trim().isEmpty()) title = "طلب جديد";
+        if (body == null || body.trim().isEmpty()) body = "لديك طلب جديد بانتظار المراجعة. افتح الطلب للاطلاع على التفاصيل.";
+        timeoutHandler.removeCallbacks(timeoutRunnable);
 
         // Acquire a partial wake lock so the CPU stays alive to play audio
         // even if the screen is off and the device tries to sleep.
         PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
-        if (pm != null) {
+        if (pm != null && (wakeLock == null || !wakeLock.isHeld())) {
             wakeLock = pm.newWakeLock(
                 PowerManager.PARTIAL_WAKE_LOCK,
                 "SamouGo::OrderAlarm"
@@ -73,7 +83,7 @@ public class OrderAlarmService extends Service {
         startAlarm();
 
         // Auto-stop after MAX_RING_DURATION_MS
-        new android.os.Handler(getMainLooper()).postDelayed(timeoutRunnable, MAX_RING_DURATION_MS);
+        timeoutHandler.postDelayed(timeoutRunnable, MAX_RING_DURATION_MS);
 
         // If the system kills the service, don't restart it
         return START_NOT_STICKY;
@@ -83,7 +93,13 @@ public class OrderAlarmService extends Service {
     public void onDestroy() {
         Log.i(TAG, "OrderAlarmService destroyed");
         stopAlarm();
+        sendBroadcast(new Intent(OrderAlertActivity.ACTION_CLOSED).setPackage(getPackageName()));
         super.onDestroy();
+    }
+
+    @Override
+    public void onTimeout(int startId) {
+        stopSelf();
     }
 
     /** Start playing the alarm ringtone on loop. */
@@ -98,7 +114,7 @@ public class OrderAlarmService extends Service {
             mediaPlayer = new MediaPlayer();
             mediaPlayer.setAudioAttributes(
                 new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM) // USAGE_ALARM bypasses Do Not Disturb
+                    .setUsage(AudioAttributes.USAGE_ALARM) // Respect Android alarm audio policy
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
             );
@@ -136,7 +152,7 @@ public class OrderAlarmService extends Service {
         }
 
         // Remove the timeout callback
-        new android.os.Handler(getMainLooper()).removeCallbacks(timeoutRunnable);
+        timeoutHandler.removeCallbacks(timeoutRunnable);
 
         // Cancel the foreground notification
         NotificationManager nm = getSystemService(NotificationManager.class);
@@ -152,12 +168,23 @@ public class OrderAlarmService extends Service {
             .getLaunchIntentForPackage(getPackageName());
         if (launchIntent != null) {
             launchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            if (orderId != null) {
+                launchIntent.putExtra("orderId", orderId);
+                launchIntent.putExtra("google.message_id", "alarm-" + orderId);
+            }
         }
         PendingIntent pendingIntent = PendingIntent.getActivity(
-            this, 0, launchIntent,
+            this, orderId != null ? orderId.hashCode() : 0, launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
+        // The incoming-order notification owns heads-up/full-screen presentation.
+        // Keep the audio service visible without posting a second interrupting banner.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "رنين الطلبات النشط", NotificationManager.IMPORTANCE_LOW);
+            channel.setSound(null, null);
+            getSystemService(NotificationManager.class).createNotificationChannel(channel);
+        }
         Notification.Builder builder;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             builder = new Notification.Builder(this, CHANNEL_ID);
@@ -165,13 +192,20 @@ public class OrderAlarmService extends Service {
             builder = new Notification.Builder(this);
         }
 
+        Intent muteIntent = new Intent(this, OrderAlarmReceiver.class);
+        muteIntent.setAction(OrderAlarmReceiver.ACTION_STOP_ALARM);
+        if (orderId != null) muteIntent.putExtra("notificationId", orderId.hashCode());
+        PendingIntent muteAction = PendingIntent.getBroadcast(this, FOREGROUND_NOTIFICATION_ID, muteIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return builder
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setContentTitle("🚫 طلب جديد —ật/order alert")
-            .setContentText("افتح التطبيق لعرض الطلب / Open app to view order")
+            .setSmallIcon(R.drawable.ic_order_notification)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(new Notification.BigTextStyle().bigText(body))
             .setOngoing(true) // Cannot be swiped away
-            .setFullScreenIntent(pendingIntent, false)
             .setContentIntent(pendingIntent)
+            .addAction(android.R.drawable.ic_menu_view, "عرض الطلب", pendingIntent)
+            .addAction(android.R.drawable.ic_lock_silent_mode, "تجاهل / كتم", muteAction)
             .setAutoCancel(false)
             .build();
     }

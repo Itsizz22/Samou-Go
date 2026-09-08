@@ -864,6 +864,7 @@ export interface StoreCheckoutGroup {
 }
 
 export interface CheckoutInput {
+  deliveryZoneId?: string;
   cartCheckoutId?: string;
   stores: StoreCheckoutGroup[];
   customerAddressText: string;
@@ -2172,4 +2173,8 @@ export function getNewProducts(limit = 12, signal?: AbortSignal): Promise<import
 
 export function searchProducts(search = '', page = 1, signal?: AbortSignal): Promise<{ items: import('@samou-go/shared-types').PopularProduct[]; total: number; page: number; pageSize: number }> {
   return request('GET', '/stores/search-products', { query: { search, page: String(page) }, signal });
+}
+
+export function updatePricingSettings(input: Pick<UpdatePlatformSettingsInput, 'autoPricingEnabled' | 'baseDeliveryFee' | 'perKmFee' | 'captainSharePercentage'>): Promise<PlatformSettings> {
+  return request<PlatformSettings>("PATCH", "/admin/settings/pricing", { body: input, auth: true });
 }

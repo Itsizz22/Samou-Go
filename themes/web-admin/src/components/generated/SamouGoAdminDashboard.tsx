@@ -1,3 +1,5 @@
+import { PricingSettings } from '../PricingSettings';
+import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
  * Samou' Go — Admin Dashboard.
  *
@@ -391,6 +393,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
       onRefresh={() => undefined}
     >
       <div className="grid gap-4 p-5 lg:grid-cols-2">
+        <PricingSettings />
         {/* ── Card Group A: Feature Toggles ──────────────────────────────────── */}
         <section className="rounded-2xl border border-line bg-surface p-4">
           <h2 className="text-sm font-extrabold">{t('مفاتيح الميزات التشغيلية', 'Operational Feature Toggles')}</h2>
@@ -673,12 +676,12 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
             </p>
           </div>
           <div className="h-80">
-            <LeafletMap
+            {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && (<LeafletMap
               center={[31.3971, 35.0716]}
               zoom={13}
               className="h-full w-full z-0"
               markers={[{ position: [31.3971, 35.0716], label: "Samou Quick — منطقة التشغيل" }]}
-            />
+            />)}
           </div>
         </section>
         )}

@@ -35,3 +35,5 @@ export { BrandLogo } from './BrandLogo';
 export { WhatsAppFAB, type WhatsAppFABProps } from './WhatsAppFAB';
 export { TermsModal, type TermsModalProps } from './TermsModal';
 export { ImageWithFallback } from './ImageWithFallback';
+
+export { ZoneLandmarkTrackingView } from './ZoneLandmarkTrackingView';

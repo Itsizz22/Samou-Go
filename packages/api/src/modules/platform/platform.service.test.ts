@@ -472,6 +472,12 @@ describe('creditDeliveredOrder — atomic credits with ledger entries', () => {
     expect(h.state.ledgerEntries).toHaveLength(2);
   });
 
+  it('uses the automatic-pricing percentage saved on the order', async () => {
+    h.tx.platformSettings.findUnique.mockResolvedValueOnce({ captainDeliveryRate: '5.00', storeCommissionRate: '0.10' });
+    await creditDeliveredOrder(tx, { ...order, deliveryFee: '8.00', autoPriced: true, captainSharePercentage: 75 });
+    expect(h.state.wallets.find(w => w.userId === 'captain-1')!.balance).toBe(6);
+  });
+
   it('pays the captain the platform rate even when the delivery fee is zero', async () => {
     (h.tx.platformSettings.findUnique as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       captainDeliveryRate: '5.00',

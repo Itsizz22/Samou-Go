@@ -1,3 +1,4 @@
+import { FEATURE_FLAGS } from '@samou-go/api-client';
 import { useEffect, useState } from 'react';
 import { Crosshair, Eye, EyeOff, Loader2, MapPin } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
@@ -206,6 +207,7 @@ export function RegisterScreen() {
   };
 
   const shareCurrentLocation = () => {
+    if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING) return;
     if (geoPending || !('geolocation' in navigator)) return;
     setGeoPending(true);
     setError(null);

@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.media.AudioAttributes;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
 import android.util.Log;
 
 import com.getcapacitor.BridgeActivity;
@@ -50,6 +51,11 @@ public class MainActivity extends BridgeActivity {
 
         String orderId = intent.getStringExtra("orderId");
         if (orderId != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                setTurnScreenOn(true);
+            } else {
+                getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+            }
             Log.i(TAG, "Notification tap with orderId: " + orderId);
             // App is now in foreground — stop any playing alarm
             OrderAlarmReceiver.stopAlarm(this);
@@ -57,17 +63,20 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void createNotificationChannels() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (nm == null) return;
 
         // Default order channel — normal priority, default device sound.
         NotificationChannel ordersChannel = new NotificationChannel(
             CHANNEL_ORDERS,
-            "Orders",
+            "تحديثات الطلبات",
             NotificationManager.IMPORTANCE_DEFAULT
         );
         ordersChannel.setDescription("New order notifications for stores and captains");
         nm.createNotificationChannel(ordersChannel);
+        nm.createNotificationChannel(new NotificationChannel(
+            "samou-go-offers", "العروض", NotificationManager.IMPORTANCE_DEFAULT));
 
         // High-priority order alarm — IMPORTANCE_HIGH means heads-up + lockscreen + vibration.
         // Custom sound: the looping order_alarm ringtone.
@@ -81,7 +90,7 @@ public class MainActivity extends BridgeActivity {
 
         NotificationChannel highChannel = new NotificationChannel(
             CHANNEL_ORDERS_HIGH,
-            "Order Alerts",
+            "تنبيهات الطلبات",
             NotificationManager.IMPORTANCE_HIGH
         );
         highChannel.setDescription("High-priority order alerts with looping alarm ringtone");
@@ -115,6 +124,8 @@ public class MainActivity extends BridgeActivity {
                 "طلبات جديدة (صامت)",
                 NotificationManager.IMPORTANCE_HIGH
             );
+            silentChannel.setSound(null, null);
+            silentChannel.enableVibration(false);
             silentChannel.setDescription("إشعارات الطلبات الجديدة بدون صوت");
             silentChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             nm.createNotificationChannel(silentChannel);

@@ -164,6 +164,7 @@ const storeCheckoutItemSchema = z.object({
 });
 
 export const checkoutSchema = z.object({
+  deliveryZoneId: z.string().min(1).optional(),
   cartCheckoutId: z.string().min(1).optional(),
   stores: z
     .array(storeCheckoutItemSchema)

@@ -1,3 +1,5 @@
+import { IncomingOrderAlert } from './components/IncomingOrderAlert';
+import { ZoneProvider } from './components/ZoneProvider';
 import { AppErrorBoundary, LanguageProvider, OfflineBanner, bootstrapApp } from '@samou-go/ui';
 import { createRoot, type Root } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
@@ -74,11 +76,11 @@ root.render(
     <LanguageProvider>
       <BrowserRouter>
         <AuthProvider>
-          <CartProvider>
+          <ZoneProvider><CartProvider>
             <FavoritesProvider>
-              <App />
+              <App /><IncomingOrderAlert />
             </FavoritesProvider>
-          </CartProvider>
+          </CartProvider></ZoneProvider>
         </AuthProvider>
       </BrowserRouter>
     </LanguageProvider>

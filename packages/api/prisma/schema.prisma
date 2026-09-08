@@ -309,6 +309,9 @@ model Product {
 /// `deliveryFee` always comes from `calculateDeliveryFee(itemCount)` in
 /// @samou-go/shared-types, never from the client.
 model Order {
+  autoPriced Boolean @default(false)
+  captainSharePercentage Decimal @default(100) @db.Decimal(10, 2)
+
   id          String @id @default(cuid())
   /// Human-facing reference shown to the customer: `SG-260728-0042`.
   orderNumber String @unique @db.VarChar(24)
@@ -707,6 +710,11 @@ model Settlement {
 
 /// Singleton row (`id = 'platform'`) holding the platform-wide economy knobs.
 model PlatformSettings {
+  autoPricingEnabled Boolean @default(false)
+  baseDeliveryFee Decimal @default(0) @db.Decimal(10, 2)
+  perKmFee Decimal @default(0) @db.Decimal(10, 2)
+  captainSharePercentage Decimal @default(100) @db.Decimal(10, 2)
+
   id String @id
   /// Flat captain payout per delivered order, on top of the delivery fee.
   captainDeliveryRate Decimal @default(0) @db.Decimal(10, 2)

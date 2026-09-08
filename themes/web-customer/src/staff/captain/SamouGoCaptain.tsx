@@ -1,3 +1,5 @@
+import { ZoneLandmarkTrackingView } from '@samou-go/ui';
+import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
  * Samou' Go — delivery captain dashboard.
  *
@@ -186,7 +188,7 @@ export function SamouGoCaptain() {
   const activeOrderDetail = useOrder(activeItems[0]?.id, { enabled: Boolean(auth.user) && isCaptain, pollMs: 10_000 });
 
   useEffect(() => {
-    if (!isCaptain || !activeItems[0]?.id || !navigator.geolocation) return;
+    if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING || !isCaptain || !activeItems[0]?.id || !navigator.geolocation) return;
     const socket = connectRealtime();
     const orderId = activeItems[0].id;
     const watchId = navigator.geolocation.watchPosition((position) => {
@@ -826,7 +828,7 @@ export function SamouGoCaptain() {
                           </div>
                         )}
                       {/* Delivery zone picker */}
-                      {zones.length > 0 && (
+                      {!order.autoPriced && zones.length > 0 && (
                         <OrderZonePicker
                           zones={zones}
                           orderId={order.id}
@@ -839,7 +841,7 @@ export function SamouGoCaptain() {
                         />
                       )}
                       <div className="sq-delivery-actions mt-4 grid grid-cols-2 gap-2">
-                        <a
+                        {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && (<a
                           href={activeOrderDetail.data?.store ? mapsDirections({
                             latitude: activeOrderDetail.data.store.latitude,
                             longitude: activeOrderDetail.data.store.longitude,
@@ -853,8 +855,8 @@ export function SamouGoCaptain() {
                         >
                           <StoreIcon size={15} />
                           <span>{t('المتجر', 'Store')}</span>
-                        </a>
-                        <a
+                        </a>)}
+                        {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && (<a
                           href={activeOrderDetail.data ? mapsDirectionsToAddress(activeOrderDetail.data.customerAddressText) : undefined}
                           target="_blank"
                           rel="noreferrer"
@@ -864,7 +866,7 @@ export function SamouGoCaptain() {
                         >
                           <Navigation size={15} />
                           <span>{t('العميل', 'Customer')}</span>
-                        </a>
+                        </a>)}
                         {activeOrderDetail.data?.customer?.phone && (
                           <a
                             href={formatWhatsAppLink(
@@ -936,7 +938,8 @@ export function SamouGoCaptain() {
 
             {activeItems.length > 0 && activeOrderDetail.data ? (
               <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
-                {ENABLE_LOCATION && activeOrderDetail.data.store.latitude !== null && activeOrderDetail.data.store.longitude !== null && <LeafletMap center={[activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude]} markers={[{ position: [activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude], label: activeOrderDetail.data.store.nameAr }]} />}
+                {!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <ZoneLandmarkTrackingView order={activeOrderDetail.data} contactPhone={activeOrderDetail.data.customer.phone} />}
+                {ENABLE_LOCATION && activeOrderDetail.data.store.latitude !== null && activeOrderDetail.data.store.longitude !== null && FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && (<LeafletMap center={[activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude]} markers={[{ position: [activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude], label: activeOrderDetail.data.store.nameAr }]} />)}
                 <div className="flex items-center justify-between">
                   <span className="rounded-full bg-warning-tint px-2.5 py-1 text-micro font-extrabold text-warning-ink">
                     {t('توصيل جاري', 'Active route')}
@@ -959,7 +962,7 @@ export function SamouGoCaptain() {
                       ) : (
                         <p className="text-micro text-ink-muted">{t('بدون إحداثيات', 'no coordinates')}</p>
                       )}
-                      <a
+                      {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && (<a
                         href={mapsDirections({
                           latitude: activeOrderDetail.data.store.latitude,
                           longitude: activeOrderDetail.data.store.longitude,
@@ -970,7 +973,7 @@ export function SamouGoCaptain() {
                         className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-brand px-3 py-1.5 text-[11px] font-bold text-brand transition hover:bg-brand-tint"
                       >
                         <Navigation size={14} /> {t('توجيه إلى المتجر', 'Navigate to store')}
-                      </a>
+                      </a>)}
                     </div>
                   </div>
 
@@ -981,14 +984,14 @@ export function SamouGoCaptain() {
                     <div className="min-w-0 flex-1">
                       <p className="text-[11px] font-extrabold">{t('إيصال للعميل', 'Dropoff')}</p>
                       <p className="mt-0.5 text-[11px] leading-relaxed text-ink-muted">{activeOrderDetail.data.customerAddressText}</p>
-                      <a
+                      {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && (<a
                         href={mapsDirectionsToAddress(activeOrderDetail.data.customerAddressText)}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-brand px-3 py-1.5 text-[11px] font-bold text-brand transition hover:bg-brand-tint"
                       >
                         <Navigation size={14} /> {t('توجيه إلى العميل', 'Navigate to customer')}
-                      </a>
+                      </a>)}
                     </div>
                   </div>
                 </div>

@@ -1,3 +1,4 @@
+import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
  * Samou' Go — store manager dashboard.
  *
@@ -170,7 +171,7 @@ export function SamouGoStoreManager() {
   const managedStoreId: string | null = managedStores.data?.[0]?.id ?? null;
   const managedStore = useStoreManager(managedStoreId, { enabled: isManager });
   const platformSettings = usePlatformSettings();
-  const gpsCaptureEnabled = platformSettings.data?.gpsCaptureEnabled ?? false;
+  const gpsCaptureEnabled = FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && (platformSettings.data?.gpsCaptureEnabled ?? false);
 
   const [storeStatus, setStoreStatus] = useState<StoreStatus>(StoreStatus.OPEN);
   const [prepMinutes, setPrepMinutes] = useState(25);
@@ -1417,9 +1418,10 @@ function StoreLocationPrompt({
     store.latitude !== null && store.latitude !== undefined &&
     store.longitude !== null && store.longitude !== undefined;
 
-  if (!storeId || hasLocation || dismissed) return null;
+  if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING || !storeId || hasLocation || dismissed) return null;
 
   const capture = () => {
+    if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING) return;
     if (busy || !('geolocation' in navigator)) {
       toast.error(
         t('تحديد الموقع غير مدعوم في هذا المتصفح', 'Geolocation is unavailable'),

@@ -1,0 +1,15 @@
+<resources>
+    <!-- Native equivalents of packages/ui/src/styles/design-system.css semantic tokens. -->
+    <color name="order_alert_brand">#00A884</color>
+    <color name="order_alert_surface">#F8FAFC</color>
+    <color name="order_alert_tint">#D1FAEE</color>
+    <color name="order_alert_deep">#00715D</color>
+    <color name="order_alert_ink">#0F172A</color>
+    <color name="order_alert_muted">#64748B</color>
+    <color name="order_alert_line">#E2E8F0</color>
+    <color name="order_alert_white">#FFFFFF</color>
+    <style name="OrderAlertTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">@color/order_alert_surface</item>
+    </style>
+</resources>

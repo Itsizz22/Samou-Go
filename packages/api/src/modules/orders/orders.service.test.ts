@@ -95,6 +95,7 @@ const h = vi.hoisted(() => {
   };
 
   const tx = {
+    platformSettings: { findUnique: vi.fn().mockResolvedValue(null) },
     store: { findUnique: vi.fn(async () => state.store) },
     product: { findMany: vi.fn(async () => state.products) },
     voucher: {
@@ -125,6 +126,7 @@ const h = vi.hoisted(() => {
 
 vi.mock('../../lib/prisma', () => ({
   prisma: {
+    platformSettings: h.tx.platformSettings,
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(h.tx),
     store: { findUnique: h.tx.store.findUnique },
     product: { findMany: h.tx.product.findMany },

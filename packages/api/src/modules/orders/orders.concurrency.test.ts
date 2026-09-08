@@ -114,6 +114,7 @@ const h = vi.hoisted(() => {
   };
 
 const tx = {
+    platformSettings: { findUnique: vi.fn().mockResolvedValue(null) },
     store: { findUnique: vi.fn(async () => state.store) },
     product: { findMany: vi.fn(async () => state.products) },
     productOptionGroup: { findMany: vi.fn(async () => []) },

@@ -1,3 +1,4 @@
+import { useAndroidOverlayBack } from '@/lib/androidBack';
 /**
  * Samou' Go — navigation drawer.
  *
@@ -99,6 +100,7 @@ const NAV_ITEMS = [
 
 export function NavigationDrawer() {
   const { open, closeDrawer } = useDrawer();
+  useAndroidOverlayBack(open, closeDrawer);
   const auth = useAuth();
   const { accent, mode, setAccent, setMode } = useTheme();
   const { dir, language, toggleLanguage } = useLanguage();

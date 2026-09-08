@@ -1,3 +1,4 @@
+import { ZoneSelector } from '@/components/ZoneProvider';
 import { HomeProductSearch } from '@/components/HomeProductSearch';
 import { normalizeOptionGroups, resolveSelectedOptions } from '@samou-go/shared-types';
 import { DiscoverySections } from '@/components/DiscoverySections';
@@ -227,6 +228,7 @@ export function SamouGoHome() {
           )}
           <div className="text-start"><p className="text-[22px] font-bold leading-7">{t('مرحباً بك! 👋', 'Welcome! 👋')}</p></div>
         </section>
+      <div className="mx-auto mt-3 max-w-md"><ZoneSelector /></div>
       </header>
 
       <section className="mx-auto max-w-md px-5" role="search" aria-label="Search">

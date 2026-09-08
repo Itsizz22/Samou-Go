@@ -1,3 +1,6 @@
+import { CustomerOnboarding } from '@/components/CustomerOnboarding';
+import { FEATURE_FLAGS } from '@samou-go/api-client';
+import { dismissAndroidOverlay } from '@/lib/androidBack';
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Loader2, MapPin, X } from 'lucide-react';
@@ -75,7 +78,7 @@ function useAndroidBackButton() {
       try {
         const { App } = await import('@capacitor/app');
         const handler = await App.addListener('backButton', ({ canGoBack }) => {
-          if (!active) return;
+          if (!active || dismissAndroidOverlay()) return;
           if (canGoBack) {
             navigate(-1);
           } else if (pathnameRef.current !== '/') {
@@ -113,7 +116,7 @@ function App() {
 
   // Session expiry is handled by SignInGate: when the token is cleared on 401,
   // auth.user becomes null and the login form renders automatically.
-  const gpsCaptureEnabled = platformSettings.data?.gpsCaptureEnabled ?? false;
+  const gpsCaptureEnabled = FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && (platformSettings.data?.gpsCaptureEnabled ?? false);
 
   // Expose navigate globally so Capacitor push-notification listeners can
   // open the order tracking screen without a full page reload.
@@ -206,7 +209,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
   return (
     <Suspense fallback={<BootScreen />}><Routes>
       <Route path="/" element={<Navigate to="/home" replace />} />
-      <Route path="/home" element={<SamouGoHome />} />
+      <Route path="/home" element={<CustomerOnboarding><SamouGoHome /></CustomerOnboarding>} />
       <Route path="/stores/:storeId" element={<StoreDetailScreen />} />
       <Route path="/cart" element={<CartScreen />} />
       <Route path="/checkout" element={<CheckoutScreen />} />
@@ -216,7 +219,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
       <Route path="/settings" element={<ProtectedRoute auth={auth}><SettingsScreen /></ProtectedRoute>} />
       <Route path="/offers" element={<ProtectedRoute auth={auth}><OffersScreen /></ProtectedRoute>} />
       <Route path="/favorites" element={<ProtectedRoute auth={auth}><FavoritesScreen /></ProtectedRoute>} />
-      <Route path="/search" element={<ProtectedRoute auth={auth}><SearchScreen /></ProtectedRoute>} />
+      <Route path="/search" element={<SearchScreen />} />
       <Route path="/custom-requests" element={<ProtectedRoute auth={auth}><CustomRequestsScreen /></ProtectedRoute>} />
       <Route path="/support" element={<ProtectedRoute auth={auth}><SupportScreen /></ProtectedRoute>} />
       <Route path="/login" element={<AuthRoute auth={auth}><LoginScreen /></AuthRoute>} />
@@ -341,6 +344,7 @@ function CustomerLocationPrompt({ auth }: { auth: Auth }) {
   if (!needsLocation) return null;
 
   const capture = () => {
+    if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING) return;
     if (busy) return;
     if (!navigator.geolocation) {
       setStatus({ ar: 'تحديد الموقع غير مدعوم في هذا المتصفح', en: 'Geolocation is unavailable' });

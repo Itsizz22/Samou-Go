@@ -1,3 +1,4 @@
+import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
  * Samou' Go — `/settings`.
  *
@@ -125,6 +126,7 @@ export function SettingsScreen() {
     user?.latitude != null && user?.longitude != null;
 
   const detectLocation = () => {
+    if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING) return;
     if (!navigator.geolocation) {
       setLocationMessage({ ar: 'تحديد الموقع غير مدعوم في هذا المتصفح', en: 'Geolocation is unavailable' });
       return;

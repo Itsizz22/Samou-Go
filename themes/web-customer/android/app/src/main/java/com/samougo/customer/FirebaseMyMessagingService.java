@@ -16,6 +16,7 @@ import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 
 import com.google.firebase.messaging.FirebaseMessagingService;
+import com.capacitorjs.plugins.pushnotifications.PushNotificationsPlugin;
 import com.google.firebase.messaging.RemoteMessage;
 
 import java.util.Map;
@@ -25,8 +26,8 @@ import java.util.Map;
  * when the app is in the foreground, background, or completely killed.
  *
  * <p>For data-only messages (no {@code notification} key in the payload),
- * Android always routes through {@code onMessageReceived()}, even when the
- * app is killed. This service then builds a custom notification on the
+ * Android routes eligible messages through {@code onMessageReceived()}, even when the
+ * app process is stopped (not force-stopped in Settings). This service then builds a custom notification on the
  * appropriate channel based on the driver's "ring on new order" preference.</p>
  *
  * <p>Two-channel strategy (Android notification channels are immutable once
@@ -48,7 +49,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
     /** Channel for ringing notifications (ringtone + vibration). */
     public static final String CHANNEL_ALERT = "orders_alert_channel";
     /** Channel for silent notifications (no sound). */
-    public static final String CHANNEL_SILENT = "orders_silent_channel";
+    public static final String CHANNEL_SILENT = "orders_silent_channel_v2";
 
     /** SharedPreferences file used by both this service and the SettingsPlugin. */
     public static final String PREFS_NAME = "samou_go_settings";
@@ -59,41 +60,30 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
     public void onMessageReceived(@NonNull RemoteMessage remoteMessage) {
         Log.i(TAG, "onMessageReceived — from: " + remoteMessage.getFrom());
 
-        // Only process data messages — the Capacitor PushNotifications plugin
-        // handles standard notification messages in the foreground via its own
-        // listener in notifications.ts. If we processed both, the user would
-        // see duplicate notifications in the foreground.
+        // Forward bridge events and render foreground messages natively. Mixed
+        // notification/data payloads are rendered by FCM itself in background.
+        PushNotificationsPlugin.sendRemoteMessage(remoteMessage);
+        if (!androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()) return;
         Map<String, String> data = remoteMessage.getData();
-        if (data.isEmpty()) {
-            Log.d(TAG, "No data payload — ignoring (handled by Capacitor)");
-            return;
-        }
-
-        // Extract fields from the data payload
         String orderId = data.get("orderId");
         String type = data.get("type");
         String title = data.get("title");
         String body = data.get("body");
-
-        if (title == null || body == null) {
-            Log.w(TAG, "Missing title or body in data payload — ignoring");
-            return;
+        RemoteMessage.Notification notification = remoteMessage.getNotification();
+        if (notification != null) {
+            if (title == null) title = notification.getTitle();
+            if (body == null) body = notification.getBody();
         }
+        if (title == null) title = "سموع كويك";
+        if (body == null) body = "";
 
-        // Filter: only show native notification for NEW_ORDER and status updates
-        // targeting store managers and captains. Customer-facing status updates
-        // (ACCEPTED, PREPARING, ON_THE_WAY, DELIVERED) are handled by the
-        // Capacitor PushNotifications listener when the app is in foreground,
-        // and by the system notification channel when in background/killed.
         boolean isCaptainOrStoreNotification =
-            "NEW_ORDER".equals(type) ||
+            "NEW_ORDER".equals(type) || "NEW_ORDER_ALERT".equals(type) ||
             "CAPTAIN_ASSIGN".equals(type);
 
-        // For non-captain/store notifications that arrive as data-only, let the
-        // system handle them (they come with a notification payload from the
-        // backend's standard sendPushToUser for customer-facing updates).
+        // Customer updates must also show a banner in foreground.
         if (!isCaptainOrStoreNotification) {
-            Log.d(TAG, "Non-captain/store notification type '" + type + "' — ignoring (system handles)");
+            showNotification(title, body, orderId, "orders_high_priority");
             return;
         }
 
@@ -112,16 +102,14 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
         // (the system notification plays the channel sound once, but the foreground
         // service loops it until the user acknowledges).
         if (ringEnabled && orderId != null) {
-            OrderAlarmReceiver.processNotification(this, orderId);
+            OrderAlarmReceiver.processNotification(this, orderId, title, body);
         }
     }
 
     @Override
     public void onNewToken(@NonNull String token) {
-        Log.i(TAG, "FCM token refreshed: " + token);
-        // The Capacitor PushNotifications plugin handles token refresh
-        // and re-registration with the backend via its own listeners
-        // in notifications.ts. No additional work needed here.
+        Log.i(TAG, "FCM token refreshed");
+        PushNotificationsPlugin.onNewToken(token);
     }
 
     /**
@@ -150,6 +138,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         if (orderId != null) {
             intent.putExtra("orderId", orderId);
+            intent.putExtra("google.message_id", "order-" + orderId);
             intent.putExtra("clickAction", "OPEN_ORDER");
         }
 
@@ -165,7 +154,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
         int notificationId = orderId != null ? orderId.hashCode() : (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setSmallIcon(R.drawable.ic_order_notification)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
@@ -174,6 +163,25 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setDefaults(NotificationCompat.DEFAULT_VIBRATE);
+
+        if (orderId != null && (CHANNEL_ALERT.equals(channelId) || CHANNEL_SILENT.equals(channelId))) {
+            Intent mute = new Intent(this, OrderAlarmReceiver.class);
+            mute.setAction(OrderAlarmReceiver.ACTION_STOP_ALARM);
+            mute.putExtra("notificationId", notificationId);
+            PendingIntent muteIntent = PendingIntent.getBroadcast(this, notificationId, mute,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            builder.addAction(android.R.drawable.ic_menu_view, "عرض الطلب", pendingIntent);
+            builder.addAction(android.R.drawable.ic_lock_silent_mode, "تجاهل / كتم", muteIntent);
+        }
+
+        // Let Android decide whether to launch over the lock screen or show heads-up.
+        if (CHANNEL_ALERT.equals(channelId) && orderId != null) {
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (Build.VERSION.SDK_INT < 34 || (manager != null && manager.canUseFullScreenIntent())) {
+                builder.setFullScreenIntent(OrderAlertActivity.pendingIntent(this, orderId, title, body), true);
+            }
+            builder.setContentIntent(OrderAlertActivity.pendingIntent(this, orderId, title, body));
+        }
 
         // Set sound only for the alert channel
         if (CHANNEL_ALERT.equals(channelId)) {
@@ -201,8 +209,16 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
      * the user must uninstall/reinstall the app or clear app data.
      */
     private void ensureChannelsExist(Context context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return;
+
+        if (nm.getNotificationChannel("orders_high_priority") == null) {
+            NotificationChannel updates = new NotificationChannel("orders_high_priority",
+                "تنبيهات الطلبات", NotificationManager.IMPORTANCE_HIGH);
+            updates.enableVibration(true);
+            nm.createNotificationChannel(updates);
+        }
 
         // Alert channel: HIGH importance, custom ringtone, vibration
         if (nm.getNotificationChannel(CHANNEL_ALERT) == null) {
@@ -232,6 +248,8 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
                 "طلبات جديدة (صامت)",
                 NotificationManager.IMPORTANCE_HIGH
             );
+            silentChannel.setSound(null, null);
+            silentChannel.enableVibration(false);
             silentChannel.setDescription("إشعارات الطلبات الجديدة بدون صوت");
             silentChannel.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
             nm.createNotificationChannel(silentChannel);

@@ -1,3 +1,4 @@
+import { updatePlatformSettingsHandler } from '../platform/platform.controller';
 import { Router } from 'express';
 import { UserRole } from '@samou-go/shared-types';
 import { asyncHandler } from '../../lib/async-handler';
@@ -20,3 +21,4 @@ adminRouter.post('/captains', asyncHandler(adminCreateCaptainHandler));
 adminRouter.delete('/stores/:id', asyncHandler(adminDeleteStoreHandler));
 adminRouter.delete('/drivers/:id', asyncHandler(adminDeleteDriverHandler));
 adminRouter.delete('/users/:userId', asyncHandler(adminDeleteUserHandler));
+adminRouter.patch('/settings/pricing', asyncHandler(updatePlatformSettingsHandler));

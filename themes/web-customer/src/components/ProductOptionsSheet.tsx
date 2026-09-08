@@ -1,3 +1,4 @@
+import { useAndroidOverlayBack } from '@/lib/androidBack';
 import { normalizeOptionGroups } from '@samou-go/shared-types';
 /**
  * Bottom sheet for selecting product options/addons before adding to cart.
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }: Props) {
+  useAndroidOverlayBack(true, onClose);
   const { t } = useLanguage();
   const dragControls = useDragControls();
   const reduced = useReducedMotion();

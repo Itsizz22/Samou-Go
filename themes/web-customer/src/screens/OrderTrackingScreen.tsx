@@ -1,3 +1,5 @@
+import { ZoneLandmarkTrackingView } from '@samou-go/ui';
+import { FEATURE_FLAGS } from '@samou-go/api-client';
 import { normalizeSelectedOptions } from '@samou-go/shared-types';
 import { DeliveryPin } from '@/components/MotionFeedback';
 /**
@@ -91,7 +93,7 @@ export function OrderTrackingScreen() {
     }
   };
   useEffect(() => {
-    if (!orderId) return;
+    if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING || !orderId) return;
     const socket = connectRealtime();
     socket.emit('order:join', orderId);
     socket.on('captain:location', (location: { lat: number; lng: number }) => setCaptainLocation(location));
@@ -207,7 +209,7 @@ export function OrderTrackingScreen() {
             <>
               {/* Timeline */}
               <section className={`rounded-2xl bg-surface p-4 shadow-card ${cancelled ? 'opacity-90' : ''}`}>
-                <OrderStatusTimeline status={order.data.status} />
+                {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <OrderStatusTimeline status={order.data.status} />}
               </section>
 
               {/* Delivery PIN — shown only when the captain is on the way */}
@@ -225,7 +227,8 @@ export function OrderTrackingScreen() {
                   <p className="text-[10px] text-ink-muted leading-relaxed">{order.data.customerAddressText}</p>
                 </div>
               </section>
-              {order.data.store.latitude !== null && order.data.store.longitude !== null && <section className="rounded-2xl bg-surface p-2 shadow-card"><LeafletMap center={captainLocation ? [captainLocation.lat, captainLocation.lng] : [order.data.store.latitude, order.data.store.longitude]} markers={[{ position: [order.data.store.latitude, order.data.store.longitude], label: t(order.data.store.nameAr, order.data.store.nameEn) }, ...(captainLocation ? [{ position: [captainLocation.lat, captainLocation.lng] as [number, number], label: t('السائق', 'Captain') }] : [])]} /></section>}
+              {!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <ZoneLandmarkTrackingView order={order.data} contactPhone={order.data.captain?.phone ?? order.data.store.phone} />}
+              {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && order.data.store.latitude !== null && order.data.store.longitude !== null && <section className="rounded-2xl bg-surface p-2 shadow-card">{FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && (<LeafletMap center={captainLocation ? [captainLocation.lat, captainLocation.lng] : [order.data.store.latitude, order.data.store.longitude]} markers={[{ position: [order.data.store.latitude, order.data.store.longitude], label: t(order.data.store.nameAr, order.data.store.nameEn) }, ...(captainLocation ? [{ position: [captainLocation.lat, captainLocation.lng] as [number, number], label: t('السائق', 'Captain') }] : [])]} />)}</section>}
 
               {/* Items */}
               <section className="rounded-2xl bg-surface p-3 shadow-card">
@@ -279,12 +282,12 @@ export function OrderTrackingScreen() {
                   <div className="flex justify-between text-ink-muted">
                     <dt>{deliveryFeeLabel(language)}</dt>
                     <dd dir="ltr" className="font-bold text-brand-dark">
-                      {isArabic ? DRIVER_FEE_LABEL.ar : DRIVER_FEE_LABEL.en}
+                      {order.data.autoPriced ? formatCurrency(order.data.deliveryFee) : isArabic ? DRIVER_FEE_LABEL.ar : DRIVER_FEE_LABEL.en}
                     </dd>
                   </div>
-                  <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
+                  {!order.data.autoPriced && <p className="mt-1 text-[10px] text-brand-dark bg-brand-tint rounded px-2 py-1 text-center">
                     {t(DRIVER_FEE_NOTICE.ar, DRIVER_FEE_NOTICE.en)}
-                  </p>
+                  </p>}
                   {order.data.cartCheckoutId && (
                     <div className="mt-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-center">
                       <p className="text-[10px] font-semibold text-amber-800">
@@ -302,8 +305,8 @@ export function OrderTrackingScreen() {
                     </div>
                   )}
                   <div className="flex justify-between pt-1 text-xs">
-                    <dt className="font-extrabold">{t('المجموع الفرعي', 'Subtotal')}</dt>
-                    <dd dir="ltr" className="font-extrabold text-brand-dark">{formatCurrency(order.data.subtotal)}</dd>
+                    <dt className="font-extrabold">{order.data.autoPriced ? t('الإجمالي', 'Total') : t('المجموع الفرعي', 'Subtotal')}</dt>
+                    <dd dir="ltr" className="font-extrabold text-brand-dark">{formatCurrency(order.data.autoPriced ? order.data.totalAmount : order.data.subtotal - order.data.discount)}</dd>
                   </div>
                 </dl>
               </section>

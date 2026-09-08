@@ -111,13 +111,12 @@ export async function acceptCaptainFeeHandler(req: Request, res: Response): Prom
 
 /** POST /api/v1/orders */
 export async function createOrderHandler(req: Request, res: Response): Promise<void> {
-  const auth = req.auth;
-  if (auth && auth.role !== UserRole.CUSTOMER && auth.role !== UserRole.ADMIN) {
+  const auth = requireAuth(req);
+  if (auth.role !== UserRole.CUSTOMER && auth.role !== UserRole.ADMIN) {
     throw forbidden('الطلبات يُنشئها الزبائن فقط / Only customers may place orders');
   }
   const body = parseWith(createOrderSchema, req.body);
-  if (!auth && !body.guestCustomerInfo) throw forbidden('رقم الهاتف مطلوب لإتمام طلب الضيف / Phone is required for guest checkout');
-  const customerId = auth?.sub ?? await ordersService.resolveGuestCustomer(body.guestCustomerInfo!);
+  const customerId = auth.sub;
   const result = await ordersService.createOrder(customerId, body);
   emitPlatformEvent('order:created', { orderId: result.id, storeId: result.storeId, status: result.status });
 
@@ -133,8 +132,8 @@ export async function createOrderHandler(req: Request, res: Response): Promise<v
       if (store) {
         // Notify store manager
         await sendPushToUser(store.managerId, {
-          title: 'طلب جديد 🛒',
-          body: `طلب جديد #${result.orderNumber} من ${result.customer.name}`,
+          title: 'طلب جديد للمتجر 🛒',
+          body: `لديك طلب جديد في ${store.nameAr}\nرقم الطلب: ${result.orderNumber}\nافتح الطلب لمراجعة التفاصيل وتأكيد القبول.`,
           data: { orderId: result.id, type: 'NEW_ORDER', storeId: result.storeId, screen: 'order' },
         }, { dataOnly: true });
         // Notify dedicated captains (DELIVERY orders only)
@@ -180,8 +179,8 @@ export async function checkoutHandler(req: Request, res: Response): Promise<void
         const store = storeMap.get(sub.storeId);
         if (store) {
           await sendPushToUser(store.managerId, {
-            title: 'طلب جديد 🛒',
-            body: `طلب جديد #${sub.orderNumber} من متجر ${store.nameAr}`,
+            title: 'طلب جديد للمتجر 🛒',
+            body: `لديك طلب جديد في ${store.nameAr}\nرقم الطلب: ${sub.orderNumber}\nافتح الطلب لمراجعة التفاصيل وتأكيد القبول.`,
             data: { orderId: sub.orderId, type: 'NEW_ORDER', storeId: sub.storeId, screen: 'order' },
           }, { dataOnly: true });
           // Notify dedicated captains for DELIVERY sub-orders

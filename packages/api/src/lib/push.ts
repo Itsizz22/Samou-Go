@@ -10,16 +10,17 @@
  * automatically when FCM reports a token as unregistered.
  */
 
+import type { Messaging, MulticastMessage } from 'firebase-admin/messaging';
 import { prisma } from './prisma';
 import { env } from '../config/env';
 
 // Lazy-loaded Firebase messaging instance. `null` = not initialised / disabled.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let firebaseMessaging: any = null;
+let firebaseMessaging: Messaging | null = null;
 let initialised = false;
 
 /** Lazy-initialise Firebase Admin SDK. Safe to call multiple times. */
-async function getMessaging(): Promise<any> {
+async function getMessaging(): Promise<Messaging | null> {
   if (initialised) return firebaseMessaging;
 
   // No service account configured — push is disabled (dev/test).
@@ -31,9 +32,9 @@ async function getMessaging(): Promise<any> {
   try {
     // Dynamic imports so the SDK is only loaded when push is actually used.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const admin = await import('firebase-admin/app') as Record<string, any>;
+    const admin = await import('firebase-admin/app');
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const messagingMod = await import('firebase-admin/messaging') as Record<string, any>;
+    const messagingMod = await import('firebase-admin/messaging');
 
     if (admin.getApps().length === 0) {
       // Support both file path (local dev) and inline JSON string (Render / cloud).
@@ -55,7 +56,7 @@ async function getMessaging(): Promise<any> {
       }
 
       admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+        credential: admin.cert(serviceAccount),
         projectId: env.firebase.projectId ?? serviceAccount.project_id,
       });
     }
@@ -133,7 +134,7 @@ export async function sendPushToUser(
   // all devices at once — responses align with `tokens` by index.
   // When data-only, omit the notification object entirely so Android
   // routes through onMessageReceived() even when the app is killed.
-  const multicast = {
+  const multicast: MulticastMessage = {
     tokens: tokens.map((t: { token: string }) => t.token),
     ...(options?.dataOnly
       ? {}
@@ -153,19 +154,23 @@ export async function sendPushToUser(
     // app is killed, with heads-up display on lockscreen.
     android: {
       priority: 'high' as const,
-      notification: {
+      // Android notification metadata also turns a send into a display message.
+      // Omit it for data-only staff alerts so the native service owns rendering.
+      ...(!options?.dataOnly ? { notification: {
         channelId: 'orders_high_priority',
-        clickAction: 'OPEN_APP',
         sound: 'order_alarm',
-      },
+      } } : {}),
     },
-    // iOS: critical alert for delivery updates.
+    // iOS needs a visible APNs alert even for Android data-only staff messages.
     apns: {
+      headers: { 'apns-push-type': 'alert', 'apns-priority': '10' },
       payload: {
         aps: {
+          alert: { title: payload.title, body: payload.body },
           badge: payload.badge,
           sound: 'default',
-          'content-available': 1,
+          ...(['NEW_ORDER', 'NEW_ORDER_ALERT', 'CAPTAIN_ASSIGN'].includes(payload.data?.type ?? '')
+            ? { category: 'SAMOU_NEW_ORDER' } : {}),
         },
       },
     },
@@ -173,7 +178,7 @@ export async function sendPushToUser(
 
   // Fire the multicast batch. In offline/dev mode (no Firebase credentials)
   // getMessaging() returns null and we already returned early above.
-  const response = await msg.sendEachForMulticast([multicast]);
+  const response = await msg.sendEachForMulticast(multicast);
 
   let sent = 0;
   let failed = 0;

@@ -326,6 +326,8 @@ export interface Order {
   subtotal: number;
   /** Fee from the captain-selected `deliveryZone`, or 0 before one is set. */
   deliveryFee: number;
+  /** Delivery fee was quoted automatically and is fixed for this order. */
+  autoPriced?: boolean;
   /** Voucher savings in ILS — 0 when no voucher was applied. */
   discount: number;
   /** The voucher that produced `discount`, or null. */
@@ -371,6 +373,7 @@ export interface OrderSummary {
   itemCount: number;
   totalAmount: number;
   deliveryFee: number;
+  autoPriced?: boolean;
   discount: number;
   storeNameAr: string;
   createdAt: IsoDateTime;

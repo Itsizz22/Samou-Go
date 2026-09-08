@@ -270,6 +270,7 @@ export interface QuoteOrderInput {
 }
 
 export interface OrderQuote {
+  autoPricingEnabled?: boolean;
   itemCount: number;
   subtotal: number;
   deliveryFee: number;
@@ -613,6 +614,11 @@ export interface RespondCustomRequestInput {
 
 /** GET/PATCH /platform/settings — the platform-wide economy knobs. */
 export interface PlatformSettings {
+  autoPricingEnabled?: boolean;
+  baseDeliveryFee?: number;
+  perKmFee?: number;
+  captainSharePercentage?: number;
+
   id: string;
   /** Flat captain payout per delivered order, on top of the delivery fee. */
   captainDeliveryRate: number;
@@ -635,6 +641,11 @@ export interface PlatformSettings {
 
 /** PATCH /platform/settings — admin updates one or more knobs. */
 export interface UpdatePlatformSettingsInput {
+  autoPricingEnabled?: boolean;
+  baseDeliveryFee?: number;
+  perKmFee?: number;
+  captainSharePercentage?: number;
+
   captainDeliveryRate?: number;
   storeCommissionRate?: number;
   autoAssign?: boolean;

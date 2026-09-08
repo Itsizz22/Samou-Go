@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="true"
@@ -27,6 +27,12 @@
 
         </activity>
 
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="orders_high_priority" />
+
+        <!-- One FCM service owns delivery; it forwards bridge events to Capacitor. -->
+        <service android:name="com.capacitorjs.plugins.pushnotifications.MessagingService" tools:node="remove" />
+
         <!-- Firebase Cloud Messaging service — handles incoming push notifications
              in foreground, background, and killed state. Uses data-only payloads
              so onMessageReceived() fires even when the app is closed. The service
@@ -41,6 +47,7 @@
             </intent-filter>
         </service>
 
+        <activity android:name=".OrderAlertActivity" android:exported="false" android:excludeFromRecents="true" android:launchMode="singleTask" android:theme="@style/OrderAlertTheme" />
         <!-- Order alarm foreground service -->
         <service
             android:name=".OrderAlarmService"
@@ -82,8 +89,9 @@
 
     <!-- Foreground service for order alarm (Android 9+) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SHORT_SERVICE" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <!-- Wake lock to keep CPU alive during alarm playback -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 

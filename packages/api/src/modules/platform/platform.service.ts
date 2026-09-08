@@ -193,6 +193,10 @@ async function getPlatformSettingsRaw() {
       data: { id: 'platform' },
     }));
   return {
+    autoPricingEnabled: row.autoPricingEnabled,
+    baseDeliveryFee: decimalToNumber(row.baseDeliveryFee),
+    perKmFee: decimalToNumber(row.perKmFee),
+    captainSharePercentage: decimalToNumber(row.captainSharePercentage),
     id: row.id,
     captainDeliveryRate: decimalToNumber(row.captainDeliveryRate),
     storeCommissionRate: decimalToNumber(row.storeCommissionRate),
@@ -201,7 +205,7 @@ async function getPlatformSettingsRaw() {
     enableDeliveryZones: row.enableDeliveryZones,
     requireOtpForSensitiveActions: row.requireOtpForSensitiveActions,
     whatsappSupportNumber: row.whatsappSupportNumber ?? null,
-    gpsCaptureEnabled: (row as any).gpsCaptureEnabled,
+    gpsCaptureEnabled: row.gpsCaptureEnabled,
     updatedAt: row.updatedAt,
   };
 }
@@ -217,13 +221,16 @@ export async function getPlatformSettings() {
 
 /** PATCH — admin updates one or more knobs on the singleton row. */
 export async function updatePlatformSettings(body: PlatformSettingsBody) {
-  invalidatePlatformSettingsCache();
   const row = await prisma.platformSettings.upsert({
     where: { id: 'platform' },
     create: {
       id: 'platform',
       ...(body.captainDeliveryRate !== undefined ? { captainDeliveryRate: body.captainDeliveryRate } : {}),
       ...(body.storeCommissionRate !== undefined ? { storeCommissionRate: body.storeCommissionRate } : {}),
+      ...(body.autoPricingEnabled !== undefined ? { autoPricingEnabled: body.autoPricingEnabled } : {}),
+      ...(body.baseDeliveryFee !== undefined ? { baseDeliveryFee: body.baseDeliveryFee } : {}),
+      ...(body.perKmFee !== undefined ? { perKmFee: body.perKmFee } : {}),
+      ...(body.captainSharePercentage !== undefined ? { captainSharePercentage: body.captainSharePercentage } : {}),
       ...(body.autoAssign !== undefined ? { autoAssign: body.autoAssign } : {}),
       ...(body.isDriverDynamicFeeEnabled !== undefined ? { isDriverDynamicFeeEnabled: body.isDriverDynamicFeeEnabled } : {}),
       ...(body.enableDeliveryZones !== undefined ? { enableDeliveryZones: body.enableDeliveryZones } : {}),
@@ -234,6 +241,10 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
     update: {
       ...(body.captainDeliveryRate !== undefined ? { captainDeliveryRate: body.captainDeliveryRate } : {}),
       ...(body.storeCommissionRate !== undefined ? { storeCommissionRate: body.storeCommissionRate } : {}),
+      ...(body.autoPricingEnabled !== undefined ? { autoPricingEnabled: body.autoPricingEnabled } : {}),
+      ...(body.baseDeliveryFee !== undefined ? { baseDeliveryFee: body.baseDeliveryFee } : {}),
+      ...(body.perKmFee !== undefined ? { perKmFee: body.perKmFee } : {}),
+      ...(body.captainSharePercentage !== undefined ? { captainSharePercentage: body.captainSharePercentage } : {}),
       ...(body.autoAssign !== undefined ? { autoAssign: body.autoAssign } : {}),
       ...(body.isDriverDynamicFeeEnabled !== undefined ? { isDriverDynamicFeeEnabled: body.isDriverDynamicFeeEnabled } : {}),
       ...(body.enableDeliveryZones !== undefined ? { enableDeliveryZones: body.enableDeliveryZones } : {}),
@@ -242,7 +253,12 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
       ...(body.gpsCaptureEnabled !== undefined ? { gpsCaptureEnabled: body.gpsCaptureEnabled } : {}),
     },
   });
+  invalidatePlatformSettingsCache();
   return {
+    autoPricingEnabled: row.autoPricingEnabled,
+    baseDeliveryFee: decimalToNumber(row.baseDeliveryFee),
+    perKmFee: decimalToNumber(row.perKmFee),
+    captainSharePercentage: decimalToNumber(row.captainSharePercentage),
     id: row.id,
     captainDeliveryRate: decimalToNumber(row.captainDeliveryRate),
     storeCommissionRate: decimalToNumber(row.storeCommissionRate),
@@ -251,7 +267,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
     enableDeliveryZones: row.enableDeliveryZones,
     requireOtpForSensitiveActions: row.requireOtpForSensitiveActions,
     whatsappSupportNumber: row.whatsappSupportNumber ?? null,
-    gpsCaptureEnabled: (row as any).gpsCaptureEnabled,
+    gpsCaptureEnabled: row.gpsCaptureEnabled,
     updatedAt: row.updatedAt,
   };
 }
@@ -310,6 +326,8 @@ export async function creditDeliveredOrder(
     subtotal: Prisma.Decimal | number | string;
     deliveryFee: Prisma.Decimal | number | string;
     orderNumber: string;
+    autoPriced?: boolean;
+    captainSharePercentage?: Prisma.Decimal | number | string;
   }
 ): Promise<void> {
   const existingStoreWallet = await tx.wallet.findUnique({
@@ -324,9 +342,9 @@ export async function creditDeliveredOrder(
     : null;
   const financials = computeOrderFinancials(
     order.subtotal,
-    order.deliveryFee,
+    order.autoPriced ? new PrismaRuntime.Decimal(order.deliveryFee).mul(order.captainSharePercentage ?? 100).div(100).toDecimalPlaces(2) : order.deliveryFee,
     existingStoreWallet?.commissionRate ?? settings?.storeCommissionRate ?? '0.10',
-    settings?.captainDeliveryRate ?? 0
+    order.autoPriced ? 0 : settings?.captainDeliveryRate ?? 0
   );
 
   const storeWallet = await tx.wallet.upsert({

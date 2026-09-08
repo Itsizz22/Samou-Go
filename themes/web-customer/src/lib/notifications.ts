@@ -1,157 +1,105 @@
-/**
- * Samou' Go — Push notification manager.
- *
- * Handles registration, token management, and notification handling for
- * the customer mobile app. Works with both Capacitor native (Android/iOS)
- * and browser (FCM Web Push).
- *
- * Flow:
- *   1. On app launch, request permission
- *   2. Register for push notifications
- *   3. Send the device token to the API
- *   4. Handle incoming notifications (foreground + tap)
- */
-
+/** Native notification listeners live once per WebView; account tokens never do. */
 import { PushNotifications } from '@capacitor/push-notifications';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
+import { API_URL, getToken, setLogoutDeviceToken } from '@samou-go/api-client';
 import { globalNavigate } from './globalNavigate';
-import { createLoopingAlert } from '@samou-go/ui';
 import { stopOrderAlarm } from './orderAlarm';
-import { getRingOnOrder } from './ringPreference';
+import { presentIncomingOrder, dismissIncomingOrder } from './incomingOrder';
 
-import { API_URL, setLogoutDeviceToken } from '@samou-go/api-client';
-
-/** Detect platform for the `platform` field sent to the API. */
-function getPlatform(): 'android' | 'ios' | 'web' {
-  const p = Capacitor.getPlatform();
-  if (p === 'android') return 'android';
-  if (p === 'ios') return 'ios';
-  return 'web';
-}
-
-/**
- * Guard: prevent duplicate listener registration. Capacitor PushNotifications
- * accumulates listeners on every `addListener` call — without this guard,
- * each login/refresh cycle stacks new handlers that never get cleaned up,
- * leading to memory leaks and duplicate API calls.
- */
-let listenersRegistered = false;
-
-/**
- * The device's FCM token from the most recent registration. A device owns one
- * token regardless of how many accounts sign in on it, so a module-level cache
- * is correct. Sign-out reads it (`getDeviceToken`) so the logout request can
- * carry `deviceToken` and unregister ONLY this device — the other devices of
- * the same account stay signed in (selective logout). Must be called BEFORE
- * tokens are cleared, which `useAuth.signOut()` now guarantees.
- */
 let latestDeviceToken: string | null = null;
+let setup: Promise<void> | null = null;
+let registration: Promise<void> | null = null;
 
-/** The current device's push token, or null if FCM never handed one out. */
-export function getDeviceToken(): string | null {
-  return latestDeviceToken;
-}
+export function getDeviceToken(): string | null { return latestDeviceToken; }
 
-/**
- * Request permission and register for push notifications.
- * Idempotent — only registers listeners once per app lifecycle.
- */
-export async function registerForPushNotifications(accessToken: string): Promise<void> {
-  // Only works on native platforms (Android/iOS) via Capacitor.
-  if (!Capacitor.isNativePlatform()) return;
-
-  // Already registered — skip to avoid accumulating duplicate listeners.
-  if (listenersRegistered) return;
-
-  try {
-    // Step 1: Request permission.
-    const permission = await PushNotifications.requestPermissions();
-    if (permission.receive !== 'granted') {
-      console.log('[push] Notification permission not granted');
-      return;
-    }
-
-    // Step 2: Register for push notifications.
-    await PushNotifications.register();
-
-    // Mark as registered before adding listeners to prevent re-entry.
-    listenersRegistered = true;
-
-    // Step 3: Listen for registration token.
-    PushNotifications.addListener('registration', async (token) => {
-      console.log('[push] Device token:', token.value);
-      // Cache for the selective-logout flow AND surface it for the api-client
-      // so POST /auth/logout can unregister just this device.
-      latestDeviceToken = token.value;
-      setLogoutDeviceToken(token.value);
-      await sendTokenToServer(token.value, accessToken);
-    });
-
-    // Step 4: Listen for registration errors.
-    PushNotifications.addListener('registrationError', (error) => {
-      console.error('[push] Registration error:', error);
-    });
-
-    // Step 5: Handle foreground notifications — respect the user's ring
-    // preference. When enabled, play a 10-second looping alarm so the
-    // store manager / captain hears new orders even in foreground.
-    PushNotifications.addListener('pushNotificationReceived', async (notification) => {
-      console.log('[push] Foreground notification:', notification);
-      try {
-        const ringEnabled = await getRingOnOrder();
-        if (ringEnabled) {
-          // Play the looping alarm for up to 10 seconds. The user can
-          // dismiss it by tapping the notification or it stops automatically.
-          createLoopingAlert(10_000);
+function ensureListeners(): Promise<void> {
+  if (setup) return setup;
+  setup = (async () => {
+    const handles: PluginListenerHandle[] = [];
+    try {
+      handles.push(await PushNotifications.addListener('registration', ({ value }) => {
+        latestDeviceToken = value;
+        setLogoutDeviceToken(value);
+        const token = getToken();
+        if (token) void sendTokenToServer(value, token);
+      }));
+      handles.push(await PushNotifications.addListener('registrationError', () => {
+        console.warn('[push] Registration failed; retry on next foreground/resume');
+      }));
+      handles.push(await PushNotifications.addListener('pushNotificationActionPerformed', action => {
+        void stopOrderAlarm().catch(() => {});
+        if (action.actionId === 'SAMOU_DISMISS' || action.actionId === 'dismiss') { dismissIncomingOrder(); return; }
+        if (Capacitor.getPlatform() === 'ios' && presentIncomingOrder(action.notification)) return;
+        const orderId: unknown = action.notification.data?.orderId;
+        if (typeof orderId === 'string' && orderId.length > 0) {
+          globalNavigate(`/orders/${encodeURIComponent(orderId)}`);
         }
-      } catch {
-        // Audio may not be available — non-fatal.
+      }));
+      const { App } = await import('@capacitor/app');
+      handles.push(await App.addListener('appStateChange', ({ isActive }) => {
+        const token = getToken();
+        if (isActive && token) void registerForPushNotifications(token, false);
+      }));
+      // Android owns its native banner/alarm. Preserve iOS foreground feedback.
+      if (Capacitor.getPlatform() === 'ios') {
+        handles.push(await PushNotifications.addListener('pushNotificationReceived', notification => { presentIncomingOrder(notification); }));
       }
-    });
+      window.addEventListener('online', () => {
+        const token = getToken();
+        if (token && latestDeviceToken) void sendTokenToServer(latestDeviceToken, token);
+      });
+    } catch (error) {
+      await Promise.all(handles.map(handle => handle.remove()));
+      throw error;
+    }
+  })().catch(error => { setup = null; throw error; });
+  return setup;
+}
 
-    // Step 6: Handle notification taps (app opened from background).
-    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-      console.log('[push] Notification tapped:', action);
-      // Stop the native alarm service — the app is now in the foreground
-      // and JS-based looping alert will take over if needed.
-      stopOrderAlarm().catch(() => {});
-      const data = action.notification.data;
-      if (data?.orderId) {
-        // Navigate via SPA router only — never fall back to window.location.href
-        // which causes a full page reload and "Throttling navigation" crash on Android.
-        globalNavigate(`/orders/${encodeURIComponent(data.orderId)}`);
+export async function registerForPushNotifications(accessToken: string, requestPermission = true): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    // Tap delivery must work even when permission was revoked after delivery.
+    await ensureListeners();
+    const pending = registration ?? Promise.resolve();
+    const task = pending.catch(() => {}).then(async () => {
+      let permission = await PushNotifications.checkPermissions();
+      if (requestPermission && permission.receive === 'prompt') {
+        permission = await PushNotifications.requestPermissions();
+      }
+      if (permission.receive !== 'granted') return;
+      if (latestDeviceToken) {
+        await sendTokenToServer(latestDeviceToken, accessToken);
+      } else {
+        await PushNotifications.register();
       }
     });
-  } catch (err) {
-    console.error('[push] Failed to register:', err);
+    registration = task;
+    try { await task; } finally { if (registration === task) registration = null; }
+  } catch {
+    console.warn('[push] Registration unavailable; retry on next foreground/resume');
   }
 }
 
-/**
- * Send the device token to the API server.
- * Retries once on failure (the server might not be ready yet).
- */
 async function sendTokenToServer(token: string, accessToken: string): Promise<void> {
-  try {
-    const response = await fetch(`${API_URL}/devices/token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({
-        token,
-        platform: getPlatform(),
-        deviceInfo: `${getPlatform()} · ${navigator.userAgent.slice(0, 140)}`,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error('[push] Failed to register token:', response.status);
-    }
-  } catch (err) {
-    console.error('[push] Failed to send token to server:', err);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (getToken() !== accessToken) return;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch(`${API_URL}/devices/token`, {
+        method: 'POST', signal: controller.signal,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ token, platform: Capacitor.getPlatform(), deviceInfo: navigator.userAgent.slice(0, 140) }),
+      });
+      if (response.ok) return;
+      if (response.status < 500 && response.status !== 429) return;
+    } catch {
+      // Retry transient network failures once, then again on online/resume.
+    } finally { window.clearTimeout(timeout); }
+    if (attempt === 0) await new Promise(resolve => window.setTimeout(resolve, 1_000));
   }
+  console.warn('[push] Device synchronization pending; retry on online/resume');
 }
 
 /**

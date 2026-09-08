@@ -38,6 +38,10 @@ public class OrderAlarmReceiver extends BroadcastReceiver {
                 break;
             case ACTION_STOP_ALARM:
                 stopAlarmService(context);
+                if (intent.hasExtra("notificationId")) {
+                    NotificationManager manager = context.getSystemService(NotificationManager.class);
+                    if (manager != null) manager.cancel(intent.getIntExtra("notificationId", 0));
+                }
                 break;
             default:
                 Log.w(TAG, "Unknown action: " + action);
@@ -53,10 +57,16 @@ public class OrderAlarmReceiver extends BroadcastReceiver {
             serviceIntent.putExtras(originalIntent.getExtras());
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent);
-        } else {
-            context.startService(serviceIntent);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent);
+            } else {
+                context.startService(serviceIntent);
+            }
+        } catch (IllegalStateException | SecurityException error) {
+            // Android may downgrade FCM priority or deny a background service.
+            // The already posted notification remains available to the user.
+            Log.w(TAG, "Background alarm unavailable; retaining notification", error);
         }
 
         Log.i(TAG, "OrderAlarmService started");
@@ -73,8 +83,10 @@ public class OrderAlarmReceiver extends BroadcastReceiver {
      * Static helper — can be called from MainActivity or a future
      * FirebaseMessagingService to process an incoming notification.
      */
-    public static void processNotification(Context context, String orderId) {
+    public static void processNotification(Context context, String orderId, String title, String body) {
         Intent intent = new Intent(ACTION_START_ALARM);
+        intent.putExtra("title", title);
+        intent.putExtra("body", body);
         intent.setPackage(context.getPackageName());
         if (orderId != null) {
             intent.putExtra("orderId", orderId);
