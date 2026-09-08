@@ -32,7 +32,8 @@ import {
   LogOut,
   Moon,
   Package,
-  Palette,
+  Check,
+  ChevronLeft,
   Search,
   Settings,
   Store,
@@ -41,7 +42,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
-import { BrandLogo, LanguageToggle, useLanguage } from '@samou-go/ui';
+import { BrandLogo, useLanguage } from '@samou-go/ui';
 import { useAuth } from '@/hooks/useApi';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ACCENT_OPTIONS } from '@/theme/presets';
@@ -100,7 +101,7 @@ export function NavigationDrawer() {
   const { open, closeDrawer } = useDrawer();
   const auth = useAuth();
   const { accent, mode, setAccent, setMode } = useTheme();
-  const { dir } = useLanguage();
+  const { dir, language, toggleLanguage } = useLanguage();
   const { t } = useLanguage();
   const location = useLocation();
 
@@ -195,7 +196,7 @@ export function NavigationDrawer() {
             type="button"
             aria-label={t('إغلاق القائمة', 'Close menu')}
             onClick={closeDrawer}
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
+            className="fixed inset-0 z-40 bg-slate-900/70"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -222,25 +223,24 @@ export function NavigationDrawer() {
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
           >
           <div
-            className={`flex h-full w-75 max-w-[85vw] flex-col bg-surface text-ink shadow-raised will-change-transform ${
+            className={`flex h-full w-70 max-w-[85vw] flex-col overflow-y-auto bg-surface text-ink shadow-raised will-change-transform ${
               dragging ? '' : 'transition-transform duration-300 ease-out'
             }`}
             style={dragX ? { transform: `translateX(${dragX}px)` } : undefined}
           >
             {/* Brand + close */}
-            <header className="flex items-center justify-between bg-brand px-5 py-5 text-white safe-top">
+            <header className="flex items-center justify-between shrink-0 bg-brand px-5 pb-2 pt-8 text-white" style={{ paddingBlockStart: 'max(2rem, env(safe-area-inset-top))' }}>
               <div className="flex items-center gap-2.5">
-                <BrandLogo size={36} />
+                <BrandLogo size={28} />
                 <div className="leading-tight">
-                  <p className="text-sm font-extrabold">Samou Quick</p>
-                  <p className="text-micro text-white/80">{t('القائمة', 'Menu')}</p>
+                  <p className="text-base font-extrabold">{t('سموع كويك', 'Samou Quick')}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={closeDrawer}
                 aria-label={t('إغلاق', 'Close')}
-                className="sq-icon-button rounded-full p-2 transition hover:bg-white/15 active:scale-95"
+                className="sq-icon-button rounded-full bg-white/15 p-2 transition hover:bg-white/15 active:scale-95"
               >
                 <X size={20} />
               </button>
@@ -248,7 +248,7 @@ export function NavigationDrawer() {
 
             {/* Signed-in identity — or a sign-in shortcut. */}
             {auth.user ? (
-              <div className="flex items-center gap-3 rounded-b-3xl bg-brand px-5 pb-6 pt-2 text-white">
+              <div className="flex shrink-0 items-center gap-3 rounded-b-3xl bg-brand px-5 pb-6 pt-2 text-white">
                 {auth.user.profileImageUrl ? (
                   <img
                     src={auth.user.profileImageUrl}
@@ -256,7 +256,7 @@ export function NavigationDrawer() {
                     className="h-11 w-11 shrink-0 rounded-full object-cover"
                   />
                 ) : (
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-tint text-sm font-extrabold text-brand-deep">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-sm font-extrabold text-brand">
                     {auth.user.name.slice(0, 2)}
                   </span>
                 )}
@@ -313,7 +313,7 @@ export function NavigationDrawer() {
               )}
 
             {/* Navigation links */}
-            <nav className="flex-1 overflow-y-auto px-3 py-3" aria-label="Drawer navigation">
+            <nav className="shrink-0 px-4 py-4" aria-label="Drawer navigation">
               <ul className="space-y-1">
                 {NAV_ITEMS.map((item) => {
                   const Icon = item.icon;
@@ -324,79 +324,53 @@ export function NavigationDrawer() {
                         to={item.to}
                         onClick={go}
                         aria-current={active ? 'page' : undefined}
-                        className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition active:scale-[0.99] ${
+                        className={`flex items-center min-h-11 gap-3 rounded-xl px-3 py-1.5 text-sm transition active:scale-[0.99] ${
                           active
-                            ? 'bg-brand-tint font-extrabold text-brand-deep'
-                            : 'font-bold text-ink-soft hover:bg-brand-surface'
+                            ? 'bg-brand-surface font-bold text-brand'
+                            : 'font-semibold text-ink hover:bg-brand-surface'
                         }`}
                       >
                         <span
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-                            active ? 'bg-brand text-white' : 'bg-canvas text-ink-muted'
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                            active ? 'bg-surface text-brand' : 'bg-canvas text-ink-muted'
                           }`}
                         >
                           <Icon size={18} />
                         </span>
-                        <span className="flex-1 text-end">
-                          <span className="block">{t(item.labelAr, item.labelEn)}</span>
-                        </span>
+                        <span className="flex-1 text-start">{t(item.labelAr, item.labelEn)}</span>
+                        <ChevronLeft size={16} className="shrink-0 rtl:rotate-0 ltr:rotate-180" />
                       </Link>
                     </li>
                   );
                 })}
               </ul>
 
-              {/* Quick theme switcher */}
-              <div className="mt-4 rounded-2xl border border-line bg-canvas p-4">
-                <p className="flex items-center gap-2 text-xs font-extrabold text-ink">
-                  <Palette size={14} className="text-brand" />
-                  <span>{t('لون الواجهة', 'Theme')}</span>
-                </p>
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2" role="radiogroup" aria-label={t('لون التمييز', 'Accent colour')}>
-                    {ACCENT_OPTIONS.map((option) => (
-                      <button
-                        key={option.key}
-                        type="button"
-                        role="radio"
-                        aria-checked={accent === option.key}
-                        aria-label={option.labelAr}
-                        title={option.labelAr}
-                        onClick={() => setAccent(option.key)}
-                        className={`flex h-9 w-9 items-center justify-center rounded-full transition active:scale-95 ${
-                          accent === option.key
-                            ? 'ring-2 ring-ink/40 ring-offset-2 ring-offset-canvas'
-                            : ''
-                        }`}
-                      >
-                        <span
-                          className="h-7 w-7 rounded-full"
-                          style={{ backgroundColor: option.swatch }}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}
-                    aria-pressed={mode === 'dark'}
-                    className="flex items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-[11px] font-bold text-ink-soft transition hover:text-brand active:scale-95"
-                  >
-                    {mode === 'light' ? <Moon size={13} /> : <Sun size={13} />}
-                    <span>{t(mode === 'light' ? 'الوضع الداكن' : 'الوضع الفاتح', mode === 'light' ? 'Dark' : 'Light')}</span>
-                  </button>
-                  <LanguageToggle />
+            </nav>
+            <section className="shrink-0 border-t border-line px-5 py-3" aria-label={t('لون الواجهة', 'Appearance')}>
+              <h2 className="text-sm font-bold">{t('لون الواجهة', 'Appearance')}</h2>
+              <div className="flex items-center justify-between gap-2">
+                <button type="button" role="switch" aria-checked={mode === 'dark'} onClick={() => setMode(mode === 'light' ? 'dark' : 'light')} className="flex min-h-11 items-center gap-2 text-xs text-ink-muted">
+                  {mode === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+                  <span className={`flex h-5 w-9 items-center rounded-full p-0.5 ${mode === 'dark' ? 'justify-end bg-brand' : 'justify-start bg-line'}`}><span className="h-4 w-4 rounded-full bg-white shadow-sm" /></span>
+                  <span>{t('الوضع الداكن', 'Dark mode')}</span>
+                </button>
+                <button type="button" onClick={toggleLanguage} aria-label={language === 'ar' ? 'English' : 'العربية'} className="flex min-h-11 min-w-11 items-center justify-center text-xs font-bold"><span className="rounded-lg border border-line bg-canvas px-2 py-1">{language === 'ar' ? 'EN' : 'عربي'}</span></button>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-ink-muted">{t('اختيار السمة', 'Accent colour')}</span>
+                <div className="flex" role="radiogroup" aria-label={t('لون التمييز', 'Accent colour')}>
+                  {ACCENT_OPTIONS.map(option => <button key={option.key} type="button" role="radio" aria-checked={accent === option.key} aria-label={t(option.labelAr, option.labelEn)} onClick={() => setAccent(option.key)} className="flex h-11 w-11 items-center justify-center rounded-full"><span className="flex h-5 w-5 items-center justify-center rounded-full text-white" style={{backgroundColor:option.swatch}}>{accent === option.key && <Check size={13} strokeWidth={3} />}</span></button>)}
                 </div>
               </div>
-            </nav>
+            </section>
 
             {/* Footer actions */}
             {auth.user && (
-              <footer className="border-t border-line px-4 py-3 safe-bottom">
+              <footer className="shrink-0 border-t border-line px-5 py-5 safe-bottom">
                 <button
                   type="button"
                   onClick={handleSignOut}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-danger-tint bg-danger-tint/40 px-4 py-3 text-xs font-extrabold text-danger-ink transition hover:bg-danger-tint active:scale-[0.98]"
+                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-danger-ink/50 bg-danger-tint/40 px-4 py-3 text-xs font-extrabold text-danger-ink transition hover:bg-danger-tint active:scale-[0.98]"
                 >
                   <LogOut size={15} />
                   {t('تسجيل الخروج', 'Sign out')}

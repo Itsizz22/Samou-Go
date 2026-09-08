@@ -9,6 +9,20 @@ export default defineConfig({
   // origin root, also used by Capacitor's local web server.
   base: '/',
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      output: {
+        // Stable framework chunks can be cached across screen updates.
+        manualChunks(id) {
+          const modulePath = id.replaceAll('\\', '/');
+          if (!modulePath.includes('/node_modules/')) return;
+          if (/\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(modulePath)) return 'react-vendor';
+          if (/\/(framer-motion|motion-dom|motion-utils)\//.test(modulePath)) return 'motion-vendor';
+          if (/\/(leaflet|react-leaflet|@react-leaflet)\//.test(modulePath)) return 'map-vendor';
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

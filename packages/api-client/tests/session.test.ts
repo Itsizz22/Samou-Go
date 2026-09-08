@@ -37,6 +37,24 @@ async function signedIn() {
 }
 
 describe('authenticated orders transport', () => {
+  const order = { storeId: 'store', items: [{ productId: 'product', quantity: 1 }], customerAddressText: 'Test address' };
+
+  it('sends the session when placing a signed-in order', async () => {
+    const api = await signedIn();
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(success({ id: 'order' }));
+    vi.stubGlobal('fetch', fetch);
+    await api.createOrder(order);
+    expect(new Headers(fetch.mock.calls[0]?.[1]?.headers).get('Authorization')).toBe('Bearer initial-access');
+  });
+
+  it('allows explicit guest checkout without a session', async () => {
+    const api = await import('../src/api');
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(success({ id: 'guest-order' }));
+    vi.stubGlobal('fetch', fetch);
+    await api.createOrder({ ...order, guestCustomerInfo: { phone: '0599000001' } });
+    expect(new Headers(fetch.mock.calls[0]?.[1]?.headers).has('Authorization')).toBe(false);
+  });
+
   it('attaches the live Bearer token and preserves pageSize=81', async () => {
     const api = await signedIn();
     const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(success(page));

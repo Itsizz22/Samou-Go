@@ -1,17 +1,14 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Camera,
   ImagePlus,
   Loader2,
-  LogOut,
   MapPin,
   Pencil,
   Save,
   Settings,
   ClipboardList,
   Trash2,
-  UserRound,
   X,
 } from 'lucide-react';
 import {
@@ -172,24 +169,24 @@ export function ProfileScreen() {
 
   return (
     <ScreenShell title="الملف الشخصي" subtitle="Profile">
-      <div className="space-y-4">
-        <button type="button" onClick={() => navigate('/custom-requests')} className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-start shadow-card"><ClipboardList className="text-brand" size={20}/><span className="font-bold">{t('طلب مخصص', 'Custom request')}</span></button>
+      <div className="space-y-5">
+        <button type="button" onClick={() => navigate('/custom-requests')} className="flex w-full items-center gap-3 min-h-11 text-sm text-start"><ClipboardList className="text-brand" size={20}/><span className="font-bold">{t('طلب مخصص', 'Custom request')}</span></button>
         {/* Identity */}
-        <section className="rounded-2xl border border-line bg-surface p-5 shadow-card">
+        <section className="rounded-xl border border-line bg-surface p-3">
           <div className="flex items-center gap-3">
             {user.profileImageUrl ? (
               <ImageWithFallback
                 src={user.profileImageUrl}
                 alt={user.name}
-                className="h-16 w-16 shrink-0 rounded-full object-cover"
+                className="h-12 w-12 shrink-0 rounded-full object-cover"
               />
             ) : (
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-surface text-sm font-extrabold text-brand-deep">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-surface text-sm font-extrabold text-brand-deep">
                 {user.name.slice(0, 2)}
               </span>
             )}
-            <div className="min-w-0 flex-1 text-end">
-              <h2 className="truncate text-base font-extrabold">{user.name}</h2>
+            <div className="min-w-0 flex-1 text-start">
+              <h2 className="truncate text-sm font-bold">{user.name}</h2>
               <p className="mt-0.5 text-xs text-ink-muted" dir="ltr">
                 {user.phone} · {ROLE_LABELS[user.role] ?? user.role}
               </p>
@@ -199,20 +196,14 @@ export function ProfileScreen() {
               onClick={() => (editing ? handleSave() : startEdit())}
               disabled={saving}
               aria-label={editing ? t('حفظ', 'Save') : t('تعديل', 'Edit')}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted transition hover:bg-canvas active:scale-95 disabled:opacity-60"
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : editing ? <Save size={16} /> : <Pencil size={16} />}
             </button>
           </div>
 
           {/* Profile photo controls */}
-          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl bg-brand-surface p-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
-              <Camera size={16} />
-            </span>
-            <span className="flex-1 text-end">
-              <span className="block text-xs font-extrabold">{t('الصورة الشخصية', 'Profile photo')}</span>
-            </span>
+          <div className="mt-3 flex gap-2">
             <input
               ref={fileInputRef}
               type="file"
@@ -230,10 +221,10 @@ export function ProfileScreen() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 aria-label={t('تغيير الصورة', 'Change photo')}
-                className="flex h-9 items-center gap-1.5 rounded-xl bg-brand px-3 text-[11px] font-extrabold text-white transition hover:bg-brand-dark active:scale-95"
+                className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-brand bg-brand-surface px-3 text-xs font-semibold text-brand transition hover:bg-brand-dark active:scale-95"
               >
                 <ImagePlus size={14} />
-                {t('تغيير', 'Change')}
+                {t('تغيير الصورة الشخصية', 'Change profile photo')}
               </button>
             )}
             {user.profileImageUrl && !avatarBusy && (
@@ -241,7 +232,7 @@ export function ProfileScreen() {
                 type="button"
                 onClick={() => void handleAvatarRemove()}
                 aria-label={t('حذف الصورة', 'Remove photo')}
-                className="flex h-9 items-center gap-1.5 rounded-xl border border-line px-3 text-[11px] font-bold text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink active:scale-95"
+                className="flex min-h-11 items-center gap-1.5 rounded-lg border border-line px-3 text-[11px] font-bold text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink active:scale-95"
               >
                 <Trash2 size={13} />
                 {t('إزالة', 'Remove')}
@@ -295,48 +286,26 @@ export function ProfileScreen() {
                 </button>
               </div>
             </div>
-          ) : (
-            <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-canvas p-3 text-center">
-              <div>
-                <p className="text-micro text-ink-muted">{t('الحالة', 'Status')}</p>
-                <p className="mt-0.5 text-xs font-extrabold text-ink">
-                  {t(user.isActive ? 'نشط' : 'موقوف', user.isActive ? 'Active' : 'Inactive')}
-                </p>
-              </div>
-              <div>
-                <p className="text-micro text-ink-muted">{t('المعرّف', 'ID')}</p>
-                <p className="mt-0.5 truncate text-xs font-extrabold text-ink" dir="ltr">
-                  {user.id.slice(0, 12)}
-                </p>
-              </div>
-            </div>
-          )}
+          ) : <p className="mt-2 text-micro text-ink-muted">{t('المعرّف', 'ID')}: <span dir="ltr">{user.id.slice(0, 12)}</span></p>}
         </section>
 
         {/* Saved addresses */}
-        <section className="rounded-2xl border border-line bg-surface p-5 shadow-card">
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
-              <MapPin size={18} />
-            </span>
-            <div className="flex-1 text-end">
-              <h2 className="text-sm font-extrabold">{t('العناوين المحفوظة', 'Saved addresses')}</h2>
-            </div>
-          </div>
+        <section>
+          <h2 className="text-sm font-bold">{t('العناوين المحفوظة', 'Saved addresses')}</h2>
 
           {addresses.length === 0 ? (
             <p className="mt-4 rounded-xl bg-canvas px-3 py-4 text-center text-[11px] text-ink-muted">
               {t('لا توجد عناوين محفوظة — تُحفظ العناوين تلقائياً عند تأكيد طلبك في الخلاصة', 'No saved addresses yet — addresses are saved automatically when you confirm an order')}
             </p>
           ) : (
-            <ul className="mt-4 space-y-2">
+            <ul className="mt-2 space-y-2">
               {addresses.map((entry) => (
-                <li key={entry.id} className="flex items-start gap-2 rounded-xl bg-canvas p-3">
+                <li key={entry.id} className="flex items-center gap-2 rounded-xl border border-line bg-surface p-3">
                   <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-tint text-brand-dark">
                     <MapPin size={13} />
                   </span>
-                  <div className="min-w-0 flex-1 text-end">
-                    <p className="flex items-center justify-end gap-1.5">
+                  <div className="min-w-0 flex-1 text-start">
+                    <p className="flex items-center gap-1.5">
                       <span className="truncate text-xs font-extrabold text-ink">{entry.label || (entry.addressText ?? '').slice(0, 24)}</span>
                       {entry.tag && (
                         <span className="shrink-0 rounded-full bg-brand-tint px-2 py-0.5 text-micro font-bold text-brand-dark">
@@ -353,7 +322,7 @@ export function ProfileScreen() {
                     type="button"
                     aria-label={t('حذف العنوان', 'Remove address')}
                     onClick={() => removeAddress(entry.id)}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -364,34 +333,9 @@ export function ProfileScreen() {
         </section>
 
         {/* Switch accounts */}
-        <AccountSwitcher auth={auth} />
+        <AccountSwitcher auth={auth} compact />
 
-        {/* Settings shortcut */}
-        <button
-          type="button"
-          onClick={() => navigate('/settings')}
-          className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-end shadow-card transition hover:bg-brand-surface active:scale-[0.99]"
-        >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
-            <Settings size={18} />
-          </span>
-          <span className="flex-1">
-            <span className="block text-sm font-extrabold">{t('الإعدادات', 'Settings')}</span>
-            <span className="block text-[11px] text-ink-muted">
-              {t('المظهر واللغة والإشعارات', 'Theme, language, notifications')}
-            </span>
-          </span>
-        </button>
-
-        {/* Sign out */}
-        <button
-          type="button"
-          onClick={auth.signOut}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-danger-tint bg-danger-tint/40 px-4 py-3 text-xs font-extrabold text-danger-ink transition hover:bg-danger-tint active:scale-[0.98]"
-        >
-          <LogOut size={15} />
-          تسجيل الخروج <span dir="ltr" className="font-medium text-danger/70">Sign out</span>
-        </button>
+        <button type="button" onClick={() => navigate('/settings')} className="flex min-h-11 w-full items-center justify-center gap-2 text-xs font-semibold text-ink-muted"><Settings size={16} />{t('إعدادات الحساب', 'Account settings')}</button>
       </div>
     </ScreenShell>
   );

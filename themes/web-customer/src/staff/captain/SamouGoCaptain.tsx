@@ -668,33 +668,33 @@ export function SamouGoCaptain() {
 
   return (
     <main data-view={activeTab} className="sq-staff sq-captain min-h-screen bg-canvas pb-28 font-sans text-ink md:ps-60">
-      <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col bg-slate-900 px-4 py-6 text-white md:flex" aria-label="تنقل الكابتن">
+      <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col border-e border-line bg-surface px-4 py-6 text-ink md:flex" aria-label="تنقل الكابتن">
         <p className="px-3 text-lg font-extrabold">Samou Quick</p>
-        <p className="px-3 text-[11px] text-white/70">الكابتن</p>
+        <p className="px-3 text-[11px] text-ink-muted">الكابتن</p>
         <nav className="mt-8 flex-1 space-y-1">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const selected = activeTab === item.id;
-            return <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition-all duration-200 ${selected ? 'bg-brand text-white shadow-brand' : 'text-white/75 hover:bg-white/10 hover:text-white active:scale-[0.97]'}`}>
+            return <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition-all duration-200 ${selected ? 'bg-brand text-white shadow-brand' : 'text-ink-soft hover:bg-canvas hover:text-ink active:scale-[0.97]'}`}>
               <Icon size={18} /><span>{item.label}</span>
             </button>;
           })}
         </nav>
-        <div className="border-t border-white/10 pt-5">
+        <div className="border-t border-line pt-5">
           <div className="flex items-center gap-3 rounded-xl px-2 py-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-tint text-sm font-extrabold text-brand-deep">
               {auth.user?.name.slice(0, 2).toUpperCase() ?? 'ك'}
             </span>
             <span className="min-w-0">
               <strong className="block truncate text-[12px]">{auth.user?.name ?? 'الكابتن'}</strong>
-              <span className="block truncate text-[11px] text-white/70">سائق / كابتن</span>
+              <span className="block truncate text-[11px] text-ink-muted">سائق / كابتن</span>
             </span>
             <button
               type="button"
               onClick={auth.signOut}
               aria-label="تسجيل الخروج"
               title="تسجيل الخروج"
-              className="ms-auto rounded-lg p-2 text-white/70 transition hover:bg-surface/10 hover:text-white"
+              className="ms-auto inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-ink-muted transition hover:bg-canvas hover:text-ink"
             >
               <LogOut size={15} />
             </button>

@@ -159,6 +159,9 @@ export function useResource<T>(
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
+        if (cause instanceof ApiError && (cause.status === 401 || cause.status === 403)) {
+          setResult(null);
+        }
         setError(
           cause instanceof ApiError
             ? cause

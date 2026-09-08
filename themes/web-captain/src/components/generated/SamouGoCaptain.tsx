@@ -775,39 +775,39 @@ export function SamouGoCaptain() {
   return (
     <main className={`min-h-screen bg-canvas pb-28 font-sans text-ink transition-[padding] duration-300 ${sidebarOpen ? 'md:ps-60' : ''}`}>
       {sidebarOpen && <button type="button" aria-label={t('إغلاق القائمة', 'Close navigation')} onClick={() => setSidebarOpen(false)} className="fixed inset-0 z-20 bg-ink/40 md:hidden" />}
-      <aside className={`fixed inset-y-0 start-0 z-30 flex w-60 flex-col bg-slate-900 px-4 py-6 text-white shadow-overlay transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'rtl:translate-x-full ltr:-translate-x-full'}`} aria-label={t('تنقل الكابتن', 'Captain navigation')}>
+      <aside inert={!sidebarOpen} className={`fixed inset-y-0 start-0 z-30 flex w-60 flex-col border-e border-line bg-surface px-4 py-6 text-ink shadow-overlay transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'rtl:translate-x-full ltr:-translate-x-full'}`} aria-label={t('تنقل الكابتن', 'Captain navigation')}>
         <p className="px-3 text-lg font-extrabold">Samou Quick</p>
-        <p className="px-3 text-[11px] text-white/70">الكابتن</p>
+        <p className="px-3 text-[11px] text-ink-muted">الكابتن</p>
         <nav className="mt-8 flex-1 space-y-1">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const selected = activeTab === item.id;
-            return <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition-all duration-200 ${selected ? 'bg-brand text-white shadow-brand' : 'text-white/75 hover:bg-white/10 hover:text-white active:scale-[0.97]'}`}>
+            return <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition-all duration-200 ${selected ? 'bg-brand text-white shadow-brand' : 'text-ink-soft hover:bg-canvas hover:text-ink active:scale-[0.97]'}`}>
               <Icon size={18} /><span>{t(item.label, item.english)}</span>
             </button>;
           })}
         </nav>
-        <div className="border-t border-white/10 pt-5">
+        <div className="border-t border-line pt-5">
           <div className="flex items-center gap-3 rounded-xl px-2 py-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-tint text-sm font-extrabold text-brand-deep">
               {auth.user?.name.slice(0, 2).toUpperCase() ?? 'ك'}
             </span>
             <span className="min-w-0">
               <strong className="block truncate text-[12px]">{auth.user?.name ?? 'الكابتن'}</strong>
-              <span className="block truncate text-[11px] text-white/70">سائق / كابتن</span>
+              <span className="block truncate text-[11px] text-ink-muted">سائق / كابتن</span>
             </span>
             <button
               type="button"
               onClick={auth.signOut}
               aria-label="تسجيل الخروج"
               title="تسجيل الخروج"
-              className="ms-auto rounded-lg p-2 text-white/70 transition hover:bg-surface/10 hover:text-white"
+              className="ms-auto inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-ink-muted transition hover:bg-canvas hover:text-ink"
             >
               <LogOut size={15} />
             </button>
           </div>
         </div>
-        <button type="button" onClick={() => setSidebarOpen(false)} aria-label={t('إغلاق القائمة', 'Close navigation')} className="absolute start-3 top-3 rounded-lg p-2 text-white/80 hover:bg-white/10 md:hidden"><X size={18} /></button>
+        <button type="button" onClick={() => setSidebarOpen(false)} aria-label={t('إغلاق القائمة', 'Close navigation')} className="absolute end-3 top-3 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-ink-muted hover:bg-canvas md:hidden"><X size={18} /></button>
       </aside>
       <header className="bg-surface px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-ink">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Captain navigation">

@@ -35,7 +35,7 @@ import {
   refreshAccessToken,
   subscribeTokenChange,
 } from "./api";
-import { getActiveAccount, syncActiveSession } from "./accountVault";
+import { syncActiveSession } from "./accountVault";
 import { consumeSsoToken } from "./sso";
 
 export interface Auth {
@@ -156,30 +156,8 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
       };
     }
 
-    // Seed session optimistically from vault so role, store, and captain status
-    // are available immediately without waiting for me() roundtrip.
-    const cached = getActiveAccount();
-    const cacheMatchesSession = cached && (
-      getToken() ? cached.token === getToken() : cached.refreshToken === getRefreshToken()
-    );
-    if (cached && cacheMatchesSession && acceptsRole(cached.role)) {
-      setUserState({
-        id: cached.id,
-        name: cached.name,
-        phone: cached.phone,
-        role: cached.role,
-        isActive: true,
-        isVerified: cached.isVerified ?? true,
-        isAvailable: cached.isAvailable ?? false,
-        assignedStoreId: cached.assignedStoreId ?? null,
-        latitude: null,
-        longitude: null,
-        profileImageUrl: cached.avatar,
-        createdAt: cached.lastActiveAt,
-        updatedAt: cached.lastActiveAt,
-      });
-    }
-
+    // Publish the profile only after the server verifies or refreshes the session.
+    // Cached roles must not start protected dashboard requests during boot.
     const controller = new AbortController();
     bootController.current = controller;
 

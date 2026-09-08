@@ -31,6 +31,7 @@ const tokens: Record<string, string> = {};
 async function request<T>(method: string, route: string, role?: string, body?: unknown) {
   const response = await fetch(`${base}/api/v1${route}`, {
     method,
+    signal: AbortSignal.timeout(5_000),
     headers: { 'Content-Type': 'application/json', ...(role ? { Authorization: `Bearer ${tokens[role]}` } : {}) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
@@ -116,3 +117,37 @@ it('delivers an order with server pricing, role gates, handoff codes, PIN and ex
   await request('PATCH', `${route}/status`, 'CAPTAIN', { status: 'DELIVERED', deliveryPin: customer.data.deliveryPin });
   expect(await fixture.db.ledgerEntry.count()).toBe(ledgerCount);
 }, 20_000);
+
+it('rejects invalid checkout sessions and returns cross-origin headers for missing uploads', async () => {
+  const response = await fetch(`${base}/api/v1/orders`, {
+    method: 'POST', headers: { Authorization: 'Bearer invalid-session', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ storeId: 'store', items: [{ productId: 'product', quantity: 1 }], customerAddressText: 'Test address' }),
+  });
+  expect(response.status).toBe(401);
+  const image = await fetch(`${base}/uploads/missing-test-image.webp`);
+  expect(image.status).toBe(200);
+  expect(image.headers.get('Cross-Origin-Resource-Policy')).toBe('cross-origin');
+  expect(image.headers.get('X-Image-Fallback')).toBe('missing-upload');
+  expect(image.headers.get('Cache-Control')).toBe('no-store');
+  expect(image.headers.get('Content-Type')).toContain('image/svg+xml');
+  expect((await fetch(`${base}/uploads/missing-test-audio.webm`)).status).toBe(404);
+});
+
+it('authenticates support conversations and derives ownership from the session', async () => {
+  expect((await request('GET', '/support')).status).toBe(401);
+  const created = await request<{ id: string; userId: string }>('POST', '/support', 'CUSTOMER', {
+    ticketNumber: 'client-number', userId: 'ADMIN', category: 'GENERAL', subject: 'اختبار الدعم', priority: 'NORMAL',
+  });
+  expect(created.status, JSON.stringify(created.error)).toBe(201);
+  expect(created.data.userId).toBe('CUSTOMER');
+  const route = `/support/${created.data.id}`;
+  expect((await request('GET', route, 'CAPTAIN')).status).toBe(403);
+  const reply = await request<{ senderRole: string; senderId: string }>('POST', `${route}/messages`, 'CUSTOMER', {
+    senderId: 'ADMIN', senderRole: 'ADMIN', message: 'رسالة اختبار محلية',
+  });
+  expect(reply.status, JSON.stringify(reply.error)).toBe(200);
+  expect(reply.data.senderId).toBe('CUSTOMER');
+  expect(reply.data.senderRole).toBe('CUSTOMER');
+  expect((await request('PATCH', `${route}/status`, 'CUSTOMER', { status: 'RESOLVED' })).status).toBe(403);
+  expect((await request('PATCH', `${route}/status`, 'ADMIN', { status: 'RESOLVED' })).status).toBe(200);
+});

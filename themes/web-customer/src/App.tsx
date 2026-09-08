@@ -5,19 +5,19 @@ import { UserRole, type UserRole as UserRoleValue } from '@samou-go/shared-types
 import { useLanguage, OfflineBanner } from '@samou-go/ui';
 import { updateMyLocation, usePlatformSettings, ENABLE_LOCATION } from '@samou-go/api-client';
 import { SamouGoHome } from './components/generated/SamouGoHome';
-import { OrdersScreen } from './screens/OrdersScreen';
-import { ProfileScreen } from './screens/ProfileScreen';
-import { SettingsScreen } from './screens/SettingsScreen';
-import { FavoritesScreen } from './screens/FavoritesScreen';
-import { SearchScreen } from './screens/SearchScreen';
-import { StoreDetailScreen } from './screens/StoreDetailScreen';
-import { CartScreen } from './screens/CartScreen';
-import { CheckoutScreen } from './screens/CheckoutScreen';
-import { OrderTrackingScreen } from './screens/OrderTrackingScreen';
-import { CustomRequestsScreen } from './screens/CustomRequestsScreen';
-import { OffersScreen } from './screens/OffersScreen';
+const OrdersScreen = lazy(() => import('./screens/OrdersScreen').then(module => ({ default: module.OrdersScreen })));
+const ProfileScreen = lazy(() => import('./screens/ProfileScreen').then(module => ({ default: module.ProfileScreen })));
+const SettingsScreen = lazy(() => import('./screens/SettingsScreen').then(module => ({ default: module.SettingsScreen })));
+const FavoritesScreen = lazy(() => import('./screens/FavoritesScreen').then(module => ({ default: module.FavoritesScreen })));
+const SearchScreen = lazy(() => import('./screens/SearchScreen').then(module => ({ default: module.SearchScreen })));
+const StoreDetailScreen = lazy(() => import('./screens/StoreDetailScreen').then(module => ({ default: module.StoreDetailScreen })));
+const CartScreen = lazy(() => import('./screens/CartScreen').then(module => ({ default: module.CartScreen })));
+const CheckoutScreen = lazy(() => import('./screens/CheckoutScreen').then(module => ({ default: module.CheckoutScreen })));
+const OrderTrackingScreen = lazy(() => import('./screens/OrderTrackingScreen').then(module => ({ default: module.OrderTrackingScreen })));
+const CustomRequestsScreen = lazy(() => import('./screens/CustomRequestsScreen').then(module => ({ default: module.CustomRequestsScreen })));
+const OffersScreen = lazy(() => import('./screens/OffersScreen').then(module => ({ default: module.OffersScreen })));
 import { ForgotPasswordScreen, LoginScreen, RegisterScreen } from './screens/AuthScreens';
-import { SupportScreen } from './screens/SupportScreen';
+const SupportScreen = lazy(() => import('./screens/SupportScreen').then(module => ({ default: module.SupportScreen })));
 
 import { BootScreen } from './components/BootScreen';
 import { NavigationDrawer, NavigationDrawerProvider } from './components/NavigationDrawer';
@@ -204,7 +204,7 @@ function StaffFallback() {
 
 function StartupRoutes({ auth }: { auth: Auth }) {
   return (
-    <Routes>
+    <Suspense fallback={<BootScreen />}><Routes>
       <Route path="/" element={<Navigate to="/home" replace />} />
       <Route path="/home" element={<SamouGoHome />} />
       <Route path="/stores/:storeId" element={<StoreDetailScreen />} />
@@ -287,7 +287,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
           just render null — the /login route already handles the signed-out case.
           This prevents self-redirect loops (e.g. Navigate('/login') while on /login). */}
       <Route path="*" element={auth.user ? <Navigate to={roleHomePath(auth.user.role)} replace /> : null} />
-    </Routes>
+    </Routes></Suspense>
   );
 }
 

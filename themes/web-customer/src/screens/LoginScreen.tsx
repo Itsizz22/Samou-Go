@@ -34,7 +34,7 @@ export function LoginScreen() {
       <div className="customer-login__screen mx-auto w-full max-w-md">
         <header className="relative flex h-50 items-center justify-center overflow-hidden p-6">
           <img
-            src="/images/login-neighborhood.png"
+            src="/images/login-neighborhood.webp"
             width={1344}
             height={768}
             alt=""

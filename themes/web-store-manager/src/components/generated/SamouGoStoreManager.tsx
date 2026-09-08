@@ -462,39 +462,39 @@ export function SamouGoStoreManager() {
     <main className={`min-h-screen bg-canvas pb-28 font-sans text-ink transition-[padding] duration-300 ${sidebarOpen ? 'md:ps-60' : ''}`}>
       <OfflineBanner />
       {sidebarOpen && <button type="button" aria-label={t('إغلاق القائمة', 'Close navigation')} onClick={() => setSidebarOpen(false)} className="fixed inset-0 z-20 bg-ink/40 md:hidden" />}
-      <aside className={`fixed inset-y-0 start-0 z-30 flex w-60 flex-col bg-slate-900 px-4 py-6 text-white shadow-overlay transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'rtl:translate-x-full ltr:-translate-x-full'}`} aria-label={t('تنقل مدير المتجر', 'Store manager navigation')}>
+      <aside inert={!sidebarOpen} className={`fixed inset-y-0 start-0 z-30 flex w-60 flex-col border-e border-line bg-surface px-4 py-6 text-ink shadow-overlay transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'rtl:translate-x-full ltr:-translate-x-full'}`} aria-label={t('تنقل مدير المتجر', 'Store manager navigation')}>
         <p className="px-3 text-lg font-extrabold">Samou Quick</p>
-        <p className="px-3 text-[11px] text-white/70">مدير المتجر</p>
+        <p className="px-3 text-[11px] text-ink-muted">مدير المتجر</p>
         <nav className="mt-8 flex-1 space-y-1">
           {BOTTOM_TABS.map((tab) => {
             const Icon = tab.icon;
             const selected = activeTab === tab.id;
-            return <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition-all duration-200 ${selected ? 'bg-brand text-white shadow-brand' : 'text-white/75 hover:bg-white/10 hover:text-white active:scale-[0.97]'}`}>
+            return <button key={tab.id} type="button" onClick={() => { setActiveTab(tab.id); setSidebarOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-bold transition-all duration-200 ${selected ? 'bg-brand text-white shadow-brand' : 'text-ink-soft hover:bg-canvas hover:text-ink active:scale-[0.97]'}`}>
               <Icon size={18} /><span>{t(tab.ar, tab.en)}</span>
             </button>;
           })}
         </nav>
-        <div className="border-t border-white/10 pt-5">
+        <div className="border-t border-line pt-5">
           <div className="flex items-center gap-3 rounded-xl px-2 py-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-tint text-sm font-extrabold text-brand-deep">
               {auth.user?.name.slice(0, 2).toUpperCase() ?? 'م'}
             </span>
             <span className="min-w-0">
               <strong className="block truncate text-[12px]">{auth.user?.name ?? 'مدير المتجر'}</strong>
-              <span className="block truncate text-[11px] text-white/70">مدير المتجر</span>
+              <span className="block truncate text-[11px] text-ink-muted">مدير المتجر</span>
             </span>
             <button
               type="button"
               onClick={auth.signOut}
               aria-label="تسجيل الخروج"
               title="تسجيل الخروج"
-              className="ms-auto rounded-lg p-2 text-white/70 transition hover:bg-surface/10 hover:text-white"
+              className="ms-auto inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-ink-muted transition hover:bg-canvas hover:text-ink"
             >
               <LogOut size={15} />
             </button>
           </div>
         </div>
-        <button type="button" onClick={() => setSidebarOpen(false)} aria-label={t('إغلاق القائمة', 'Close navigation')} className="absolute start-3 top-3 rounded-lg p-2 text-white/80 hover:bg-white/10 md:hidden"><X size={18} /></button>
+        <button type="button" onClick={() => setSidebarOpen(false)} aria-label={t('إغلاق القائمة', 'Close navigation')} className="absolute end-3 top-3 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-ink-muted hover:bg-canvas md:hidden"><X size={18} /></button>
       </aside>
       <header className="bg-brand px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="التنقل الرئيسي">

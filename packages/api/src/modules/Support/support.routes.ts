@@ -1,7 +1,6 @@
 import { Router } from 'express';
-import { TicketStatus, TicketPriority } from '@samou-go/shared-types';
 import { asyncHandler } from '../../lib/async-handler';
-import { requireAuth } from '../../middleware/authenticate';
+import { authenticate } from '../../middleware/authenticate';
 import {
   createSupportTicketHandler,
   listSupportTicketsHandler,
@@ -12,7 +11,7 @@ import {
 
 export const supportRouter: Router = Router();
 
-supportRouter.use(requireAuth);
+supportRouter.use(authenticate);
 
 supportRouter.post('/', asyncHandler(createSupportTicketHandler));
 supportRouter.get('/', asyncHandler(listSupportTicketsHandler));

@@ -41,6 +41,10 @@ export function createApp(): Application {
   // seven frontends live on other ports and load these images from here.
   app.use(
     '/uploads',
+    (_req, res, next) => {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      next();
+    },
     express.static(uploadDirs.finalDir, {
       maxAge: '365d',
       immutable: true,
@@ -50,9 +54,15 @@ export function createApp(): Application {
       },
     })
   );
-  // Graceful fallback: if express.static can't find a file, return 404
-  // instead of letting the request fall through to the error handler as 503.
-  app.use('/uploads', (_req: Request, res: Response) => {
+  // Missing image files can outlive their database URL after storage loss.
+  // Render a visible placeholder without caching it, so restored files appear immediately.
+  app.use('/uploads', (req: Request, res: Response) => {
+    if ((req.method === 'GET' || req.method === 'HEAD') && /\.(webp|png|jpe?g|avif|gif)$/i.test(req.path)) {
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('X-Image-Fallback', 'missing-upload');
+      res.type('image/svg+xml').send('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240"><rect width="320" height="240" fill="#f1f5f9"/><g fill="none" stroke="#94a3b8" stroke-width="5" stroke-linejoin="round"><rect x="110" y="65" width="100" height="80" rx="10"/><circle cx="180" cy="88" r="9"/><path d="m115 137 28-30 25 23 17-16 20 23"/></g><text x="160" y="181" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#64748b">الصورة غير متاحة</text></svg>');
+      return;
+    }
     res.status(404).json({ message: 'File not found' });
   });
 

@@ -42,11 +42,13 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
   }
 }
 
-/**
- * Soft gate: attaches `req.auth` when a valid token is present, but lets
- * anonymous requests through. Used by the public catalogue so a logged-in
- * customer can get personalised data from the same endpoint.
- */
+/** Allow guests, but reject an invalid supplied session so the client can refresh it. */
+export function authenticateIfPresent(req: Request, res: Response, next: NextFunction): void {
+  if (req.headers.authorization) authenticate(req, res, next);
+  else next();
+}
+
+/** Public catalogue gate: ignore invalid credentials and serve anonymous data. */
 export function optionalAuthenticate(req: Request, _res: Response, next: NextFunction): void {
   const token = readBearerToken(req);
   if (!token) {

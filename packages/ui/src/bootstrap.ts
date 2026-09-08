@@ -1,3 +1,4 @@
+import { MotionGlobalConfig } from 'framer-motion';
 /**
  * Samou' Go — app bootstrap utility.
  *
@@ -12,9 +13,7 @@
  *      ship their own dark toggle and pass that flag
  *   3. Attaches a global broken-image fallback handler
  *
- * The `MotionGlobalConfig` import is lazy (dynamic) so this module does not
- * drag Framer Motion into a bundle that never uses it — though in practice
- * every Samou' Go app depends on it anyway.
+ * Framer Motion is shared by all apps; configure it before React renders.
  */
 
 export interface BootstrapOptions {
@@ -72,15 +71,7 @@ export function bootstrapApp(options: BootstrapOptions = {}): void {
     urlParams.get('mode') === 'editable';
 
   if (skipViaUrl || options.skipAnimations) {
-    // Dynamic import so the call site doesn't need to depend on framer-motion
-    // at the module level — the function is called once synchronously anyway.
-    import('framer-motion')
-      .then(({ MotionGlobalConfig }) => {
-        MotionGlobalConfig.skipAnimations = true;
-      })
-      .catch(() => {
-        /* framer-motion not installed in this workspace — ignore */
-      });
+    MotionGlobalConfig.skipAnimations = true;
   }
 
   /* ---- 2. Force light mode ---------------------------------------------- */

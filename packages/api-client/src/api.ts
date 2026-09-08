@@ -863,6 +863,7 @@ export function createOrder(
 ): Promise<OrderDetail> {
   return request<OrderDetail>("POST", "/orders", {
     body: input,
+    auth: !input.guestCustomerInfo,
     signal,
   });
 }

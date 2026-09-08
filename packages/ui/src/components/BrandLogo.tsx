@@ -1,10 +1,10 @@
 /**
  * BrandLogo — renders the official Samou Quick brand mark.
  *
- * Uses the transparent PNG source (`logo.png`) bundled by Vite at build time.
+ * Uses the transparent WebP asset (`logo.webp`) bundled by Vite at build time.
  * Use the `size` prop (default 40) to control the rendered diameter.
  */
-import logoUrl from '../assets/logo.png';
+import logoUrl from '../assets/logo.webp';
 
 interface BrandLogoProps {
   /** Diameter of the icon square (default 40). */

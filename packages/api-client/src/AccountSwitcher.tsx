@@ -36,9 +36,10 @@ const ROLE_LABELS: Record<UserRole, [string, string]> = {
 export interface AccountSwitcherProps {
   /** The value returned by `useAuth()` in the parent screen. */
   auth: Auth;
+  compact?: boolean;
 }
 
-export function AccountSwitcher({ auth }: AccountSwitcherProps) {
+export function AccountSwitcher({ auth, compact = false }: AccountSwitcherProps) {
   const { accounts, activeId, full, busyId, switchTo, remove } = useAccounts();
   const toast = useToast();
   const isArabic = useAppLanguage() === 'ar';
@@ -111,14 +112,14 @@ export function AccountSwitcher({ auth }: AccountSwitcherProps) {
   if (accounts.length === 0) return null;
 
   return (
-    <section className="rounded-2xl border border-line bg-surface p-4 shadow-card">
+    <section className={compact ? "" : "rounded-2xl border border-line bg-surface p-4 shadow-card"}>
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
+        <span className={compact ? "hidden" : "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark"}>
           <UserPlus size={18} />
         </span>
-        <div className="flex-1 text-end">
+        <div className="flex-1 text-start">
           <h2 className="text-sm font-extrabold">{isArabic ? 'تبديل الحسابات' : 'Switch accounts'}</h2>
-          <p className="text-micro text-ink-muted">
+          <p className={compact ? "sr-only" : "text-micro text-ink-muted"}>
             {isArabic
               ? `ما يصل إلى ${accounts.length} من 3 حسابات محفوظة على هذا الجهاز`
               : `${accounts.length} of 3 accounts saved on this device`}
@@ -126,15 +127,15 @@ export function AccountSwitcher({ auth }: AccountSwitcherProps) {
         </div>
       </div>
 
-      <ul className="mt-4 space-y-2">
+      <ul className={compact ? "mt-2 space-y-2" : "mt-4 space-y-2"}>
         {accounts.map((account) => {
           const active = account.id === activeId;
           const busy = busyId === account.id;
           return (
             <li
               key={account.id}
-              className={`rounded-xl border p-3 transition ${
-                active ? 'border-brand bg-brand-tint/60' : 'border-line bg-canvas'
+              className={`rounded-xl border bg-surface ${compact ? "p-2" : "p-3"} transition ${
+                active ? 'border-brand' : 'border-line'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -150,7 +151,7 @@ export function AccountSwitcher({ auth }: AccountSwitcherProps) {
                   </span>
                 )}
                 <div className="min-w-0 flex-1 text-end">
-                  <p className="flex items-center justify-end gap-1.5">
+                  <p className="flex items-center justify-start gap-1.5">
                     {active && (
                       <span className="flex items-center gap-0.5 rounded-full bg-brand px-2 py-0.5 text-micro font-bold text-white">
                         <Check size={10} strokeWidth={3} />
@@ -169,7 +170,7 @@ export function AccountSwitcher({ auth }: AccountSwitcherProps) {
                     aria-label={isArabic ? 'تسجيل الخروج من الحساب الحالي' : 'Sign out of the active account'}
                     onClick={() => void handleRemove(account.id)}
                     disabled={busy}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink disabled:opacity-50"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink disabled:opacity-50"
                   >
                     {busy ? (
                       <Loader2 size={14} className="animate-spin" />
@@ -182,7 +183,7 @@ export function AccountSwitcher({ auth }: AccountSwitcherProps) {
                     type="button"
                     disabled={Boolean(busyId)}
                     onClick={() => void handleSwitch(account.id)}
-                    className="shrink-0 rounded-lg bg-brand px-3 py-2 text-[11px] font-extrabold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-50"
+                    className="min-h-11 shrink-0 rounded-lg bg-brand px-3 py-2 text-[11px] font-extrabold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-50"
                   >
                     {busy ? (
                       <Loader2 size={13} className="mx-auto animate-spin" />

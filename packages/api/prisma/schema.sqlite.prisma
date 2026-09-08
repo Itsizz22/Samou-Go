@@ -645,6 +645,10 @@ model ChatMessage {
 
 model SupportTicket {
   id String @id @default(cuid())
+  // Retained for legacy tickets; conversations use TicketMessage for new content.
+  legacyRole UserRole? @map("role")
+  legacyDescription String? @map("description")
+  resolvedAt DateTime?
   ticketNumber String @unique
   userId String
   orderId String?
