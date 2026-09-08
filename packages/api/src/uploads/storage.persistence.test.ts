@@ -3,7 +3,7 @@ import { readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 const h = vi.hoisted(() => {
-  const root = `${process.env.TEMP}/samou-persistent-media-${Date.now()}`;
+  const root = '';
   const rows = new Map<string, Uint8Array>();
   return { root, rows,
     upsert: vi.fn(async ({ where, create }: { where: { key: string }; create: { content: Uint8Array } }) => { rows.set(where.key, create.content); }),
@@ -13,7 +13,15 @@ const h = vi.hoisted(() => {
 });
 vi.mock('../config/env', () => ({ env: { isProduction: true } }));
 vi.mock('../lib/prisma', () => ({ prisma: { storedUpload: { upsert: h.upsert, findUnique: h.findUnique, deleteMany: h.deleteMany } } }));
-vi.mock('./uploads.config', () => ({ uploadConfig: { maxBytes: 4096, publicOrigin: 'http://localhost' }, uploadDirs: { rawDir: `${h.root}/raw`, finalDir: `${h.root}/final` } }));
+vi.mock('./uploads.config', async () => {
+  const os = await import('node:os');
+  const paths = await import('node:path');
+  h.root = paths.join(os.tmpdir(), `samou-persistent-media-${Date.now()}`);
+  return {
+    uploadConfig: { maxBytes: 4096, publicOrigin: 'http://localhost' },
+    uploadDirs: { rawDir: paths.join(h.root, 'raw'), finalDir: paths.join(h.root, 'final') },
+  };
+});
 import { PersistentStorageAdapter } from './storage';
 async function removeTestCache() {
   expect(path.dirname(path.resolve(h.root))).toBe(path.resolve(tmpdir()));
