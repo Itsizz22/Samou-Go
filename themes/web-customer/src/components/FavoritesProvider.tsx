@@ -76,9 +76,10 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
 
   // Load whenever the session (or an explicit reload) changes.
   useEffect(() => {
-    if (!auth.ready || !auth.user) {
+    if (!auth.ready || !auth.user || !['CUSTOMER', 'ADMIN'].includes(auth.user.role)) {
       setStores([]);
       setLoading(false);
+      setError(null);
       return;
     }
 
@@ -86,10 +87,12 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     getFavorites(controller.signal)
       .then((result) => {
+        if (controller.signal.aborted) return;
         setStores(result.items);
         setError(null);
       })
       .catch((cause: unknown) => {
+        if (controller.signal.aborted) return;
         const apiError =
           cause instanceof ApiError
             ? cause
@@ -101,7 +104,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
           setError(apiError);
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
 
     return () => controller.abort();
   }, [auth.ready, auth.user, nonce]);
@@ -127,7 +130,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
 
   const toggle = useCallback(
     async (storeId: string): Promise<boolean> => {
-      if (!auth.user) return false;
+      if (!auth.user || !['CUSTOMER', 'ADMIN'].includes(auth.user.role)) return false;
       if (pending.includes(storeId)) return true;
 
       const wasFavorite = isFavorite(storeId);

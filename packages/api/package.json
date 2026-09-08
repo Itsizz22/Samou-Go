@@ -31,7 +31,9 @@
     "test:load:prod": "tsx src/scripts/load-test.ts https://samou-go.onrender.com",
     "backfill:identifiers": "tsx src/scripts/backfill-identifiers.ts",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "seed:e2e:pg": "tsx src/scripts/seed-e2e-test-data.ts"
+    "seed:e2e:pg": "tsx src/scripts/seed-e2e-test-data.ts",
+    "seed:demo-catalogue": "tsx src/scripts/seed-demo-catalogue.ts",
+    "test:demo-catalogue": "node scripts/demo-catalogue-smoke.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.3.1",

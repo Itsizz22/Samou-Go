@@ -168,7 +168,8 @@ export function SamouGoStoreManager() {
   const managedStores = useMyStores({
     enabled: Boolean(auth.user) && isManager,
   });
-  const managedStoreId: string | null = managedStores.data?.[0]?.id ?? null;
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const managedStoreId = managedStores.data?.find(store => store.id === selectedStoreId)?.id ?? managedStores.data?.[0]?.id ?? null;
   const managedStore = useStoreManager(managedStoreId, { enabled: isManager });
   const platformSettings = usePlatformSettings();
   const gpsCaptureEnabled = FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && (platformSettings.data?.gpsCaptureEnabled ?? false);
@@ -237,30 +238,30 @@ export function SamouGoStoreManager() {
   // The kitchen's inbox: anything not yet terminal and not yet on the road.
   // Polled every 10 s so a new PENDING order chimes without a manual refresh.
   const incoming = useOrders(
-    { status: OrderStatus.PENDING, pageSize: 20 },
-    { enabled: Boolean(auth.user) && isManager, pollMs: 10_000 }
+    { storeId: managedStoreId ?? undefined, status: OrderStatus.PENDING, pageSize: 20 },
+    { enabled: Boolean(auth.user) && isManager && Boolean(managedStoreId), pollMs: 10_000 }
   );
   const accepted = useOrders(
-    { status: OrderStatus.ACCEPTED, pageSize: 20 },
-    { enabled: Boolean(auth.user) && isManager, pollMs: 10_000 }
+    { storeId: managedStoreId ?? undefined, status: OrderStatus.ACCEPTED, pageSize: 20 },
+    { enabled: Boolean(auth.user) && isManager && Boolean(managedStoreId), pollMs: 10_000 }
   );
   const preparing = useOrders(
-    { status: OrderStatus.PREPARING, pageSize: 20 },
-    { enabled: Boolean(auth.user) && isManager, pollMs: 10_000 }
+    { storeId: managedStoreId ?? undefined, status: OrderStatus.PREPARING, pageSize: 20 },
+    { enabled: Boolean(auth.user) && isManager && Boolean(managedStoreId), pollMs: 10_000 }
   );
   const readyForPickup = useOrders(
-    { status: OrderStatus.READY_FOR_PICKUP, pageSize: 20 },
-    { enabled: Boolean(auth.user) && isManager, pollMs: 10_000 }
+    { storeId: managedStoreId ?? undefined, status: OrderStatus.READY_FOR_PICKUP, pageSize: 20 },
+    { enabled: Boolean(auth.user) && isManager && Boolean(managedStoreId), pollMs: 10_000 }
   );
   // Counts for the KPI tiles — we only need totals, so `pageSize: 1` is enough.
   const deliveredToday = useOrders(
-    { status: OrderStatus.DELIVERED, pageSize: 1 },
-    { enabled: Boolean(auth.user) && isManager }
+    { storeId: managedStoreId ?? undefined, status: OrderStatus.DELIVERED, pageSize: 1 },
+    { enabled: Boolean(auth.user) && isManager && Boolean(managedStoreId) }
   );
   // For the sales KPI we need the actual amounts — fetch enough for a daily total.
   const deliveredTodayFull = useOrders(
-    { status: OrderStatus.DELIVERED, pageSize: 100 },
-    { enabled: Boolean(auth.user) && isManager }
+    { storeId: managedStoreId ?? undefined, status: OrderStatus.DELIVERED, pageSize: 100 },
+    { enabled: Boolean(auth.user) && isManager && Boolean(managedStoreId) }
   );
   const completedTodaySales = useMemo(() => {
     const today = new Date().toDateString();
@@ -503,6 +504,13 @@ export function SamouGoStoreManager() {
           <div className="flex-1 text-center leading-tight">
             <h1 className="text-[15px] font-extrabold">{t(BOTTOM_TABS.find(tab => tab.id === activeTab)?.ar ?? 'لوحة المتجر', BOTTOM_TABS.find(tab => tab.id === activeTab)?.en ?? 'Store Manager')}</h1>
             <p className="mt-1 text-xs opacity-80">{managedStore.data ? t(managedStore.data.nameAr, managedStore.data.nameEn) : auth.user?.name}</p>
+            {(managedStores.data?.length ?? 0) > 1 && (
+              <select aria-label={t('المتجر الحالي', 'Current store')} value={managedStoreId ?? ''}
+                onChange={event => setSelectedStoreId(event.target.value)}
+                className="mt-2 min-h-11 max-w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink">
+                {managedStores.data?.map(store => <option key={store.id} value={store.id}>{t(store.nameAr, store.nameEn)}</option>)}
+              </select>
+            )}
           </div>
           <div className="flex items-center gap-2" dir="ltr">
             <LanguageToggle onDark={activeTab === 'home'} />

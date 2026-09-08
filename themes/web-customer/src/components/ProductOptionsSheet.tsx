@@ -5,7 +5,7 @@ import { normalizeOptionGroups } from '@samou-go/shared-types';
  * Appears when a product has optionGroups — shows checkboxes/radios for each
  * group with live price calculation.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useDragControls, useReducedMotion } from 'framer-motion';
 import { X, Plus, Minus, ShoppingBag } from 'lucide-react';
 import type { Product, ProductOptionGroup } from '@samou-go/shared-types';
@@ -24,12 +24,16 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
   const { t } = useLanguage();
   const dragControls = useDragControls();
   const reduced = useReducedMotion();
+  const panel = useRef<HTMLDivElement>(null);
   const groups = useMemo(() => normalizeOptionGroups(product.optionGroups), [product.optionGroups]);
   const [quantity, setQuantity] = useState(1);
   useEffect(() => {
     const previous = document.body.style.overflow;
+    const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panel.current?.focus();
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = previous; };
+    return () => { document.body.style.overflow = previous;
+      focused?.focus(); };
   }, []);
   // selections[groupId] = Set<optionId>
   const [selections, setSelections] = useState<Record<string, Set<string>>>(() => {
@@ -45,6 +49,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
       if (set.has(optionId)) {
         set.delete(optionId);
       } else {
+        if (maxSelect === 1) set.clear();
         if (set.size < maxSelect) set.add(optionId);
       }
       next[groupId] = set;
@@ -102,6 +107,19 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
         onClick={onClose}
       />
       <motion.div key="options-panel"
+        ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="product-options-title"
+        onKeyDown={event => {
+          if (event.key === 'Escape') { event.stopPropagation(); onClose(); }
+          if (event.key !== 'Tab') return;
+          const buttons = panel.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)');
+          const first = buttons?.[0];
+          const last = buttons?.[buttons.length - 1];
+          if (event.shiftKey && (document.activeElement === first || document.activeElement === panel.current)) {
+            event.preventDefault(); last?.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault(); first?.focus();
+          }
+        }}
         initial={reduced ? false : { y: '100%' }}
         animate={{ y: 0 }}
         exit={reduced ? { opacity: 0 } : { y: '100%' }}
@@ -115,13 +133,14 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white px-5 py-4">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-extrabold text-ink">{product.nameAr}</h2>
+            <h2 id="product-options-title" className="text-base font-extrabold text-ink">{product.nameAr}</h2>
             <p className="text-xs text-ink-muted">{t(storeNameAr, storeNameAr)}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 transition hover:bg-canvas active:scale-90"
+            aria-label={t('إغلاق خيارات المنتج', 'Close product options')}
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 transition hover:bg-canvas active:scale-90"
           >
             <X size={20} />
           </button>
@@ -158,6 +177,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
                     <button
                       key={item.id}
                       type="button"
+                      aria-pressed={selected}
                       onClick={() => toggleOption(group.id, item.id, group.maxSelect)}
                       className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition ${
                         selected
@@ -193,16 +213,18 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
             <div className="flex items-center gap-1 rounded-full bg-canvas px-1 py-1">
               <button
                 type="button"
+                aria-label={t('إنقاص الكمية', 'Decrease quantity')}
                 onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                className="rounded-full p-2 transition active:scale-90"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 transition active:scale-90"
               >
                 <Minus size={14} />
               </button>
               <span className="min-w-6 text-center text-sm font-bold">{quantity}</span>
               <button
                 type="button"
+                aria-label={t('زيادة الكمية', 'Increase quantity')}
                 onClick={() => setQuantity(q => Math.min(99, q + 1))}
-                className="rounded-full p-2 transition active:scale-90"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 transition active:scale-90"
               >
                 <Plus size={14} />
               </button>
