@@ -28,15 +28,18 @@ const DEV_ENV_KEY: Record<AppKey, string> = {
   admin: 'VITE_ADMIN_URL',
 };
 
-/**
- * URL a user of `role` belongs at. In production the themes share one origin
- * (`/${appKey}` under the reverse proxy); during local dev each Vite app runs
- * on its own port, so a theme can point at the sibling app via the matching
- * `VITE_*_URL` env var.
- */
+/** Resolve explicit overrides, separate Vercel origins, local Vite ports, or a custom reverse proxy. */
 export function appUrl(app: AppKey): string {
   const overridden = (import.meta.env[DEV_ENV_KEY[app]] as string | undefined)?.trim();
   if (overridden) return overridden.replace(/\/+$/, '');
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host.endsWith('.vercel.app')) return `https://samou-go-${app}.vercel.app`;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      const ports: Record<AppKey, number> = { customer: 5173, 'store-details': 5174, checkout: 5175, 'order-tracking': 5176, 'store-manager': 5177, captain: 5178, admin: 5179 };
+      return `http://${host}:${ports[app]}`;
+    }
+  }
   return appPath(app);
 }
 

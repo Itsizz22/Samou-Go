@@ -1,3 +1,4 @@
+import { appUrl, buildSsoUrl } from '@samou-go/api-client';
 /**
  * Samou' Go — live order tracking.
  *
@@ -61,7 +62,7 @@ const POLL_MS = 5_000;
 
 /** Where the customer home app is served — target of the "home" bottom tab. */
 const HOME_URL: string = (
-  import.meta.env.VITE_HOME_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:5173')
+  import.meta.env.VITE_HOME_URL ?? appUrl('customer')
 ).replace(/\/+$/, '');
 
 type TimelineState = 'completed' | 'active' | 'pending';
@@ -611,7 +612,7 @@ export const LiveOrderTracking = () => {
         activeTab={activeTab}
         onTabChange={(tab) => {
           if (tab === 'home' || tab === 'explore') {
-            window.location.href = `${HOME_URL}/`;
+            window.location.href = buildSsoUrl(`${HOME_URL}/${tab === 'explore' ? 'search' : 'home'}`);
             return;
           }
           setActiveTab(tab);

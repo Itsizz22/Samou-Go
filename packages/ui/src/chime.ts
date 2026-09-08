@@ -13,6 +13,7 @@
 
 let sharedContext: AudioContext | null = null;
 let gestureListenerAttached = false;
+let audioUnlocked = false;
 
 /**
  * Register a ONE-TIME user-gesture listener that resumes the AudioContext.
@@ -23,6 +24,8 @@ function attachGestureResume(): void {
   if (gestureListenerAttached || typeof window === 'undefined') return;
   gestureListenerAttached = true;
   const resume = () => {
+    audioUnlocked = true;
+    getContext();
     if (sharedContext && sharedContext.state === 'suspended') {
       sharedContext.resume().catch(() => {});
     }
@@ -37,6 +40,12 @@ function attachGestureResume(): void {
 
 function getContext(): AudioContext | null {
   try {
+    if (typeof window === 'undefined') return null;
+    if (!audioUnlocked && !navigator.userActivation?.hasBeenActive) {
+      attachGestureResume();
+      return null;
+    }
+    audioUnlocked = true;
     if (!sharedContext) {
       const Ctor =
         window.AudioContext ??
@@ -111,7 +120,7 @@ export function createLoopingAlert(maxMs = 10_000): () => void {
 
   let stopped = false;
   const intervalMs = 1200;
-  const startTime = ctx.currentTime;
+  const startTime = Date.now();
 
   function playOnce(): void {
     if (stopped) return;
@@ -130,7 +139,7 @@ export function createLoopingAlert(maxMs = 10_000): () => void {
       return;
     }
     // Auto-stop after maxMs.
-    if ((ctx.currentTime - startTime) * 1000 >= maxMs) {
+    if (Date.now() - startTime >= maxMs) {
       stopped = true;
       clearInterval(timer);
       return;

@@ -1,3 +1,4 @@
+import { appUrl, buildSsoUrl } from '@samou-go/api-client';
 import React from 'react';
 import { Home, Search, ClipboardList, User } from 'lucide-react';
 import { useLanguage } from '@samou-go/ui';
@@ -36,7 +37,11 @@ export const BottomTabs: React.FC<BottomTabsProps> = ({
         {tabs.map(tab => {
         const isActive = activeTab === tab.id;
         const Icon = tab.icon;
-        return <button key={tab.id} onClick={() => onTabChange?.(tab.id)} aria-current={isActive ? 'page' : undefined} className={`flex flex-col items-center justify-center w-full h-full transition-colors rounded-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand/40 ${isActive ? 'text-brand' : 'text-ink-muted hover:text-ink-soft'}`}>
+        return <button key={tab.id} onClick={() => {
+          if (onTabChange) { onTabChange(tab.id); return; }
+          const paths = { home: '/home', explore: '/search', orders: '/orders', profile: '/profile' };
+          window.location.assign(buildSsoUrl(`${appUrl('customer')}${paths[tab.id]}`));
+        }} aria-current={isActive ? 'page' : undefined} className={`flex flex-col items-center justify-center w-full h-full transition-colors rounded-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand/40 ${isActive ? 'text-brand' : 'text-ink-muted hover:text-ink-soft'}`}>
               <Icon className={`w-6 h-6 mb-1 ${isActive ? 'fill-current' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
               <div className="flex flex-col items-center leading-none">
                 <span className="text-micro font-bold uppercase tracking-wider">

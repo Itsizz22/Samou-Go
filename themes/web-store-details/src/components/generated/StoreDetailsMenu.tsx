@@ -1,3 +1,4 @@
+import { appUrl, buildSsoUrl } from '@samou-go/api-client';
 /**
  * Samou' Go — store details & product menu.
  *
@@ -33,7 +34,7 @@ import { useLanguage } from '@samou-go/ui';
 
 /** Where the checkout app is served. Override with VITE_CHECKOUT_URL in .env (same-origin relative in production). */
 const CHECKOUT_URL: string = (
-  import.meta.env.VITE_CHECKOUT_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:5175')
+  import.meta.env.VITE_CHECKOUT_URL ?? appUrl('checkout')
 ).replace(/\/+$/, '');
 
 export const StoreDetailsMenu = () => {
@@ -492,11 +493,11 @@ export const StoreDetailsMenu = () => {
           aria-label="Shopping cart summary"
         >
           <a
-            href={`${CHECKOUT_URL}/?storeId=${encodeURIComponent(storeId)}&items=${encodeURIComponent(
+            href={buildSsoUrl(`${CHECKOUT_URL}/?storeId=${encodeURIComponent(storeId)}&items=${encodeURIComponent(
               Object.entries(cartItems)
                 .map(([id, qty]) => `${id}:${qty}`)
                 .join(',')
-            )}`}
+            )}`)}
             className="flex w-full items-center justify-between rounded-xl bg-brand-deep px-4 py-3.5 text-white shadow-brand transition-all duration-200 hover:-translate-y-px hover:bg-brand-dark hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
           >
             <span className="flex flex-col items-start">

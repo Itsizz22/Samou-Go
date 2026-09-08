@@ -1,3 +1,4 @@
+import { appUrl, buildSsoUrl } from '@samou-go/api-client';
 /**
  * Samou' Go — checkout.
  *
@@ -58,17 +59,17 @@ const QUOTE_DEBOUNCE_MS = 300;
 
 /** Where the tracking app is served. Overridable so this is not localhost-only. */
 const TRACKING_URL: string = (
-  import.meta.env.VITE_TRACKING_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:5176')
+  import.meta.env.VITE_TRACKING_URL ?? appUrl('order-tracking')
 ).replace(/\/+$/, '');
 
 /** Where the store-details app is served. Used for the back button. Override with VITE_STORE_URL in .env */
 const STORE_URL: string = (
-  import.meta.env.VITE_STORE_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:5174')
+  import.meta.env.VITE_STORE_URL ?? appUrl('store-details')
 ).replace(/\/+$/, '');
 
 /** Where the customer home app is served. Used for "Continue Shopping" / bottom tab home. */
 const CUSTOMER_URL: string = (
-  import.meta.env.VITE_CUSTOMER_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:5173')
+  import.meta.env.VITE_CUSTOMER_URL ?? appUrl('customer')
 ).replace(/\/+$/, '');
 
 /** The server rejects a whitespace-only address; catch it before the round-trip. */
@@ -224,8 +225,8 @@ export const CartCheckoutSummary = () => {
 
   const canSubmit = hasItems && addressValid && !quoteStale && !submit.pending && Boolean(storeId);
 
-  const navigateHome = () => { window.location.href = CUSTOMER_URL; };
-  const navigateTo = (path: string) => { window.location.href = path; };
+  const navigateHome = () => { window.location.href = buildSsoUrl(CUSTOMER_URL); };
+  const navigateTo = (path: string) => { window.location.href = buildSsoUrl(path); };
 
   const handlePlaceOrder = async () => {
     if (!canSubmit || !storeId) return;
@@ -271,7 +272,7 @@ export const CartCheckoutSummary = () => {
             actions={
               <>
                 <a
-                  href={`${TRACKING_URL}/?orderId=${encodeURIComponent(placed.id)}`}
+                  href={buildSsoUrl(`${TRACKING_URL}/?orderId=${encodeURIComponent(placed.id)}`)}
                   className="btn-primary w-full justify-center"
                 >
                   <Truck size={20} />
@@ -318,7 +319,7 @@ export const CartCheckoutSummary = () => {
           if (tab === 'home') navigateHome();
           else if (tab === 'explore') navigateTo(STORE_URL);
           else if (tab === 'orders') navigateTo(`${TRACKING_URL}`);
-          else if (tab === 'profile') navigateHome(); // profile is in customer app
+          else if (tab === 'profile') navigateTo(`${CUSTOMER_URL}/profile`); // profile is in customer app
         }} />
       </div>
     );
@@ -680,7 +681,7 @@ export const CartCheckoutSummary = () => {
         if (tab === 'home') navigateHome();
         else if (tab === 'explore') navigateTo(STORE_URL);
         else if (tab === 'orders') navigateTo(TRACKING_URL);
-        else if (tab === 'profile') navigateHome();
+        else if (tab === 'profile') navigateTo(`${CUSTOMER_URL}/profile`);
       }} />
     </div>
   );
