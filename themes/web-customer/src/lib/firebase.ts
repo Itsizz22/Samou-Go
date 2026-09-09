@@ -3,6 +3,10 @@
  *
  * Firebase project: `samou-go` (unified web + Android).
  * Configured via environment variables (set in .env / Vercel dashboard).
+ * Firebase client config is public by design, not a server credential.
+ * Restrict this key to Firebase APIs in Google Cloud; never reuse it for
+ * billable non-Firebase APIs. Authentication/authorization remain server-side.
+ * https://firebase.google.com/docs/projects/api-keys
  * Do NOT hard-code API keys here — they live in env vars so web and Android
  * can use different app IDs from the same project.
  *

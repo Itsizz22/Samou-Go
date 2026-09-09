@@ -48,5 +48,11 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>التقاط صورة تختار إرفاقها بطلبك أو ملفك الشخصي أو منتجات متجرك.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>اختيار صورة لإرفاقها بطلبك أو ملفك الشخصي أو منتجات متجرك.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>تسجيل ملاحظة صوتية لتوضيح تفاصيل التوصيل للكابتن عند رغبتك.</string>
 </dict>
 </plist>

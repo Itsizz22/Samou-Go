@@ -48,10 +48,12 @@ async function request<T>(method: string, route: string, role?: string, body?: u
 }
 
 beforeAll(async () => {
-  const sql = execFileSync(process.execPath, [
+  const sqlFile = resolve(fixture.directory, "schema.sql");
+  execFileSync(process.execPath, [
     resolve('../../node_modules/prisma/build/index.js'), 'migrate', 'diff', '--from-empty',
-    '--to-schema-datamodel', resolve('prisma/schema.sqlite.prisma'), '--script',
+    '--to-schema-datamodel', resolve('prisma/schema.sqlite.prisma'), '--script', '--output', sqlFile,
   ], { encoding: 'utf8' });
+  const sql = readFileSync(sqlFile, 'utf8');
   for (const statement of sql.split(';').filter(s => s.trim())) await fixture.db.$executeRawUnsafe(statement);
   const passwordHash = await hashPassword('Lifecycle-test-only-2026');
   for (const [index, role] of ['CUSTOMER', 'STORE_MANAGER', 'CAPTAIN', 'ADMIN'].entries()) {

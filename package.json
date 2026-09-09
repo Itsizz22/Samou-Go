@@ -2,7 +2,7 @@
   "name": "samou-go",
   "version": "0.1.0",
   "private": true,
-  "description": "Samou Quick — hyper-local delivery platform for Samou', Hebron, Palestine",
+  "description": "Samou Quick â€” hyper-local delivery platform for Samou', Hebron, Palestine",
   "license": "UNLICENSED",
   "workspaces": [
     "packages/*",
@@ -68,5 +68,9 @@
     "esbuild@0.28.2": true,
     "prisma@6.19.3": true,
     "protobufjs@7.6.5": true
+  },
+  "overrides": {
+    "uuid": "11.1.1",
+    "qs": "6.16.0"
   }
 }
