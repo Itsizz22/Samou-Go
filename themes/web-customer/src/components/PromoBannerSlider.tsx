@@ -9,10 +9,10 @@ export function PromoBannerSlider() {
   const carousel = useShowcaseCarousel(2, 5500);
   const slides = [
     {
-      title: t('تتبع طلباتك مباشرة', 'Track your orders live'),
+      title: t('تابع حالة طلبك', 'Follow your order status'),
       description: t(
-        'سنوفر قريباً ميزة تتبع كابتن التوصيل على الخريطة لحظة بلحظة!',
-        'Live captain tracking on the map is coming soon!'
+        'تابع تجهيز طلبك وتسليمه من صفحة الطلب. التتبع على الخريطة غير متاح حاليًا.',
+        'Follow preparation and delivery on your order page. Live map tracking is not currently available.'
       ),
       Icon: MapPin,
     },

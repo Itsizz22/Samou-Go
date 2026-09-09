@@ -60,6 +60,7 @@ export const orderItemInputSchema = z.object({
 export const voucherCodeField = z.string().trim().min(1).max(40).optional();
 
 export const createOrderSchema = z.object({
+  requestId: z.string().uuid().optional(),
   storeId: z.string().min(1, 'معرّف المتجر مطلوب / storeId is required'),
   items: z
     .array(orderItemInputSchema)
@@ -164,6 +165,7 @@ const storeCheckoutItemSchema = z.object({
 });
 
 export const checkoutSchema = z.object({
+  requestId: z.string().uuid().optional(),
   deliveryZoneId: z.string().min(1).optional(),
   cartCheckoutId: z.string().min(1).optional(),
   stores: z

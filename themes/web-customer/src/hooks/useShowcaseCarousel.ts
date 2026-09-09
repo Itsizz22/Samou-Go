@@ -74,18 +74,21 @@ export function useShowcaseCarousel(count: number, intervalMs = 3500) {
         suppressClick.current = false;
         if (
           event.button !== 0 ||
-          (event.target instanceof Element && event.target.closest('button,a,input'))
+          (event.target instanceof Element && event.target.closest('button,input'))
         )
           return;
         start.current = { x: event.clientX, y: event.clientY };
         setDrag(0);
-        event.currentTarget.setPointerCapture(event.pointerId);
+
       },
       onPointerMove: (event: PointerEvent<HTMLDivElement>) => {
         if (!start.current) return;
         const dx = event.clientX - start.current.x;
         const dy = event.clientY - start.current.y;
-        if (Math.abs(dx) > Math.abs(dy)) setDrag(dx);
+        if (Math.abs(dx) > 5 && Math.abs(dx) > Math.abs(dy)) {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          setDrag(dx);
+        }
       },
       onPointerUp: (event: PointerEvent<HTMLDivElement>) => finish(event),
       onPointerCancel: (event: PointerEvent<HTMLDivElement>) => finish(event, true),

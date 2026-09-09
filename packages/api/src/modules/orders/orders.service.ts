@@ -1,3 +1,4 @@
+import { withOrderSubmission } from '../../lib/order-submission';
 import { automaticDeliveryPricing } from './pricing';
 import { normalizeSelectedOptions, resolveSelectedOptions, normalizeOptionGroups } from '@samou-go/shared-types';
 import type { Prisma, PrismaClient } from '../../lib/prisma-types';
@@ -178,13 +179,13 @@ async function priceBasket(
 ): Promise<PricedLine[]> {
   const store = await db.store.findUnique({
     where: { id: storeId },
-    select: { id: true, isActive: true, isApproved: true, storeStatus: true },
+    select: { id: true, isActive: true, isApproved: true, isAcceptingOrders: true, storeStatus: true },
   });
   if (!store) throw notFound('المتجر غير موجود / Store not found');
   if (!store.isActive) {
     throw unprocessable('STORE_CLOSED', 'المتجر مغلق حالياً / This store is currently closed');
   }
-  if (store.storeStatus === 'CLOSED') {
+  if (store.storeStatus === 'CLOSED' || store.isAcceptingOrders === false) {
     throw unprocessable('STORE_CLOSED', 'المتجر مغلق حالياً / This store is currently closed');
   }
   // An unapproved store has no public page, so it must not accept orders either.
@@ -380,7 +381,7 @@ export async function createOrder(
   customerId: string,
   body: CreateOrderBody
 ): Promise<OrderDetail> {
-  return prisma.$transaction(async tx => {
+  return withOrderSubmission(customerId, body.requestId, 'single', body, async tx => {
     // Everything below is inside ONE transaction:
     //   price the basket from the DB (authoritative), validate availability,
     //   resolve the voucher, then write order + items + status history.
@@ -565,7 +566,7 @@ export async function createCheckoutOrders(
   const checkoutId = body.cartCheckoutId ?? (await import('node:crypto')).randomUUID();
   const results: CheckoutStoreResult[] = [];
 
-  return prisma.$transaction(async tx => {
+  return withOrderSubmission(customerId, body.requestId, 'multi', body, async tx => {
     const now = new Date();
     // Shared sequence bump: one sequence row per day, incremented once per
     // store group. This gives each sub-order a unique order number.

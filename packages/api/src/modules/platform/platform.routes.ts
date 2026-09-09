@@ -1,3 +1,5 @@
+import { prisma } from '../../lib/prisma';
+import { ok } from '../../lib/respond';
 import { Router } from 'express';
 import { UserRole } from '@samou-go/shared-types';
 import { asyncHandler } from '../../lib/async-handler';
@@ -50,3 +52,12 @@ platformRouter.patch(
   authorize(UserRole.ADMIN),
   asyncHandler(controller.updatePlatformSettingsHandler)
 );
+
+platformRouter.get('/admin/overdue-orders', authorize(UserRole.ADMIN), asyncHandler(async (_req, res) => {
+  const where = { status: 'PENDING' as const, createdAt: { lte: new Date(Date.now() - 5 * 60_000) } };
+  const [items, total] = await Promise.all([
+    prisma.order.findMany({ where, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 50, select: { id: true, orderNumber: true, createdAt: true, store: { select: { nameAr: true, phone: true } } } }),
+    prisma.order.count({ where }),
+  ]);
+  ok(res, { items, total, thresholdMinutes: 5 });
+}));

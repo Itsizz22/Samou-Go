@@ -513,6 +513,21 @@ async function readEnvelope<T>(
  * expired access token at once, exactly one `/auth/refresh` round-trip happens
  * and the rest await the same promise, then retry with the fresh token.
  */
+/** Expiry is only a refresh hint; the server still verifies every credential. */
+function accessTokenNeedsRefresh(token: string | null): boolean {
+  if (!token) return true;
+  try {
+    const encoded = token.split('.')[1];
+    if (!encoded) return false;
+    const payload: unknown = JSON.parse(atob(encoded.replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof payload === 'object' && payload !== null && 'exp' in payload &&
+      typeof payload.exp === 'number' && Number.isFinite(payload.exp) &&
+      payload.exp * 1000 <= Date.now() + 30_000;
+  } catch {
+    return false;
+  }
+}
+
 let refreshInFlight: { token: string; promise: Promise<AuthResponse> } | null = null;
 let lastRotation: {
   accessBefore: string | null;
@@ -598,7 +613,7 @@ async function request<T>(
 
   if (auth) {
     let token = getToken();
-    if (!token && !alreadyRefreshed && !bypassRefreshRetry && getRefreshToken()) {
+    if (accessTokenNeedsRefresh(token) && !alreadyRefreshed && !bypassRefreshRetry && getRefreshToken()) {
       if (await refreshSessionIfPossible()) return request<T>(method, path, options, true);
       token = getToken();
     }
@@ -864,6 +879,7 @@ export interface StoreCheckoutGroup {
 }
 
 export interface CheckoutInput {
+  requestId?: string;
   deliveryZoneId?: string;
   cartCheckoutId?: string;
   stores: StoreCheckoutGroup[];
@@ -2178,3 +2194,10 @@ export function searchProducts(search = '', page = 1, signal?: AbortSignal): Pro
 export function updatePricingSettings(input: Pick<UpdatePlatformSettingsInput, 'autoPricingEnabled' | 'baseDeliveryFee' | 'perKmFee' | 'captainSharePercentage'>): Promise<PlatformSettings> {
   return request<PlatformSettings>("PATCH", "/admin/settings/pricing", { body: input, auth: true });
 }
+
+export interface FeaturedSelectionProduct { id: string; nameAr: string; imageUrl: string | null; isAvailable: boolean; store: { nameAr: string } }
+export const getFeaturedProducts = () => request<import('@samou-go/shared-types').PopularProduct[]>('GET', '/stores/featured-products', { auth: false });
+export const getFeaturedSelection = () => request<FeaturedSelectionProduct[]>('GET', '/stores/featured-selection', { auth: true });
+export const saveFeaturedSelection = (productIds: string[]) => request<FeaturedSelectionProduct[]>('PUT', '/stores/featured-selection', { auth: true, body: { productIds } });export interface OverdueOrders { items: { id: string; orderNumber: string; createdAt: string; store: { nameAr: string; phone: string | null } }[]; total: number; thresholdMinutes: number }
+export const getOverdueOrders = (signal?: AbortSignal) => request<OverdueOrders>('GET', '/platform/admin/overdue-orders', { auth: true, signal });
+export const checkOrderSubmission = (requestId: string) => request<{ completed: boolean }>('GET', `/orders/submissions/${encodeURIComponent(requestId)}`, { auth: true });

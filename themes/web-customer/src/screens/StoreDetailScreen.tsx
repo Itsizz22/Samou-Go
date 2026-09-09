@@ -6,8 +6,8 @@ import { normalizeOptionGroups, resolveSelectedOptions } from '@samou-go/shared-
  * with their products inlined; the screen renders one sticky category bar and
  * a stepper per product. Basket state lives in the shared CartProvider.
  */
-import { useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, AlertTriangle, ArrowRight, Clock3, FolderOpen, Heart, Loader2, MessageCircle, Minus, Plus, RefreshCw, ShoppingCart, Star, Store } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
@@ -24,6 +24,9 @@ import { ProductOptionsSheet } from '@/components/ProductOptionsSheet';
 export function StoreDetailScreen() {
   const { storeId = '' } = useParams<{ storeId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const targetProductId = searchParams.get('productId');
+  const revealedProduct = useRef<string | null>(null);
   const store = useStore(storeId);
   const cart = useCart();
   const favorites = useFavorites();
@@ -49,6 +52,29 @@ export function StoreDetailScreen() {
     [activeCategoryId, categories]
   );
 
+  const targetCategoryId = store.data?.categories.find(category =>
+    category.products.some(product => product.id === targetProductId && product.isAvailable)
+  )?.id;
+
+  useEffect(() => {
+    if (targetCategoryId) {
+      setMenuSearch('');
+      setActiveCategoryId(targetCategoryId);
+    }
+  }, [storeId, targetProductId, targetCategoryId]);
+
+  useEffect(() => {
+    const key = `${storeId}:${targetProductId}`;
+    if (!targetProductId || !targetCategoryId || active !== targetCategoryId || revealedProduct.current === key) return;
+    const frame = requestAnimationFrame(() => {
+      const element = document.getElementById(`product-${targetProductId}`);
+      if (!element) return;
+      element.focus({ preventScroll: true });
+      element.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'center' });
+      revealedProduct.current = key;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [storeId, targetProductId, targetCategoryId, active]);
   const offers = useOffersForStore(storeId);
   const offerProductIds = useMemo(() => {
     const ids = new Set<string>();
@@ -67,6 +93,7 @@ export function StoreDetailScreen() {
   const [optionsProduct, setOptionsProduct] = useState<(typeof products)[number] | null>(null);
 
   const handleAdd = useCallback((productId: string, product: (typeof products)[number]) => {
+    if (!current?.isAcceptingOrders || current.storeStatus === StoreStatus.CLOSED) return;
     // If the product has option groups, open the options sheet instead.
     if (normalizeOptionGroups(product.optionGroups).length > 0) {
       setOptionsProduct(product);
@@ -80,7 +107,7 @@ export function StoreDetailScreen() {
     }
     cart.addItem(product, 1, '', current.nameAr);
     void hapticConfirm();
-  }, [cart, current?.nameAr]);
+  }, [cart, current?.nameAr, current?.isAcceptingOrders, current?.storeStatus]);
 
   const handleOptionsConfirm = useCallback((options: { groupId: string; optionId: string }[], quantity: number) => {
     if (!optionsProduct) return;
@@ -340,6 +367,8 @@ export function StoreDetailScreen() {
                   return (
                     <article
                       key={product.id}
+                      id={"product-" + product.id}
+                      tabIndex={-1}
                       className="group relative grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-card sq-menu-enter"
                       style={{ animationDelay: `${Math.min(index * 50, 500)}ms` }}
                     >
@@ -415,6 +444,7 @@ export function StoreDetailScreen() {
                           <button
                             type="button"
                             aria-label={`أضف ${product.nameAr} إلى السلة`}
+                            disabled={!current.isAcceptingOrders || current.storeStatus === StoreStatus.CLOSED}
                             onClick={() => handleAdd(product.id, product)}
                             className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-tint text-brand-dark transition active:scale-90"
                           >

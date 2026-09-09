@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { BrandLogo } from '@samou-go/ui';
 import { useDeliveryZone, ZoneSelector } from './ZoneProvider';
-export function CustomerOnboarding({ children }: { children: ReactNode }) {
+export function CustomerOnboarding({ children, returningUser = false }: { children: ReactNode; returningUser?: boolean }) {
   const navigate = useNavigate();
   const zone = useDeliveryZone();
   const [complete, setComplete] = useState(() => {
@@ -23,7 +23,7 @@ export function CustomerOnboarding({ children }: { children: ReactNode }) {
     setComplete(true);
     navigate(login ? '/login' : '/home');
   };
-  if (complete) return <>{children}</>;
+  if (complete || returningUser) return <>{children}</>;
   return (
     <main dir="rtl" className="flex min-h-dvh items-center justify-center bg-canvas p-5 text-ink">
       <motion.section

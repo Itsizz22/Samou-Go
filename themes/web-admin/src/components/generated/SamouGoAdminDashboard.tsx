@@ -1,3 +1,5 @@
+import { OverdueOrdersPanel } from '../OverdueOrdersPanel';
+import { FeaturedProductsSettings } from '../FeaturedProductsSettings';
 import { PricingSettings } from '../PricingSettings';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
@@ -394,6 +396,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
     >
       <div className="grid gap-4 p-5 lg:grid-cols-2">
         <PricingSettings />
+        <FeaturedProductsSettings />
         {/* ── Card Group A: Feature Toggles ──────────────────────────────────── */}
         <section className="rounded-2xl border border-line bg-surface p-4">
           <h2 className="text-sm font-extrabold">{t('مفاتيح الميزات التشغيلية', 'Operational Feature Toggles')}</h2>
@@ -635,6 +638,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
       <section aria-labelledby="overview-title">
         <div className="mb-5">
           <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-brand">Overview</p>
+          <OverdueOrdersPanel />
           <h2 id="overview-title" className="mt-1 text-[20px] font-extrabold tracking-tight">
             {t('نظرة عامة', 'Overview')}
           </h2>

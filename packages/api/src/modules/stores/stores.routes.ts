@@ -1,3 +1,7 @@
+import { z } from 'zod';
+import { parseWith } from '../../lib/validate';
+import { ok } from '../../lib/respond';
+import { listFeaturedProducts, getFeaturedSelection, saveFeaturedProducts } from './featured.service';
 import { Router } from 'express';
 import { UserRole } from '@samou-go/shared-types';
 import { asyncHandler } from '../../lib/async-handler';
@@ -34,6 +38,12 @@ storesRouter.get('/search-products', optionalAuthenticate, asyncHandler(controll
 
 storesRouter.get('/new-products', optionalAuthenticate, asyncHandler(controller.newProductsHandler));
 
+storesRouter.get('/featured-products', asyncHandler(async (_req, res) => { ok(res, await listFeaturedProducts()); }));
+storesRouter.get('/featured-selection', authenticate, authorize(UserRole.ADMIN), asyncHandler(async (_req, res) => { ok(res, await getFeaturedSelection()); }));
+storesRouter.put('/featured-selection', authenticate, authorize(UserRole.ADMIN), asyncHandler(async (req, res) => {
+  const body = parseWith(z.object({ productIds: z.array(z.string().min(1)).max(12).refine(ids => new Set(ids).size === ids.length, 'لا تكرر المنتج') }), req.body);
+  ok(res, await saveFeaturedProducts(body.productIds));
+}));
 storesRouter.get('/:storeId', optionalAuthenticate, asyncHandler(controller.getStoreHandler));
 storesRouter.get(
   '/:storeId/full',

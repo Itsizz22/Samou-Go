@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { listActiveDeliveryZones } from '@samou-go/api-client';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { ApiError, listActiveDeliveryZones } from '@samou-go/api-client';
 import type { DeliveryZone } from '@samou-go/shared-types';
 
 interface ZoneState {
@@ -58,8 +58,10 @@ export function ZoneProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
+  const selectedId = useRef(activeZone?.id ?? null);
   const selectZone = (id: string) => {
     const zone = zones.find(zone => zone.id === id) ?? null;
+    selectedId.current = zone?.id ?? null;
     setActiveZone(zone);
     try {
       if (zone) {
@@ -75,21 +77,45 @@ export function ZoneProvider({ children }: { children: ReactNode }) {
   };
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
     setLoading(true);
     setError('');
-    listActiveDeliveryZones()
+    const load = async (): Promise<DeliveryZone[]> => {
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          return await listActiveDeliveryZones(controller.signal);
+        } catch (cause) {
+          const retryable = cause instanceof ApiError && !cause.isAborted &&
+            (!cause.status || cause.status >= 500 || cause.status === 429);
+          if (!active || !retryable || attempt >= 2) throw cause;
+          await new Promise<void>(resolve => {
+            const finish = () => {
+              clearTimeout(retryTimer);
+              controller.signal.removeEventListener('abort', finish);
+              resolve();
+            };
+            retryTimer = setTimeout(finish, (attempt + 1) * 1500);
+            controller.signal.addEventListener('abort', finish, { once: true });
+          });
+          if (controller.signal.aborted) throw cause;
+        }
+      }
+    };
+    load()
       .then(rows => {
         if (!active) return;
         setZones(rows);
-        let id: string | null = null;
+        let id: string | null = selectedId.current;
         try {
           id =
-            JSON.parse(localStorage.getItem('samou_active_zone') ?? 'null')?.id ??
+            id ?? JSON.parse(localStorage.getItem('samou_active_zone') ?? 'null')?.id ??
             localStorage.getItem('samou_selected_zone');
         } catch {
           /* Ignore invalid cache. */
         }
         const zone = rows.find(row => row.id === id) ?? null;
+        selectedId.current = zone?.id ?? null;
         setActiveZone(zone);
         try {
           if (zone) localStorage.setItem('samou_active_zone', JSON.stringify(zone));
@@ -109,8 +135,15 @@ export function ZoneProvider({ children }: { children: ReactNode }) {
       });
     return () => {
       active = false;
+      controller.abort();
+      clearTimeout(retryTimer);
     };
   }, [revision]);
+  useEffect(() => {
+    const reconnect = () => setRevision(value => value + 1);
+    window.addEventListener('online', reconnect);
+    return () => window.removeEventListener('online', reconnect);
+  }, []);
   return (
     <ZoneContext.Provider
       value={{

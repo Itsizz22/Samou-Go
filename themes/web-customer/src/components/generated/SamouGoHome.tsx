@@ -1,3 +1,4 @@
+import { ConnectionNotice } from '@/components/ConnectionNotice';
 import { ZoneSelector } from '@/components/ZoneProvider';
 import { HomeProductSearch } from '@/components/HomeProductSearch';
 import { normalizeOptionGroups, resolveSelectedOptions } from '@samou-go/shared-types';
@@ -38,7 +39,7 @@ import { DeliveryFee } from '@samou-go/ui';
 import { API_URL, ENABLE_LOCATION } from '@/hooks/useApi';
 import { FeaturedProductsShowcase } from '@/components/FeaturedProductsShowcase';
 import { PromoBannerSlider } from '@/components/PromoBannerSlider';
-import { useApiMeta, useOrders, useStores, useAuth, useAllOffers, usePopularProducts, type PopularProduct } from '@/hooks/useApi';
+import { useApiMeta, useOrders, useStores, useAuth, useAllOffers, useFeaturedProducts, type PopularProduct } from '@/hooks/useApi';
 import { useFavorites } from '@/components/FavoritesProvider';
 import { useCart } from '@/components/CartProvider';
 import { ProductOptionsSheet } from '@/components/ProductOptionsSheet';
@@ -150,7 +151,7 @@ export function SamouGoHome() {
   const activeOffers = useMemo(() => (offers.data?.items ?? []).slice(0, 6), [offers.data]);
 
   // Popular products across all stores.
-  const popular = usePopularProducts(12);
+  const popular = useFeaturedProducts();
   const cart = useCart();
   const [optionsProduct, setOptionsProduct] = useState<PopularProduct | null>(null);
 
@@ -230,6 +231,7 @@ export function SamouGoHome() {
         </section>
       <div className="mx-auto mt-3 max-w-md"><ZoneSelector /></div>
       </header>
+      <ConnectionNotice loading={stores.loading || popular.loading} failed={Boolean(stores.error || popular.error)} retry={() => { stores.reload(); popular.reload(); }} />
 
       <section className="mx-auto max-w-md px-5" role="search" aria-label="Search">
         <div className="flex min-h-14 items-center gap-3 rounded-2xl border border-line bg-canvas/80 px-4 py-1 shadow-card transition-all duration-200 hover:bg-surface focus-within:border-brand focus-within:bg-surface focus-within:ring-2 focus-within:ring-brand/30">

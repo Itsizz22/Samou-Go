@@ -1,3 +1,6 @@
+import { prisma } from '../../lib/prisma';
+import { ok } from '../../lib/respond';
+import { requireAuth } from '../../middleware/authenticate';
 import { Router } from 'express';
 import { UserRole } from '@samou-go/shared-types';
 import { asyncHandler } from '../../lib/async-handler';
@@ -27,6 +30,12 @@ ordersRouter.post('/quote', optionalAuthenticate, quoteLimiter, asyncHandler(con
  * PII. Order ids are unguessable, so that is the same exposure as the tracking
  * link itself.
  */
+ordersRouter.get('/submissions/:requestId', authenticate, asyncHandler(async (req, res) => {
+  const user = requireAuth(req);
+  const requestId = String(req.params.requestId);
+  const submission = await prisma.orderSubmission.findUnique({ where: { customerId_requestId: { customerId: user.sub, requestId } }, select: { requestId: true } });
+  ok(res, { completed: Boolean(submission) });
+}));
 ordersRouter.get(
   '/:orderId/events',
   optionalAuthenticate,

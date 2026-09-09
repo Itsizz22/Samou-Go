@@ -222,3 +222,30 @@ describe('authenticated orders transport', () => {
     expect(vault.getActiveAccount()?.id).toBe(user.id);
   });
 });
+
+
+describe('proactive access expiry', () => {
+  it('refreshes once before parallel requests send an expired JWT', async () => {
+    const api = await signedIn();
+    api.setToken(`header.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 60 }))}.signature`);
+    const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(async url =>
+      String(url).includes('/auth/refresh') ? success(session) : success(user));
+    vi.stubGlobal('fetch', fetch);
+    await Promise.all([api.me(), api.me()]);
+    expect(fetch.mock.calls.filter(([url]) => String(url).includes('/auth/refresh'))).toHaveLength(1);
+    expect(fetch.mock.calls[0]?.[0]).toContain('/auth/refresh');
+    for (const [, init] of fetch.mock.calls.slice(1)) {
+      expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer rotated-access');
+    }
+  });
+
+  it('keeps public zones independent of expired credentials', async () => {
+    const api = await signedIn();
+    api.setToken(`header.${btoa(JSON.stringify({ exp: 1 }))}.signature`);
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(success([]));
+    vi.stubGlobal('fetch', fetch);
+    await api.listActiveDeliveryZones();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(new Headers(fetch.mock.calls[0]?.[1]?.headers).has('Authorization')).toBe(false);
+  });
+});

@@ -212,6 +212,7 @@ export interface CreateOrderItemInput {
  * an amount — the server resolves it and computes the discount itself.
  */
 export interface CreateOrderInput {
+  requestId?: string;
   storeId: string;
   items: CreateOrderItemInput[];
   customerAddressText: string;

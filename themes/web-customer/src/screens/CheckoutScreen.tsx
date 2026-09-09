@@ -1,3 +1,5 @@
+import { ConnectionNotice } from '@/components/ConnectionNotice';
+import { submitCheckoutAttempt } from '@/lib/checkoutAttempt';
 import { AutomaticPricingPreview } from '@/components/AutomaticPricingPreview';
 import { CheckoutAuthGate } from '@/components/CheckoutAuthGate';
 import { useDeliveryZone } from '@/components/ZoneProvider';
@@ -408,7 +410,7 @@ export function CheckoutScreen() {
           })),
           fulfillmentType: group.fulfillmentType,
         }));
-        const result = await checkoutOrders({
+        const result = await submitCheckoutAttempt(auth.user!.id, 'multi', {
           stores: storeGroups,
           deliveryZoneId: zoneId || undefined,
           customerAddressText: finalText,
@@ -419,7 +421,7 @@ export function CheckoutScreen() {
           latitude: pickedLat,
           longitude: pickedLng,
           ...(finalVoiceNoteUrl ? { voiceNoteUrl: finalVoiceNoteUrl, voiceNoteDuration } : {}),
-        });
+        }, checkoutOrders);
         await hapticSuccess();
         celebrationCleanup.current?.();
         celebrationCleanup.current = celebrateOrder();
@@ -427,7 +429,7 @@ export function CheckoutScreen() {
         setPlacedCheckout(result);
       } else {
         // Single-store: existing flow.
-        const created = await createOrder({
+        const created = await submitCheckoutAttempt(auth.user!.id, 'single', {
           storeId: cart.storeId!,
           items,
           customerAddressText: finalText,
@@ -442,7 +444,7 @@ export function CheckoutScreen() {
           deliveryZoneId: fulfillmentType === 'DELIVERY' ? zoneId || undefined : undefined,
 
           ...(finalVoiceNoteUrl ? { voiceNoteUrl: finalVoiceNoteUrl, voiceNoteDuration } : {}),
-        });
+        }, createOrder);
         await hapticSuccess();
         celebrationCleanup.current?.();
         celebrationCleanup.current = celebrateOrder();
@@ -992,6 +994,14 @@ export function CheckoutScreen() {
               <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {fieldError}
             </p>
           )}
+          <ConnectionNotice />
+          {submitError && (
+            <div className="rounded-2xl border border-line bg-surface p-4 text-sm" role="status">
+              <p>لم يكتمل تأكيد النتيجة. سلتك محفوظة؛ إعادة المحاولة بنفس البيانات تتحقق من الطلب نفسه.</p>
+              <button type="button" className="min-h-11 font-bold text-brand" onClick={() => navigate('/orders')}>مراجعة طلباتي</button>
+            </div>
+          )}
+
           {submitError && (
             <p className="flex items-start gap-2 rounded-xl bg-danger-tint p-3 text-[11px] font-semibold text-danger-ink" role="alert">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {isArabic ? submitError.message : submitError.localizedMessage}

@@ -1,3 +1,4 @@
+import { isReplayedSubmission } from '../../lib/order-submission';
 import type { Request, Response } from 'express';
 import { ORDER_STATUS_LABELS, OrderStatus, UserRole } from '@samou-go/shared-types';
 import { created, ok } from '../../lib/respond';
@@ -118,6 +119,7 @@ export async function createOrderHandler(req: Request, res: Response): Promise<v
   const body = parseWith(createOrderSchema, req.body);
   const customerId = auth.sub;
   const result = await ordersService.createOrder(customerId, body);
+  if (isReplayedSubmission(result)) { created(res, result); return; }
   emitPlatformEvent('order:created', { orderId: result.id, storeId: result.storeId, status: result.status });
 
   // Push: notify all store managers + dedicated captains of the new order.
@@ -165,6 +167,7 @@ export async function checkoutHandler(req: Request, res: Response): Promise<void
   }
   const body = parseWith(checkoutSchema, req.body);
   const result = await ordersService.createCheckoutOrders(auth.sub, body);
+  if (isReplayedSubmission(result)) { created(res, result); return; }
 
   // Push: notify each store manager + dedicated captains of their sub-order.
   void (async () => {

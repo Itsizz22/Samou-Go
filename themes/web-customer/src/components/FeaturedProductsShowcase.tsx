@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Pause, Play, Plus, SlidersHorizontal, Store } from 'lucide-react';
 import { ImageWithFallback, useLanguage } from '@samou-go/ui';
 import type { PopularProduct } from '@samou-go/shared-types';
@@ -26,7 +27,7 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
             {t('منتجات مميزة اخترناها لك', 'Featured products picked for you')}
           </h2>
           <p className="text-xs text-ink-muted">
-            {t('أشهى الأطباق الأكثر طلباً من أفضل المطاعم', 'Popular dishes from top restaurants')}
+            {t('اختيارات مميزة من متاجرنا', 'Handpicked dishes from our stores')}
           </p>
         </div>
         {products.length > 1 && (
@@ -60,9 +61,14 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
                   dir={dir}
                   inert={index !== carousel.active}
                   aria-hidden={index !== carousel.active}
-                  className="w-full min-w-0 shrink-0 basis-full"
+                  className="group relative w-full min-w-0 shrink-0 basis-full"
                 >
-                  <div className="group relative aspect-video overflow-hidden bg-canvas">
+                  <Link draggable={false}
+                    to={`/stores/${encodeURIComponent(product.storeId)}?productId=${encodeURIComponent(product.id)}`}
+                    aria-label={t(`عرض ${product.nameAr} في ${product.storeNameAr}`, `View ${product.nameAr} at ${product.storeNameAr}`)}
+                    className="absolute inset-0 z-10 rounded-3xl focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-brand"
+                  />
+                  <div className="relative aspect-video overflow-hidden bg-canvas">
                     <ImageWithFallback
                       src={product.imageUrl ?? undefined}
                       alt={product.nameAr}
@@ -95,7 +101,7 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
                         type="button"
                         disabled={!product.isAvailable}
                         onClick={() => onAdd(product)}
-                        className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-4 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
+                        className="relative z-20 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-4 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
                       >
                         {product.optionsEnabled && product.hasOptions ? (
                           <SlidersHorizontal size={17} />

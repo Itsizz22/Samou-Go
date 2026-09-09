@@ -287,6 +287,8 @@ model Category {
 /// A sellable item. `price` is the *current* price; an order captures its own
 /// `unitPrice` so repricing never rewrites history.
 model Product {
+  featuredRank Int?
+
   id          String   @id @default(cuid())
   nameAr      String
   description String?
@@ -808,4 +810,15 @@ model StoredUpload {
   updatedAt DateTime @updatedAt
 
   @@map("stored_uploads")
+}
+
+/// Atomic record of an authenticated checkout attempt, committed with its orders.
+model OrderSubmission {
+  customerId String
+  requestId String
+  requestHash String
+  response String
+  createdAt DateTime @default(now())
+  @@id([customerId, requestId])
+  @@map("order_submissions")
 }

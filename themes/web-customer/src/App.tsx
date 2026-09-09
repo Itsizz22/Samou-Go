@@ -1,7 +1,8 @@
+import { StartupIntro } from './components/StartupIntro';
 import { CustomerOnboarding } from '@/components/CustomerOnboarding';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 import { dismissAndroidOverlay } from '@/lib/androidBack';
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Loader2, MapPin, X } from 'lucide-react';
 import { UserRole, type UserRole as UserRoleValue } from '@samou-go/shared-types';
@@ -112,6 +113,7 @@ function App() {
   // is signed out by the gate instead of rendering a wrong-role UI.
   const auth = useAuth();
   const [splashElapsed, setSplashElapsed] = useState(false);
+  const finishIntro = useCallback(() => setSplashElapsed(true), []);
   const platformSettings = usePlatformSettings();
 
   // Session expiry is handled by SignInGate: when the token is cleared on 401,
@@ -121,12 +123,6 @@ function App() {
   // Expose navigate globally so Capacitor push-notification listeners can
   // open the order tracking screen without a full page reload.
   useEffect(() => { setGlobalNavigate(navigate); }, [navigate]);
-
-  // Minimum splash duration — show brand moment even if auth resolves fast.
-  useEffect(() => {
-    const timer = window.setTimeout(() => setSplashElapsed(true), 1_650);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   // Register for push notifications when the user is authenticated.
   // Wrapped in try/catch — PushNotifications plugin may not be available
@@ -142,8 +138,8 @@ function App() {
     }
   }, [auth.ready, auth.user]);
 
-  // Show splash until BOTH auth is resolved AND minimum duration elapsed.
-  if (!auth.ready || !splashElapsed) return <BootScreen />;
+  // Keep the intro (or its final still) until playback and session restoration finish.
+  if (!auth.ready || !splashElapsed) return <StartupIntro onComplete={finishIntro} waitingForSession={!auth.ready} />;
 
   return (
     <ThemeProvider>
@@ -209,7 +205,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
   return (
     <Suspense fallback={<BootScreen />}><Routes>
       <Route path="/" element={<Navigate to="/home" replace />} />
-      <Route path="/home" element={<CustomerOnboarding><SamouGoHome /></CustomerOnboarding>} />
+      <Route path="/home" element={<CustomerOnboarding returningUser={Boolean(auth.user)}><SamouGoHome /></CustomerOnboarding>} />
       <Route path="/stores/:storeId" element={<StoreDetailScreen />} />
       <Route path="/cart" element={<CartScreen />} />
       <Route path="/checkout" element={<CheckoutScreen />} />

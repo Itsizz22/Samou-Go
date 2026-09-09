@@ -21,6 +21,7 @@ import {
   deleteUser,
   getMyStores,
   getPopularProducts,
+  getFeaturedProducts,
   getOrder,
   getPlatformSettings,
   getStore,
@@ -650,3 +651,5 @@ export function useUpdateTicketStatus(
     (input, signal) => updateSupportTicketStatus(ticketId, input, signal)
   );
 }
+
+export function useFeaturedProducts(): Resource<PopularProduct[]> { return useResource('featured-products', () => getFeaturedProducts()); }
