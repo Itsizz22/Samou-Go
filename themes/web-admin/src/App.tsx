@@ -1,3 +1,4 @@
+import { ConnectionNotice } from '@samou-go/api-client';
 import { applyThemeMode, getStoredThemeMode } from '@samou-go/ui';
 import { useEffect } from 'react';
 import { SamouGoAdminDashboard } from './components/generated/SamouGoAdminDashboard';
@@ -9,7 +10,7 @@ function App() {
     applyThemeMode(getStoredThemeMode());
   }, []);
 
-  return <SamouGoAdminDashboard />;
+  return <><ConnectionNotice /><SamouGoAdminDashboard /></>;
 }
 
 export default App;

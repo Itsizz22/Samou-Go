@@ -381,3 +381,52 @@ it('schedules on acceptance, validates admin lead time, and reminds the eligible
   expect(pushes).toHaveBeenCalledWith(expect.arrayContaining(['CAPTAIN', 'CAPTAIN_TWO']), expect.objectContaining({ data: expect.objectContaining({ type: 'PREPARATION_REMINDER', orderId: order.id }) }), { dataOnly: true });
   await fixture.db.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
 });
+
+
+it('reopens only an owned reservation before pickup and logs one withdrawal under contention', async () => {
+  const order = await preparationOrder();
+  const route = `/orders/${order.id}`;
+  expect((await request('POST', `${route}/reserve`, 'CAPTAIN')).status).toBe(200);
+  expect((await request('POST', `${route}/release`, 'CAPTAIN_TWO', { reason: 'تعذر التوصيل' })).status).toBe(403);
+  expect((await request('POST', `${route}/release`, 'CUSTOMER', { reason: 'تعذر التوصيل' })).status).toBe(403);
+  const attempts = await Promise.all(Array.from({ length: 5 }, () => request('POST', `${route}/release`, 'CAPTAIN', { reason: 'تعذر التوصيل' })));
+  expect(attempts.filter(r => r.status === 200)).toHaveLength(1);
+  const released = await fixture.db.order.findUniqueOrThrow({ where: { id: order.id } });
+  expect(released.captainId).toBeNull();
+  expect(released.status).toBe('PREPARING');
+  expect(await fixture.db.orderStatusHistory.count({ where: { orderId: order.id } })).toBe(1);
+  expect((await request('POST', `${route}/reserve`, 'CAPTAIN_TWO')).status).toBe(200);
+  await fixture.db.order.update({ where: { id: order.id }, data: { status: 'ON_THE_WAY' } });
+  expect((await request('POST', `${route}/release`, 'CAPTAIN_TWO', { reason: 'تعذر التوصيل' })).status).toBe(409);
+});
+
+it('assigns one winner per order under 64 simultaneous reservations', async () => {
+  const roles: string[] = [];
+  for (let i = 0; i < 8; i++) {
+    const id = `stress-captain-${i}`;
+    const phone = `059998100${i}`;
+    await fixture.db.user.create({ data: { id, phone, role: 'CAPTAIN', name: id, passwordHash: 'unused', isActive: true, isVerified: true, isAvailable: true } });
+    tokens[id] = signAccessToken({ userId: id, role: UserRole.CAPTAIN, phone }).accessToken;
+    roles.push(id);
+  }
+  const orders = await Promise.all(Array.from({ length: 8 }, () => preparationOrder()));
+  const groups = await Promise.all(orders.map(order => Promise.all(roles.map(role => request('POST', `/orders/${order.id}/reserve`, role)))));
+  for (const results of groups) {
+    expect(results.filter(r => r.status === 200)).toHaveLength(1);
+    expect(results.filter(r => r.status === 409)).toHaveLength(7);
+  }
+  for (const order of orders) expect((await fixture.db.order.findUniqueOrThrow({ where: { id: order.id } })).captainId).not.toBeNull();
+}, 20000);
+
+it('keeps notification audit admin-only and accepts an idempotent open from the recipient only', async () => {
+  const audit = await fixture.db.notificationDelivery.create({ data: { userId: 'CAPTAIN', title: 'اختبار', type: 'NEW_ORDER', status: 'ACCEPTED' } });
+  expect((await request('GET', '/admin/notifications', 'CAPTAIN')).status).toBe(403);
+  expect((await request('GET', '/admin/notifications', 'ADMIN')).status).toBe(200);
+  const route = `/devices/notifications/${audit.id}/opened`;
+  expect((await request('POST', route, 'CUSTOMER')).status).toBe(404);
+  expect((await request('POST', route, 'CAPTAIN')).status).toBe(200);
+  const first = await fixture.db.notificationDelivery.findUniqueOrThrow({ where: { id: audit.id } });
+  expect(first.openedAt).not.toBeNull();
+  expect((await request('POST', route, 'CAPTAIN')).status).toBe(200);
+  expect((await fixture.db.notificationDelivery.findUniqueOrThrow({ where: { id: audit.id } })).openedAt).toEqual(first.openedAt);
+});

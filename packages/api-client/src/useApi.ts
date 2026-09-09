@@ -134,6 +134,14 @@ export function useResource<T>(
   stopWhenRef.current = stopWhen;
 
   const reload = useCallback(() => setNonce((value) => value + 1), []);
+  useEffect(() => {
+    if (!enabled) return;
+    const recover = () => { if (!loading && !refreshing) reload(); };
+    window.addEventListener('online', recover);
+    window.addEventListener('samou:retry-connection', recover);
+    return () => { window.removeEventListener('online', recover); window.removeEventListener('samou:retry-connection', recover); };
+  }, [enabled, loading, refreshing, reload]);
+
 
   useEffect(() => {
     if (!enabled) {

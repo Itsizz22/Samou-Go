@@ -78,13 +78,13 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
         if (title == null) title = "سموع كويك";
         if (body == null) body = "";
 
-        if ("PREPARATION_REMINDER".equals(type) || "PREPARATION_AVAILABLE".equals(type)) {
+        if ("PREPARATION_REMINDER".equals(type) || "PREPARATION_AVAILABLE".equals(type) || "RESERVATION_RELEASED".equals(type)) {
             String expiresAt = data.get("expiresAt");
             if (expiresAt != null) {
                 try { if (Long.parseLong(expiresAt) <= System.currentTimeMillis()) return; }
                 catch (NumberFormatException invalidExpiry) { return; }
             }
-            showNotification(title, body, orderId, CHANNEL_PREPARATION);
+            showNotification(title, body, orderId, CHANNEL_PREPARATION, data.get("notificationLogId"));
             return;
         }
 
@@ -94,7 +94,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
 
         // Customer updates must also show a banner in foreground.
         if (!isCaptainOrStoreNotification) {
-            showNotification(title, body, orderId, "orders_high_priority");
+            showNotification(title, body, orderId, "orders_high_priority", data.get("notificationLogId"));
             return;
         }
 
@@ -107,13 +107,13 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
               " (ring preference: " + ringEnabled + ")");
 
         // Build and show the notification
-        showNotification(title, body, orderId, channelId);
+        showNotification(title, body, orderId, channelId, data.get("notificationLogId"));
 
         // If ringing is enabled, start the OrderAlarmService for continuous alert
         // (the system notification plays the channel sound once, but the foreground
         // service loops it until the user acknowledges).
         if (ringEnabled && orderId != null) {
-            OrderAlarmReceiver.processNotification(this, orderId, title, body);
+            OrderAlarmReceiver.processNotification(this, orderId, title, body, data.get("notificationLogId"));
         }
     }
 
@@ -137,7 +137,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
      * Uses {@code orderId.hashCode()} as the notification ID so multiple
      * concurrent orders produce distinct notifications.
      */
-    private void showNotification(String title, String body, String orderId, String channelId) {
+    private void showNotification(String title, String body, String orderId, String channelId, String notificationLogId) {
         Context context = getApplicationContext();
 
         // Create channels if they don't exist yet (idempotent)
@@ -148,6 +148,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
         Intent intent = new Intent(context, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         if (orderId != null) {
+            intent.putExtra("notificationLogId", notificationLogId);
             intent.putExtra("orderId", orderId);
             intent.putExtra("google.message_id", "order-" + orderId);
             intent.putExtra("clickAction", "OPEN_ORDER");
@@ -191,9 +192,9 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
         if (CHANNEL_ALERT.equals(channelId) && orderId != null) {
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (Build.VERSION.SDK_INT < 34 || (manager != null && manager.canUseFullScreenIntent())) {
-                builder.setFullScreenIntent(OrderAlertActivity.pendingIntent(this, orderId, title, body), true);
+                builder.setFullScreenIntent(OrderAlertActivity.pendingIntent(this, orderId, title, body, notificationLogId), true);
             }
-            builder.setContentIntent(OrderAlertActivity.pendingIntent(this, orderId, title, body));
+            builder.setContentIntent(OrderAlertActivity.pendingIntent(this, orderId, title, body, notificationLogId));
         }
 
         // Set sound only for the alert channel

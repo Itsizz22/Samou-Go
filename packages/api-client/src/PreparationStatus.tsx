@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { reserveOrder, updatePreparationTime } from './api';
+import { reserveOrder, releaseReservation, updatePreparationTime } from './api';
 
 type PreparationOrder = { id: string; status: string; captainId: string | null; estimatedReadyAt?: string | null };
 
@@ -17,8 +17,24 @@ export function PreparationCountdown({ order }: { order: PreparationOrder }) {
 export function CaptainReservation({ order, captainId, onReserved }: { order: PreparationOrder; captainId?: string; onReserved: () => void }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [reason, setReason] = useState('');
   if (!['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP'].includes(order.status)) return null;
-  if (order.captainId) return <p className="mt-3 text-sm font-bold text-brand">{order.captainId === captainId ? 'محجوز لك — ستصلك تنبيهات الجاهزية' : 'محجوز لكابتن آخر'}</p>;
+  if (order.captainId) return <div className="mt-3">
+    <p className="text-sm font-bold text-brand">{order.captainId === captainId ? 'محجوز لك — ستصلك تنبيهات الجاهزية' : 'محجوز لكابتن آخر'}</p>
+    {order.captainId === captainId && (withdrawing ? <form className="mt-3 space-y-2" onSubmit={async event => {
+      event.preventDefault(); if (pending) return; setPending(true); setError('');
+      try { await releaseReservation(order.id, reason); setWithdrawing(false); onReserved(); }
+      catch (cause) { setError(cause instanceof Error ? cause.message : 'تعذر إلغاء الحجز'); }
+      finally { setPending(false); }
+    }}>
+      <label className="block text-sm">سبب الاعتذار<input required minLength={3} maxLength={200} value={reason} onChange={e => setReason(e.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-line bg-surface px-3" /></label>
+      <p className="text-xs text-ink-muted">سيُبلّغ المتجر ويُتاح الطلب للكباتن الآخرين. لن يُلغى طلب العميل.</p>
+      <button disabled={pending} className="min-h-11 rounded-xl bg-brand px-3 font-bold text-white disabled:opacity-50">تأكيد الاعتذار</button>
+      <button type="button" disabled={pending} onClick={() => setWithdrawing(false)} className="min-h-11 px-3">تراجع</button>
+    </form> : <button type="button" onClick={() => setWithdrawing(true)} className="mt-2 min-h-11 rounded-xl border border-line px-3 text-sm font-bold">الاعتذار عن التوصيل</button>)}
+    {error && <p role="alert" className="mt-2 text-sm text-danger-ink">{error}</p>}
+  </div>;
   return <div className="mt-3">
     <button type="button" disabled={pending} className="min-h-11 w-full rounded-xl bg-brand px-4 py-2 font-bold text-white transition-transform active:scale-95 disabled:opacity-50" onClick={async () => {
       setPending(true); setError('');

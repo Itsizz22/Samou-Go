@@ -59,6 +59,7 @@ ordersRouter.post(
 );
 // All remaining order operations require a signed-in account.
 ordersRouter.use(authenticate);
+ordersRouter.post('/:orderId/release', authorize(UserRole.CAPTAIN), asyncHandler(controller.releaseReservationHandler));
 ordersRouter.post('/:orderId/reserve', authorize(UserRole.CAPTAIN), asyncHandler(controller.reserveOrderHandler));
 ordersRouter.patch('/:orderId/preparation-time', authorize(UserRole.STORE_MANAGER, UserRole.ADMIN), asyncHandler(controller.updatePreparationTimeHandler));
 ordersRouter.get('/', asyncHandler(controller.listOrdersHandler));

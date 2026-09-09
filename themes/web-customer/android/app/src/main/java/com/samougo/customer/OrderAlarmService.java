@@ -40,6 +40,7 @@ public class OrderAlarmService extends Service {
     private PowerManager.WakeLock wakeLock;
     private boolean isPlaying = false;
     private String orderId;
+    private String notificationLogId;
     private String title;
     private String body;
     private final android.os.Handler timeoutHandler = new android.os.Handler(android.os.Looper.getMainLooper());
@@ -59,6 +60,7 @@ public class OrderAlarmService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.i(TAG, "OrderAlarmService started");
         orderId = intent != null ? intent.getStringExtra("orderId") : null;
+        notificationLogId = intent != null ? intent.getStringExtra("notificationLogId") : null;
         title = intent != null ? intent.getStringExtra("title") : null;
         body = intent != null ? intent.getStringExtra("body") : null;
         if (title == null || title.trim().isEmpty()) title = "طلب جديد";
@@ -169,7 +171,8 @@ public class OrderAlarmService extends Service {
         if (launchIntent != null) {
             launchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             if (orderId != null) {
-                launchIntent.putExtra("orderId", orderId);
+                launchIntent.putExtra("notificationLogId", notificationLogId);
+            launchIntent.putExtra("orderId", orderId);
                 launchIntent.putExtra("google.message_id", "alarm-" + orderId);
             }
         }

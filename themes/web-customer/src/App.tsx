@@ -1,3 +1,4 @@
+import { SessionRecovery, needsSessionRecovery, ConnectionNotice } from '@samou-go/api-client';
 import { StaffOrderDetailsScreen } from './screens/StaffOrderDetailsScreen';
 import { StartupIntro } from './components/StartupIntro';
 import { CustomerOnboarding } from '@/components/CustomerOnboarding';
@@ -139,6 +140,8 @@ function App() {
     }
   }, [auth.ready, auth.user]);
 
+  if (splashElapsed && needsSessionRecovery(auth)) return <SessionRecovery auth={auth} />;
+
   // Keep the intro (or its final still) until playback and session restoration finish.
   if (!auth.ready || !splashElapsed) return <StartupIntro onComplete={finishIntro} waitingForSession={!auth.ready} />;
 
@@ -146,6 +149,7 @@ function App() {
     <ThemeProvider>
       <NavigationDrawerProvider>
         <OfflineBanner />
+        <ConnectionNotice />
         <StartupRoutes auth={auth} />
         <NavigationDrawer />
         {ENABLE_LOCATION && gpsCaptureEnabled && auth.user?.role === UserRole.CUSTOMER && (

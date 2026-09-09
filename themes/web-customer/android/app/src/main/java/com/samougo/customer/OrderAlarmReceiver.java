@@ -84,7 +84,11 @@ public class OrderAlarmReceiver extends BroadcastReceiver {
      * FirebaseMessagingService to process an incoming notification.
      */
     public static void processNotification(Context context, String orderId, String title, String body) {
+        processNotification(context, orderId, title, body, null);
+    }
+    public static void processNotification(Context context, String orderId, String title, String body, String notificationLogId) {
         Intent intent = new Intent(ACTION_START_ALARM);
+        intent.putExtra("notificationLogId", notificationLogId);
         intent.putExtra("title", title);
         intent.putExtra("body", body);
         intent.setPackage(context.getPackageName());

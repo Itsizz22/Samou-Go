@@ -49,7 +49,17 @@ export function startPreparationReminderScheduler(): () => Promise<void> {
   let running: Promise<void> | null = null;
   const tick = () => {
     if (stopped || running) return;
-    running = dispatchPreparationReminders().catch(error => console.error('[preparation-reminder] Scan failed', error)).finally(() => { running = null; });
+    running = (async () => {
+      const id = 'preparation-reminders';
+      await prisma.backgroundJobHeartbeat.upsert({ where: { id }, create: { id, lastStartedAt: new Date() }, update: { lastStartedAt: new Date() } });
+      try {
+        await dispatchPreparationReminders();
+        await prisma.backgroundJobHeartbeat.update({ where: { id }, data: { lastSucceededAt: new Date() } });
+      } catch (error) {
+        await prisma.backgroundJobHeartbeat.update({ where: { id }, data: { lastFailedAt: new Date() } });
+        throw error;
+      }
+    })().catch(error => console.error('[preparation-reminder] Scan failed', error)).finally(() => { running = null; });
   };
   const timer = setInterval(tick, 15_000);
   timer.unref();

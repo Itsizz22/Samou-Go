@@ -1,3 +1,4 @@
+import { notificationOpenedHandler } from '../admin/notification-audit.controller';
 import { Router } from 'express';
 import { asyncHandler } from '../../lib/async-handler';
 import { authenticate } from '../../middleware/authenticate';
@@ -16,3 +17,5 @@ devicesRouter.delete(
   '/token',
   asyncHandler(controller.unregisterTokenHandler)
 );
+
+devicesRouter.post('/notifications/:id/opened', asyncHandler(notificationOpenedHandler));

@@ -31,9 +31,12 @@ public class OrderAlertActivity extends AppCompatActivity {
     };
 
     public static PendingIntent pendingIntent(Context context, String orderId, String title, String body) {
+        return pendingIntent(context, orderId, title, body, null);
+    }
+    public static PendingIntent pendingIntent(Context context, String orderId, String title, String body, String notificationLogId) {
         Intent intent = new Intent(context, OrderAlertActivity.class)
             .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            .putExtra("orderId", orderId).putExtra("title", title).putExtra("body", body);
+            .putExtra("notificationLogId", notificationLogId).putExtra("orderId", orderId).putExtra("title", title).putExtra("body", body);
         return PendingIntent.getActivity(context, orderId.hashCode(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
@@ -199,7 +202,7 @@ public class OrderAlertActivity extends AppCompatActivity {
         Runnable open = () -> {
             Intent intent = new Intent(this, MainActivity.class)
                 .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                .putExtra("orderId", orderId).putExtra("google.message_id", "alert-" + orderId);
+                .putExtra("notificationLogId", getIntent().getStringExtra("notificationLogId")).putExtra("orderId", orderId).putExtra("google.message_id", "alert-" + orderId);
             startActivity(intent);
             acknowledge();
             finish();

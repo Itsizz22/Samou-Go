@@ -132,6 +132,7 @@ export const orderIdParamsSchema = z.object({
   orderId: z.string().min(1, 'معرّف الطلب مطلوب / orderId is required'),
 });
 
+export const releaseReservationSchema = z.object({ reason: z.string().trim().min(3).max(200) });
 export const preparationTimeSchema = z.object({ estimatedPrepMinutes: z.number().int().min(5).max(180) });
 
 export const orderListQuerySchema = paginationSchema.extend({

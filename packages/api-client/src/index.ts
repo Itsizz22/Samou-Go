@@ -30,3 +30,7 @@ export * from './config/features';
 export { SupportDesk } from './SupportDesk';
 
 export * from './PreparationStatus';
+
+export * from './SessionRecovery';
+
+export * from './ConnectionNotice';

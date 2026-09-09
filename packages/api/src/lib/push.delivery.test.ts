@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  auditCreate: vi.fn().mockResolvedValue({ id: 'audit' }), auditUpdate: vi.fn().mockResolvedValue({}),
   send: vi.fn(), findMany: vi.fn(), deleteMany: vi.fn(), initialize: vi.fn(), cert: vi.fn(() => ({})),
 }));
 vi.mock('../config/env', () => ({ env: { firebase: { serviceAccountJson: '{}', serviceAccountPath: null, projectId: 'test-only' } } }));
-vi.mock('./prisma', () => ({ prisma: { deviceToken: { findMany: mocks.findMany, deleteMany: mocks.deleteMany } } }));
+vi.mock('./prisma', () => ({ prisma: { notificationDelivery: { create: mocks.auditCreate, update: mocks.auditUpdate }, deviceToken: { findMany: mocks.findMany, deleteMany: mocks.deleteMany } } }));
 vi.mock('firebase-admin/app', () => ({ getApps: () => [], initializeApp: mocks.initialize, cert: mocks.cert }));
 vi.mock('firebase-admin/messaging', () => ({ getMessaging: () => ({ sendEachForMulticast: mocks.send }) }));
 import { sendPushToUser } from './push';
@@ -21,7 +22,7 @@ describe('FCM delivery payload', () => {
     expect(mocks.cert).toHaveBeenCalledWith({});
     expect(mocks.initialize).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'test-only' }));
     expect(mocks.send).toHaveBeenCalledWith(expect.objectContaining({
-      tokens: ['test-token'], data: { title: 'Order', body: 'Ready', type: 'NEW_ORDER', orderId: 'order' }, android: expect.objectContaining({ priority: 'high' }),
+      tokens: ['test-token'], data: { title: 'Order', body: 'Ready', type: 'NEW_ORDER', orderId: 'order', notificationLogId: 'audit' }, android: expect.objectContaining({ priority: 'high' }),
     }));
     expect(mocks.send.mock.calls[0]?.[0]).not.toHaveProperty('notification');
     expect(mocks.send.mock.calls[0]?.[0].android).not.toHaveProperty('notification');
@@ -44,4 +45,21 @@ it('keeps staff alerts visible on iOS while Android remains data-only', async ()
   expect(message.android).not.toHaveProperty('notification');
   expect(message.apns.headers).toEqual({ 'apns-push-type': 'alert', 'apns-priority': '10' });
   expect(message.apns.payload.aps).toMatchObject({ alert: { title: 'طلب جديد للمتجر', body: 'رقم الطلب: SQ-10' }, sound: 'default', category: 'SAMOU_NEW_ORDER' });
+});
+
+it('records provider acceptance without claiming the device opened the notification', async () => {
+  await sendPushToUser('user', { title: 'اختبار', body: 'body' });
+  expect(mocks.auditUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'ACCEPTED', sentCount: 1 }) }));
+  expect(mocks.auditUpdate.mock.calls[0]?.[0].data).not.toHaveProperty('openedAt');
+});
+it('records a provider exception with a code, never the token-bearing error message', async () => {
+  mocks.send.mockRejectedValue(Object.assign(new Error('secret token must not be logged'), { code: 'messaging/server-unavailable' }));
+  await expect(sendPushToUser('user', { title: 'اختبار', body: 'body' })).rejects.toThrow();
+  expect(mocks.auditUpdate).toHaveBeenCalledWith({ where: { id: 'audit' }, data: { status: 'FAILED', errorCode: 'messaging/server-unavailable', failedCount: 1 } });
+});
+
+it('does not duplicate a successful push when audit persistence is unavailable', async () => {
+  mocks.auditUpdate.mockRejectedValueOnce(new Error('database unavailable'));
+  await expect(sendPushToUser('user', { title: 'Order', body: 'Ready' })).resolves.toEqual({ sent: 1, failed: 0 });
+  expect(mocks.send).toHaveBeenCalledTimes(1);
 });

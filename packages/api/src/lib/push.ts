@@ -114,20 +114,20 @@ export interface SendPushOptions {
   dataOnly?: boolean;
 }
 
-export async function sendPushToUser(
+async function deliverPushToUser(
   userId: string,
   payload: PushPayload,
   options?: SendPushOptions
-): Promise<{ sent: number; failed: number }> {
+): Promise<{ sent: number; failed: number; skipped?: string }> {
   const msg = await getMessaging();
-  if (!msg) return { sent: 0, failed: 0 };
+  if (!msg) return { sent: 0, failed: 0, skipped: "DISABLED" };
 
   const tokens = await prisma.deviceToken.findMany({
     where: { userId },
     select: { id: true, token: true, platform: true },
   });
 
-  if (tokens.length === 0) return { sent: 0, failed: 0 };
+  if (tokens.length === 0) return { sent: 0, failed: 0, skipped: "NO_DEVICE" };
 
   // Build ONE multicast message carrying every registered device of this
   // user. A single `sendEachForMulticast` batch deliver the same payload to
@@ -137,7 +137,7 @@ export async function sendPushToUser(
   // A preparation reminder is useful only before the estimate. Do not deliver stale countdowns after an offline device reconnects.
   const expiry = Number(payload.data?.expiresAt);
   const ttl = Number.isFinite(expiry) && expiry > 0 ? Math.max(0, expiry - Date.now()) : undefined;
-  if (ttl === 0) return { sent: 0, failed: 0 };
+  if (ttl === 0) return { sent: 0, failed: 0, skipped: "EXPIRED" };
   const multicast: MulticastMessage = {
     tokens: tokens.map((t: { token: string }) => t.token),
     ...(options?.dataOnly
@@ -246,4 +246,24 @@ export async function sendPushToMany(
 /** Returns true if Firebase is configured and ready. */
 export function isPushEnabled(): boolean {
   return initialised && firebaseMessaging !== null;
+}
+
+/** Provider acceptance is not proof that Android displayed or sounded an alert. */
+export async function sendPushToUser(userId: string, payload: PushPayload, options?: SendPushOptions): Promise<{ sent: number; failed: number }> {
+  const audit = await prisma.notificationDelivery.create({ data: {
+    userId, orderId: payload.data?.orderId, type: payload.data?.type ?? 'GENERAL', title: payload.title,
+  } }).catch(() => { console.error('[push-audit] Could not create delivery audit'); return null; });
+  try {
+    const result = await deliverPushToUser(userId, { ...payload, data: { ...payload.data, ...(audit ? { notificationLogId: audit.id } : {}) } }, options);
+    if (audit) await prisma.notificationDelivery.update({ where: { id: audit.id }, data: {
+      status: result.skipped ?? (result.failed ? (result.sent ? 'PARTIAL' : 'FAILED') : 'ACCEPTED'),
+      sentCount: result.sent, failedCount: result.failed,
+      providerAcceptedAt: result.sent ? new Date() : null,
+    } }).catch(() => console.error('[push-audit] Could not record provider result'));
+    return { sent: result.sent, failed: result.failed };
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' ? error.code.slice(0, 100) : 'SEND_FAILED';
+    if (audit) await prisma.notificationDelivery.update({ where: { id: audit.id }, data: { status: 'FAILED', errorCode: code, failedCount: 1 } }).catch(() => console.error('[push-audit] Could not record provider failure'));
+    throw error;
+  }
 }

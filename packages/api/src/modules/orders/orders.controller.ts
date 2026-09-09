@@ -1,4 +1,4 @@
-import { preparationTimeSchema } from './orders.schemas';
+import { preparationTimeSchema, releaseReservationSchema } from './orders.schemas';
 import { eligibleCaptainIds } from './captain-pool';
 import { isReplayedSubmission } from '../../lib/order-submission';
 import type { Request, Response } from 'express';
@@ -462,4 +462,23 @@ export async function updatePreparationTimeHandler(req: Request, res: Response):
     data: { type: 'PREPARATION_REMINDER', orderId, screen: 'order' },
   }, { dataOnly: true }).catch(() => undefined);
   ok(res, result);
+}
+
+export async function releaseReservationHandler(req: Request, res: Response): Promise<void> {
+  const actor = requireAuth(req);
+  const { orderId } = parseWith(orderIdParamsSchema, req.params);
+  const { reason } = parseWith(releaseReservationSchema, req.body);
+  const result = await ordersService.releaseReservation(actor, orderId, reason);
+  emitPlatformEvent('order:assigned', { orderId, captainId: null, storeId: result.storeId });
+  void (async () => {
+    await sendPushToUser(result.store.managerId, {
+      title: 'اعتذر الكابتن عن التوصيل', body: `الطلب #${result.orderNumber} متاح الآن لكابتن آخر`,
+      data: { type: 'RESERVATION_RELEASED', orderId, storeId: result.storeId, screen: 'order' },
+    }, { dataOnly: true }).catch(() => console.error('[reservation-release] Store notification failed'));
+    await sendPushToMany((await eligibleCaptainIds(result.storeId)).filter(id => id !== actor.sub), {
+      title: 'طلب متاح للتوصيل مجدداً', body: `طلب #${result.orderNumber} من ${result.store.nameAr} متاح للحجز`,
+      data: { type: result.status === OrderStatus.READY_FOR_PICKUP ? 'NEW_ORDER' : 'PREPARATION_AVAILABLE', orderId, storeId: result.storeId, screen: 'order' },
+    }, { dataOnly: true });
+  })().catch(error => console.error('[reservation-release] Notification dispatch failed', error instanceof Error ? error.message : 'unknown'));
+  ok(res, { released: true, orderId, status: result.status });
 }

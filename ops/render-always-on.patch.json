@@ -1,0 +1,6 @@
+{
+  "serviceDetails": {
+    "plan": "starter",
+    "healthCheckPath": "/health"
+  }
+}

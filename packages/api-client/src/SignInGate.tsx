@@ -1,3 +1,4 @@
+import { SessionRecovery, needsSessionRecovery } from './SessionRecovery';
 /**
  * Samou' Go — sign-in card.
  *
@@ -63,6 +64,8 @@ export function SignInGate({
     if (!canSubmit) return;
     void auth.signIn({ phone: normalizeLoginPhone(phone), password });
   };
+
+  if (needsSessionRecovery(auth)) return <SessionRecovery auth={auth} />;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-canvas px-5 py-10 text-ink">

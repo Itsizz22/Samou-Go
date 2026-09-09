@@ -267,14 +267,23 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
   }, []);
 
   const refresh = useCallback(async (): Promise<PublicUser | null> => {
+    setPending(true);
     try {
       const profile = await me();
-      if (mounted.current) return committedProfile(profile);
+      if (mounted.current) { setError(null); return committedProfile(profile); }
       return null;
-    } catch {
+    } catch (cause) {
+      if (mounted.current && cause instanceof ApiError) setError(cause);
       return null;
-    }
+    } finally { if (mounted.current) setPending(false); }
   }, [committedProfile]);
+
+  useEffect(() => {
+    const recover = () => { if (!pending && error && (getToken() || getRefreshToken())) void refresh(); };
+    window.addEventListener('online', recover);
+    window.addEventListener('samou:retry-connection', recover);
+    return () => { window.removeEventListener('online', recover); window.removeEventListener('samou:retry-connection', recover); };
+  }, [error, pending, refresh]);
 
   const setUser = useCallback(
     (next: PublicUser | null) => {

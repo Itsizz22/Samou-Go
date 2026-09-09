@@ -827,3 +827,31 @@ model OrderSubmission {
   @@id([customerId, requestId])
   @@map("order_submissions")
 }
+/// Operational audit; no device tokens, phone numbers or raw provider errors are stored.
+model NotificationDelivery {
+  id String @id @default(cuid())
+  userId String
+  orderId String?
+  type String
+  title String
+  status String @default("PENDING")
+  sentCount Int @default(0)
+  failedCount Int @default(0)
+  errorCode String?
+  providerAcceptedAt DateTime?
+  openedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([orderId, createdAt])
+  @@map("notification_deliveries")
+}
+
+model BackgroundJobHeartbeat {
+  id String @id
+  lastStartedAt DateTime
+  lastSucceededAt DateTime?
+  lastFailedAt DateTime?
+  @@map("background_job_heartbeats")
+}

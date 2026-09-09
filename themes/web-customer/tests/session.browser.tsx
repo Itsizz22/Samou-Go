@@ -1,7 +1,7 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { UserRole, type PublicUser } from '@samou-go/shared-types';
-import { useAuth, useResource, listOrders, setToken, setRefreshToken, syncActiveSession } from '@samou-go/api-client';
+import { useAuth, useResource, listOrders, setToken, setRefreshToken, syncActiveSession, getToken, getRefreshToken, needsSessionRecovery, SessionRecovery } from '@samou-go/api-client';
 import { AuthContext } from '../src/contexts/AuthContext';
 import { useOrders } from '../src/hooks/useApi';
 
@@ -23,10 +23,12 @@ const assert = (value: unknown, message: string) => { if (!value) throw new Erro
 const envelope = (data: unknown) => Response.json({ success: true, data });
 let resolveMe: (response: Response) => void = () => { throw new Error('No pending profile request'); };
 let denyOrders = false;
+let networkFailure = false;
 
 window.fetch = async (input, init) => {
   const url = String(input);
   if (!url.includes('/api/v1/')) return originalFetch(input, init);
+  if (networkFailure) throw new TypeError('Failed to fetch');
   requests.push({ url, authorization: new Headers(init?.headers).get('Authorization') });
   if (url.endsWith('/auth/me')) return new Promise<Response>((resolve) => { resolveMe = resolve; });
   if (url.includes('/orders')) {
@@ -37,6 +39,10 @@ window.fetch = async (input, init) => {
   throw new Error(`Unexpected API request: ${url}`);
 };
 
+export function Recovery() {
+  const auth = useAuth();
+  return needsSessionRecovery(auth) ? <SessionRecovery auth={auth} /> : <span>{auth.user ? 'authenticated' : 'loading'}</span>;
+}
 export function Orders() {
   const orders = useOrders({ pageSize: 50 }, { pollMs: 20 });
   return <span>{orders.loading ? 'loading' : 'ready'}</span>;
@@ -88,6 +94,17 @@ async function run() {
   await act(async () => root.render(<Scoped account="account-b" />));
   assert(container.textContent === 'account-b', 'Account switch retained previous scoped data');
   passed.push('resource data follows account scope');
+  await act(async () => root.unmount());
+  networkFailure = true;
+  root = createRoot(container);
+  await act(async () => root.render(<Recovery />));
+  assert(container.textContent?.includes('تعذر الاتصال بالخادم'), 'Network error was treated as logout');
+  assert(getToken() === 'browser-access' && getRefreshToken() === 'browser-refresh', 'Offline boot discarded credentials');
+  networkFailure = false;
+  await act(async () => { window.dispatchEvent(new Event('online')); });
+  await act(async () => { resolveMe(envelope(user)); });
+  assert(container.textContent === 'authenticated', 'Session did not recover on reconnect');
+  passed.push('offline boot retains credentials and reconnect restores verified session');
   await act(async () => root.unmount());
   window.fetch = originalFetch;
   globalThis.sessionTestResult = { passed };

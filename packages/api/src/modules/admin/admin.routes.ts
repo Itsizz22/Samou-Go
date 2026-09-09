@@ -1,3 +1,4 @@
+import { notificationAuditHandler } from '../admin/notification-audit.controller';
 import { updatePlatformSettingsHandler } from '../platform/platform.controller';
 import { Router } from 'express';
 import { UserRole } from '@samou-go/shared-types';
@@ -22,3 +23,5 @@ adminRouter.delete('/stores/:id', asyncHandler(adminDeleteStoreHandler));
 adminRouter.delete('/drivers/:id', asyncHandler(adminDeleteDriverHandler));
 adminRouter.delete('/users/:userId', asyncHandler(adminDeleteUserHandler));
 adminRouter.patch('/settings/pricing', asyncHandler(updatePlatformSettingsHandler));
+
+adminRouter.get('/notifications', asyncHandler(notificationAuditHandler));

@@ -1,3 +1,4 @@
+import { setServerUnreachable } from './connection';
 import type { PopularProduct } from '@samou-go/shared-types';
 /**
  * Samou' Go — HTTP client for the Express API.
@@ -642,6 +643,7 @@ async function request<T>(
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
   } catch (cause) {
+    if (!externalSignal?.aborted) setServerUnreachable(true);
     if (timeout.timedOut()) {
       throw new ApiError(
         CLIENT_ERROR_CODES.TIMEOUT,
@@ -669,6 +671,7 @@ async function request<T>(
     timeout.done();
   }
 
+  setServerUnreachable(response.status >= 500);
   const envelope = await readEnvelope<T>(response);
 
   // Discard responses belonging to a session that was cleared or replaced.
@@ -2208,3 +2211,15 @@ export function reserveOrder(orderId: string): Promise<OrderDetail> {
 export function updatePreparationTime(orderId: string, estimatedPrepMinutes: number): Promise<OrderDetail> {
   return request<OrderDetail>('PATCH', `/orders/${encodeURIComponent(orderId)}/preparation-time`, { auth: true, body: { estimatedPrepMinutes } });
 }
+
+export function releaseReservation(orderId: string, reason: string): Promise<{ released: boolean; orderId: string }> {
+  return request('POST', `/orders/${encodeURIComponent(orderId)}/release`, { auth: true, body: { reason } });
+}
+
+export interface NotificationAudit {
+  items: { id: string; userId: string; orderId: string | null; title: string; type: string; status: string; sentCount: number; failedCount: number; errorCode: string | null; createdAt: string; openedAt: string | null }[];
+  total: number; page: number; schedulerHealthy: boolean;
+  heartbeat: { lastSucceededAt: string | null; lastFailedAt: string | null } | null;
+}
+export const getNotificationAudit = (page = 1, signal?: AbortSignal) => request<NotificationAudit>('GET', `/admin/notifications?page=${page}`, { auth: true, signal });
+export const recordNotificationOpened = (id: string) => request<{ recorded: boolean }>('POST', `/devices/notifications/${encodeURIComponent(id)}/opened`, { auth: true });
