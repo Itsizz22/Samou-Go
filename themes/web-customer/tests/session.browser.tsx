@@ -15,7 +15,7 @@ const originalFetch = window.fetch.bind(window);
 const requests: { url: string; authorization: string | null }[] = [];
 const user: PublicUser = {
   id: 'browser-customer', name: 'Browser test', phone: '0599000001', role: UserRole.CUSTOMER,
-  isActive: true, isVerified: true, isAvailable: false, assignedStoreId: null,
+  isActive: true, isVerified: true, isAvailable: false, assignedStoreId: null, assignedStoreIds: [],
   latitude: null, longitude: null, profileImageUrl: null,
   createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
 };

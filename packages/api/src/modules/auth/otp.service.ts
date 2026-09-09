@@ -1,3 +1,4 @@
+import { assignedStoresInclude, validateCaptainStores } from './captain-stores';
 /**
  * Passwordless phone sign-in (OTP).
  *
@@ -351,7 +352,7 @@ export async function verifyOtp(body: OtpVerifyInput): Promise<AuthResponse> {
   const verified =
     user.isVerified === true
       ? user
-      : await prisma.user.update({
+      : await prisma.user.update({ include: assignedStoresInclude,
           where: { id: user.id },
           data: { isVerified: true },
         });
@@ -371,7 +372,7 @@ export async function verifyOtp(body: OtpVerifyInput): Promise<AuthResponse> {
 
 /** Consume a valid OTP and replace a known account's password. */
 export async function resetPassword(body: ResetPasswordInput): Promise<void> {
-  const existing = await prisma.user.findUnique({
+  const existing = await prisma.user.findUnique({ include: assignedStoresInclude,
     where: { phone: body.phone },
   });
   if (!existing) {
@@ -384,7 +385,7 @@ export async function resetPassword(body: ResetPasswordInput): Promise<void> {
   // for up to 7 days — even after the password changed. That token was never
   // revoked, leaving a post-reset window an attacker could exploit.
   await verifyAndConsumeOtp(body.phone, body.code);
-  await prisma.user.update({
+  await prisma.user.update({ include: assignedStoresInclude,
     where: { id: existing.id },
     data: { passwordHash: await hashPassword(body.password) },
   });
@@ -469,12 +470,10 @@ export async function adminVerifyCaptainOtp(body: AdminOtpVerifyBody): Promise<A
     invalid: () => unauthorized("رمز خاطئ / Incorrect code"),
   });
 
-  // Check the assigned store exists
-  const store = await prisma.store.findUnique({ where: { id: captainData?.assignedStoreId } });
-  if (!store) throw unauthorized("المتجر غير موجود / Store not found");
+  const storeIds = await validateCaptainStores(captainData ?? {}) ?? [];
 
   // Create the captain account
-  const user = await prisma.user.create({
+  const user = await prisma.user.create({ include: assignedStoresInclude,
     data: {
       name: captainData?.nameAr ?? "كابتن جديد / New Captain",
       phone,
@@ -482,7 +481,8 @@ export async function adminVerifyCaptainOtp(body: AdminOtpVerifyBody): Promise<A
       role: UserRole.CAPTAIN,
       isActive: true,
       isVerified: true,
-      assignedStoreId: captainData?.assignedStoreId,
+      assignedStoreId: storeIds[0] ?? null,
+      assignedStores: { connect: storeIds.map(id => ({ id })) },
       userCode: generateCaptainCode(
         parseInt(createHash('sha256').update(phone).digest('hex').slice(0, 8), 16) % 32_768
       ),
@@ -504,7 +504,7 @@ export async function adminVerifyCaptainOtp(body: AdminOtpVerifyBody): Promise<A
 }
 
 async function findOrCreateCustomer(phone: string, name?: string) {
-  const existing = await prisma.user.findUnique({ where: { phone } });
+  const existing = await prisma.user.findUnique({ include: assignedStoresInclude, where: { phone } });
   if (existing) {
     if (!existing.isActive) {
       throw unauthorized("الحساب موقوف / This account has been deactivated");
@@ -512,7 +512,7 @@ async function findOrCreateCustomer(phone: string, name?: string) {
     return existing;
   }
 
-  return prisma.user.create({
+  return prisma.user.create({ include: assignedStoresInclude,
     data: {
       name: name?.trim() || "عميل / Customer",
       phone,

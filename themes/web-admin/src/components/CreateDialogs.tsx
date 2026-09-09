@@ -1,3 +1,4 @@
+import { StoreChoices } from './StoreAssignmentPicker';
 /**
  * Samou' Go — Admin creation dialogs.
  *
@@ -366,14 +367,14 @@ export function CreateCaptainDialog({
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
   const [phone, setPhone] = useState('');
-  const [assignedStoreId, setAssignedStoreId] = useState('');
+  const [assignedStoreIds, setAssignedStoreIds] = useState<string[]>([]);
   const [password, setPassword] = useState('');
   const [isVerified, setIsVerified] = useState(false);
 
   if (!open) return null;
 
   const submit = async () => {
-    if (!nameAr.trim() || !nameEn.trim() || !phone.trim() || !assignedStoreId) {
+    if (!nameAr.trim() || !nameEn.trim() || !phone.trim()) {
       toast.error('أكمل الحقول المطلوبة', 'Please complete all required fields');
       return;
     }
@@ -385,7 +386,7 @@ export function CreateCaptainDialog({
       nameAr: nameAr.trim(),
       nameEn: nameEn.trim(),
       phone: phone.trim(),
-      assignedStoreId,
+      assignedStoreIds,
       isVerified,
       ...(password ? { password } : {}),
     };
@@ -395,7 +396,7 @@ export function CreateCaptainDialog({
       setNameAr('');
       setNameEn('');
       setPhone('');
-      setAssignedStoreId('');
+      setAssignedStoreIds([]);
       setPassword('');
       setIsVerified(false);
       onCreated();
@@ -441,21 +442,7 @@ export function CreateCaptainDialog({
             aria-label="Captain phone"
           />
         </FieldLabel>
-        <FieldLabel hint="Dedicated store">
-          <select
-            value={assignedStoreId}
-            onChange={e => setAssignedStoreId(e.target.value)}
-            className="input-field cursor-pointer"
-            aria-label="Assigned store"
-          >
-            <option value="">{t('اختر المتجر', 'Select a store')}</option>
-            {(stores.data?.items ?? []).map(store => (
-              <option key={store.id} value={store.id}>
-                {store.nameAr}
-              </option>
-            ))}
-          </select>
-        </FieldLabel>
+        <StoreChoices stores={stores.data?.items ?? []} value={assignedStoreIds} onChange={setAssignedStoreIds} disabled={stores.loading} />
         <FieldLabel hint="Driver login password — 8+ characters (optional)">
           <input
             className={inputClass}

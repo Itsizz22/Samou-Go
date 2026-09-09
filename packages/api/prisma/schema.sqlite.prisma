@@ -134,6 +134,7 @@ model User {
   isVerified   Boolean  @default(false)
   /// CAPTAIN self-managed availability — must be on to claim orders.
   isAvailable  Boolean  @default(false)
+  assignedStores Store[] @relation("MultiStoreCaptains")
   assignedStoreId String?
   /// Processed avatar URL served by the uploads pipeline (webp, immutable-cached).
   profileImageUrl String?
@@ -253,7 +254,8 @@ model Store {
   orders     Order[]
   offers     Offer[]
   favorites  Favorite[] @relation("StoreFavorites")
-  dedicatedCaptains User[] @relation("DedicatedStoreCaptain")
+  legacyDedicatedCaptains User[] @relation("DedicatedStoreCaptain")
+  dedicatedCaptains User[] @relation("MultiStoreCaptains")
   ratings Rating[]
   wallet Wallet?
   customRequests CustomRequest[]

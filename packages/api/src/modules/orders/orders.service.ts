@@ -1,3 +1,4 @@
+import { captainStoreIds, assignedStoresInclude } from '../auth/captain-stores';
 import { captainPoolScope, PREPARATION_POOL_STATUSES } from './captain-pool';
 import { withOrderSubmission } from '../../lib/order-submission';
 import { automaticDeliveryPricing } from './pricing';
@@ -937,7 +938,7 @@ export async function updateOrderStatus(
   if (isClaimAttempt) {
     const captain = await prisma.user.findUnique({
       where: { id: actor.sub },
-      select: { id: true, isActive: true, isVerified: true, isAvailable: true, assignedStoreId: true },
+      select: { id: true, isActive: true, isVerified: true, isAvailable: true, assignedStoreId: true, ...assignedStoresInclude },
     });
     if (!captain || !captain.isActive) {
       throw unprocessable(
@@ -957,7 +958,7 @@ export async function updateOrderStatus(
         'ضع حالتك على "متاح" لاستقبال الطلبات / Set your status to Available before accepting orders'
       );
     }
-    if (captain.assignedStoreId !== null && captain.assignedStoreId !== order.storeId) {
+    if (captainStoreIds(captain).length > 0 && !captainStoreIds(captain).includes(order.storeId)) {
       throw forbidden('هذا الطلب مخصص لمتجر آخر / This order belongs to another store');
     }
   }
@@ -1146,7 +1147,7 @@ export async function assignCaptain(
 
   const captain = await prisma.user.findUnique({
     where: { id: body.captainId },
-    select: { id: true, role: true, isActive: true, isVerified: true, assignedStoreId: true },
+    select: { id: true, role: true, isActive: true, isVerified: true, assignedStoreId: true, ...assignedStoresInclude },
   });
 
   if (!captain || captain.role !== UserRole.CAPTAIN) {
@@ -1161,7 +1162,7 @@ export async function assignCaptain(
       'الكابتن غير موثّق بعد — وثّق الحساب أولاً / Captain is not verified yet — verify the account first'
     );
   }
-  if (captain.assignedStoreId !== null && captain.assignedStoreId !== order.storeId) {
+  if (captainStoreIds(captain).length > 0 && !captainStoreIds(captain).includes(order.storeId)) {
     throw unprocessable('CAPTAIN_STORE_MISMATCH', 'الكابتن مخصص لمتجر آخر / Captain is dedicated to another store');
   }
 

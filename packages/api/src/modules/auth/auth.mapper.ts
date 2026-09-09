@@ -1,3 +1,4 @@
+import { captainStoreIds } from './captain-stores';
 import type { User } from '../../lib/prisma-types';
 import type { PublicUser } from '@samou-go/shared-types';
 
@@ -5,7 +6,7 @@ import type { PublicUser } from '@samou-go/shared-types';
  * Strips `passwordHash` and serialises dates. This is the ONLY way a User
  * leaves the API — never `res.json(user)` directly.
  */
-export function toPublicUser(user: User): PublicUser {
+export function toPublicUser(user: User & { assignedStores?: { id: string }[] }): PublicUser {
   return {
     id: user.id,
     name: user.name,
@@ -14,6 +15,7 @@ export function toPublicUser(user: User): PublicUser {
     isActive: user.isActive,
     isVerified: user.isVerified,
     isAvailable: user.isAvailable,
+    assignedStoreIds: captainStoreIds(user),
     assignedStoreId: user.assignedStoreId,
     profileImageUrl: user.profileImageUrl,
     latitude: user.latitude,

@@ -411,6 +411,8 @@ export interface UpdateUserInput {
   /** Admin flag — captain verification. */
   isVerified?: boolean;
   /** ADMIN-only captain assignment; null returns a captain to the shared pool. */
+  assignedStoreIds?: string[];
+  /** @deprecated Use assignedStoreIds. */
   assignedStoreId?: string | null;
 }
 
@@ -448,8 +450,10 @@ export interface AdminCreateCaptainInput {
   nameEn: string;
   /** `05XXXXXXXX` — Palestinian mobile. */
   phone: string;
-  /** The captain's dedicated store. Required. */
-  assignedStoreId: string;
+  /** Dedicated stores; omitted or empty means a general captain. */
+  assignedStoreIds?: string[];
+  /** @deprecated Use assignedStoreIds. */
+  assignedStoreId?: string;
   /** Whether the captain may take jobs immediately; defaults to false. */
   isVerified?: boolean;
   /** Login password for the captain account; optional (falls back to OTP login). */

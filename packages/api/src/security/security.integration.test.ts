@@ -340,11 +340,11 @@ describe('invalid payload rejection', () => {
     expect((res.json?.error as { code: string }).code).toBe('VALIDATION_ERROR');
   });
 
-  it('rejects admin captain creation without an assigned store with 422', async () => {
+  it('rejects malformed multi-store captain assignments with 422', async () => {
     const res = await call('/admin/captains', {
       method: 'POST',
       token: adminToken,
-      body: { nameAr: 'كابتن', nameEn: 'Captain', phone: '0599000005' },
+      body: { nameAr: 'كابتن', nameEn: 'Captain', phone: '0599000005', assignedStoreIds: [''] },
     });
     expect(res.status).toBe(422);
     expect((res.json?.error as { code: string }).code).toBe('VALIDATION_ERROR');

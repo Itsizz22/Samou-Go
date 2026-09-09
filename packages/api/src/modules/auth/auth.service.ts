@@ -1,3 +1,4 @@
+import { assignedStoresInclude, validateCaptainStores } from './captain-stores';
 import { randomInt, createHash } from 'node:crypto';
 import type { Store, User } from '../../lib/prisma-types';
 import type { Prisma } from '../../lib/prisma-types';
@@ -63,7 +64,7 @@ export async function register(
     );
   }
 
-  const existing = await prisma.user.findUnique({ where: { phone: body.phone } });
+  const existing = await prisma.user.findUnique({ include: assignedStoresInclude, where: { phone: body.phone } });
   if (existing) {
     throw conflict('رقم الجوال مسجّل مسبقاً / This phone number is already registered');
   }
@@ -71,7 +72,7 @@ export async function register(
   // Registration is password-based — no OTP step. Create the account,
   // mark it verified, and issue tokens immediately so the user can
   // enter the app without an extra verification wall.
-  const user = await prisma.user.create({
+  const user = await prisma.user.create({ include: assignedStoresInclude,
     data: {
       name: body.name,
       phone: body.phone,
@@ -88,7 +89,7 @@ export async function register(
 }
 
 export async function login(body: LoginBody): Promise<AuthResponse> {
-  const user = await prisma.user.findUnique({ where: { phone: body.phone } });
+  const user = await prisma.user.findUnique({ include: assignedStoresInclude, where: { phone: body.phone } });
 
   // Same message for "no such phone" and "wrong password" — do not confirm
   // which phone numbers are registered.
@@ -108,7 +109,7 @@ export async function login(body: LoginBody): Promise<AuthResponse> {
 export async function refreshSession(body: RefreshTokenBody): Promise<AuthResponse> {
   const { raw: nextRefreshToken, userId } = await rotateRefreshToken(body.refreshToken);
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({ include: assignedStoresInclude, where: { id: userId } });
   if (!user) throw unauthorized('الحساب غير موجود / Account no longer exists');
   if (!user.isActive) {
     throw forbidden('الحساب موقوف / This account has been deactivated');
@@ -124,7 +125,7 @@ export async function refreshSession(body: RefreshTokenBody): Promise<AuthRespon
 }
 
 export async function getProfile(userId: string): Promise<PublicUser> {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({ include: assignedStoresInclude, where: { id: userId } });
   if (!user) throw unauthorized('الحساب غير موجود / Account no longer exists');
   return toPublicUser(user);
 }
@@ -137,7 +138,7 @@ export async function updateProfile(
   userId: string,
   body: UpdateProfileBody
 ): Promise<PublicUser> {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({ include: assignedStoresInclude, where: { id: userId } });
   if (!user) throw unauthorized('الحساب غير موجود / Account no longer exists');
 
   // Password change requires the current password to be verified first.
@@ -159,7 +160,7 @@ export async function updateProfile(
 
   // Phone uniqueness check — only if changing phone.
   if (body.phone && body.phone !== user.phone) {
-    const conflict_ = await prisma.user.findUnique({ where: { phone: body.phone } });
+    const conflict_ = await prisma.user.findUnique({ include: assignedStoresInclude, where: { phone: body.phone } });
     if (conflict_) {
       throw conflict('رقم الجوال مسجّل مسبقاً / This phone number is already in use');
     }
@@ -170,7 +171,7 @@ export async function updateProfile(
     await verifyAndConsumeOtp(body.phone, body.otpCode ?? '');
   }
 
-  const updated = await prisma.user.update({
+  const updated = await prisma.user.update({ include: assignedStoresInclude,
     where: { id: userId },
     data: {
       ...(body.name !== undefined ? { name: body.name } : {}),
@@ -196,10 +197,10 @@ export async function updateMyLocation(
   userId: string,
   body: { latitude: number; longitude: number }
 ): Promise<PublicUser> {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({ include: assignedStoresInclude, where: { id: userId } });
   if (!user) throw unauthorized('الحساب غير موجود / Account no longer exists');
 
-  const updated = await prisma.user.update({
+  const updated = await prisma.user.update({ include: assignedStoresInclude,
     where: { id: userId },
     data: { latitude: body.latitude, longitude: body.longitude },
   });
@@ -214,7 +215,7 @@ export async function setAvailability(
   userId: string,
   body: SetAvailabilityBody
 ): Promise<PublicUser> {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({ include: assignedStoresInclude, where: { id: userId } });
   if (!user) throw unauthorized('الحساب غير موجود / Account no longer exists');
   if (user.role !== UserRole.CAPTAIN) {
     throw unprocessable('NOT_A_CAPTAIN', 'هذا الخيار لكابتن التوصيل فقط / Only captains may set availability');
@@ -226,7 +227,7 @@ export async function setAvailability(
     );
   }
 
-  const updated = await prisma.user.update({
+  const updated = await prisma.user.update({ include: assignedStoresInclude,
     where: { id: userId },
     data: { isAvailable: body.isAvailable },
   });
@@ -252,7 +253,7 @@ export async function listUsers(query: UserListQuery): Promise<Paginated<PublicU
   };
 
   const [rows, total] = await Promise.all([
-    prisma.user.findMany({
+    prisma.user.findMany({ include: assignedStoresInclude,
       where,
       orderBy: [{ role: 'asc' }, { name: 'asc' }],
       skip: (query.page - 1) * query.pageSize,
@@ -274,26 +275,20 @@ export async function adminUpdateUser(
   targetId: string,
   body: AdminUpdateUserBody
 ): Promise<PublicUser> {
-  const user = await prisma.user.findUnique({ where: { id: targetId } });
+  const user = await prisma.user.findUnique({ include: assignedStoresInclude, where: { id: targetId } });
   if (!user) throw notFound('المستخدم غير موجود / User not found');
-  if (body.assignedStoreId !== undefined) {
-    if (user.role !== UserRole.CAPTAIN) {
-      throw unprocessable('NOT_A_CAPTAIN', 'المستخدم ليس كابتن توصيل / User is not a captain');
-    }
-    if (body.assignedStoreId !== null) {
-      const store = await prisma.store.findUnique({ where: { id: body.assignedStoreId }, select: { id: true } });
-      if (!store) throw notFound('المتجر غير موجود / Store not found');
-    }
-  }
+  let storeIds = await validateCaptainStores(body);
+  if (storeIds !== undefined && (body.role ?? user.role) !== UserRole.CAPTAIN) throw unprocessable('NOT_A_CAPTAIN', 'المستخدم ليس كابتن توصيل / User is not a captain');
+  if (body.role && body.role !== UserRole.CAPTAIN) storeIds = [];
 
-  const updated = await prisma.user.update({
+  const updated = await prisma.user.update({ include: assignedStoresInclude,
     where: { id: targetId },
     data: {
       ...(body.name !== undefined ? { name: body.name } : {}),
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
       ...(body.role !== undefined ? { role: body.role } : {}),
       ...(body.isVerified !== undefined ? { isVerified: body.isVerified } : {}),
-      ...(body.assignedStoreId !== undefined ? { assignedStoreId: body.assignedStoreId } : {}),
+      ...(storeIds !== undefined ? { assignedStoreId: storeIds[0] ?? null, assignedStores: { set: storeIds.map(id => ({ id })) } } : {}),
     },
   });
 
@@ -302,13 +297,13 @@ export async function adminUpdateUser(
 
 /** PATCH /captains/:id/verify — admin confirms a CAPTAIN account. */
 export async function verifyCaptain(captainId: string): Promise<PublicUser> {
-  const captain = await prisma.user.findUnique({ where: { id: captainId } });
+  const captain = await prisma.user.findUnique({ include: assignedStoresInclude, where: { id: captainId } });
   if (!captain) throw notFound('الكابتن غير موجود / Captain not found');
   if (captain.role !== UserRole.CAPTAIN) {
     throw unprocessable('NOT_A_CAPTAIN', 'المستخدم ليس كابتن توصيل / User is not a captain');
   }
 
-  const updated = await prisma.user.update({
+  const updated = await prisma.user.update({ include: assignedStoresInclude,
     where: { id: captainId },
     data: { isVerified: true },
   });
@@ -319,12 +314,12 @@ export async function verifyCaptain(captainId: string): Promise<PublicUser> {
 export async function adminCreateStore(
   body: AdminCreateStoreBody
 ): Promise<{ user: PublicUser; store: Store }> {
-  const existing = await prisma.user.findUnique({ where: { phone: body.phone } });
+  const existing = await prisma.user.findUnique({ include: assignedStoresInclude, where: { phone: body.phone } });
   if (existing) {
     throw conflict('رقم الجوال مسجّل مسبقاً / This phone number is already registered');
   }
 
-  const user = await prisma.user.create({
+  const user = await prisma.user.create({ include: assignedStoresInclude,
     data: {
       name: body.managerName ?? body.nameAr,
       phone: body.phone,
@@ -358,17 +353,14 @@ export async function adminCreateStore(
 
 /** POST /admin/captains — admin creates a new delivery captain. */
 export async function adminCreateCaptain(body: AdminCreateCaptainBody): Promise<PublicUser> {
-  const store = await prisma.store.findUnique({ where: { id: body.assignedStoreId } });
-  if (!store) {
-    throw notFound('المتجر غير موجود / Store not found');
-  }
+  const storeIds = await validateCaptainStores(body) ?? [];
 
-  const existing = await prisma.user.findUnique({ where: { phone: body.phone } });
+  const existing = await prisma.user.findUnique({ include: assignedStoresInclude, where: { phone: body.phone } });
   if (existing) {
     throw conflict('رقم الجوال مسجّل مسبقاً / This phone number is already registered');
   }
 
-  const user = await prisma.user.create({
+  const user = await prisma.user.create({ include: assignedStoresInclude,
     data: {
       name: body.nameAr,
       phone: body.phone,
@@ -378,7 +370,8 @@ export async function adminCreateCaptain(body: AdminCreateCaptainBody): Promise<
       role: UserRole.CAPTAIN,
       isActive: true,
       isVerified: body.isVerified,
-      assignedStoreId: body.assignedStoreId,
+      assignedStoreId: storeIds[0] ?? null,
+      assignedStores: { connect: storeIds.map(id => ({ id })) },
       userCode: generateCaptainCode(codeSeed(body.phone)),
     },
   });
@@ -427,7 +420,7 @@ export async function adminDeleteStore(storeId: string): Promise<{ removed: bool
  * The account can be re-activated later from the admin dashboard.
  */
 export async function adminDeleteDriver(userId: string): Promise<{ removed: boolean }> {
-  const driver = await prisma.user.findUnique({ where: { id: userId } });
+  const driver = await prisma.user.findUnique({ include: assignedStoresInclude, where: { id: userId } });
   if (!driver) throw notFound('السائق غير موجود / Driver not found');
   if (driver.role !== UserRole.CAPTAIN) {
     throw unprocessable('NOT_A_CAPTAIN', 'المستخدم ليس سائق توصيل / User is not a driver');
@@ -438,9 +431,9 @@ export async function adminDeleteDriver(userId: string): Promise<{ removed: bool
   // isActive=false blocks login and dispatch immediately; the admin can
   // re-activate later from the dashboard.
   await prisma.$transaction([
-    prisma.user.update({
+    prisma.user.update({ include: assignedStoresInclude,
       where: { id: userId },
-      data: { isActive: false, isAvailable: false, assignedStoreId: null },
+      data: { isActive: false, isAvailable: false, assignedStoreId: null, assignedStores: { set: [] } },
     }),
     prisma.captainLocation.deleteMany({ where: { captainId: userId } }),
   ]);
@@ -458,7 +451,7 @@ export async function adminDeleteUser(
   userId: string,
   actingAdminId: string
 ): Promise<{ removed: boolean }> {
-  const target = await prisma.user.findUnique({ where: { id: userId } });
+  const target = await prisma.user.findUnique({ include: assignedStoresInclude, where: { id: userId } });
   if (!target) throw notFound('المستخدم غير موجود / User not found');
   if (target.role === UserRole.ADMIN) {
     throw forbidden('لا يمكن حذف حساب مشرف / Admin accounts cannot be removed');
@@ -467,7 +460,7 @@ export async function adminDeleteUser(
     throw forbidden('لا يمكنك حذف حسابك الخاص / You cannot remove your own account');
   }
 
-  await prisma.user.update({
+  await prisma.user.update({ include: assignedStoresInclude,
     where: { id: userId },
     data: { isActive: false },
   });

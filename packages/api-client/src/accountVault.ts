@@ -45,6 +45,7 @@ export interface VaultAccount {
   /** `profileImageUrl`, so the list can show the right avatar. */
   avatar: string | null;
   /** Dedicated store ID for store managers. */
+  assignedStoreIds?: string[];
   assignedStoreId?: string | null;
   /** Active toggle for delivery captains. */
   isAvailable?: boolean;
@@ -64,6 +65,7 @@ export interface VaultSessionInput {
     | 'role'
     | 'profileImageUrl'
     | 'assignedStoreId'
+    | 'assignedStoreIds'
     | 'isAvailable'
     | 'isVerified'
   >;
@@ -213,6 +215,7 @@ export function addAccount(session: VaultSessionInput): VaultAccount {
       ? session.refreshToken
       : (existing?.refreshToken ?? null),
     avatar: session.user.profileImageUrl ?? existing?.avatar ?? null,
+    assignedStoreIds: session.user.assignedStoreIds ?? existing?.assignedStoreIds ?? [],
     assignedStoreId: session.user.assignedStoreId !== undefined ? session.user.assignedStoreId : (existing?.assignedStoreId ?? null),
     isAvailable: session.user.isAvailable !== undefined ? session.user.isAvailable : (existing?.isAvailable ?? false),
     isVerified: session.user.isVerified !== undefined ? session.user.isVerified : (existing?.isVerified ?? false),

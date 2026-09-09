@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { UserRole } from '@samou-go/shared-types';
 import { signAccessToken } from '../../lib/jwt';
+import { eligibleCaptainIds } from './captain-pool';
+import { readFileSync } from 'node:fs';
 import { dispatchPreparationReminders } from './preparation-reminders';
 import { sendPushToMany } from '../../lib/push';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
@@ -429,4 +431,62 @@ it('keeps notification audit admin-only and accepts an idempotent open from the 
   expect(first.openedAt).not.toBeNull();
   expect((await request('POST', route, 'CAPTAIN')).status).toBe(200);
   expect((await fixture.db.notificationDelivery.findUniqueOrThrow({ where: { id: audit.id } })).openedAt).toEqual(first.openedAt);
+});
+
+
+it('restricts a captain to multiple stores across profile, pool, reservation, assignment and push recipients', async () => {
+  for (const id of ['multi-b', 'multi-c']) await fixture.db.store.create({ data: { id, managerId: 'STORE_MANAGER', nameAr: id, nameEn: id, phone: '0599991099', isApproved: true } });
+  const result = await request<import('@samou-go/shared-types').PublicUser>('PATCH', '/users/CAPTAIN', 'ADMIN', { assignedStoreIds: ['store', 'multi-b', 'store'] });
+  expect(result.status).toBe(200);
+  expect(result.data.assignedStoreIds.sort()).toEqual(['multi-b', 'store']);
+  expect((await request<import('@samou-go/shared-types').PublicUser>('GET', '/auth/me', 'CAPTAIN')).data.assignedStoreIds.sort()).toEqual(['multi-b', 'store']);
+  for (const id of ['store', 'multi-b']) expect(await eligibleCaptainIds(id)).toContain('CAPTAIN');
+  expect(await eligibleCaptainIds('multi-c')).not.toContain('CAPTAIN');
+  expect(await eligibleCaptainIds('multi-b')).not.toContain('CAPTAIN_TWO');
+  const orders = [];
+  for (const storeId of ['store', 'multi-b', 'multi-c']) {
+    const order = await preparationOrder();
+    await fixture.db.order.update({ where: { id: order.id }, data: { storeId } });
+    orders.push(order.id);
+    const allowed = storeId !== 'multi-c';
+    expect((await request('GET', `/orders/${order.id}`, 'CAPTAIN')).status).toBe(allowed ? 200 : 403);
+    expect((await request('POST', `/orders/${order.id}/reserve`, 'CAPTAIN')).status).toBe(allowed ? 200 : 403);
+    if (!allowed) expect((await request('PATCH', `/orders/${order.id}/captain`, 'ADMIN', { captainId: 'CAPTAIN' })).status).toBe(422);
+  }
+  const ready = await request<OrderDetail>('PATCH', `/orders/${orders[1]}/status`, 'ADMIN', { status: 'READY_FOR_PICKUP' });
+  expect(ready.status).toBe(200);
+  expect((await request('POST', `/orders/${orders[1]}/claim`, 'CAPTAIN', { handoffCode: ready.data.captainHandoffCode })).status).toBe(200);
+  expect((await request('PATCH', '/users/CAPTAIN', 'CUSTOMER', { assignedStoreIds: [] })).status).toBe(403);
+  expect((await request('PATCH', '/users/CUSTOMER', 'ADMIN', { assignedStoreIds: ['store'] })).status).toBe(422);
+  expect((await request('PATCH', '/users/CAPTAIN', 'ADMIN', { assignedStoreIds: ['missing-store'] })).status).toBe(404);
+  // Editing the list must not hide a job already reserved by this captain.
+  expect((await request('PATCH', '/users/CAPTAIN', 'ADMIN', { assignedStoreIds: ['multi-b'] })).status).toBe(200);
+  expect((await request('GET', `/orders/${orders[0]}`, 'CAPTAIN')).status).toBe(200);
+  expect(await eligibleCaptainIds('store')).not.toContain('CAPTAIN');
+  const cleared = await request<import('@samou-go/shared-types').PublicUser>('PATCH', '/users/CAPTAIN', 'ADMIN', { assignedStoreIds: [] });
+  expect(cleared.data.assignedStoreIds).toEqual([]);
+  expect(cleared.data.assignedStoreId).toBeNull();
+  expect(await eligibleCaptainIds('multi-c')).toContain('CAPTAIN');
+  await fixture.db.order.updateMany({ where: { id: { in: orders } }, data: { status: 'CANCELLED' } });
+});
+
+it('creates multi-store and general captains and keeps legacy one-store edits compatible', async () => {
+  const created = await request<import('@samou-go/shared-types').PublicUser>('POST', '/admin/captains', 'ADMIN', { nameAr: 'كابتن متعدد', nameEn: 'Multi Captain', phone: '0599988880', assignedStoreIds: ['store', 'multi-b'], isVerified: true });
+  expect(created.status).toBe(201);
+  expect(created.data.assignedStoreIds.sort()).toEqual(['multi-b', 'store']);
+  const legacy = await request<import('@samou-go/shared-types').PublicUser>('PATCH', `/users/${created.data.id}`, 'ADMIN', { assignedStoreId: 'multi-c' });
+  expect(legacy.data.assignedStoreIds).toEqual(['multi-c']);
+  const general = await request<import('@samou-go/shared-types').PublicUser>('POST', '/admin/captains', 'ADMIN', { nameAr: 'كابتن عام', nameEn: 'General Captain', phone: '0599988881', assignedStoreIds: [] });
+  expect(general.status).toBe(201);
+  expect(general.data.assignedStoreIds).toEqual([]);
+});
+
+it('backfills legacy assignments into the relation without duplicate memberships', async () => {
+  await fixture.db.user.update({ where: { id: 'CAPTAIN_TWO' }, data: { assignedStoreId: 'store' } });
+  const migration = readFileSync(resolve('prisma/migrations/20260910000100_multi_store_captains/migration.sql'), 'utf8');
+  const backfill = migration.slice(migration.indexOf('INSERT INTO'));
+  await fixture.db.$executeRawUnsafe(backfill);
+  await fixture.db.$executeRawUnsafe(backfill);
+  const captain = await fixture.db.user.findUniqueOrThrow({ where: { id: 'CAPTAIN_TWO' }, include: { assignedStores: true } });
+  expect(captain.assignedStores.map(store => store.id)).toEqual(['store']);
 });

@@ -30,7 +30,9 @@ export interface PublicUser {
   isVerified: boolean;
   /** CAPTAIN self-managed availability — must be on to claim orders. */
   isAvailable: boolean;
-  /** Dedicated captains may serve this store only; null means shared pool. */
+  /** All dedicated stores; an empty list means the shared pool. */
+  assignedStoreIds: string[];
+  /** @deprecated First store for older clients. */
   assignedStoreId: string | null;
   /** Customer's own location from the browser geolocation flow. */
   latitude: number | null;

@@ -172,7 +172,8 @@ export const adminUpdateUserSchema = z
     role: z.nativeEnum(UserRole).optional(),
     /** CAPTAIN verification — set by the admin dashboard. */
     isVerified: z.boolean().optional(),
-    /** ADMIN-only. A captain can belong to at most one dedicated store. */
+    /** ADMIN-only. Empty array returns the captain to the shared pool. */
+    assignedStoreIds: z.array(z.string().min(1)).max(100).optional(),
     assignedStoreId: z.string().min(1).nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
@@ -261,8 +262,8 @@ export const adminCreateCaptainSchema = z.object({
   nameAr: z.string().trim().min(2, "الاسم العربي قصير جداً / Arabic name too short").max(120, "الاسم العربي طويل جداً / Arabic name too long"),
   nameEn: z.string().trim().min(2, "English name too short / English name too short").max(120, "English name too long / English name too long"),
   phone: phoneSchema,
-  /** Captain must have a dedicated store assigned. */
-  assignedStoreId: z.string().min(1, "معرف المتجر مطلوب / Store ID is required"),
+  assignedStoreIds: z.array(z.string().min(1)).max(100).optional(),
+  assignedStoreId: z.string().min(1).optional(),
   /** Captain must be verified to claim jobs. */
   isVerified: z.boolean().default(false),
   /** Login password for the captain account; optional (falls back to OTP login). */
@@ -311,7 +312,8 @@ export const adminOtpVerifySchema = z.object({
   captainData: z.object({
     nameAr: z.string().trim().min(2).max(120).optional(),
     nameEn: z.string().trim().min(2).max(120).optional(),
-    assignedStoreId: z.string().min(1, "معرف المتجر مطلوب / Store ID is required").optional(),
+    assignedStoreIds: z.array(z.string().min(1)).max(100).optional(),
+    assignedStoreId: z.string().min(1).optional(),
   }).optional(),
 });
 export type AdminOtpVerifyBody = z.infer<typeof adminOtpVerifySchema>;

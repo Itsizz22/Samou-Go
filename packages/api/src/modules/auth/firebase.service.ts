@@ -1,3 +1,4 @@
+import { assignedStoresInclude } from './captain-stores';
 /**
  * Samou Quick — Firebase ID token verification.
  *
@@ -131,7 +132,7 @@ export async function verifyFirebaseToken(
  * account provisioning regardless of which auth method was used.
  */
 async function findOrCreateCustomer(phone: string, name?: string, password?: string) {
-  const existing = await prisma.user.findUnique({ where: { phone } });
+  const existing = await prisma.user.findUnique({ include: assignedStoresInclude, where: { phone } });
   if (existing) {
     if (!existing.isActive) {
       throw new Error('الحساب موقوف / This account has been deactivated');
@@ -147,7 +148,7 @@ async function findOrCreateCustomer(phone: string, name?: string, password?: str
     ? await hashPassword(password)
     : await hashPassword(`otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`);
 
-  return prisma.user.create({
+  return prisma.user.create({ include: assignedStoresInclude,
     data: {
       name: name?.trim() || 'عميل / Customer',
       phone,

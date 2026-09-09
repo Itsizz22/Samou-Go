@@ -1,3 +1,4 @@
+import { CaptainStoreAssignment, assignedIds } from '../StoreAssignmentPicker';
 import { NotificationAuditPanel } from '../NotificationAuditPanel';
 import { SupportDesk } from '@samou-go/api-client';
 import { OverdueOrdersPanel } from '../OverdueOrdersPanel';
@@ -1454,31 +1455,8 @@ function UsersPanel() {
                       </td>
                       <td className="px-3 py-3">
                         {user.role === UserRole.CAPTAIN ? (
-                          <select
-                            value={user.assignedStoreId ?? ''}
-                            disabled={busy || stores.loading}
-                            onChange={e =>
-                              void runUpdate(
-                                user.id,
-                                { assignedStoreId: e.target.value || null },
-                                e.target.value
-                                  ? 'تم تخصيص الكابتن للمتجر'
-                                  : 'تم إلغاء تخصيص الكابتن',
-                                e.target.value
-                                  ? 'Captain assigned to store'
-                                  : 'Captain returned to shared pool'
-                              )
-                            }
-                            className="max-w-44 rounded-lg border border-line bg-canvas px-2 py-1.5 text-[11px] font-semibold text-ink outline-none focus:border-brand disabled:opacity-60"
-                            aria-label={`Dedicated store for ${user.name}`}
-                          >
-                            <option value="">{t('المجموعة المشتركة', 'Shared pool')}</option>
-                            {(stores.data?.items ?? []).map(store => (
-                              <option key={store.id} value={store.id}>
-                                {store.nameAr}
-                              </option>
-                            ))}
-                          </select>
+                          <CaptainStoreAssignment user={user} stores={stores.data?.items ?? []} disabled={busy || stores.loading}
+                            onSave={ids => runUpdate(user.id, { assignedStoreIds: ids }, 'تم تحديث المتاجر المخصصة', 'Dedicated stores updated')} />
                         ) : (
                           <span className="text-ink-subtle">—</span>
                         )}
@@ -1599,7 +1577,9 @@ function StoresPanel() {
 
   const assignCaptain = async (captainId: string, storeId: string) => {
     captainIdRef.current = captainId;
-    const result = await assignCaptainMutation.run({ assignedStoreId: storeId });
+    const captain = captains.data?.items.find(item => item.id === captainId);
+    if (!captain) return;
+    const result = await assignCaptainMutation.run({ assignedStoreIds: [...new Set([...assignedIds(captain), storeId])] });
     captainIdRef.current = null;
     if (result) {
       toast.success('تم إسناد السائق المخصص', 'Dedicated captain assigned');
@@ -2059,8 +2039,7 @@ function StoresPanel() {
                                 {(captains.data?.items ?? [])
                                   .filter(
                                     captain =>
-                                      !captain.assignedStoreId ||
-                                      captain.assignedStoreId === store.id
+                                      !assignedIds(captain).includes(store.id)
                                   )
                                   .map(captain => (
                                     <option key={captain.id} value={captain.id}>
@@ -2431,35 +2410,8 @@ function CaptainsPanel() {
                         )}
                       </td>
                       <td className="px-3 py-3 text-[11px] font-semibold text-ink-soft">
-                        <label className="sr-only" htmlFor={`captain-store-${captain.id}`}>
-                          Bind captain to a store
-                        </label>
-                        <select
-                          id={`captain-store-${captain.id}`}
-                          value={captain.assignedStoreId ?? ''}
-                          disabled={busy}
-                          onChange={event =>
-                            void runAction(
-                              captain.id,
-                              () =>
-                                updateMutation.run({ assignedStoreId: event.target.value || null }),
-                              event.target.value
-                                ? 'تم ربط السائق بالمطعم'
-                                : 'تمت إعادة السائق إلى المجموعة العامة',
-                              event.target.value
-                                ? 'Captain bound to store'
-                                : 'Captain assigned to general pool'
-                            )
-                          }
-                          className="max-w-45 rounded-lg border border-line bg-surface px-2 py-1.5 text-[11px] font-semibold text-ink-soft outline-none focus:border-brand disabled:opacity-60"
-                        >
-                          <option value="">{t('سائق عام', 'General driver')}</option>
-                          {(stores.data?.items ?? []).map(store => (
-                            <option key={store.id} value={store.id}>
-                              {store.nameAr}
-                            </option>
-                          ))}
-                        </select>
+                        <CaptainStoreAssignment user={captain} stores={stores.data?.items ?? []} disabled={busy || stores.loading}
+                          onSave={ids => runAction(captain.id, () => updateMutation.run({ assignedStoreIds: ids }), 'تم تحديث متاجر الكابتن', 'Captain stores updated')} />
                       </td>
                       <td className="px-3 py-3">
                         <span
