@@ -162,7 +162,9 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
 
         // Derive a stable notification ID from the orderId so multiple
         // incoming orders produce distinct notifications.
-        int notificationId = orderId != null ? orderId.hashCode() : (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
+        int notificationId = orderId != null
+            ? (CHANNEL_PREPARATION.equals(channelId) ? ("preparation:" + orderId).hashCode() : orderId.hashCode())
+            : (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_order_notification)
@@ -207,6 +209,12 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
 
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) {
+            if (orderId != null && CHANNEL_ALERT.equals(channelId)) {
+                // Readiness must be a new interrupt, not an update of the
+                // earlier low-importance preparation reminder for this order.
+                nm.cancel(("preparation:" + orderId).hashCode());
+                nm.cancel(notificationId);
+            }
             nm.notify(notificationId, builder.build());
         }
     }
