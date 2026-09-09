@@ -63,8 +63,12 @@ export function useShowcaseCarousel(count: number, intervalMs = 3500) {
       transition: drag !== null || reducedMotion ? 'none' : 'transform 450ms ease-out',
     } satisfies CSSProperties,
     bindings: {
-      onMouseEnter: () => setHovered(true),
-      onMouseLeave: () => setHovered(false),
+      onPointerEnter: (event: PointerEvent<HTMLDivElement>) => {
+        if (event.pointerType === "mouse") setHovered(true);
+      },
+      onPointerLeave: (event: PointerEvent<HTMLDivElement>) => {
+        if (event.pointerType === "mouse") setHovered(false);
+      },
       onFocusCapture: () => setFocused(true),
       onBlurCapture: (event: React.FocusEvent<HTMLDivElement>) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);

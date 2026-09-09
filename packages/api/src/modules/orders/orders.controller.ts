@@ -1,3 +1,5 @@
+import { preparationTimeSchema } from './orders.schemas';
+import { eligibleCaptainIds } from './captain-pool';
 import { isReplayedSubmission } from '../../lib/order-submission';
 import type { Request, Response } from 'express';
 import { ORDER_STATUS_LABELS, OrderStatus, UserRole } from '@samou-go/shared-types';
@@ -348,6 +350,12 @@ async function notifyStatusChange(
           body: `متجر ${order.store.nameAr} قبول طلبك #${order.orderNumber}`,
           data: { orderId, screen: 'tracking' },
         });
+        if (order.fulfillmentType !== 'PICKUP' && !order.captainId) {
+          await sendPushToMany(await eligibleCaptainIds(order.storeId), {
+            title: 'طلب جديد متاح للحجز 📦', body: `طلب #${order.orderNumber} من ${order.store.nameAr} قيد التحضير — احجز التوصيل الآن`,
+            data: { type: 'PREPARATION_AVAILABLE', orderId, storeId: order.storeId, screen: 'order' },
+          }, { dataOnly: true });
+        }
         break;
       }
       case OrderStatus.PREPARING: {
@@ -369,18 +377,10 @@ async function notifyStatusChange(
         // Notify available captains that there's a new order to claim.
         // Uses data-only payloads so Android can route to the correct
         // notification channel based on the captain's ring preference.
-        const availableCaptains = await prisma.user.findMany({
-          where: {
-            role: UserRole.CAPTAIN,
-            isActive: true,
-            isVerified: true,
-            isAvailable: true,
-          },
-          select: { id: true },
-        });
+        const availableCaptains = order.fulfillmentType === 'PICKUP' ? [] : order.captainId ? [order.captainId] : await eligibleCaptainIds(order.storeId);
         if (availableCaptains.length > 0) {
           await sendPushToMany(
-            availableCaptains.map((c) => c.id),
+            availableCaptains,
             {
               title: 'طلب جاهز للاستلام 📦',
               body: `طلب #${order.orderNumber} من ${order.store.nameAr} جاهز للاستلام`,
@@ -443,5 +443,23 @@ export async function setOrderReviewHandler(req: Request, res: Response): Promis
   // Push a refresh to the order's room so the customer's tracking screen shows
   // the updated rating without waiting for its polling interval.
   emitOrderStatus(orderId, { status: result.status, orderId, timestamp: new Date().toISOString() });
+  ok(res, result);
+}
+
+export async function reserveOrderHandler(req: Request, res: Response): Promise<void> {
+  const { orderId } = parseWith(orderIdParamsSchema, req.params);
+  const result = await ordersService.reserveOrder(requireAuth(req), orderId);
+  emitPlatformEvent('order:assigned', { orderId, captainId: result.captainId, storeId: result.storeId });
+  ok(res, result);
+}
+export async function updatePreparationTimeHandler(req: Request, res: Response): Promise<void> {
+  const { orderId } = parseWith(orderIdParamsSchema, req.params);
+  const body = parseWith(preparationTimeSchema, req.body);
+  const result = await ordersService.updatePreparationTime(requireAuth(req), orderId, body.estimatedPrepMinutes);
+  emitOrderStatus(orderId, { status: result.status, orderId, timestamp: new Date().toISOString() });
+  if (result.captainId) void sendPushToUser(result.captainId, {
+    title: 'تم تحديث وقت التحضير', body: `طلب #${result.orderNumber} — الوقت المتوقع من الآن ${body.estimatedPrepMinutes} دقيقة`,
+    data: { type: 'PREPARATION_REMINDER', orderId, screen: 'order' },
+  }, { dataOnly: true }).catch(() => undefined);
   ok(res, result);
 }

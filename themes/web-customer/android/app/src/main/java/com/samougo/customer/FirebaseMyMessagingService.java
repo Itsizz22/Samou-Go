@@ -47,6 +47,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
     private static final String TAG = "FirebaseMessaging";
 
     /** Channel for ringing notifications (ringtone + vibration). */
+    public static final String CHANNEL_PREPARATION = "preparation_updates_v1";
     public static final String CHANNEL_ALERT = "orders_alert_channel";
     /** Channel for silent notifications (no sound). */
     public static final String CHANNEL_SILENT = "orders_silent_channel_v2";
@@ -76,6 +77,16 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
         }
         if (title == null) title = "سموع كويك";
         if (body == null) body = "";
+
+        if ("PREPARATION_REMINDER".equals(type) || "PREPARATION_AVAILABLE".equals(type)) {
+            String expiresAt = data.get("expiresAt");
+            if (expiresAt != null) {
+                try { if (Long.parseLong(expiresAt) <= System.currentTimeMillis()) return; }
+                catch (NumberFormatException invalidExpiry) { return; }
+            }
+            showNotification(title, body, orderId, CHANNEL_PREPARATION);
+            return;
+        }
 
         boolean isCaptainOrStoreNotification =
             "NEW_ORDER".equals(type) || "NEW_ORDER_ALERT".equals(type) ||
@@ -159,7 +170,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
             .setContentText(body)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setCategory(CHANNEL_PREPARATION.equals(channelId) ? NotificationCompat.CATEGORY_REMINDER : NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setDefaults(NotificationCompat.DEFAULT_VIBRATE);
@@ -213,6 +224,15 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return;
 
+        if (nm.getNotificationChannel(CHANNEL_PREPARATION) == null) {
+            NotificationChannel preparation = new NotificationChannel(CHANNEL_PREPARATION,
+                "تذكيرات التحضير والحجز", NotificationManager.IMPORTANCE_DEFAULT);
+            preparation.setDescription("تذكير قصير بموعد استلام الطلب المتوقع");
+            preparation.setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI,
+                new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build());
+            preparation.enableVibration(true);
+            nm.createNotificationChannel(preparation);
+        }
         if (nm.getNotificationChannel("orders_high_priority") == null) {
             NotificationChannel updates = new NotificationChannel("orders_high_priority",
                 "تنبيهات الطلبات", NotificationManager.IMPORTANCE_HIGH);

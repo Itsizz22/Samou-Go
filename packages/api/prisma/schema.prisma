@@ -342,6 +342,9 @@ model Order {
   latitude            Float?
   longitude           Float?
   estimatedPrepMinutes Int?
+  estimatedReadyAt DateTime?
+  prepReminderSentAt DateTime?
+  prepReminderLeaseUntil DateTime?
 
   /// 4-digit PIN the customer shares with the captain on delivery.
   /// Stored as plaintext (4 digits, low entropy, rate-limited).
@@ -393,6 +396,7 @@ model Order {
   @@index([status, createdAt])
   @@index([deliveryZoneId])
   @@index([cartCheckoutId])
+  @@index([status, prepReminderSentAt, estimatedReadyAt], map: "orders_preparation_reminder_idx")
   @@map("orders")
 }  /// One basket line. `unitPrice` and `totalPrice` are frozen at order time.
 model OrderItem {
@@ -736,6 +740,7 @@ model PlatformSettings {
   /// When enabled, the app prompts users (customers, store managers) to share their GPS coordinates.
   /// When disabled (default), all automatic GPS capture prompts are suppressed.
   gpsCaptureEnabled Boolean @default(false)
+  preparationReminderMinutes Int @default(5)
   updatedAt DateTime @updatedAt
   @@map("platform_settings")
 }

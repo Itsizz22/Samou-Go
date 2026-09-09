@@ -149,10 +149,22 @@
 
 /* Animate the official raster mark intact, without morphing its geometry. */
 @keyframes official-brand-arrive {
-  from { opacity: 0; transform: translate3d(0, 12px, 0) scale(0.96); }
-  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  0% { opacity: 0; transform: translate3d(0, 28px, 0) scale(0.78); }
+  48% { opacity: 1; transform: translate3d(0, -4px, 0) scale(1.035); }
+  70%, 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
-.official-brand-intro { animation: official-brand-arrive 900ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.official-brand-intro { opacity: 0; }
+.official-brand-intro--playing { animation: official-brand-arrive 2600ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 @media (prefers-reduced-motion: reduce) {
-  .official-brand-intro { animation: none; }
+  .official-brand-intro { opacity: 1; animation: none; }
+}
+
+/* Decorative launch film: never expose browser media controls or its play overlay. */
+.startup-film::-webkit-media-controls,
+.startup-film::-webkit-media-controls-enclosure,
+.startup-film::-webkit-media-controls-panel,
+.startup-film::-webkit-media-controls-overlay-play-button,
+.startup-film::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none;
 }

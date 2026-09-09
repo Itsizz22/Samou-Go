@@ -346,6 +346,9 @@ model Order {
   latitude            Float?
   longitude           Float?
   estimatedPrepMinutes Int?
+  estimatedReadyAt DateTime?
+  prepReminderSentAt DateTime?
+  prepReminderLeaseUntil DateTime?
 
   /// 4-digit PIN the customer shares with the captain on delivery.
   deliveryPin String?
@@ -396,6 +399,7 @@ model Order {
   @@index([status, createdAt])
   @@index([deliveryZoneId])
   @@index([cartCheckoutId])
+  @@index([status, prepReminderSentAt, estimatedReadyAt], map: "orders_preparation_reminder_idx")
   @@map("orders")
 }
 
@@ -745,6 +749,7 @@ model PlatformSettings {
   whatsappSupportNumber String?
   /// When enabled, the app prompts users (customers, store managers) to share their GPS coordinates.
   gpsCaptureEnabled Boolean @default(false)
+  preparationReminderMinutes Int @default(5)
   updatedAt DateTime @updatedAt
   @@map("platform_settings")
 }

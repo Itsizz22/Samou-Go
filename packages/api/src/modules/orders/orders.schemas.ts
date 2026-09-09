@@ -132,7 +132,10 @@ export const orderIdParamsSchema = z.object({
   orderId: z.string().min(1, 'معرّف الطلب مطلوب / orderId is required'),
 });
 
+export const preparationTimeSchema = z.object({ estimatedPrepMinutes: z.number().int().min(5).max(180) });
+
 export const orderListQuerySchema = paginationSchema.extend({
+  preparationPool: z.enum(["true", "false"]).transform(v => v === "true").optional(),
   status: caseInsensitiveOrderStatus.optional(),
   storeId: z.string().min(1).optional(),
   captainId: z.string().min(1).optional(),

@@ -1,3 +1,4 @@
+import { PreparationCountdown, CaptainReservation } from '@samou-go/api-client';
 import { BrandLogo, OrderCustomerDetails } from '@samou-go/ui';
 import { ZoneLandmarkTrackingView } from '@samou-go/ui';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
@@ -161,7 +162,7 @@ export function SamouGoCaptain() {
   // Available orders: READY_FOR_PICKUP — the kitchen is done, the road is waiting.
   // Polled every 10 s so a freshly prepared order surfaces without a refresh.
   const availableOrders = useOrders(
-    { status: OrderStatus.READY_FOR_PICKUP, pageSize: 20 },
+    { preparationPool: true, pageSize: 50 },
     { enabled: Boolean(auth.user) && isCaptain, pollMs: 10_000 }
   );
 
@@ -232,8 +233,9 @@ export function SamouGoCaptain() {
 
   useEffect(() => {
     if (availableOrders.loading || !isCaptain || !auth.user) return;
-    const ids = new Set(availableItems.map((order) => order.id));
-    const fresh = availableItems.filter((order) => !announcedAvailableIds.current.has(order.id));
+    const readyItems = availableItems.filter(order => order.status === OrderStatus.READY_FOR_PICKUP && (!order.captainId || order.captainId === auth.user?.id));
+    const ids = new Set(readyItems.map((order) => order.id));
+    const fresh = readyItems.filter((order) => !announcedAvailableIds.current.has(order.id));
 
     if (!availableLoadedOnce.current) {
       availableLoadedOnce.current = true;
@@ -513,7 +515,7 @@ export function SamouGoCaptain() {
       <div className="mb-3 flex items-end justify-between">
         <div>
           <h2 id="orders-title" className="text-[17px] font-extrabold">
-            {t('طلبات متاحة', 'Available Orders')} <span className="me-1 text-brand">{availableItems.length}</span>
+            {t('طلبات التحضير والاستلام', 'Preparation & Pickup')} <span className="me-1 text-brand">{availableItems.length}</span>
           </h2>
         </div>
       </div>
@@ -573,13 +575,15 @@ export function SamouGoCaptain() {
                       <span>{order.itemCount} items</span>
                     </div>
                     <OrderCustomerDetails order={order} showDestination />
+                    <PreparationCountdown order={order} />
+                    <CaptainReservation order={order} captainId={auth.user?.id} onReserved={() => { void availableOrders.reload(); }} />
                     {order.requiresHandoffCode && (
                       <p className="mt-2 flex items-center gap-1.5 rounded-lg bg-brand-surface px-2.5 py-1.5 text-[11px] font-bold text-brand-dark">
                         <KeyRound size={12} className="shrink-0" />
                         {t('رمز تسليم مطلوب عند الاستلام', 'Pickup code required at handoff')}
                       </p>
                     )}
-                    {canTransitionOrderStatus(order.status, OrderStatus.ON_THE_WAY) &&
+                    {order.captainId === auth.user?.id && canTransitionOrderStatus(order.status, OrderStatus.ON_THE_WAY) &&
                       canRoleSetOrderStatus(UserRole.CAPTAIN, OrderStatus.ON_THE_WAY) && (
                       <div className="mt-3 flex gap-2">
                         <button
@@ -589,7 +593,7 @@ export function SamouGoCaptain() {
                           className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand py-2.5 text-[11px] font-extrabold text-white transition hover:bg-brand-dark disabled:opacity-60"
                         >
                           {acceptMutation.pending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                          <span>{t('قبول', 'Accept')}</span>
+                          <span>{t('استلام من المتجر', 'Pick up from store')}</span>
                         </button>
                         {order.captainId === auth.user?.id &&
                           canRoleTransitionOrderStatus(UserRole.CAPTAIN, order.status, OrderStatus.CANCELLED) && (
@@ -830,6 +834,8 @@ export function SamouGoCaptain() {
                           </div>
                         )}
                       <OrderCustomerDetails order={order} showDestination />
+                    <PreparationCountdown order={order} />
+                    <CaptainReservation order={order} captainId={auth.user?.id} onReserved={() => { void availableOrders.reload(); }} />
                       {/* Delivery zone picker */}
                       {!order.autoPriced && zones.length > 0 && (
                         <OrderZonePicker

@@ -11,10 +11,12 @@ export function PromoBannerSlider() {
     {
       title: t('قريباً: توصيل الطرود', 'Coming soon: parcel delivery'),
       image: parcelImage,
+      position: "50% 48%",
     },
     {
       title: t('قريباً: تتبع الطلب على الخريطة', 'Coming soon: live order tracking on the map'),
       image: trackingImage,
+      position: "50% 80%",
     },
   ];
   return (
@@ -25,16 +27,18 @@ export function PromoBannerSlider() {
         style={{ touchAction: 'pan-y' }}
       >
         <div dir="ltr" className="flex" style={carousel.trackStyle}>
-          {slides.map(({ title, image }, index) => (
-            <div key={image} dir={dir} aria-hidden={index !== carousel.active} className="min-w-full shrink-0">
+          {slides.map(({ title, image, position }, index) => (
+            <div key={image} dir={dir} aria-hidden={index !== carousel.active} className="w-full min-w-0 flex-none">
               <img
                 src={image}
                 alt={title}
                 width={1600}
                 height={1066}
                 draggable={false}
-                className="block h-auto w-full select-none"
+                style={{ objectPosition: position }}
+                className="block h-44 w-full select-none object-cover sm:h-52"
               />
+              <h3 className="px-4 py-3 text-start text-sm font-bold text-ink bg-surface">{title}</h3>
             </div>
           ))}
         </div>

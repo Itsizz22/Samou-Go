@@ -81,6 +81,7 @@ export function toOrder(order: PrismaOrder): Order {
     latitude: order.latitude,
     longitude: order.longitude,
     estimatedPrepMinutes: order.estimatedPrepMinutes,
+    estimatedReadyAt: order.estimatedReadyAt?.toISOString() ?? null,
     deliveryPin: order.deliveryPin ?? null,
     captainHandoffCode: order.captainHandoffCode ?? null,
     requiresHandoffCode: order.captainHandoffCode !== null,
@@ -144,14 +145,16 @@ function toStatusHistoryEntry(entry: PrismaStatusHistory): OrderStatusHistoryEnt
   };
 }
 
-export function toOrderDetail(order: OrderWithRelations, viewerRole?: string): OrderDetail {
-  const base = toOrder(order as any);
+export function toOrderDetail(order: OrderWithRelations, viewerRole?: string, viewerId?: string): OrderDetail {
+  const base = toOrder(order);
+  const restricted = viewerRole === UserRole.CAPTAIN && (!viewerId || order.captainId !== viewerId);
   return {
     ...base,
     deliveryPin: viewerRole === 'CUSTOMER' ? base.deliveryPin : null,
     captainHandoffCode: canViewCaptainHandoffCode(viewerRole) ? base.captainHandoffCode : null,
-    items: order.items.map(toOrderItem),
-    customer: toContact(order.customer),
+    items: order.items.map(item => ({ ...toOrderItem(item), ...(restricted ? { note: null } : {}) })),
+    customer: restricted ? { id: '', name: '', phone: '' } : toContact(order.customer),
+    ...(restricted ? { customerId: '', customerAddressText: '', addressNote: null, orderNote: null, latitude: null, longitude: null, voiceNoteUrl: null, voiceNoteDuration: null } : {}),
     store: {
       id: order.store.id,
       nameAr: order.store.nameAr,
@@ -160,7 +163,7 @@ export function toOrderDetail(order: OrderWithRelations, viewerRole?: string): O
       latitude: order.store.latitude,
       longitude: order.store.longitude,
     },
-    captain: order.captain ? toContact(order.captain) : null,
+    captain: !restricted && order.captain ? toContact(order.captain) : null,
     voucher: order.voucher
       ? {
           code: order.voucher.code,
@@ -180,12 +183,13 @@ export function toOrderDetail(order: OrderWithRelations, viewerRole?: string): O
           sortOrder: order.deliveryZone.sortOrder,
         }
       : null,
-    statusHistory: order.statusHistory.map(toStatusHistoryEntry),
+    statusHistory: restricted ? [] : order.statusHistory.map(toStatusHistoryEntry),
   };
 }
 
-export function toOrderSummary(order: OrderForSummary, viewerRole?: string): OrderSummary {
-  const staff = viewerRole === UserRole.STORE_MANAGER || viewerRole === UserRole.CAPTAIN || viewerRole === UserRole.ADMIN;
+export function toOrderSummary(order: OrderForSummary, viewerRole?: string, viewerId?: string): OrderSummary {
+  const restricted = viewerRole === UserRole.CAPTAIN && (!viewerId || order.captainId !== viewerId);
+  const staff = viewerRole === UserRole.STORE_MANAGER || (viewerRole === UserRole.CAPTAIN && !restricted) || viewerRole === UserRole.ADMIN;
   const raw = order as any;
   return {
     id: order.id,
@@ -194,7 +198,7 @@ export function toOrderSummary(order: OrderForSummary, viewerRole?: string): Ord
     captainId: order.captainId,
     cartCheckoutId: order.cartCheckoutId ?? null,
     customerContact: staff && order.customer ? { name: order.customer.name, phone: order.customer.phone } : null,
-    deliveryDestination: staff ? { zoneNameAr: order.deliveryZone?.nameAr ?? null, address: order.customerAddressText, landmark: order.addressNote } : null,
+    deliveryDestination: staff || restricted ? { zoneNameAr: order.deliveryZone?.nameAr ?? null, address: restricted ? "يظهر العنوان بعد حجز التوصيل" : order.customerAddressText, landmark: restricted ? null : order.addressNote } : null,
     itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
     totalAmount: decimalToNumber(order.totalAmount),
     deliveryFee: decimalToNumber(order.deliveryFee),
@@ -202,15 +206,16 @@ export function toOrderSummary(order: OrderForSummary, viewerRole?: string): Ord
     discount: decimalToNumber(order.discount),
     storeNameAr: order.store.nameAr,
     createdAt: order.createdAt.toISOString(),
-    orderNote: order.orderNote,
+    orderNote: restricted ? null : order.orderNote,
     deliveryPreset: order.deliveryPreset,
     fulfillmentType: raw.fulfillmentType ?? 'DELIVERY',
     estimatedPrepMinutes: order.estimatedPrepMinutes,
+    estimatedReadyAt: order.estimatedReadyAt?.toISOString() ?? null,
     captainHandoffCode: canViewCaptainHandoffCode(viewerRole)
       ? (order.captainHandoffCode ?? null)
       : null,
     requiresHandoffCode: order.captainHandoffCode !== null,
-    itemNotes: order.items
+    itemNotes: (restricted ? [] : order.items)
       .filter((item) => item.note)
       .map((item) => ({
         productNameAr: item.product.nameAr,

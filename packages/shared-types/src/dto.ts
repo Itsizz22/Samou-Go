@@ -256,6 +256,7 @@ export interface SetDeliveryFeeInput {
 }
 
 export interface OrderListQuery extends PaginationQuery {
+  preparationPool?: boolean;
   status?: OrderStatus;
   storeId?: string;
   captainId?: string;
@@ -637,6 +638,7 @@ export interface PlatformSettings {
   whatsappSupportNumber: string | null;
   /** When enabled, the app prompts users to share their GPS coordinates. */
   gpsCaptureEnabled: boolean;
+  preparationReminderMinutes?: number;
   updatedAt: string;
 }
 
@@ -655,6 +657,7 @@ export interface UpdatePlatformSettingsInput {
   requireOtpForSensitiveActions?: boolean;
   whatsappSupportNumber?: string | null;
   gpsCaptureEnabled?: boolean;
+  preparationReminderMinutes?: number;
 }
 
 /* ---------------------------------------------------------------------------

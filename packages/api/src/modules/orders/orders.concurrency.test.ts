@@ -182,6 +182,7 @@ vi.mock('../../lib/prisma', () => ({
   prisma: {
     order: {
       findUnique: vi.fn(async () => h.state.order),
+      findFirst: vi.fn(async () => h.state.order),
       update: vi.fn(async ({ where, data }: any) => {
         const updated = h.buildOrder({ ...h.state.order, ...data });
         h.state.order = updated;
@@ -194,7 +195,7 @@ vi.mock('../../lib/prisma', () => ({
     },
     product: { findMany: h.tx.product.findMany },
     productOptionGroup: { findMany: vi.fn(async () => []) },
-    user: { findUnique: vi.fn(async () => h.state.captainProfile) },
+    user: { findUnique: vi.fn(async () => ({ ...h.state.captainProfile, role: "CAPTAIN" })) },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(h.tx),
   },
 }));

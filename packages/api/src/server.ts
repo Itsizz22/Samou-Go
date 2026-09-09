@@ -1,3 +1,4 @@
+import { startPreparationReminderScheduler } from './modules/orders/preparation-reminders';
 import type { Server } from 'node:http';
 import { createApp } from './app';
 import { env } from './config/env';
@@ -40,6 +41,7 @@ const server: Server = app.listen(env.port, '0.0.0.0', () => {
   }
 });
 attachRealtime(server);
+const stopPreparationReminders = startPreparationReminderScheduler();
 
 /**
  * Graceful shutdown: stop accepting connections, let in-flight requests finish,
@@ -65,6 +67,7 @@ async function shutdown(signal: string): Promise<void> {
       // eslint-disable-next-line no-console
       console.error('Error closing HTTP server:', closeError);
     }
+    await stopPreparationReminders();
     await disconnectPrisma();
     clearTimeout(forceExit);
     process.exit(closeError ? 1 : 0);

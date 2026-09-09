@@ -1,0 +1,46 @@
+import { useEffect, useState } from 'react';
+import { reserveOrder, updatePreparationTime } from './api';
+
+type PreparationOrder = { id: string; status: string; captainId: string | null; estimatedReadyAt?: string | null };
+
+export function PreparationCountdown({ order }: { order: PreparationOrder }) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 15_000); return () => clearInterval(timer); }, []);
+  if (order.status !== 'ACCEPTED' && order.status !== 'PREPARING') return null;
+  const remaining = order.estimatedReadyAt ? Math.ceil((Date.parse(order.estimatedReadyAt) - now) / 60_000) : null;
+  return <p className="mt-3 rounded-xl bg-brand/10 p-3 text-sm font-bold text-brand">
+    {remaining === null ? 'المتجر لم يحدد وقت الجاهزية بعد' : remaining > 0 ? `جاهز خلال نحو ${remaining} دقيقة` : 'بانتظار تأكيد الجاهزية من المتجر'}
+    <span className="mt-1 block text-xs font-normal text-ink-muted">موعد تقديري؛ لا تستلم الطلب قبل تأكيد المتجر.</span>
+  </p>;
+}
+
+export function CaptainReservation({ order, captainId, onReserved }: { order: PreparationOrder; captainId?: string; onReserved: () => void }) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
+  if (!['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP'].includes(order.status)) return null;
+  if (order.captainId) return <p className="mt-3 text-sm font-bold text-brand">{order.captainId === captainId ? 'محجوز لك — ستصلك تنبيهات الجاهزية' : 'محجوز لكابتن آخر'}</p>;
+  return <div className="mt-3">
+    <button type="button" disabled={pending} className="min-h-11 w-full rounded-xl bg-brand px-4 py-2 font-bold text-white transition-transform active:scale-95 disabled:opacity-50" onClick={async () => {
+      setPending(true); setError('');
+      try { await reserveOrder(order.id); onReserved(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'تعذر حجز الطلب'); onReserved(); } finally { setPending(false); }
+    }}>{pending ? 'جارٍ الحجز…' : 'قبول التوصيل وحجز الطلب'}</button>
+    {error && <p role="alert" className="mt-2 text-sm text-danger-ink">{error}</p>}
+  </div>;
+}
+
+export function PreparationTimeEditor({ order }: { order: PreparationOrder }) {
+  const [minutes, setMinutes] = useState('15');
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState('');
+  if (order.status !== 'ACCEPTED' && order.status !== 'PREPARING') return null;
+  return <form className="mt-3 rounded-xl border border-line p-3" onSubmit={async event => {
+    event.preventDefault(); setPending(true); setMessage('');
+    try { await updatePreparationTime(order.id, Number(minutes)); setMessage('تم تحديث الموعد وتذكير الكابتن'); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'تعذر التحديث'); } finally { setPending(false); }
+  }}>
+    <label className="block text-xs font-bold">الوقت المتبقي للتحضير من الآن (دقيقة)
+      <input type="number" dir="ltr" required min={5} max={180} step={1} value={minutes} onChange={event => setMinutes(event.target.value)} className="mt-2 min-h-11 w-full rounded-lg border border-line bg-surface px-3 text-ink" />
+    </label>
+    <button disabled={pending} className="mt-2 min-h-11 rounded-lg bg-brand/10 px-3 text-sm font-bold text-brand disabled:opacity-50">{pending ? 'جارٍ الحفظ…' : 'تحديث وقت الجاهزية'}</button>
+    {message && <p role="status" className="mt-2 text-xs">{message}</p>}
+  </form>;
+}

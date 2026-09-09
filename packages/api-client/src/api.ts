@@ -2201,3 +2201,10 @@ export const getFeaturedSelection = () => request<FeaturedSelectionProduct[]>('G
 export const saveFeaturedSelection = (productIds: string[]) => request<FeaturedSelectionProduct[]>('PUT', '/stores/featured-selection', { auth: true, body: { productIds } });export interface OverdueOrders { items: { id: string; orderNumber: string; createdAt: string; store: { nameAr: string; phone: string | null } }[]; total: number; thresholdMinutes: number }
 export const getOverdueOrders = (signal?: AbortSignal) => request<OverdueOrders>('GET', '/platform/admin/overdue-orders', { auth: true, signal });
 export const checkOrderSubmission = (requestId: string) => request<{ completed: boolean }>('GET', `/orders/submissions/${encodeURIComponent(requestId)}`, { auth: true });
+
+export function reserveOrder(orderId: string): Promise<OrderDetail> {
+  return request<OrderDetail>('POST', `/orders/${encodeURIComponent(orderId)}/reserve`, { auth: true });
+}
+export function updatePreparationTime(orderId: string, estimatedPrepMinutes: number): Promise<OrderDetail> {
+  return request<OrderDetail>('PATCH', `/orders/${encodeURIComponent(orderId)}/preparation-time`, { auth: true, body: { estimatedPrepMinutes } });
+}

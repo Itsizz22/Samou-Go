@@ -134,6 +134,10 @@ export async function sendPushToUser(
   // all devices at once — responses align with `tokens` by index.
   // When data-only, omit the notification object entirely so Android
   // routes through onMessageReceived() even when the app is killed.
+  // A preparation reminder is useful only before the estimate. Do not deliver stale countdowns after an offline device reconnects.
+  const expiry = Number(payload.data?.expiresAt);
+  const ttl = Number.isFinite(expiry) && expiry > 0 ? Math.max(0, expiry - Date.now()) : undefined;
+  if (ttl === 0) return { sent: 0, failed: 0 };
   const multicast: MulticastMessage = {
     tokens: tokens.map((t: { token: string }) => t.token),
     ...(options?.dataOnly
@@ -154,6 +158,7 @@ export async function sendPushToUser(
     // app is killed, with heads-up display on lockscreen.
     android: {
       priority: 'high' as const,
+      ...(ttl !== undefined ? { ttl } : {}),
       // Android notification metadata also turns a send into a display message.
       // Omit it for data-only staff alerts so the native service owns rendering.
       ...(!options?.dataOnly ? { notification: {
@@ -163,7 +168,7 @@ export async function sendPushToUser(
     },
     // iOS needs a visible APNs alert even for Android data-only staff messages.
     apns: {
-      headers: { 'apns-push-type': 'alert', 'apns-priority': '10' },
+      headers: { 'apns-push-type': 'alert', 'apns-priority': '10', ...(ttl !== undefined ? { 'apns-expiration': String(Math.floor(expiry / 1000)) } : {}) },
       payload: {
         aps: {
           alert: { title: payload.title, body: payload.body },

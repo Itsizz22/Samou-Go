@@ -1,3 +1,4 @@
+import { StaffOrderDetailsScreen } from './screens/StaffOrderDetailsScreen';
 import { StartupIntro } from './components/StartupIntro';
 import { CustomerOnboarding } from '@/components/CustomerOnboarding';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
@@ -210,7 +211,9 @@ function StartupRoutes({ auth }: { auth: Auth }) {
       <Route path="/cart" element={<CartScreen />} />
       <Route path="/checkout" element={<CheckoutScreen />} />
       <Route path="/orders" element={<ProtectedRoute auth={auth}><OrdersScreen /></ProtectedRoute>} />
-      <Route path="/orders/:orderId" element={<ProtectedRoute auth={auth}><OrderTrackingScreen /></ProtectedRoute>} />
+      <Route path="/orders/:orderId" element={auth.user?.role === UserRole.CAPTAIN || auth.user?.role === UserRole.STORE_MANAGER
+        ? <RoleGuard auth={auth} role={auth.user.role}><StaffOrderDetailsScreen /></RoleGuard>
+        : <ProtectedRoute auth={auth}><OrderTrackingScreen /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute auth={auth}><ProfileScreen /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute auth={auth}><SettingsScreen /></ProtectedRoute>} />
       <Route path="/offers" element={<ProtectedRoute auth={auth}><OffersScreen /></ProtectedRoute>} />

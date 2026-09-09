@@ -206,6 +206,7 @@ async function getPlatformSettingsRaw() {
     requireOtpForSensitiveActions: row.requireOtpForSensitiveActions,
     whatsappSupportNumber: row.whatsappSupportNumber ?? null,
     gpsCaptureEnabled: row.gpsCaptureEnabled,
+    preparationReminderMinutes: row.preparationReminderMinutes,
     updatedAt: row.updatedAt,
   };
 }
@@ -237,6 +238,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
       ...(body.requireOtpForSensitiveActions !== undefined ? { requireOtpForSensitiveActions: body.requireOtpForSensitiveActions } : {}),
       ...(body.whatsappSupportNumber !== undefined && body.whatsappSupportNumber !== null ? { whatsappSupportNumber: body.whatsappSupportNumber } : {}),
       ...(body.gpsCaptureEnabled !== undefined ? { gpsCaptureEnabled: body.gpsCaptureEnabled } : {}),
+      ...(body.preparationReminderMinutes !== undefined ? { preparationReminderMinutes: body.preparationReminderMinutes } : {}),
     },
     update: {
       ...(body.captainDeliveryRate !== undefined ? { captainDeliveryRate: body.captainDeliveryRate } : {}),
@@ -251,6 +253,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
       ...(body.requireOtpForSensitiveActions !== undefined ? { requireOtpForSensitiveActions: body.requireOtpForSensitiveActions } : {}),
       ...(body.whatsappSupportNumber !== undefined ? { whatsappSupportNumber: body.whatsappSupportNumber ?? undefined } : {}),
       ...(body.gpsCaptureEnabled !== undefined ? { gpsCaptureEnabled: body.gpsCaptureEnabled } : {}),
+      ...(body.preparationReminderMinutes !== undefined ? { preparationReminderMinutes: body.preparationReminderMinutes } : {}),
     },
   });
   invalidatePlatformSettingsCache();
@@ -268,6 +271,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
     requireOtpForSensitiveActions: row.requireOtpForSensitiveActions,
     whatsappSupportNumber: row.whatsappSupportNumber ?? null,
     gpsCaptureEnabled: row.gpsCaptureEnabled,
+    preparationReminderMinutes: row.preparationReminderMinutes,
     updatedAt: row.updatedAt,
   };
 }

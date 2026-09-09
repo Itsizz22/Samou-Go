@@ -1,3 +1,4 @@
+import { captainPoolScope, PREPARATION_POOL_STATUSES } from './captain-pool';
 import { withOrderSubmission } from '../../lib/order-submission';
 import { automaticDeliveryPricing } from './pricing';
 import { normalizeSelectedOptions, resolveSelectedOptions, normalizeOptionGroups } from '@samou-go/shared-types';
@@ -698,15 +699,7 @@ async function visibilityScope(
     case UserRole.STORE_MANAGER:
       return { storeId: { in: await storeIdsManagedBy(actor.sub) } };
     case UserRole.CAPTAIN:
-      // Own jobs, plus the unclaimed DELIVERY pool a captain is allowed to pick from.
-      // PICKUP orders are excluded — the store manager handles them directly.
-      return {
-        OR: [
-          { captainId: actor.sub },
-          { captainId: null, status: { in: [OrderStatus.READY_FOR_PICKUP] }, fulfillmentType: 'DELIVERY', store: { dedicatedCaptains: { none: {} } } },
-          { captainId: null, status: { in: [OrderStatus.READY_FOR_PICKUP] }, fulfillmentType: 'DELIVERY', store: { dedicatedCaptains: { some: { id: actor.sub } } } },
-        ],
-      };
+      return { OR: [{ captainId: actor.sub }, await captainPoolScope(actor.sub)] };
     case UserRole.ADMIN:
       return {};
     default:
@@ -722,7 +715,7 @@ export async function listOrders(
     AND: [
       await visibilityScope(actor),
       {
-        ...(query.status ? { status: query.status } : {}),
+        ...(query.preparationPool ? { status: { in: PREPARATION_POOL_STATUSES }, fulfillmentType: "DELIVERY" } : query.status ? { status: query.status } : {}),
         ...(query.storeId ? { storeId: query.storeId } : {}),
         ...(query.captainId ? { captainId: query.captainId } : {}),
       },
@@ -741,7 +734,7 @@ export async function listOrders(
   ]);
 
   return {
-    items: rows.map((r: any) => toOrderSummary(r, actor.role)),
+    items: rows.map(r => toOrderSummary(r, actor.role, actor.sub)),
     page: query.page,
     pageSize: query.pageSize,
     total,
@@ -759,7 +752,7 @@ export async function loadOrderOrThrow(orderId: string) {
 }
 
 export async function assertCanView(
-  order: { customerId: string; storeId: string; captainId: string | null; status: OrderStatus },
+  order: { id?: string; customerId: string; storeId: string; captainId: string | null; status: OrderStatus },
   actor: { sub: string; role: UserRole }
 ): Promise<void> {
   switch (actor.role) {
@@ -773,7 +766,7 @@ export async function assertCanView(
       break;
     case UserRole.CAPTAIN:
       if (order.captainId === actor.sub) return;
-      if (order.captainId === null && order.status === OrderStatus.READY_FOR_PICKUP) return;
+      if (order.id && await prisma.order.findFirst({ where: { AND: [{ id: order.id }, await captainPoolScope(actor.sub)] }, select: { id: true } })) return;
       break;
     default:
       break;
@@ -787,7 +780,7 @@ export async function getOrder(
 ): Promise<OrderDetail> {
   const order = await loadOrderOrThrow(orderId);
   await assertCanView(order, actor);
-  return toOrderDetail(order, actor.role);
+  return toOrderDetail(order, actor.role, actor.sub);
 }
 
 /**
@@ -969,6 +962,7 @@ export async function updateOrderStatus(
     }
   }
 
+  if (isClaimAttempt && !await prisma.order.findFirst({ where: { AND: [{ id: orderId }, await captainPoolScope(actor.sub)] }, select: { id: true } })) throw forbidden('الطلب غير متاح لك / Order is not available to you');
   const assignCaptainOnClaim = isClaimAttempt;
 
   // PICKUP orders cannot be claimed by captains — the store manager handles them.
@@ -1064,11 +1058,15 @@ export async function updateOrderStatus(
           // claimed this order between our read and this write, Prisma will
           // throw P2025 (record not found for the filter) and we surface a
           // 409 instead of silently overwriting the first captain's assignment.
-          ...(assignCaptainOnClaim ? { captainId: null } : {}),
+          ...(actor.role === UserRole.CAPTAIN ? { captainId: assignCaptainOnClaim ? null : actor.sub } : {}),
         },
         data: {
           status: next,
-          ...(body.estimatedPrepMinutes !== undefined ? { estimatedPrepMinutes: body.estimatedPrepMinutes } : {}),
+          ...(body.estimatedPrepMinutes !== undefined ? {
+            estimatedPrepMinutes: body.estimatedPrepMinutes,
+            estimatedReadyAt: new Date(Date.now() + body.estimatedPrepMinutes * 60_000),
+            prepReminderSentAt: null, prepReminderLeaseUntil: null,
+          } : {}),
           ...(assignCaptainOnClaim ? { captainId: actor.sub } : {}),
           ...(mintsHandoffCode
             ? { captainHandoffCode: generateHandoffCode(), handoffCodeAttempts: 0 }
@@ -1123,7 +1121,7 @@ export async function updateOrderStatus(
     throw err;
   }
 
-  return toOrderDetail(updated as any, actor.role);
+  return toOrderDetail(updated, actor.role, actor.sub);
 }
 
 /** Admin (or a store manager for their own shop) hands a job to a captain. */
@@ -1171,6 +1169,7 @@ export async function assignCaptain(
     where: { id: orderId },
     data: {
       captainId: captain.id,
+      prepReminderSentAt: null, prepReminderLeaseUntil: null,
       statusHistory: {
         create: {
           status: order.status,
@@ -1182,7 +1181,7 @@ export async function assignCaptain(
     include: DETAIL_INCLUDE,
   });
 
-  return toOrderDetail(updated as any, actor.role);
+  return toOrderDetail(updated, actor.role, actor.sub);
 }
 
 /* ---------------------------------------------------------------------------
@@ -1257,7 +1256,7 @@ export async function setOrderDeliveryZone(
       include: DETAIL_INCLUDE,
     });
 
-    return toOrderDetail(updated as any, actor.role);
+    return toOrderDetail(updated, actor.role, actor.sub);
   } catch (err) {
     if (
       err instanceof Error &&
@@ -1284,7 +1283,7 @@ export async function quoteCaptainFee(actor: { sub: string; role: UserRole }, or
     data: { isCaptainPriced: true, driverQuotedFee: roundMoney(deliveryFee), feeApprovalStatus: 'PENDING_CUSTOMER_ACCEPTANCE' },
     include: DETAIL_INCLUDE,
   });
-  return toOrderDetail(updated as any, actor.role);
+  return toOrderDetail(updated, actor.role, actor.sub);
 }
 
 /** Customer accepts the captain's proposed fee; totals are recomputed server-side. */
@@ -1304,7 +1303,7 @@ export async function acceptCaptainFee(actor: { sub: string; role: UserRole }, o
     },
     include: DETAIL_INCLUDE,
   });
-  return toOrderDetail(updated as any, actor.role);
+  return toOrderDetail(updated, actor.role, actor.sub);
 }
 
 /* ---------------------------------------------------------------------------
@@ -1379,7 +1378,7 @@ export async function setOrderReview(
       include: DETAIL_INCLUDE,
     });
 
-    return toOrderDetail(updated as any, actor.role);
+    return toOrderDetail(updated, actor.role, actor.sub);
   } catch (err) {
     if (
       err instanceof Error &&
@@ -1468,7 +1467,7 @@ export async function setOrderDeliveryFee(
       include: DETAIL_INCLUDE,
     });
 
-    return toOrderDetail(updated as any, actor.role);
+    return toOrderDetail(updated, actor.role, actor.sub);
   } catch (err) {
     if (
       err instanceof Error &&
@@ -1481,4 +1480,29 @@ export async function setOrderDeliveryFee(
     }
     throw err;
   }
+}
+
+/** Reservation keeps preparation status unchanged. A conditional database write selects one winner. */
+export async function reserveOrder(actor: { sub: string; role: UserRole }, orderId: string): Promise<OrderDetail> {
+  if (actor.role !== UserRole.CAPTAIN) throw forbidden();
+  const scope = await captainPoolScope(actor.sub);
+  const eligible = await prisma.order.findFirst({ where: { AND: [{ id: orderId }, scope] }, select: { id: true, captainId: true } });
+  if (!eligible) throw forbidden('الطلب غير متاح لك / Order is not available to you');
+  if (eligible.captainId === actor.sub) return getOrder(actor, orderId);
+  const claimed = await prisma.order.updateMany({ where: { AND: [{ id: orderId, captainId: null }, scope] }, data: { captainId: actor.sub, prepReminderSentAt: null, prepReminderLeaseUntil: null } });
+  if (claimed.count !== 1) throw conflict('سبقك كابتن آخر لحجز الطلب / Another captain reserved this order');
+  return getOrder(actor, orderId);
+}
+
+/** Remaining time measured from this edit. Readiness still requires store confirmation. */
+export async function updatePreparationTime(actor: { sub: string; role: UserRole }, orderId: string, minutes: number): Promise<OrderDetail> {
+  if (actor.role !== UserRole.STORE_MANAGER && actor.role !== UserRole.ADMIN) throw forbidden();
+  const order = await loadOrderOrThrow(orderId);
+  await assertCanView(order, actor);
+  if (order.status !== OrderStatus.ACCEPTED && order.status !== OrderStatus.PREPARING) throw conflict('لا يمكن تعديل وقت الطلب الآن / Preparation time cannot be changed now');
+  const changed = await prisma.order.updateMany({ where: { id: orderId, status: order.status, updatedAt: order.updatedAt }, data: {
+    estimatedPrepMinutes: minutes, estimatedReadyAt: new Date(Date.now() + minutes * 60_000), prepReminderSentAt: null, prepReminderLeaseUntil: null,
+  } });
+  if (!changed.count) throw conflict('تغير الطلب، حدّث الصفحة / Order changed; refresh');
+  return getOrder(actor, orderId);
 }

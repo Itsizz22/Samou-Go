@@ -1,3 +1,8 @@
+import { randomUUID } from 'node:crypto';
+import { UserRole } from '@samou-go/shared-types';
+import { signAccessToken } from '../../lib/jwt';
+import { dispatchPreparationReminders } from './preparation-reminders';
+import { sendPushToMany } from '../../lib/push';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
@@ -20,7 +25,7 @@ vi.mock('../../lib/prisma', async importOriginal => ({
   prisma: fixture.db,
 }));
 vi.mock('../../lib/push', () => ({
-  sendPushToUser: vi.fn(), sendPushToMany: vi.fn(), isPushEnabled: () => false,
+  sendPushToUser: vi.fn().mockResolvedValue({ sent: 1, failed: 0 }), sendPushToMany: vi.fn().mockResolvedValue({ totalSent: 1, totalFailed: 0 }), isPushEnabled: () => false,
 }));
 
 import { createApp } from '../../app';
@@ -263,4 +268,116 @@ it('prices from zones only when enabled and snapshots the captain share', async 
   expect(Number((await fixture.db.order.findUniqueOrThrow({ where: { id: saved.id } })).captainSharePercentage)).toBe(75);
   expect((await request('PATCH', '/admin/settings/pricing', 'CUSTOMER', { autoPricingEnabled: true })).status).toBe(403);
   expect((await request('PATCH', '/admin/settings/pricing', 'ADMIN', { captainSharePercentage: 101 })).status).toBe(422);
+});
+
+async function preparationOrder() {
+  return fixture.db.order.create({ data: {
+    orderNumber: `PREP-${randomUUID()}`, customerId: 'CUSTOMER', storeId: 'store', status: 'PREPARING',
+    deliveryZoneId: 'zone', customerAddressText: 'PRIVATE HOUSE', addressNote: 'PRIVATE LANDMARK', orderNote: 'PRIVATE NOTE',
+    estimatedPrepMinutes: 20, estimatedReadyAt: new Date(Date.now() + 20 * 60_000),
+    subtotal: 10, deliveryFee: 0, totalAmount: 10,
+  } });
+}
+
+it('allows exactly one early reservation, retains preparation status and masks other captains customer details', async () => {
+  const second = await fixture.db.user.create({ data: { id: 'CAPTAIN_TWO', role: 'CAPTAIN', name: 'Second', phone: '0599991077', passwordHash: 'not-used', isActive: true, isVerified: true, isAvailable: true } });
+  tokens.CAPTAIN_TWO = signAccessToken({ userId: second.id, role: UserRole.CAPTAIN, phone: second.phone }).accessToken;
+  const order = await preparationOrder();
+  const route = `/orders/${order.id}`;
+  const publicDetail = await request<OrderDetail>('GET', route, 'CAPTAIN');
+  expect(publicDetail.status).toBe(200);
+  expect(publicDetail.data.customer.phone).toBe('');
+  expect(publicDetail.data.customerAddressText).toBe('');
+  expect(publicDetail.data.orderNote).toBeNull();
+  expect(publicDetail.data.deliveryZone?.id).toBe('zone');
+  const results = await Promise.all(['CAPTAIN', 'CAPTAIN_TWO'].map(role => request<OrderDetail>('POST', `${route}/reserve`, role)));
+  expect(results.map(result => result.status).sort()).toEqual([200, 409]);
+  const winner = (await fixture.db.order.findUniqueOrThrow({ where: { id: order.id } })).captainId!;
+  expect(results.find(result => result.status === 200)?.data.status).toBe('PREPARING');
+  expect((await request<OrderDetail>('GET', route, winner)).data.customerAddressText).toBe('PRIVATE HOUSE');
+  const loser = winner === 'CAPTAIN' ? 'CAPTAIN_TWO' : 'CAPTAIN';
+  expect((await request<OrderDetail>('GET', route, loser)).data.customer.phone).toBe('');
+  const list = await request<{ items: import('@samou-go/shared-types').OrderSummary[] }>('GET', '/orders?preparationPool=true', loser);
+  const listed = list.data.items.find(item => item.id === order.id);
+  expect(listed?.captainId).toBe(winner);
+  expect(listed?.customerContact).toBeNull();
+  expect(listed?.deliveryDestination?.address).toBe('يظهر العنوان بعد حجز التوصيل');
+  expect((await request('POST', `${route}/reserve`, winner)).status).toBe(200);
+  expect((await request('POST', `${route}/claim`, winner)).status).toBe(400);
+  await fixture.db.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
+});
+
+it('enforces availability, verification, dedicated-store eligibility, role and pickup exclusions', async () => {
+  const order = await preparationOrder();
+  const route = `/orders/${order.id}/reserve`;
+  expect((await request('POST', route, 'CUSTOMER')).status).toBe(403);
+  for (const data of [{ isAvailable: false }, { isVerified: false }, { isActive: false }]) {
+    await fixture.db.user.update({ where: { id: 'CAPTAIN' }, data });
+    expect((await request('POST', route, 'CAPTAIN')).status).toBe(403);
+    await fixture.db.user.update({ where: { id: 'CAPTAIN' }, data: { isAvailable: true, isVerified: true, isActive: true } });
+  }
+  await fixture.db.user.update({ where: { id: 'CAPTAIN_TWO' }, data: { assignedStoreId: 'store' } });
+  expect((await request('POST', route, 'CAPTAIN')).status).toBe(403);
+  expect((await request('GET', `/orders/${order.id}`, 'CAPTAIN')).status).toBe(403);
+  await fixture.db.user.update({ where: { id: 'CAPTAIN_TWO' }, data: { assignedStoreId: null } });
+  await fixture.db.order.update({ where: { id: order.id }, data: { fulfillmentType: 'PICKUP' } });
+  expect((await request('POST', route, 'CAPTAIN')).status).toBe(403);
+  await fixture.db.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
+});
+
+it('persists reminders, coordinates workers, reschedules and suppresses cancelled/ready orders', async () => {
+  const order = await preparationOrder();
+  await fixture.db.platformSettings.upsert({ where: { id: 'platform' }, create: { id: 'platform', preparationReminderMinutes: 5 }, update: { preparationReminderMinutes: 5 } });
+  const now = new Date();
+  await fixture.db.order.update({ where: { id: order.id }, data: { captainId: 'CAPTAIN', estimatedReadyAt: new Date(now.getTime() + 4 * 60_000) } });
+  const pushes = vi.mocked(sendPushToMany);
+  pushes.mockClear();
+  await Promise.all([dispatchPreparationReminders(now), dispatchPreparationReminders(now)]);
+  expect(pushes).toHaveBeenCalledTimes(1);
+  expect(pushes).toHaveBeenCalledWith(['CAPTAIN'], expect.objectContaining({ data: expect.objectContaining({ type: 'PREPARATION_REMINDER', orderId: order.id }) }), { dataOnly: true });
+  expect((await fixture.db.order.findUniqueOrThrow({ where: { id: order.id } })).prepReminderSentAt).not.toBeNull();
+  await dispatchPreparationReminders(now);
+  expect(pushes).toHaveBeenCalledTimes(1);
+  const changed = await request<OrderDetail>('PATCH', `/orders/${order.id}/preparation-time`, 'STORE_MANAGER', { estimatedPrepMinutes: 20 });
+  expect(changed.status).toBe(200);
+  expect(Date.parse(changed.data.estimatedReadyAt!)).toBeGreaterThan(now.getTime() + 19 * 60_000);
+  await dispatchPreparationReminders(now);
+  expect(pushes).toHaveBeenCalledTimes(1);
+  for (const status of ['CANCELLED', 'READY_FOR_PICKUP'] as const) {
+    await fixture.db.order.update({ where: { id: order.id }, data: { status, estimatedReadyAt: new Date(now.getTime() + 60_000), prepReminderSentAt: null } });
+    await dispatchPreparationReminders(now);
+    expect(pushes).toHaveBeenCalledTimes(1);
+  }
+  await fixture.db.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
+});
+
+it('retries an expired reminder lease after restart and alerts only assigned captain at actual readiness', async () => {
+  const order = await preparationOrder();
+  const now = new Date();
+  const pushes = vi.mocked(sendPushToMany);
+  pushes.mockClear();
+  await fixture.db.order.update({ where: { id: order.id }, data: { captainId: 'CAPTAIN', estimatedReadyAt: new Date(now.getTime() + 60_000), prepReminderLeaseUntil: new Date(now.getTime() - 1000) } });
+  await dispatchPreparationReminders(now);
+  expect(pushes).toHaveBeenCalledTimes(1);
+  const ready = await request<OrderDetail>('PATCH', `/orders/${order.id}/status`, 'STORE_MANAGER', { status: 'READY_FOR_PICKUP' });
+  expect(ready.status).toBe(200);
+  await vi.waitFor(() => expect(pushes).toHaveBeenCalledWith(['CAPTAIN'], expect.objectContaining({ data: expect.objectContaining({ type: 'NEW_ORDER', orderId: order.id }) }), { dataOnly: true }));
+  await fixture.db.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
+});
+
+it('schedules on acceptance, validates admin lead time, and reminds the eligible unreserved pool', async () => {
+  const order = await preparationOrder();
+  await fixture.db.order.update({ where: { id: order.id }, data: { status: 'PENDING', estimatedReadyAt: null } });
+  const accepted = await request<OrderDetail>('PATCH', `/orders/${order.id}/status`, 'STORE_MANAGER', { status: 'ACCEPTED', estimatedPrepMinutes: 10 });
+  expect(accepted.status).toBe(200);
+  expect(Date.parse(accepted.data.estimatedReadyAt!)).toBeGreaterThan(Date.now() + 9 * 60_000);
+  expect((await request('PATCH', '/platform/settings', 'CUSTOMER', { preparationReminderMinutes: 5 })).status).toBe(403);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { preparationReminderMinutes: 0 })).status).toBe(422);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { preparationReminderMinutes: 30 })).status).toBe(200);
+  // Let fire-and-forget acceptance push finish before checking the scheduler's sends.
+  await new Promise(resolve => setTimeout(resolve, 30));
+  const pushes = vi.mocked(sendPushToMany); pushes.mockClear();
+  await dispatchPreparationReminders();
+  expect(pushes).toHaveBeenCalledWith(expect.arrayContaining(['CAPTAIN', 'CAPTAIN_TWO']), expect.objectContaining({ data: expect.objectContaining({ type: 'PREPARATION_REMINDER', orderId: order.id }) }), { dataOnly: true });
+  await fixture.db.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
 });
