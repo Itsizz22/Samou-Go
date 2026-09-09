@@ -821,9 +821,9 @@ export function getMyStores(signal?: AbortSignal): Promise<Store[]> {
 /** Top best-selling products across all active, approved stores. */
 export type { PopularProduct } from '@samou-go/shared-types';
 
-export function getPopularProducts(limit = 12, signal?: AbortSignal): Promise<PopularProduct[]> {
+export function getPopularProducts(limit = 12, signal?: AbortSignal, storeId?: string): Promise<PopularProduct[]> {
   return request<PopularProduct[]>("GET", "/stores/popular-products", {
-    query: { limit: String(limit) },
+    query: { limit: String(limit), ...(storeId ? { storeId } : {}) },
     signal,
   });
 }

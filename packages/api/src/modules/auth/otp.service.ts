@@ -1,3 +1,4 @@
+import { nextPublicCode } from '../../lib/public-code';
 import { assignedStoresInclude, validateCaptainStores } from './captain-stores';
 /**
  * Passwordless phone sign-in (OTP).
@@ -15,7 +16,7 @@ import { assignedStoresInclude, validateCaptainStores } from './captain-stores';
  *   - The code row is consumed on success, so a code cannot be replayed.
  */
 
-import { randomInt, createHash } from "node:crypto";
+import { randomInt } from "node:crypto";
 import bcrypt from "bcryptjs";
 import type {
   AuthResponse,
@@ -23,7 +24,7 @@ import type {
   OtpVerifyInput,
   ResetPasswordInput,
 } from "@samou-go/shared-types";
-import { UserRole, generateStoreSlug, generateCaptainCode } from "@samou-go/shared-types";
+import { UserRole, generateStoreSlug } from "@samou-go/shared-types";
 import { env } from "../../config/env";
 import { prisma } from "../../lib/prisma";
 import { notFound, serviceUnavailable, tooMany, unauthorized, type HttpError } from "../../lib/http-error";
@@ -413,6 +414,7 @@ export async function adminVerifyStoreOtp(body: AdminOtpVerifyBody): Promise<Aut
   const { user, store } = await prisma.$transaction(async tx => {
     const user = await tx.user.create({
       data: {
+      publicCode: await nextPublicCode(UserRole.STORE_MANAGER, tx),
         name: storeData?.nameAr ?? "مدير المتجر / Store Manager",
         phone,
         passwordHash: await hashPassword(`otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`),
@@ -428,6 +430,7 @@ export async function adminVerifyStoreOtp(body: AdminOtpVerifyBody): Promise<Aut
     // Create the store with the managerId pointing to the created user
     const store = await tx.store.create({
       data: {
+      publicCode: await nextPublicCode('STORE', tx),
         nameAr: storeName,
         nameEn: storeData?.nameEn ?? "New Store",
         slug,
@@ -475,6 +478,7 @@ export async function adminVerifyCaptainOtp(body: AdminOtpVerifyBody): Promise<A
   // Create the captain account
   const user = await prisma.user.create({ include: assignedStoresInclude,
     data: {
+      publicCode: await nextPublicCode(UserRole.CAPTAIN, prisma),
       name: captainData?.nameAr ?? "كابتن جديد / New Captain",
       phone,
       passwordHash: await hashPassword(`otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`),
@@ -483,9 +487,6 @@ export async function adminVerifyCaptainOtp(body: AdminOtpVerifyBody): Promise<A
       isVerified: true,
       assignedStoreId: storeIds[0] ?? null,
       assignedStores: { connect: storeIds.map(id => ({ id })) },
-      userCode: generateCaptainCode(
-        parseInt(createHash('sha256').update(phone).digest('hex').slice(0, 8), 16) % 32_768
-      ),
     },
   });
 
@@ -514,6 +515,7 @@ async function findOrCreateCustomer(phone: string, name?: string) {
 
   return prisma.user.create({ include: assignedStoresInclude,
     data: {
+      publicCode: await nextPublicCode(UserRole.CUSTOMER, prisma),
       name: name?.trim() || "عميل / Customer",
       phone,
       // A brand-new phone proven via OTP is verified by definition.

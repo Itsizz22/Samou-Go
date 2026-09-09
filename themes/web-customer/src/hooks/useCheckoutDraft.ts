@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 export function useCheckoutDraft(key: string) {
   const read = () => {
     try {
-      const raw: unknown = JSON.parse(localStorage.getItem(key) ?? '""');
-      return typeof raw === 'string' ? raw : '';
+      return localStorage.getItem(key) ?? '';
     } catch {
       return '';
     }

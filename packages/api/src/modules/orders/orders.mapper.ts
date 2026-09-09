@@ -40,7 +40,7 @@ function toContact(user: { id: string; name: string; phone: string }) {
 }
 
 export type OrderWithRelations = PrismaOrder & {
-  items: (PrismaOrderItem & { product: PrismaProduct })[];
+  items: (PrismaOrderItem & { product: PrismaProduct | null })[];
   customer: PrismaUser;
   store: PrismaStore;
   captain: PrismaUser | null;
@@ -52,8 +52,8 @@ export type OrderWithRelations = PrismaOrder & {
 export type OrderForSummary = PrismaOrder & {
   customer?: Pick<PrismaUser, 'name' | 'phone'>;
   deliveryZone?: Pick<PrismaDeliveryZone, 'nameAr'> | null;
-  items: (Pick<PrismaOrderItem, 'quantity' | 'note'> & {
-    product: Pick<PrismaProduct, 'nameAr'>;
+  items: (Pick<PrismaOrderItem, 'quantity' | 'note'> & { offerTitle?: string | null } & {
+    product: Pick<PrismaProduct, 'nameAr'> | null;
   })[];
   store: Pick<PrismaStore, 'nameAr'>;
 };
@@ -103,7 +103,7 @@ export function toOrder(order: PrismaOrder): Order {
   };
 }
 
-function toOrderItem(item: PrismaOrderItem & { product: PrismaProduct }): OrderItemWithProduct {
+function toOrderItem(item: PrismaOrderItem & { product: PrismaProduct | null }): OrderItemWithProduct {
   const raw = item as any;
   // Parse selectedOptions JSON if present.
   let selectedOptions: any[] | null = null;
@@ -117,7 +117,7 @@ function toOrderItem(item: PrismaOrderItem & { product: PrismaProduct }): OrderI
   return {
     id: item.id,
     orderId: item.orderId,
-    productId: item.productId,
+    productId: item.productId ?? `offer:${item.offerId ?? item.id}`,
     quantity: item.quantity,
     unitPrice: decimalToNumber(item.unitPrice),
     totalPrice: decimalToNumber(item.totalPrice),
@@ -127,9 +127,9 @@ function toOrderItem(item: PrismaOrderItem & { product: PrismaProduct }): OrderI
     offerId: raw.offerId ?? null,
     selectedOptions,
     product: {
-      id: item.product.id,
-      nameAr: item.product.nameAr,
-      imageUrl: item.product.imageUrl,
+      id: item.productId ?? `offer:${item.offerId ?? item.id}`,
+      nameAr: item.offerTitle ?? item.product?.nameAr ?? 'عرض غير متاح',
+      imageUrl: item.product?.imageUrl ?? null,
     },
   } as any;
 }
@@ -221,7 +221,7 @@ export function toOrderSummary(order: OrderForSummary, viewerRole?: string, view
     itemNotes: (restricted ? [] : order.items)
       .filter((item) => item.note)
       .map((item) => ({
-        productNameAr: item.product.nameAr,
+        productNameAr: item.offerTitle ?? item.product?.nameAr ?? 'عرض غير متاح',
         quantity: item.quantity,
         note: item.note,
       })),

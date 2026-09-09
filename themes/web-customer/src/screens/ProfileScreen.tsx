@@ -287,7 +287,7 @@ export function ProfileScreen() {
                 </button>
               </div>
             </div>
-          ) : <p className="mt-2 text-micro text-ink-muted">{t('المعرّف', 'ID')}: <span dir="ltr">{user.id.slice(0, 12)}</span></p>}
+          ) : <p className="mt-2 text-micro text-ink-muted">{t('رقم العميل', 'Customer number')}: <span dir="ltr">{user.publicCode ?? '—'}</span></p>}
         </section>
 
         {/* Saved addresses */}

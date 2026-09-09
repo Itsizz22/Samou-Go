@@ -825,6 +825,7 @@ export function SamouGoCaptain() {
           </button>
           <div className="text-center leading-tight">
             <p className="text-[16px] font-extrabold">{activeTab === 'home' ? t(`مرحباً ${captainName} 👋`, `Hello, ${captainName}`) : t(NAV_ITEMS.find(item => item.id === activeTab)?.label ?? 'الكابتن', NAV_ITEMS.find(item => item.id === activeTab)?.english ?? 'Captain')}</p>
+            {auth.user.publicCode && <p className="text-xs text-ink-muted">رقم الكابتن: <span dir="ltr">{auth.user.publicCode}</span></p>}
           </div>
           <div className="flex items-center gap-2" dir="ltr">
             <LanguageToggle />

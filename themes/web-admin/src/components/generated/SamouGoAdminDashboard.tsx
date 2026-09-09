@@ -1432,7 +1432,7 @@ function UsersPanel() {
                           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-tint text-micro font-extrabold text-brand-deep">
                             {user.name.slice(0, 2)}
                           </span>
-                          <span className="font-bold text-ink">{user.name}</span>
+                          <span><span className="block font-bold text-ink">{user.name}</span><span dir="ltr" className="block text-micro text-ink-muted">{user.publicCode}</span></span>
                         </div>
                       </td>
                       <td className="px-3 py-3 text-ink-muted" dir="ltr">
@@ -1897,7 +1897,7 @@ function StoresPanel() {
                                 )}
                               </strong>
                               <span className="block text-micro text-ink-muted" dir="ltr">
-                                {store.nameEn}
+                                {store.publicCode ? `${store.publicCode} · ` : ""}{store.nameEn}
                               </span>
                             </span>
                           </div>

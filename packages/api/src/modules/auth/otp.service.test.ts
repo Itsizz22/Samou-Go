@@ -63,6 +63,7 @@ vi.mock('../../config/env', () => ({
 }));
 
 vi.mock('../../lib/prisma', () => {
+  const referenceSequence = { upsert: vi.fn(async () => ({ value: 10001 })) };
   const user = {
     findUnique: vi.fn(async ({ where }: any) =>
       h.state.user && h.state.user.phone === where.phone ? h.state.user : null
@@ -118,8 +119,9 @@ vi.mock('../../lib/prisma', () => {
       },
       user,
       store,
+      referenceSequence,
       // `adminVerifyStoreOtp` provisions the account + store atomically.
-      $transaction: async (fn: (tx: unknown) => unknown) => fn({ user, store }),
+      $transaction: async (fn: (tx: unknown) => unknown) => fn({ user, store, referenceSequence }),
     },
   };
 });

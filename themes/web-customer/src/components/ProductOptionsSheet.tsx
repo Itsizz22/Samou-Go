@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useDragControls, useReducedMotion } from 'framer-motion';
 import { X, Plus, Minus, ShoppingBag } from 'lucide-react';
 import type { Product, ProductOptionGroup } from '@samou-go/shared-types';
-import { useLanguage } from '@samou-go/ui';
+import { ImageWithFallback, useLanguage } from '@samou-go/ui';
 import { formatCurrency } from '@/lib/delivery';
 
 interface Props {
@@ -126,12 +126,12 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
         transition={reduced ? { duration: 0 } : { type: 'spring', damping: 25, stiffness: 300 }}
         drag="y" dragControls={dragControls} dragListener={false} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0, bottom: .5 }} dragSnapToOrigin
         onDragEnd={(_, info) => { if (info.offset.y > 100 || (info.offset.y > 20 && info.velocity.y > 600)) onClose(); }}
-        className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-3xl bg-white"
+        className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-3xl bg-surface"
         onClick={(e) => e.stopPropagation()}
       >
         <button type="button" aria-label={t('اسحب لأسفل أو اضغط لإغلاق الخيارات', 'Drag down or tap to close options')} onClick={onClose} onPointerDown={event => dragControls.start(event)} className="flex min-h-11 w-full touch-none items-center justify-center"><span className="h-1 w-10 rounded-full bg-line" /></button>
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white px-5 py-4">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface px-5 py-4">
           <div className="min-w-0 flex-1">
             <h2 id="product-options-title" className="text-base font-extrabold text-ink">{product.nameAr}</h2>
             <p className="text-xs text-ink-muted">{t(storeNameAr, storeNameAr)}</p>
@@ -146,6 +146,10 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
           </button>
         </div>
 
+        <div className="mx-auto w-full max-w-lg px-5 pt-4">
+          {product.imageUrl && <ImageWithFallback src={product.imageUrl} alt={product.nameAr} className="max-h-44 w-full rounded-2xl bg-canvas object-contain" />}
+          {product.description && <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-ink-muted">{product.description}</p>}
+        </div>
         {/* Base price */}
         <div className="px-5 py-3">
           <p className="text-sm font-bold text-brand-dark" dir="ltr">
@@ -179,17 +183,17 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
                       type="button"
                       aria-pressed={selected}
                       onClick={() => toggleOption(group.id, item.id, group.maxSelect)}
-                      className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition ${
+                      className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-sm transition ${
                         selected
                           ? 'border-brand bg-brand-surface text-ink'
-                          : 'border-line bg-white text-ink hover:border-brand/40'
+                          : 'border-line bg-surface text-ink hover:border-brand/40'
                       }`}
                     >
                       <div className="flex items-center gap-2">
                         <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${
                           selected ? 'border-brand bg-brand text-white' : 'border-gray-300'
                         }`}>
-                          {selected && <span className="h-2 w-2 rounded-full bg-white" />}
+                          {selected && <span className="h-2 w-2 rounded-full bg-surface" />}
                         </span>
                         <span className="font-medium">{item.name}</span>
                       </div>
@@ -207,8 +211,8 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
         </div>
 
         {/* Quantity + total + confirm */}
-        <div className="sticky bottom-0 border-t border-line bg-white px-5 py-4">
-          <div className="flex items-center justify-between">
+        <div className="sticky bottom-0 border-t border-line bg-surface px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             {/* Quantity stepper */}
             <div className="flex items-center gap-1 rounded-full bg-canvas px-1 py-1">
               <button
@@ -238,7 +242,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
               className="flex items-center gap-2 rounded-2xl bg-brand px-5 py-3 text-sm font-bold text-white shadow-brand transition active:scale-[0.98] disabled:opacity-50"
             >
               <ShoppingBag size={16} />
-              {t('أضف إلى السلة', 'Add to cart')} · {formatCurrency(grandTotal)}
+              {t('أضف إلى السلة', 'Add to cart')} · <span dir="ltr">{formatCurrency(grandTotal)}</span>
             </button>
           </div>
         </div>

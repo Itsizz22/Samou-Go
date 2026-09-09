@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useCheckoutDraft } from '../src/hooks/useCheckoutDraft';
 import { createRoot } from 'react-dom/client';
 import {
   setToken,
@@ -100,12 +101,21 @@ function CartProbe() {
     </section>
   );
 }
+function DraftProbe() {
+  const [account, setAccount] = useState('first');
+  const [draft, setDraft] = useCheckoutDraft(`qa-checkout-draft:${account}`);
+  return <section>
+    <input aria-label="Checkout draft" value={draft} onChange={event => setDraft(event.target.value)} />
+    <button onClick={() => setAccount(account === 'first' ? 'second' : 'first')}>Switch draft account</button>
+  </section>;
+}
 function Preview() {
   const [show, setShow] = useState(false);
   return (
     <main className="mx-auto max-w-md space-y-4 p-4">
       <h1 className="text-xl font-bold">تجربة الطلب المحسّنة</h1>
       <CartProbe />
+      <DraftProbe />
       <OrderChangePanel orderId="qa" />
       <PreparationCountdown
         customer

@@ -270,6 +270,7 @@ export function OrderChangePanel({
                             )
                           }
                         >
+                          {item.isOfferItem && <option value={item.productId}>{item.offerTitle}</option>}
                           {products.map((p) => (
                             <option key={p.id} value={p.id}>
                               {p.nameAr}

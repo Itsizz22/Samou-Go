@@ -346,9 +346,10 @@ export function useAllOffers(options?: ResourceOptions<Paginated<Offer>>): Resou
 /** `GET /stores/popular-products` — top best-selling products across all stores. */
 export function usePopularProducts(
   limit = 12,
-  options?: ResourceOptions<PopularProduct[]>
+  options?: ResourceOptions<PopularProduct[]>,
+  storeId?: string
 ): Resource<PopularProduct[]> {
-  return useResource(`popular-products:${limit}`, (signal) => getPopularProducts(limit, signal), options);
+  return useResource(`popular-products:${limit}:${storeId ?? "all"}`, (signal) => getPopularProducts(limit, signal, storeId), options);
 }
 
 /** `GET /orders/:id` — order tracking. */

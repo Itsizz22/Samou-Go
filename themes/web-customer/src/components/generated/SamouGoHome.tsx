@@ -95,11 +95,8 @@ export function SamouGoHome() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'open' | 'closed'>('all');
-  // The category chip rail is collapsible on phones (thin screens); it stays
-  // permanently expanded on wider viewports where horizontal scroll is usable.
-  const [categoriesCollapsed, setCategoriesCollapsed] = useState(false);
-
-
+  // Keep the first row visible; expand the remaining categories inline.
+  const [categoriesCollapsed, setCategoriesCollapsed] = useState(true);
 
   // Every keystroke would otherwise be a round-trip over Samou' mobile data.
   useEffect(() => {
@@ -271,41 +268,23 @@ export function SamouGoHome() {
       <FeaturedProductsShowcase products={popular.data ?? []} loading={popular.loading} onAdd={handlePopularAdd} />
 
       <section className="mx-auto max-w-md px-5 pt-7" aria-labelledby="categories-title">
-        <div className="mb-4 flex items-end justify-between">
-          <div>
-            <h2 id="categories-title" className="text-lg font-extrabold">{t('الفئات', 'Categories')}</h2>
-          </div>
-          <button
-            type="button"
-            aria-expanded={!categoriesCollapsed}
-            aria-controls="category-chips"
-            onClick={() => setCategoriesCollapsed(collapsed => !collapsed)}
-            className="flex items-center gap-1 rounded-full bg-surface px-2.5 py-1.5 text-micro font-bold text-brand shadow-card transition hover:bg-brand-surface md:hidden"
-          >
-            {categoriesCollapsed ? (
-              <>
-                {t('عرض الفئات', 'Show')}
-              </>
-            ) : (
-              <>
-                {t('إخفاء', 'Hide')}
-              </>
-            )}
-            <ChevronDown
-              size={14}
-              className={`transition-transform ${categoriesCollapsed ? '' : 'rotate-180'}`}
-            />
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 id="categories-title" className="text-lg font-extrabold">{t('الفئات', 'Categories')}</h2>
+          <button type="button" aria-expanded={!categoriesCollapsed} aria-controls="category-chips" onClick={() => setCategoriesCollapsed(value => !value)} className="flex min-h-11 items-center gap-1 rounded-full px-3 text-xs font-bold text-brand focus-visible:ring-2 focus-visible:ring-brand">
+            {categoriesCollapsed ? t('المزيد', 'More') : t('عرض أقل', 'Show less')}<ChevronDown size={16} className={categoriesCollapsed ? '' : 'rotate-180'} />
           </button>
         </div>
-        <div
-          id="category-chips"
-          className={`${categoriesCollapsed ? 'hidden md:flex' : 'flex'} gap-2 overflow-x-auto pb-1 scrollbar-none`}
-        >
-          {STORE_CATEGORIES.map(category => {
-          const Icon = CATEGORY_ICONS[category.key];
-          const active = activeCategory === category.key;
-          return <button key={category.key} type="button" aria-pressed={active} onClick={() => setActiveCategory(category.key)} className={`flex w-17 shrink-0 flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center transition-all duration-200 ${active ? 'border-brand bg-brand-tint text-brand-dark shadow-card' : 'border-line bg-surface text-ink-soft hover:border-brand/30 hover:shadow-raised'}`}><span className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ${active ? 'bg-brand text-white shadow-brand' : 'bg-brand-surface text-brand'}`}><Icon size={20} /></span><span className="text-[11px] font-bold leading-tight">{t(category.ar, category.en)}</span></button>;
-        })}
+        <div id="category-chips" className="grid grid-cols-4 gap-2">
+          {STORE_CATEGORIES.filter((category, index) => !categoriesCollapsed || index < 4 || category.key === activeCategory).map(category => {
+            const Icon = CATEGORY_ICONS[category.key];
+            const active = activeCategory === category.key;
+            const representative = (stores.data?.items ?? []).find(store => classifyStore(store) === category.key && (store.coverUrl || store.logoUrl));
+            const photo = representative?.coverUrl || representative?.logoUrl;
+            return <button key={category.key} type="button" aria-pressed={active} onClick={() => setActiveCategory(category.key)} className={`flex min-w-0 flex-col items-center gap-2 rounded-2xl border p-1.5 pb-3 text-center transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-brand ${active ? 'border-brand bg-brand-tint text-brand-dark' : 'border-line bg-surface text-ink-soft'}`}>
+              <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-brand-surface text-brand">{photo ? <ImageWithFallback src={photo} alt="" className="h-full w-full object-cover" /> : <Icon size={26} />}</span>
+              <span className="text-[11px] font-bold leading-relaxed">{t(category.ar, category.en)}</span>
+            </button>;
+          })}
         </div>
         <div className="mt-3 flex gap-2" aria-label="Store availability filter">
           {([['all', t('الكل', 'All')], ['open', t('مفتوح', 'Open')], ['closed', t('مغلق', 'Closed')]] as const).map(([value, label]) => (

@@ -1,3 +1,4 @@
+import { nextPublicCode } from '../lib/public-code';
 /**
  * Create a real admin account in any environment (including production).
  *
@@ -70,6 +71,7 @@ async function main(): Promise<void> {
 
     const user = await prisma.user.create({
       data: {
+        publicCode: await nextPublicCode('ADMIN'),
         phone,
         name,
         passwordHash,

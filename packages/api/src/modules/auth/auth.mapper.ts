@@ -9,6 +9,7 @@ import type { PublicUser } from '@samou-go/shared-types';
 export function toPublicUser(user: User & { assignedStores?: { id: string }[] }): PublicUser {
   return {
     id: user.id,
+    publicCode: user.publicCode ?? null,
     name: user.name,
     phone: user.phone,
     role: user.role,

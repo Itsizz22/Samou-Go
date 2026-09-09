@@ -153,7 +153,7 @@ export async function deleteCategoryHandler(req: Request, res: Response): Promis
 /** GET /api/v1/stores/popular-products — top best-selling products across stores. */
 export async function popularProductsHandler(req: Request, res: Response): Promise<void> {
   const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 12, 1), 24);
-  ok(res, await storesService.getPopularProducts(limit));
+  ok(res, await storesService.getPopularProducts(limit, typeof req.query.storeId === 'string' ? req.query.storeId : undefined));
 }
 
 export async function newProductsHandler(req: Request, res: Response): Promise<void> {

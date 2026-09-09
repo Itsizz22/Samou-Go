@@ -1,3 +1,4 @@
+import { nextPublicCode } from '../../lib/public-code';
 import { assignedStoresInclude } from './captain-stores';
 /**
  * Samou Quick — Firebase ID token verification.
@@ -150,6 +151,7 @@ async function findOrCreateCustomer(phone: string, name?: string, password?: str
 
   return prisma.user.create({ include: assignedStoresInclude,
     data: {
+      publicCode: await nextPublicCode(UserRole.CUSTOMER, prisma),
       name: name?.trim() || 'عميل / Customer',
       phone,
       isVerified: true,

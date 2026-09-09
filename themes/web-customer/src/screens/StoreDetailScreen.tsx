@@ -1,3 +1,5 @@
+import { ProductImageViewer } from '@/components/ProductImageViewer';
+import { storeIsOpen } from '@/components/StoreHours';
 import { normalizeOptionGroups, resolveSelectedOptions } from '@samou-go/shared-types';
 /**
  * `/stores/:storeId` — a store's full catalogue with add-to-cart.
@@ -12,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, AlertTriangle, ArrowRight, Clock3, FolderOpen, Heart, Loader2, MessageCircle, Minus, Plus, RefreshCw, ShoppingCart, Star, Store } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
 import { useFavorites } from '@/components/FavoritesProvider';
-import { useStore, useOffersForStore } from '@/hooks/useApi';
+import { useStore, useOffersForStore, usePopularProducts } from '@/hooks/useApi';
 import { HorizontalScrollGallery, ImageWithFallback, useLanguage } from '@samou-go/ui';
 import { ProductRowSkeleton, Skeleton } from '@/components/Skeleton';
 import { formatCurrency } from '@/lib/delivery';
@@ -28,6 +30,8 @@ export function StoreDetailScreen() {
   const targetProductId = searchParams.get('productId');
   const revealedProduct = useRef<string | null>(null);
   const store = useStore(storeId);
+  const popular = usePopularProducts(12, { enabled: Boolean(storeId) }, storeId);
+  const [preview, setPreview] = useState<{ src: string; name: string } | null>(null);
   const cart = useCart();
   const favorites = useFavorites();
   const { t, language } = useLanguage();
@@ -48,8 +52,8 @@ export function StoreDetailScreen() {
   })).filter(category => !query || category.products.length > 0), [store.data, query]);
 
   const active = useMemo(
-    () => categories.some(category => category.id === activeCategoryId) ? activeCategoryId : categories[0]?.id ?? null,
-    [activeCategoryId, categories]
+    () => activeCategoryId === "popular" && popular.data?.length ? "popular" : categories.some(category => category.id === activeCategoryId) ? activeCategoryId : popular.data?.length ? "popular" : categories[0]?.id ?? null,
+    [activeCategoryId, categories, popular.data]
   );
 
   const targetCategoryId = store.data?.categories.find(category =>
@@ -85,7 +89,7 @@ export function StoreDetailScreen() {
   }, [offers.data]);
 
   const current = store.data!;
-  const products = query ? categories.flatMap(category => category.products) : active
+  const products = query ? categories.flatMap(category => category.products) : active === "popular" ? popular.data ?? [] : active
     ? categories.find((category) => category.id === active)?.products ?? []
     : [];
 
@@ -110,13 +114,13 @@ export function StoreDetailScreen() {
   }, [cart, current?.nameAr, current?.isAcceptingOrders, current?.storeStatus]);
 
   const handleOptionsConfirm = useCallback((options: { groupId: string; optionId: string }[], quantity: number) => {
-    if (!optionsProduct) return;
+    if (!optionsProduct || !current?.isActive || !current.isAcceptingOrders || current.storeStatus === StoreStatus.CLOSED) return;
     // Map option IDs to SelectedOption objects.
     const selectedOptions = resolveSelectedOptions(optionsProduct.optionGroups, options);
     cart.addItem(optionsProduct, quantity, '', current.nameAr, selectedOptions);
     setOptionsProduct(null);
     void hapticConfirm();
-  }, [optionsProduct, cart, current?.nameAr]);
+  }, [optionsProduct, cart, current?.nameAr, current?.isActive, current?.isAcceptingOrders, current?.storeStatus]);
 
   if (store.loading && !store.data) {
     return (
@@ -189,7 +193,14 @@ export function StoreDetailScreen() {
               <ArrowRight size={22} className="rtl:rotate-180" />
             </button>
             <div className="order-last col-span-3 min-w-0 self-end text-start">
+              {current.logoUrl && <ImageWithFallback src={current.logoUrl} alt="" className="mb-3 h-16 w-16 rounded-2xl border border-white/30 bg-surface object-contain" />}
               <h1 className="text-lg font-extrabold">{t(current.nameAr, current.nameEn)}</h1>
+              {current.publicCode && <p className="text-xs text-white/80">رقم المتجر: <span dir="ltr">{current.publicCode}</span></p>}
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full bg-white/15 px-3 py-2 font-bold">{!storeIsOpen(current) ? t('مغلق حالياً', 'Closed') : current.storeStatus === StoreStatus.BUSY ? t('مشغول — يستقبل الطلبات', 'Busy — accepting orders') : t('مفتوح ويستقبل الطلبات', 'Open for orders')}</span>
+                {current.openingTime && <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-2"><Clock3 size={14} />{t('ساعات العمل', 'Hours')} <span dir="ltr">{current.openingTime}{current.closingTime ? ` – ${current.closingTime}` : ''}</span></span>}
+              </div>
+              <p className="mt-2 text-xs text-white/80">{t('يحدد المتجر وقت التجهيز عند قبول طلبك', 'Preparation time is confirmed when the store accepts your order')}</p>
               {current.isRecommended && (
                 <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-micro font-bold text-white">
                   <Star size={10} fill="currentColor" />
@@ -293,14 +304,21 @@ export function StoreDetailScreen() {
             {menuSearch && <button type="button" aria-label="مسح بحث القائمة" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl focus-visible:ring-2 focus-visible:ring-brand" onClick={event => { setMenuSearch(''); event.currentTarget.parentElement?.querySelector('input')?.focus(); }}><X size={18} /></button>}
           </div>
         </div>
+        <div className="sticky top-0 z-20 border-b border-line bg-surface safe-top">
+          <div className="mx-auto flex max-w-md items-center gap-3 px-5 pt-2">
+            <button type="button" onClick={() => navigate(-1)} aria-label={t('العودة من المتجر', 'Leave store')} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-canvas focus-visible:ring-2 focus-visible:ring-brand"><ArrowRight size={20} className="rtl:rotate-180" /></button>
+            {current.logoUrl && <ImageWithFallback src={current.logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-xl object-contain" />}
+            <span className="min-w-0 flex-1 truncate text-sm font-extrabold">{current.nameAr}</span>
+          </div>
         <HorizontalScrollGallery
           titleAr={t('فئات المتجر', 'Categories')}
           titleEn={t('فئات المتجر', 'Categories')}
           ariaLabel={t('فئات المتجر', 'Categories')}
-          className="mx-auto w-full max-w-md px-5 pt-5"
+          className="mx-auto w-full max-w-md px-5 py-2"
           trackClassName="gap-2"
           showArrows={false}
         >
+          {!!popular.data?.length && <button type="button" aria-pressed={active === 'popular'} onClick={() => { setActiveCategoryId('popular'); setMenuSearch(''); }} className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-xs font-bold ${active === 'popular' ? 'bg-brand text-white' : 'bg-canvas text-ink-muted'}`}><Star size={14} />{t('الأكثر طلباً', 'Most ordered')}</button>}
           {categories.map((category) => (
             <button
               key={category.id}
@@ -328,6 +346,7 @@ export function StoreDetailScreen() {
             </button>
           ))}
         </HorizontalScrollGallery>
+        </div>
 
         {/* Active offers banner */}
         {(() => {
@@ -364,12 +383,16 @@ export function StoreDetailScreen() {
                 .filter((product) => product.isAvailable)
                 .map((product, index) => {
                   const line = cart.lineFor(product.id);
+                  const groups = normalizeOptionGroups(product.optionGroups);
+                  const hasOptions = groups.length > 0;
+                  const hasSize = groups.some(group => /حجم|أحجام|احجام|size/i.test(group.name));
+                  const orderable = storeIsOpen(current);
                   return (
                     <article
                       key={product.id}
                       id={"product-" + product.id}
                       tabIndex={-1}
-                      className="group relative grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-card sq-menu-enter"
+                      className="group relative scroll-mt-44 grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-card sq-menu-enter"
                       style={{ animationDelay: `${Math.min(index * 50, 500)}ms` }}
                     >
                       {/* Offer badge */}
@@ -380,7 +403,7 @@ export function StoreDetailScreen() {
                       )}
 
                       {/* Media — fixed aspect ratio; elegant gradient fallback */}
-                      <div className="relative row-span-2 h-18 w-18 overflow-hidden rounded-xl bg-linear-to-br from-brand-tint to-brand-surface">
+                      <button type="button" disabled={!product.imageUrl} aria-label={t(`تكبير صورة ${product.nameAr}`, `Enlarge ${product.nameAr}`)} onClick={() => { if (product.imageUrl) setPreview({ src: product.imageUrl, name: product.nameAr }); }} className="relative row-span-2 h-18 w-18 overflow-hidden rounded-xl bg-linear-to-br from-brand-tint to-brand-surface focus-visible:ring-2 focus-visible:ring-brand">
                         {product.imageUrl ? (
                           <ImageWithFallback
                             src={product.imageUrl}
@@ -393,7 +416,7 @@ export function StoreDetailScreen() {
                             {product.nameAr.slice(0, 2)}
                           </span>
                         )}
-                      </div>
+                      </button>
 
                       {/* Text & Price */}
                       <div className="flex min-w-0 flex-col text-start">
@@ -412,7 +435,7 @@ export function StoreDetailScreen() {
 
                       {/* Counter / add */}
                       <div className="col-start-2 mt-2 flex justify-end">
-                        {line ? (
+                        {line && !hasOptions ? (
                           <div className="flex items-center gap-1 rounded-full bg-brand px-1 py-1 text-white">
                             <button
                               type="button"
@@ -431,6 +454,7 @@ export function StoreDetailScreen() {
                             <button
                               type="button"
                               aria-label={t('زيادة', 'Increase')}
+                              disabled={!orderable}
                               onClick={() => {
                                 cart.setQuantity(product.id, line.quantity + 1);
                                 void hapticTap();
@@ -443,12 +467,12 @@ export function StoreDetailScreen() {
                         ) : (
                           <button
                             type="button"
-                            aria-label={`أضف ${product.nameAr} إلى السلة`}
-                            disabled={!current.isAcceptingOrders || current.storeStatus === StoreStatus.CLOSED}
+                            aria-label={!orderable ? t("المتجر مغلق", "Store closed") : hasOptions ? t(`اختر خيارات ${product.nameAr}`, `Customize ${product.nameAr}`) : `أضف ${product.nameAr} إلى السلة`}
+                            disabled={!orderable}
                             onClick={() => handleAdd(product.id, product)}
-                            className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-tint text-brand-dark transition active:scale-90"
+                            className="flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-brand-tint px-4 text-xs font-bold text-brand-dark transition active:scale-95 disabled:bg-canvas disabled:text-ink-muted"
                           >
-                            <Plus size={18} strokeWidth={2.5} />
+                            {!orderable ? t('المتجر مغلق', 'Store closed') : hasOptions ? hasSize ? t('اختر الحجم', 'Choose size') : t('اختر الإضافات', 'Choose extras') : <><Plus size={18} strokeWidth={2.5} />{t('إضافة', 'Add')}</>}
                           </button>
                         )}
                       </div>
@@ -473,16 +497,17 @@ export function StoreDetailScreen() {
                 className="mx-auto flex w-full max-w-md items-center justify-between rounded-2xl bg-brand px-5 py-3.5 text-white shadow-brand transition active:scale-[0.98]"
               >
                 <span className="flex items-center gap-2 text-sm font-extrabold">
-                  <ShoppingCart size={17} /> {t('عرض السلة', 'View cart')}
+                  <span className="flex h-9 min-w-9 items-center justify-center rounded-xl bg-white/20 px-2" dir="ltr">{cart.itemCount}</span> {t('عرض السلة', 'View cart')}
                 </span>
-                <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold">
-                  {cart.itemCount} · {formatCurrency(cart.subtotal)}
+                <span className="text-end text-xs font-bold">
+                  <span className="block text-micro font-normal">{t("مجموع المنتجات", "Products subtotal")}</span><span dir="ltr">{formatCurrency(cart.subtotal)}</span>
                 </span>
               </button>
             </motion.div>
           )}
         </AnimatePresence>
 
+        {preview && <ProductImageViewer src={preview.src} name={preview.name} onClose={() => setPreview(null)} />}
         {/* Product options sheet */}
         {optionsProduct && (
           <ProductOptionsSheet

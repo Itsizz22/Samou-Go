@@ -139,6 +139,7 @@ export async function listStores(
           OR: [
             { nameAr: caseInsensitiveContains(query.search) },
             { nameEn: caseInsensitiveContains(query.search) },
+            { publicCode: caseInsensitiveContains(query.search) },
           ],
         }
       : {}),
@@ -587,13 +588,13 @@ export async function deleteCategory(storeId: string, categoryId: string): Promi
  * ------------------------------------------------------------------------- */
 
 /** Best sellers are the existing data signal for the featured showcase. */
-export async function getPopularProducts(limit = 12): Promise<PopularProduct[]> {
+export async function getPopularProducts(limit = 12, storeId?: string): Promise<PopularProduct[]> {
   const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const rows = await prisma.orderItem.groupBy({
     by: ['productId'],
     where: {
       order: { status: 'DELIVERED', createdAt: { gt: since } },
-      product: { isAvailable: true, store: { isActive: true, isApproved: true } },
+      product: { ...(storeId ? { storeId } : {}), isAvailable: true, store: { isActive: true, isApproved: true } },
     },
     _sum: { quantity: true },
     orderBy: [{ _sum: { quantity: 'desc' } }, { productId: 'asc' }],

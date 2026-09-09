@@ -20,6 +20,7 @@ export type IsoDateTime = string;
  * it never leaves `packages/api`.
  */
 export interface PublicUser {
+  publicCode?: string | null;
   id: string;
   name: string;
   /** Palestinian mobile, stored canonical: `05XXXXXXXX`. */
@@ -52,6 +53,7 @@ export interface PublicUser {
  * ------------------------------------------------------------------------- */
 
 export interface Store {
+  publicCode?: string | null;
   isRecent?: boolean;
   averageRating?: number | null;
   ratingCount?: number;

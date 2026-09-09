@@ -1,7 +1,7 @@
 /**
  * Human-friendly reference identifiers for Samou Quick.
  *
- * Order numbers:  SQ-YYMMDD-XXXX  (unambiguous alphanumeric, 32-char alphabet)
+ * Order numbers:  YYMMDD-001 (decimal daily sequence)
  * Customer codes: CUST-XXXXX      (5-char unambiguous alphanumeric)
  * Captain codes: CAPT-XXXXX      (5-char unambiguous alphanumeric)
  *
@@ -24,7 +24,7 @@ function encodeBase32(value: number, length: number): string {
 }
 
 /**
- * Generate a human-facing order number: `SQ-YYMMDD-XXXX`.
+ * Generate a human-facing order number: `YYMMDD-001`.
  *
  * The caller is responsible for providing a unique sequence number per day
  * (via `DailyOrderSequence` in the API). This pure function is idempotent —
@@ -34,7 +34,8 @@ export function generateOrderNumber(date: Date, sequence: number): string {
   const yy = String(date.getFullYear()).slice(-2);
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');
-  return `SQ-${yy}${mm}${dd}-${encodeBase32(sequence, 4)}`;
+  if (!Number.isSafeInteger(sequence) || sequence < 1) throw new RangeError('Invalid order sequence');
+  return `${yy}${mm}${dd}-${String(sequence).padStart(3, '0')}`;
 }
 
 /**

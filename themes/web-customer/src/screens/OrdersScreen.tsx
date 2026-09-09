@@ -126,7 +126,7 @@ export function OrdersScreen() {
                           return;
                         }
                         for (const result of results) {
-                          result.items.forEach((item) => cart.addItem(item.product, item.quantity, item.note, result.storeNameAr, item.selectedOptions));
+                          result.items.forEach((item) => item.offer ? cart.addOfferItem(item.offer, item.quantity, result.storeNameAr) : cart.addItem(item.product, item.quantity, item.note, result.storeNameAr, item.selectedOptions));
                           totalSkipped += result.skipped;
                         }
                         if (totalSkipped > 0) {
@@ -163,7 +163,7 @@ export function OrdersScreen() {
                         const result = await reorderOrder(row.orders[0].id);
                         if (!result.items.length) { toast.info("لا توجد أصناف متاحة لإعادة الطلب", "No available items to reorder"); return; }
 
-                        result.items.forEach((item) => cart.addItem(item.product, item.quantity, item.note, result.storeNameAr, item.selectedOptions));
+                        result.items.forEach((item) => item.offer ? cart.addOfferItem(item.offer, item.quantity, result.storeNameAr) : cart.addItem(item.product, item.quantity, item.note, result.storeNameAr, item.selectedOptions));
                         if (result.skipped > 0) {
                           toast.info(
                             'تمت إضافة الأصناف المتوفرة فقط إلى السلة', 'Only available items were added to the cart',

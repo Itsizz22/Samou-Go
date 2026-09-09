@@ -300,6 +300,7 @@ export interface OrderQuote {
  * The client then loads these into the cart; it never sends money.
  */
 export interface ReorderItem {
+  offer?: { id: string; storeId: string; titleAr: string; price: number; imageUrl: string | null };
   selectedOptions?: import("./models").SelectedOption[];
   product: Product;
   quantity: number;

@@ -1,3 +1,4 @@
+import { nextPublicCode } from '../../lib/public-code';
 import { sendPushToUser } from '../../lib/push';
 import { orderProposalSchema } from './orders.schemas';
 import { captainStoreIds, assignedStoresInclude } from '../auth/captain-stores';
@@ -55,6 +56,7 @@ export async function resolveGuestCustomer(guest: NonNullable<CreateOrderBody['g
   }
   const user = await prisma.user.create({
     data: {
+      publicCode: await nextPublicCode(UserRole.CUSTOMER, prisma),
       name: guest.name?.trim() || 'ضيف',
       phone: guest.phone,
       passwordHash: await hashPassword(`guest:${guest.phone}:${randomUUID()}`),
@@ -82,6 +84,7 @@ export const SUMMARY_INCLUDE = {
     select: {
       quantity: true,
       note: true,
+      offerTitle: true,
       product: { select: { nameAr: true } },
     },
   },
@@ -103,7 +106,9 @@ type OrderDb = Prisma.TransactionClient | PrismaClient;
 interface PricedLine {
   nameAr?: string;
   sourceIndex?: number;
-  productId: string;
+  productId: string | null;
+  offerId?: string;
+  offerTitle?: string;
   quantity: number;
   unitPrice: number;
   /** Resolved selected options with server-verified prices. */
@@ -176,8 +181,8 @@ async function resolveVoucher(db: OrderDb, code: string, subtotal: number): Prom
  * Turns a client basket into server-priced lines.
  *
  * This is the security boundary for money: prices come from the `products`
- * table, never from the request. Duplicate `productId`s are merged because
- * `OrderItem` is unique on `(orderId, productId)`. The `storeId` scoping means
+ * and offers tables, never from the request. Matching variants are merged;
+ * distinct options and notes retain separate lines. The `storeId` scoping means
  * a foreign product id can never be priced from another store.
  */
 async function priceBasket(
@@ -203,10 +208,13 @@ async function priceBasket(
 
   // Collect offer IDs for standalone offer items.
   const offerIds = items.filter(it => it.isOfferItem && it.offerId).map(it => it.offerId!);
+  const now = new Date();
   const offers = offerIds.length > 0
-    ? ((await db.offer.findMany({ where: { id: { in: offerIds }, storeId, isActive: true }, select: { id: true, titleAr: true } } as any)) as any) as any
+    ? await db.offer.findMany({ where: { id: { in: offerIds }, storeId, isActive: true,
+        AND: [{ OR: [{ startsAt: null }, { startsAt: { lte: now } }] }, { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }] },
+        select: { id: true, titleAr: true, price: true } })
     : [];
-  const offerById = new Map<string, any>(offers.map((o: any) => [o.id, o]));
+  const offerById = new Map(offers.map(offer => [offer.id, offer]));
 
   const merged = new Map<string, { productId: string; quantity: number; sourceIndex: number; offerItem?: typeof items[number] }>();
   for (const [sourceIndex, item] of items.entries()) {
@@ -248,14 +256,13 @@ async function priceBasket(
   for (const { productId, quantity, offerItem, sourceIndex } of merged.values()) {
     // For standalone offer items, use the offer's DB price.
     if (offerItem?.isOfferItem && offerItem.offerId) {
-      const offer = offerById.get(offerItem.offerId!) as any;
-      if (!offer || !(offer as any).price) {
-        throw unprocessable(
-          'OFFER_NOT_FOUND',
-          `العرض غير موجود أو بدون سعر / Offer not found or has no price: ${offerItem.offerId}`
-        );
+      const offer = offerById.get(offerItem.offerId);
+      if (!offer || offer.price === null || decimalToNumber(offer.price) <= 0) {
+        throw unprocessable('OFFER_UNAVAILABLE', 'العرض غير متاح حالياً / Offer is unavailable');
       }
-      lines.push({ productId, quantity, sourceIndex, unitPrice: Number((offer as any).price) });
+      if (offerItem.selectedOptions?.length) throw badRequest('العروض لا تدعم إضافات المنتجات / Offers do not accept product options');
+      lines.push({ productId: null, offerId: offer.id, offerTitle: offer.titleAr, nameAr: offer.titleAr,
+        quantity, sourceIndex, unitPrice: decimalToNumber(offer.price) });
       continue;
     }
     const product = byId.get(productId);
@@ -499,9 +506,9 @@ export async function createOrder(
               unitPrice: line.unitPrice,
               totalPrice: lineTotal(line.unitPrice, line.quantity),
               note: itemSource?.note ?? null,
-              isOfferItem: itemSource?.isOfferItem ?? false,
-              offerTitle: itemSource?.offerTitle ?? null,
-              offerId: itemSource?.offerId ?? null,
+              isOfferItem: Boolean(line.offerId),
+              offerTitle: line.offerTitle ?? null,
+              offerId: line.offerId ?? null,
               // Pass the object directly — Prisma serialises JSON fields natively.
               selectedOptions: (line.selectedOptions ?? null) as unknown as Prisma.InputJsonValue,
               // Append modifier summary to note if present, for display in order detail
@@ -642,6 +649,9 @@ export async function createCheckoutOrders(
               const itemSource = storeGroup.items[line.sourceIndex ?? 0];
               return {
                 productId: line.productId,
+                isOfferItem: Boolean(line.offerId),
+                offerId: line.offerId ?? null,
+                offerTitle: line.offerTitle ?? null,
                 quantity: line.quantity,
                 unitPrice: line.unitPrice,
                 totalPrice: lineTotal(line.unitPrice, line.quantity),
@@ -804,15 +814,28 @@ export async function reorderOrder(
   await assertCanView(order, actor);
 
   const currentProducts = await prisma.product.findMany({
-    where: { id: { in: order.items.map(item => item.productId) } },
+    where: { id: { in: order.items.flatMap(item => item.productId ? [item.productId] : []) } },
     include: { optionGroups: { include: { items: true } } },
   });
   const byId = new Map(currentProducts.map(product => [product.id, product]));
+  const now = new Date();
+  const currentOffers = await prisma.offer.findMany({ where: { id: { in: order.items.flatMap(item => item.offerId ? [item.offerId] : []) }, storeId: order.storeId,
+    isActive: true, AND: [{ OR: [{ startsAt: null }, { startsAt: { lte: now } }] }, { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }] } });
+  const offersById = new Map(currentOffers.map(offer => [offer.id, offer]));
 
   let skipped = 0;
   const items: ReorderResult['items'] = [];
   for (const item of order.items) {
-    const product = byId.get(item.productId);
+    if (item.isOfferItem) {
+      const offer = item.offerId ? offersById.get(item.offerId) : undefined;
+      if (!offer || offer.price === null || decimalToNumber(offer.price) <= 0) { skipped += 1; continue; }
+      const price = decimalToNumber(offer.price);
+      items.push({ quantity: item.quantity, ...(item.note ? { note: item.note } : {}),
+        offer: { id: offer.id, storeId: offer.storeId, titleAr: offer.titleAr, price, imageUrl: offer.imageUrl },
+        product: { id: `offer:${offer.id}`, storeId: offer.storeId, categoryId: null, nameAr: offer.titleAr, description: offer.descriptionAr, price, imageUrl: offer.imageUrl, isAvailable: true } });
+      continue;
+    }
+    const product = item.productId ? byId.get(item.productId) : undefined;
     if (!product || !product.isAvailable) {
       skipped += 1;
       continue;
@@ -1546,7 +1569,14 @@ export async function editPendingOrder(customerId: string, orderId: string, body
     if (ids.size !== body.items.length || body.items.length !== order.items.length || order.items.some(item => !ids.has(item.id))) throw badRequest('الأصناف لا تطابق الطلب / Invalid order lines');
     const next = body.items.map(item => ({ ...item, original: order.items.find(line => line.id === item.id)! }));
     if (!next.some(item => item.quantity > 0)) throw badRequest('لا يمكن ترك الطلب فارغاً؛ استخدم الإلغاء / Use cancellation for an empty order');
-    if (next.some(item => item.quantity > item.original.quantity && !item.original.product.isAvailable)) throw badRequest('الصنف غير متوفر لزيادة الكمية / Product is unavailable');
+    for (const item of next.filter(item => item.quantity > item.original.quantity)) {
+      if (item.original.isOfferItem) {
+        const now = new Date();
+        const available = item.original.offerId && await tx.offer.findFirst({ where: { id: item.original.offerId, storeId: order.storeId, isActive: true,
+          price: { gt: 0 }, AND: [{ OR: [{ startsAt: null }, { startsAt: { lte: now } }] }, { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }] } });
+        if (!available) throw badRequest('العرض غير متاح لزيادة الكمية / Offer is unavailable');
+      } else if (!item.original.product?.isAvailable) throw badRequest('الصنف غير متوفر لزيادة الكمية / Product is unavailable');
+    }
     const subtotal = Math.round(next.reduce((sum, item) => sum + decimalToNumber(item.original.unitPrice) * item.quantity, 0) * 100) / 100;
     const voucher = order.voucher;
     const discount = voucher ? calculateVoucherDiscount(subtotal, { type: voucher.discountType, value: decimalToNumber(voucher.discountValue), minSubtotal: voucher.minSubtotal === null ? undefined : decimalToNumber(voucher.minSubtotal), maxDiscount: voucher.maxDiscount === null ? undefined : decimalToNumber(voucher.maxDiscount) }) : 0;
@@ -1594,7 +1624,7 @@ export async function decideOrderChange(customerId: string, orderId: string, upd
     await tx.orderItem.deleteMany({ where: { orderId } });
     return toOrderDetail(await tx.order.update({ where: { id: orderId }, data: {
       changeProposal: null, subtotal, discount, totalAmount: Math.round((subtotal - discount + decimalToNumber(order.deliveryFee)) * 100) / 100,
-      items: { create: lines.map((line,index) => ({ productId: line.productId, quantity: line.quantity, unitPrice: line.unitPrice, totalPrice: lineTotal(line.unitPrice,line.quantity), note: parsed.items[line.sourceIndex ?? index]?.note, selectedOptions: line.selectedOptions ?? [], isOfferItem: parsed.items[line.sourceIndex ?? index]?.isOfferItem ?? false, offerId: parsed.items[line.sourceIndex ?? index]?.offerId, offerTitle: parsed.items[line.sourceIndex ?? index]?.offerTitle })) },
+      items: { create: lines.map((line,index) => ({ productId: line.productId, quantity: line.quantity, unitPrice: line.unitPrice, totalPrice: lineTotal(line.unitPrice,line.quantity), note: parsed.items[line.sourceIndex ?? index]?.note, selectedOptions: line.selectedOptions ?? [], isOfferItem: Boolean(line.offerId), offerId: line.offerId, offerTitle: line.offerTitle })) },
     }, include: DETAIL_INCLUDE }), UserRole.CUSTOMER);
   });
 }

@@ -1,3 +1,4 @@
+import { nextPublicCode } from '../../lib/public-code';
 import { randomUUID } from 'node:crypto';
 import { UserRole } from '@samou-go/shared-types';
 import { signAccessToken } from '../../lib/jwt';
@@ -171,6 +172,9 @@ it('serves ranked products on SQLite with complete option rules and numeric pric
     optionGroups: [{ id: 'showcase-group', minSelect: 0, maxSelect: 2, required: false,
       items: [{ id: 'showcase-option', priceDelta: 3.25, isActive: true }] }],
   });
+  const scoped = await request<import('@samou-go/shared-types').PopularProduct[]>('GET', '/stores/popular-products?storeId=store');
+  expect(scoped.data.map(product => product.id)).toEqual(['product']);
+  expect((await request<unknown[]>('GET', '/stores/popular-products?storeId=another-store')).data).toEqual([]);
   await fixture.db.product.update({ where: { id: 'product' }, data: { optionsEnabled: false } });
   const disabled = await request<import('@samou-go/shared-types').PopularProduct[]>('GET', '/stores/popular-products');
   expect(disabled.data[0]?.hasOptions).toBe(false);
@@ -544,4 +548,78 @@ it('saves separate store and captain ratings and allows correcting the same rati
   expect((await request('POST',route,'CUSTOMER',{storeRating:5,captainRating:3})).status).toBe(201);
   expect((await request('POST',route,'CUSTOMER',{storeRating:4,captainRating:5})).status).toBe(201);
   expect(await fixture.db.rating.findUnique({where:{orderId:order.id}})).toMatchObject({storeRating:4,captainRating:5});
+});
+
+
+it('prices and stores standalone offers without a fake product, including mixed checkout and reorder', async () => {
+  await fixture.db.store.update({ where: { id: 'store' }, data: { isAcceptingOrders: true, storeStatus: 'OPEN', isActive: true } });
+  await fixture.db.product.update({ where: { id: 'product' }, data: { isAvailable: true, price: 12.5 } });
+  const offer = await fixture.db.offer.create({ data: { storeId: 'store', titleAr: 'وجبة عائلية', titleEn: 'Family meal', descriptionAr: '', descriptionEn: '', price: 85 } });
+  const item = { productId: `offer:${offer.id}`, isOfferItem: true, offerId: offer.id, offerTitle: 'forged title', quantity: 1 };
+  const body = { storeId: 'store', items: [item], customerAddressText: 'Offer test address', fulfillmentType: 'PICKUP' };
+  const quote = await request<{ subtotal: number }>('POST', '/orders/quote', 'CUSTOMER', body);
+  expect(quote.status, JSON.stringify(quote.error)).toBe(200);
+  expect(quote.data.subtotal).toBe(85);
+  const created = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', body);
+  expect(created.status, JSON.stringify(created.error)).toBe(201);
+  expect(created.data.items[0]).toMatchObject({ productId: `offer:${offer.id}`, isOfferItem: true, offerId: offer.id, offerTitle: 'وجبة عائلية', unitPrice: 85 });
+  const row = await fixture.db.orderItem.findFirstOrThrow({ where: { orderId: created.data.id } });
+  expect(row.productId).toBeNull();
+  expect(row.offerId).toBe(offer.id);
+  const edited = await request<OrderDetail>('PATCH', `/orders/${created.data.id}/items`, 'CUSTOMER', { updatedAt: created.data.updatedAt, items: [{ id: row.id, quantity: 2 }] });
+  expect(edited.status, JSON.stringify(edited.error)).toBe(200);
+  expect(edited.data.subtotal).toBe(170);
+  await fixture.db.offer.update({ where: { id: offer.id }, data: { price: 90 } });
+  const reordered = await request<import('@samou-go/shared-types').ReorderResult>('POST', `/orders/${created.data.id}/reorder`, 'CUSTOMER');
+  expect(reordered.status).toBe(200);
+  expect(reordered.data.items[0]?.offer?.price).toBe(90);
+  const secondStore = await fixture.db.store.create({ data: { managerId: 'STORE_MANAGER', nameAr: 'متجر ثاني للعروض', nameEn: 'Second offer store', phone: '0599991096', isApproved: true } });
+  const secondProduct = await fixture.db.product.create({ data: { storeId: secondStore.id, nameAr: 'منتج ثان', price: 3 } });
+  expect((await request('POST', '/orders/quote', 'CUSTOMER', { ...body, storeId: secondStore.id })).status).toBe(422);
+  const checkout = await request<{ orders: { orderId: string; subtotal: number }[] }>('POST', '/orders/checkout', 'CUSTOMER', {
+    customerAddressText: body.customerAddressText,
+    stores: [{ storeId: 'store', fulfillmentType: 'PICKUP', items: [item, { productId: 'product', quantity: 1 }] }, { storeId: secondStore.id, fulfillmentType: 'PICKUP', items: [{ productId: secondProduct.id, quantity: 1 }] }],
+  });
+  expect(checkout.status, JSON.stringify(checkout.error)).toBe(201);
+  expect(checkout.data.orders[0]?.subtotal).toBe(102.5);
+  const checkoutDetail = await request<OrderDetail>('GET', `/orders/${checkout.data.orders[0]!.orderId}`, 'CUSTOMER');
+  expect(checkoutDetail.status, JSON.stringify(checkoutDetail.error)).toBe(200);
+  expect(checkoutDetail.data.items.find(line => line.isOfferItem)?.offerTitle).toBe('وجبة عائلية');
+  const proposal = await request<OrderDetail>('POST', `/orders/${created.data.id}/change-proposal`, 'STORE_MANAGER', { updatedAt: edited.data.updatedAt, items: [item] });
+  expect(proposal.status, JSON.stringify(proposal.error)).toBe(200);
+  const approved = await request<OrderDetail>('POST', `/orders/${created.data.id}/change-decision`, 'CUSTOMER', { updatedAt: proposal.data.updatedAt, accept: true });
+  expect(approved.status, JSON.stringify(approved.error)).toBe(200);
+  expect(approved.data.subtotal).toBe(90);
+  expect(approved.data.items[0]?.isOfferItem).toBe(true);
+  await fixture.db.offer.delete({ where: { id: offer.id } });
+  const historical = await request<OrderDetail>('GET', `/orders/${created.data.id}`, 'CUSTOMER');
+  expect(historical.status).toBe(200);
+  expect(historical.data.items[0]?.product.nameAr).toBe('وجبة عائلية');
+});
+
+it('rejects inactive, future, expired and unpriced offers without creating orders', async () => {
+  for (const state of [{ isActive: false }, { startsAt: new Date(Date.now()+86400000) }, { expiresAt: new Date(Date.now()-1000) }, { price: null }, { price: 0 }]) {
+    const offer = await fixture.db.offer.create({ data: { storeId: 'store', titleAr: 'عرض', titleEn: 'Offer', descriptionAr: '', descriptionEn: '', price: 55, ...state } });
+    const body = { storeId: 'store', items: [{ productId: `offer:${offer.id}`, offerId: offer.id, isOfferItem: true, quantity: 1 }], customerAddressText: 'Unavailable offer test' };
+    expect((await request('POST', '/orders/quote', 'CUSTOMER', body)).status).toBe(422);
+    expect((await request('POST', '/orders', 'CUSTOMER', body)).status).toBe(422);
+    expect(await fixture.db.orderItem.count({ where: { offerId: offer.id } })).toBe(0);
+  }
+});
+
+
+it('allocates unique public references concurrently and exposes searchable codes without changing IDs', async () => {
+  const codes = await Promise.all(Array.from({ length: 12 }, () => nextPublicCode('CUSTOMER', fixture.db)));
+  expect(new Set(codes).size).toBe(12);
+  expect(codes.every(code => /^C-[0-9]{5,}$/.test(code))).toBe(true);
+  const publicCode = codes[0]!;
+  await fixture.db.user.update({ where: { id: 'CUSTOMER' }, data: { publicCode } });
+  const me = await request<{ id: string; publicCode: string }>('GET', '/auth/me', 'CUSTOMER');
+  expect(me.data).toMatchObject({ id: 'CUSTOMER', publicCode });
+  const users = await request<{ items: { id: string }[] }>('GET', `/users?search=${publicCode}`, 'ADMIN');
+  expect(users.data.items.map(user => user.id)).toContain('CUSTOMER');
+  const storeCode = await nextPublicCode('STORE', fixture.db);
+  await fixture.db.store.update({ where: { id: 'store' }, data: { publicCode: storeCode } });
+  const stores = await request<{ items: { id: string }[] }>('GET', `/stores?search=${storeCode}`, 'CUSTOMER');
+  expect(stores.data.items.map(store => store.id)).toContain('store');
 });
