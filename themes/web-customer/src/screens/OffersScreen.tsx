@@ -1,149 +1,43 @@
-/**
- * Samou Quick — Offers feed screen.
- *
- * Shows standalone promotional offers published by local stores.
- * Customers can tap "اطلب العرض الآن" to add the offer directly to
- * their cart and proceed to checkout.
- */
-
-import { useCallback, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { BadgePercent, ChevronLeft, Store as StoreIcon } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { BadgePercent, Store as StoreIcon, Image as ImageIcon, CalendarDays } from 'lucide-react';
 import { useLanguage, ImageWithFallback } from '@samou-go/ui';
 import { useAllOffers } from '@/hooks/useApi';
 import { useCart } from '@/components/CartProvider';
 import { ScreenShell } from '@/components/ScreenShell';
+import { formatCurrency } from '@/lib/delivery';
 
 export function OffersScreen() {
   const { t, language } = useLanguage();
-  const isArabic = language === 'ar';
   const navigate = useNavigate();
   const cart = useCart();
   const offers = useAllOffers();
-
-  const [addedId, setAddedId] = useState<string | null>(null);
-
-  const handleOrderOffer = useCallback(
-    (offer: { id: string; storeId: string; titleAr: string; price: number; imageUrl: string | null; storeNameAr?: string }) => {
-      cart.addOfferItem(offer, 1, offer.storeNameAr);
-      setAddedId(offer.id);
-      // Brief feedback then navigate to checkout
-      setTimeout(() => {
-        navigate('/checkout');
-      }, 400);
-    },
-    [cart, navigate],
-  );
-
   const items = (offers.data?.items ?? []).filter(o => o.price != null && o.price > 0);
-
-  return (
-    <ScreenShell title="العروض" subtitle="Offers">
-      {/* Header */}
-      <div className="mb-4 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
-          <BadgePercent size={22} className="text-brand" />
+  return <ScreenShell title="العروض" subtitle="Offers">
+    <div className="mb-5"><h2 className="text-xl font-extrabold">{t('عروض تستحق التجربة', 'Offers worth discovering')}</h2><p className="mt-2 text-sm text-ink-muted">{t('تفاصيل العرض وسعره، مباشرة من المتجر.', 'Offer details and prices, directly from the store.')}</p></div>
+    {offers.loading && <div role="status" className="skeleton h-64 rounded-2xl" aria-label="جارٍ تحميل العروض" />}
+    {offers.error && <div role="alert" className="rounded-2xl border border-line bg-surface p-5"><p>تعذّر تحميل العروض</p><button className="min-h-11 font-bold text-brand" onClick={offers.refresh}>إعادة المحاولة</button></div>}
+    {!offers.loading && !offers.error && !items.length && <p className="rounded-2xl border border-line bg-surface p-6 text-center text-ink-muted">لا توجد عروض متاحة حالياً</p>}
+    <div className="space-y-5">{items.map(offer => {
+      const title = language === 'ar' ? offer.titleAr : offer.titleEn || offer.titleAr;
+      const description = language === 'ar' ? offer.descriptionAr : offer.descriptionEn || offer.descriptionAr;
+      const image = offer.imageUrl || offer.storeCoverUrl;
+      return <article key={offer.id} className="overflow-hidden rounded-3xl border border-line bg-surface shadow-card">
+        <div className="relative h-44 overflow-hidden bg-canvas">
+          <ImageWithFallback key={image} src={image ?? ''} alt={offer.imageUrl ? title : offer.storeNameAr ?? 'المتجر'} className="h-full w-full object-cover" fallback={<span className="flex h-full w-full flex-col items-center justify-center gap-2 text-ink-muted"><ImageIcon size={32} /><span className="text-xs">لم يضف المتجر صورة للعرض بعد</span></span>} />
+          <span className="absolute inset-s-3 top-3 flex items-center gap-1 rounded-full bg-brand px-3 py-1.5 text-xs font-bold text-white"><BadgePercent size={14} />عرض متجر</span>
+          {!offer.imageUrl && image && <span className="absolute bottom-3 inset-e-3 rounded-lg bg-surface px-2 py-1 text-xs text-ink">صورة المتجر</span>}
         </div>
-        <div>
-          <h1 className="text-lg font-extrabold">{t('عروض المتاجر', 'Store Offers')}</h1>
-          <p className="text-xs text-ink-muted">{t('عروض مباشرة للطلب', 'Direct-purchase offers from local stores')}</p>
+        <div className="space-y-3 p-4">
+          <Link to={`/stores/${encodeURIComponent(offer.storeId)}`} className="flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-muted focus-visible:ring-2 focus-visible:ring-brand">
+            <ImageWithFallback key={offer.storeLogoUrl} src={offer.storeLogoUrl ?? ''} alt={`شعار ${offer.storeNameAr ?? 'المتجر'}`} className="size-9 rounded-xl object-cover" fallback={<span className="flex h-full w-full items-center justify-center bg-brand/10 text-brand"><StoreIcon size={18} /></span>} />
+            {offer.storeNameAr || t('عرض المتجر', 'View store')}
+          </Link>
+          <div className="flex items-start justify-between gap-3"><h3 className="text-lg font-extrabold leading-7">{title}</h3><span dir="ltr" className="shrink-0 rounded-xl bg-brand/10 px-3 py-2 text-base font-extrabold text-brand">{formatCurrency(offer.price!)}</span></div>
+          <p className="whitespace-pre-wrap text-sm leading-7 text-ink-muted">{description || t('تواصل مع المتجر لمعرفة تفاصيل العرض.', 'Contact the store for offer details.')}</p>
+          {offer.expiresAt && <p className="flex items-center gap-2 text-xs text-ink-muted"><CalendarDays size={15} />ينتهي في {new Date(offer.expiresAt).toLocaleDateString(language === 'ar' ? 'ar-PS' : 'en-GB')}</p>}
+          <button type="button" className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 text-sm font-bold text-white hover:bg-brand-dark focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" onClick={() => { cart.addOfferItem({ ...offer, price: offer.price! }, 1, offer.storeNameAr); navigate('/cart'); }}><BadgePercent size={18} />{t('أضف العرض إلى السلة', 'Add offer to cart')}</button>
         </div>
-      </div>
-
-      {/* Loading skeleton */}
-      {offers.loading && (
-        <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="skeleton h-64 rounded-2xl" />
-          ))}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!offers.loading && items.length === 0 && (
-        <div className="rounded-2xl border border-line bg-surface p-8 text-center">
-          <BadgePercent size={40} className="mx-auto text-ink-muted/30" />
-          <p className="mt-3 text-sm font-bold text-ink-muted">
-            {t('لا توجد عروض متاحة حالياً', 'No offers available right now')}
-          </p>
-          <p className="mt-1 text-xs text-ink-muted">
-            {t('تابع العروض من المتاجر المحلية', 'Stay tuned for offers from local stores')}
-          </p>
-        </div>
-      )}
-
-      {/* Offer cards */}
-      <div className="space-y-4">
-        {items.map((offer) => (
-          <div
-            key={offer.id}
-            className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card transition-all duration-200 active:scale-[0.98]"
-          >
-            {/* Offer image */}
-            {offer.imageUrl && (
-              <div className="relative h-44 w-full overflow-hidden bg-canvas">
-                <ImageWithFallback
-                  src={offer.imageUrl}
-                  alt={isArabic ? offer.titleAr : offer.titleEn}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-                {/* Price badge */}
-                <div className="absolute bottom-3 end-3 rounded-xl bg-brand px-3 py-1.5 text-sm font-black text-white shadow-brand">
-                  <span dir="ltr">{offer.price} ₪</span>
-                </div>
-              </div>
-            )}
-
-            {/* Offer content */}
-            <div className="p-4">
-              {/* Store info */}
-              <div className="mb-2 flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/10">
-                  <StoreIcon size={12} className="text-brand" />
-                </div>
-                <span className="text-[11px] font-bold text-ink-muted">
-                  {t('عرض متجر', 'Store offer')}
-                </span>
-              </div>
-
-              {/* Title & description */}
-              <h3 className="text-sm font-extrabold leading-snug">
-                {isArabic ? offer.titleAr : offer.titleEn}
-              </h3>
-              <p className="mt-1 text-xs leading-relaxed text-ink-muted line-clamp-2">
-                {isArabic ? offer.descriptionAr : offer.descriptionEn}
-              </p>
-
-              {/* Price (if no image) */}
-              {!offer.imageUrl && (
-                <div className="mt-2">
-                  <span className="rounded-lg bg-brand/10 px-2 py-0.5 text-sm font-black text-brand" dir="ltr">
-                    {offer.price} ₪
-                  </span>
-                </div>
-              )}
-
-              {/* Action button */}
-              <button
-                type="button"
-                onClick={() => handleOrderOffer(offer)}
-                disabled={addedId === offer.id}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-2.5 text-sm font-bold text-white transition-all duration-200 hover:bg-brand-dark active:scale-[0.97] disabled:opacity-70 tap-bounce"
-              >
-                {addedId === offer.id ? (
-                  <span className="text-sm">✓ {t('تمت الإضافة', 'Added')}</span>
-                ) : (
-                  <>
-                    <BadgePercent size={16} />
-                    {t('اطلب العرض الآن', 'Order Offer Now')}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </ScreenShell>
-  );
+      </article>;
+    })}</div>
+  </ScreenShell>;
 }

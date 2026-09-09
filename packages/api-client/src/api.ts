@@ -2136,7 +2136,7 @@ export function createSupportTicket(
 
 /** GET /api/v1/support/tickets — List user's tickets, or all tickets if Admin. */
 export function listSupportTickets(
-  query: { status?: string; priority?: string; category?: string } = {},
+  query: { status?: string; priority?: string; category?: string; page?: number; pageSize?: number } = {},
   signal?: AbortSignal,
 ): Promise<Paginated<SupportTicket>> {
   return request<Paginated<SupportTicket>>('GET', '/support', {

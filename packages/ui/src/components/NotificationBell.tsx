@@ -28,6 +28,8 @@ export interface BellNotification {
 
 export interface NotificationBellProps {
   notifications: BellNotification[];
+  /** Dock to the RTL start edge on mobile store headers. */
+  align?: 'start' | 'end';
   /** Namespace for the localStorage read-marker, e.g. `"captain"` or `"admin"`. */
   storageKey: string;
   /** Play the new-order chime once per brand-new notification id. */
@@ -82,6 +84,7 @@ const TONE_DOT: Record<NonNullable<BellNotification['tone']>, string> = {
  */
 export const NotificationBell: React.FC<NotificationBellProps> = ({
   notifications,
+  align = 'end',
   storageKey,
   chimeOnNew = false,
   onNavigate,
@@ -160,7 +163,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   const rows = notifications.slice(0, max);
 
   return (
-    <div ref={rootRef} className={cn('relative', className)}>
+    <div ref={rootRef} dir={isArabic ? 'rtl' : 'ltr'} className={cn('relative', className)}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -186,7 +189,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
       {open && (
         <div
           role="menu"
-          className="absolute end-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-line bg-surface shadow-raised"
+          className={cn('z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-line bg-surface shadow-raised', align === 'start' ? 'fixed inset-s-4 top-24 md:absolute md:inset-s-0 md:top-full' : 'absolute inset-e-0 top-full')}
         >
           <div className="flex items-center justify-between gap-3 border-b border-line bg-canvas/50 px-4 py-3">
             <p className="text-sm font-bold text-ink">{pick(labelAr, labelEn)}</p>

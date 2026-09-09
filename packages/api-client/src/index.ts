@@ -26,3 +26,5 @@ export * from './realtime';
 export * from './sso';
 
 export * from './config/features';
+
+export { SupportDesk } from './SupportDesk';

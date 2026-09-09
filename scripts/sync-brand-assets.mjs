@@ -9,7 +9,7 @@ const logo = await sharp(source).trim().png().toBuffer();
 const fit = (size, background = { r: 0, g: 0, b: 0, alpha: 0 }) =>
   sharp(logo).resize(size, size, { fit: "contain", background });
 await fit(512)
-  .webp({ quality: 90 })
+  .webp({ lossless: true })
   .toFile(path.join(root, "packages/ui/src/assets/logo.webp"));
 await fit(512).png().toFile(path.join(root, "packages/ui/src/assets/logo.png"));
 for (const theme of await readdir(path.join(root, "themes"))) {
@@ -34,7 +34,7 @@ for (const directory of await readdir(resources)) {
   if (!directory.startsWith("mipmap-") && !directory.startsWith("drawable"))
     continue;
   for (const filename of await readdir(path.join(resources, directory))) {
-    if (!filename.endsWith(".png")) continue;
+    if (!/^(ic_launcher(?:_round|_foreground)?|splash)\.png$/.test(filename)) continue;
     const target = path.join(resources, directory, filename);
     const { width, height } = await sharp(target).metadata();
     if (!width || !height) continue;
@@ -60,3 +60,20 @@ for (const directory of await readdir(resources)) {
 console.log(
   "Updated shared logo, seven sets of favicons, and customer Android icons/splashes.",
 );
+
+// Keep source resources and the iOS asset catalogue aligned with the official mark.
+await fit(1024, "#ffffff").png().toFile(path.join(root, "themes/web-customer/resources/icon.png"));
+const ios = path.join(root, "themes/web-customer/ios/App/App/Assets.xcassets");
+for (const folder of ["AppIcon.appiconset", "Splash.imageset"]) {
+  for (const file of await readdir(path.join(ios, folder))) {
+    if (!file.endsWith(".png")) continue;
+    const target = path.join(ios, folder, file);
+    const { width, height } = await sharp(target).metadata();
+    const mark = await fit(Math.round(Math.min(width, height) * (folder.startsWith("Splash") ? 0.3 : 0.7))).png().toBuffer();
+    await sharp({ create: { width, height, channels: 4, background: "#ffffff" } }).composite([{ input: mark, gravity: "centre" }]).png().toFile(target);
+  }
+}
+const splash = path.join(root, "themes/web-customer/resources/splash.png");
+const { width, height } = await sharp(splash).metadata();
+const splashMark = await fit(Math.round(Math.min(width, height) * 0.3)).png().toBuffer();
+await sharp({ create: { width, height, channels: 4, background: "#ffffff" } }).composite([{ input: splashMark, gravity: "centre" }]).png().toFile(splash);

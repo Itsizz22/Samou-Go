@@ -6,6 +6,7 @@
  * state (`activeNav`) lives in the dashboard; this component is purely presentational.
  */
 import {
+  MessageCircle,
   LayoutDashboard,
   LogOut,
   MapPin,
@@ -36,6 +37,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
   { id: 'Zones', ar: 'مناطق التوصيل', icon: MapPin },
   { id: 'Offers', ar: 'العروض', icon: Megaphone },
   { id: 'Settings', ar: 'الإعدادات', icon: Settings },
+  { id: 'Support', ar: 'الدعم الفني', icon: MessageCircle },
   { id: 'Financials', ar: 'المالية', icon: WalletCards },
 ] as const;
 

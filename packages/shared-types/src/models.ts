@@ -179,6 +179,9 @@ export interface DeliveryZone {
 /** A store-scoped promotional announcement — marketing display, NOT a
  * redeemable code (that's `Voucher`). */
 export interface Offer {
+  storeNameAr?: string;
+  storeLogoUrl?: string | null;
+  storeCoverUrl?: string | null;
   id: string;
   storeId: string;
   titleAr: string;

@@ -7,7 +7,7 @@ import type { Prisma } from '../../lib/prisma-types';
  * client is stale. Remove once `prisma generate` runs successfully.
  */
 export type OfferRow = Prisma.OfferGetPayload<{
-  include: { products: true };
+  include: { products: true; store: { select: { nameAr: true; logoUrl: true; coverUrl: true } } };
 }>;
 
 export function toOffer(offer: OfferRow): Offer {
@@ -15,6 +15,9 @@ export function toOffer(offer: OfferRow): Offer {
   return {
     id: offer.id,
     storeId: offer.storeId,
+    storeNameAr: offer.store?.nameAr,
+    storeLogoUrl: offer.store?.logoUrl ?? null,
+    storeCoverUrl: offer.store?.coverUrl ?? null,
     titleAr: offer.titleAr,
     titleEn: offer.titleEn,
     descriptionAr: offer.descriptionAr,

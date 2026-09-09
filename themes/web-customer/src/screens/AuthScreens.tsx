@@ -1,3 +1,4 @@
+import { AuthSupportContact } from '@/components/AuthSupportContact';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 import { useEffect, useState } from 'react';
 import { Crosshair, Eye, EyeOff, Loader2, MapPin } from 'lucide-react';
@@ -60,6 +61,7 @@ function AuthShell({ children }: { children: React.ReactNode }) {
           </strong>
         </div>
         {children}
+        <AuthSupportContact />
       </section>
     </main>
   );

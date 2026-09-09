@@ -1,7 +1,9 @@
+import loginBrand from '@/assets/login-brand.jpeg';
+import { AuthSupportContact } from '@/components/AuthSupportContact';
 import { useState } from 'react';
 import { CheckCheck, Eye, EyeOff, KeyRound, Loader2, Smartphone } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { BrandLogo, useLanguage } from '@samou-go/ui';
+import { useLanguage } from '@samou-go/ui';
 import { setSessionPersistence, useAuth, useToast } from '@/hooks/useApi';
 import { isValidPalestinianMobile, normalizePhone } from '@/lib/phone';
 import { roleHomePath } from '@/lib/roles';
@@ -32,23 +34,8 @@ export function LoginScreen() {
       data-figma-node="4:7"
     >
       <div className="customer-login__screen mx-auto w-full max-w-md">
-        <header className="relative flex h-50 items-center justify-center overflow-hidden p-6">
-          <img
-            src="/images/login-neighborhood.webp"
-            width={1344}
-            height={768}
-            alt=""
-            fetchPriority="high"
-            className="absolute inset-0 size-full object-cover"
-          />
-          <div className="pointer-events-none absolute inset-0 bg-brand/8" aria-hidden="true" />
-          <div
-            dir="ltr"
-            className="relative flex items-center gap-2 rounded-full bg-surface px-4 py-2 text-brand shadow-sm"
-          >
-            <BrandLogo size={24} />
-            <span className="text-lg font-bold leading-7">Samou Quick</span>
-          </div>
+        <header className="overflow-hidden bg-white">
+          <img src={loginBrand} width={1600} height={1066} alt="Samou Quick — من مكانك إلى بابك، كل ما تحتاجه يصلك بسرعة وسهولة" fetchPriority="high" className="block h-auto w-full" />
         </header>
 
         <div className="customer-login__content flex flex-col gap-6 p-6">
@@ -185,6 +172,7 @@ export function LoginScreen() {
               {auth.pending ? t('جارٍ تسجيل الدخول…', 'Signing in…') : t('تسجيل الدخول', 'Sign in')}
             </button>
           </form>
+          <AuthSupportContact />
 
           <p className="-my-1 flex min-h-11 flex-wrap items-center justify-center gap-x-1.5 text-sm leading-5 text-ink-muted">
             <span>{t('ليس لديك حساب؟', 'Don’t have an account?')}</span>

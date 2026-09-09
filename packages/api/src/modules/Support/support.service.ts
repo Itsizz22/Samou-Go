@@ -1,137 +1,58 @@
-import { prisma } from '../../lib/prisma';
-import { caseInsensitiveContains } from '../../lib/prisma';
-import { TicketStatus, TicketPriority } from '@samou-go/shared-types';
-import { createTicketSchema, createMessageSchema, updateTicketStatusSchema } from './support.schemas';
+import { randomUUID } from 'node:crypto';
+import { prisma, caseInsensitiveContains } from '../../lib/prisma';
+import { TicketStatus } from '@samou-go/shared-types';
+import { createTicketSchema, createMessageSchema, updateTicketStatusSchema, listTicketSchema } from './support.schemas';
 import { badRequest, forbidden, notFound } from '../../lib/http-error';
 import { parseWith } from '../../lib/validate';
 import type { CreateTicketInput, CreateMessageInput, UpdateTicketStatusInput, JwtPayload } from '@samou-go/shared-types';
 
 export async function createTicket(input: CreateTicketInput, auth: JwtPayload) {
   const body = parseWith(createTicketSchema, input);
-
-  const ticketNumber = await generateTicketNumber();
-  const { ticketNumber: _ignoredTicketNumber, userId: _ignoredUserId, ...ticketBody } = body;
-
-  const ticket = await prisma.supportTicket.create({
-    data: {
-      ticketNumber,
-      userId: auth.sub,
-      ...ticketBody,
-    },
-  });
-
-  // Create the initial message from the ticket creator
-  await prisma.ticketMessage.create({
-    data: {
-      ticketId: ticket.id,
-      senderId: auth.sub,
-      senderRole: auth.role,
-      message: body.subject,
-    },
-  });
-
-  return ticket;
+  if (body.orderId) {
+    const order = await prisma.order.findUnique({ where: { id: body.orderId }, select: { customerId: true, captainId: true, store: { select: { managerId: true } } } });
+    if (!order || (auth.role !== 'ADMIN' && order.customerId !== auth.sub && order.captainId !== auth.sub && order.store.managerId !== auth.sub)) throw forbidden();
+  }
+  return prisma.supportTicket.create({ data: {
+    ticketNumber: 'TKT-' + randomUUID(), userId: auth.sub, orderId: body.orderId,
+    category: body.category, subject: body.subject, priority: body.priority, status: TicketStatus.OPEN,
+    messages: { create: { senderId: auth.sub, senderRole: auth.role, message: body.message ?? body.subject } },
+  }, include: { messages: true } });
 }
 
-export async function listTickets(
-  query: { status?: string; priority?: string; category?: string } = {},
-  auth: JwtPayload
-) {
-  const where = {
-    ...(query.status && { status: query.status }),
-    ...(query.priority && { priority: query.priority }),
-    ...(query.category && { category: caseInsensitiveContains(query.category) }),
-    ...(auth.role !== 'ADMIN' && { userId: auth.sub }),
-  };
-
-  return prisma.supportTicket.findMany({
-    where,
-    include: {
-      messages: {
-        orderBy: { createdAt: 'asc' },
-        take: 50,
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+export async function listTickets(query: { status?: string; priority?: string; category?: string; page?: number; pageSize?: number } = {}, auth: JwtPayload) {
+  const q = parseWith(listTicketSchema, query);
+  const where = { ...(q.status && { status: q.status }), ...(q.priority && { priority: q.priority }), ...(q.category && { category: caseInsensitiveContains(q.category) }), ...(auth.role !== 'ADMIN' && { userId: auth.sub }) };
+  const [items, total] = await Promise.all([
+    prisma.supportTicket.findMany({ where, orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }], skip: (q.page - 1) * q.pageSize, take: q.pageSize }),
+    prisma.supportTicket.count({ where }),
+  ]);
+  return { items, total, page: q.page, pageSize: q.pageSize, totalPages: Math.ceil(total / q.pageSize) };
 }
 
 export async function getTicket(id: string, auth: JwtPayload) {
-  const ticket = await prisma.supportTicket.findUnique({
-    where: { id },
-    include: {
-      messages: {
-        orderBy: { createdAt: 'asc' },
-        take: 200,
-      },
-    },
-  });
-
-  if (!ticket) throw notFound('التذكرة غير الموجودة / Support ticket not found');
-
-  // Admins can view any ticket; users can only view their own unless they're support
+  const ticket = await prisma.supportTicket.findUnique({ where: { id }, include: { messages: { orderBy: { createdAt: 'desc' }, take: 200 } } });
+  if (!ticket) throw notFound('التذكرة غير موجودة / Support ticket not found');
   if (auth.role !== 'ADMIN' && ticket.userId !== auth.sub) throw forbidden();
-
-  return ticket;
+  return { ...ticket, messages: [...ticket.messages].reverse() };
 }
 
 export async function addMessage(id: string, input: CreateMessageInput, auth: JwtPayload) {
   const body = parseWith(createMessageSchema, input);
-
-  const ticket = await prisma.supportTicket.findUnique({
-    where: { id },
+  return prisma.$transaction(async tx => {
+    const ticket = await tx.supportTicket.findUnique({ where: { id } });
+    if (!ticket) throw notFound('التذكرة غير موجودة / Support ticket not found');
+    if (ticket.userId !== auth.sub && auth.role !== 'ADMIN') throw forbidden();
+    if (ticket.status === TicketStatus.CLOSED) throw badRequest('التذكرة مغلقة، أنشئ تذكرة جديدة / Ticket is closed');
+    const message = await tx.ticketMessage.create({ data: { ticketId: id, senderId: auth.sub, senderRole: auth.role, message: body.message, ...(body.attachments && { attachments: body.attachments }) } });
+    await tx.supportTicket.update({ where: { id }, data: { updatedAt: new Date() } });
+    return message;
   });
-
-  if (!ticket) throw notFound('التذكرة غير موجودة / Support ticket not found');
-
-  // Check permissions: author or admin or support
-  if (ticket.userId !== auth.sub && auth.role !== 'ADMIN') {
-    throw forbidden();
-  }
-
-  const message = await prisma.ticketMessage.create({
-    data: {
-      ticketId: id,
-      senderId: auth.sub,
-      senderRole: auth.role,
-      message: body.message,
-      attachments: body.attachments,
-    },
-  });
-
-  return message;
 }
 
 export async function updateTicketStatus(id: string, input: UpdateTicketStatusInput, auth: JwtPayload) {
+  if (auth.role !== 'ADMIN') throw forbidden();
   const body = parseWith(updateTicketStatusSchema, input);
-
-  // Only admin and support can update status/priority
-  if (auth.role !== 'ADMIN') {
-    throw forbidden();
-  }
-
-  const ticket = await prisma.supportTicket.update({
-    where: { id },
-    data: {
-      status: body.status,
-      priority: body.priority,
-    },
-  });
-
-  return ticket;
-}
-
-async function generateTicketNumber(): Promise<string> {
-  const lastTicket = await prisma.supportTicket.findFirst({
-    orderBy: { ticketNumber: 'desc' },
-    select: { ticketNumber: true },
-  });
-
-  if (!lastTicket) return 'TKT-1001';
-
-  const match = lastTicket.ticketNumber.match(/TKT-(\d+)/);
-  if (!match) return 'TKT-1001';
-
-  const lastNum = parseInt(match[1] ?? '1000', 10);
-  return `TKT-${String(lastNum + 1).padStart(4, '0')}`;
+  const ticket = await prisma.supportTicket.findUnique({ where: { id }, select: { id: true } });
+  if (!ticket) throw notFound('التذكرة غير موجودة / Support ticket not found');
+  return prisma.supportTicket.update({ where: { id }, data: { status: body.status, priority: body.priority, resolvedAt: body.status === TicketStatus.RESOLVED || body.status === TicketStatus.CLOSED ? new Date() : null } });
 }

@@ -1,4 +1,4 @@
-import { OrderCustomerDetails } from '@samou-go/ui';
+import { BrandLogo, OrderCustomerDetails } from '@samou-go/ui';
 import { ZoneLandmarkTrackingView } from '@samou-go/ui';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
@@ -780,7 +780,7 @@ export function SamouGoCaptain() {
     <main className={`min-h-screen bg-canvas pb-28 font-sans text-ink transition-[padding] duration-300 ${sidebarOpen ? 'md:ps-60' : ''}`}>
       {sidebarOpen && <button type="button" aria-label={t('إغلاق القائمة', 'Close navigation')} onClick={() => setSidebarOpen(false)} className="fixed inset-0 z-20 bg-ink/40 md:hidden" />}
       <aside inert={!sidebarOpen} className={`fixed inset-y-0 start-0 z-30 flex w-60 flex-col border-e border-line bg-surface px-4 py-6 text-ink shadow-overlay transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'rtl:translate-x-full ltr:-translate-x-full'}`} aria-label={t('تنقل الكابتن', 'Captain navigation')}>
-        <p className="px-3 text-lg font-extrabold">Samou Quick</p>
+        <div className="flex justify-center px-3 py-2"><BrandLogo size={104} /></div>
         <p className="px-3 text-[11px] text-ink-muted">الكابتن</p>
         <nav className="mt-8 flex-1 space-y-1">
           {NAV_ITEMS.map((item) => {

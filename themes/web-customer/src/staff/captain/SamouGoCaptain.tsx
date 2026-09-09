@@ -1,4 +1,4 @@
-import { OrderCustomerDetails } from '@samou-go/ui';
+import { BrandLogo, OrderCustomerDetails } from '@samou-go/ui';
 import { ZoneLandmarkTrackingView } from '@samou-go/ui';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
@@ -673,7 +673,7 @@ export function SamouGoCaptain() {
   return (
     <main data-view={activeTab} className="sq-staff sq-captain min-h-screen bg-canvas pb-28 font-sans text-ink md:ps-60">
       <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col border-e border-line bg-surface px-4 py-6 text-ink md:flex" aria-label="تنقل الكابتن">
-        <p className="px-3 text-lg font-extrabold">Samou Quick</p>
+        <div className="flex justify-center px-3 py-2"><BrandLogo size={104} /></div>
         <p className="px-3 text-[11px] text-ink-muted">الكابتن</p>
         <nav className="mt-8 flex-1 space-y-1">
           {NAV_ITEMS.map((item) => {

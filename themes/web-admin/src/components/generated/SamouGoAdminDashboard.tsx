@@ -1,3 +1,4 @@
+import { SupportDesk } from '@samou-go/api-client';
 import { OverdueOrdersPanel } from '../OverdueOrdersPanel';
 import { FeaturedProductsSettings } from '../FeaturedProductsSettings';
 import { PricingSettings } from '../PricingSettings';
@@ -295,6 +296,7 @@ export function SamouGoAdminDashboard() {
           {activeNav === 'Zones' && <ZonesPanel />}
           {activeNav === 'Offers' && <OffersPanel />}
           {activeNav === 'Settings' && <AdminSettingsPanel auth={auth} />}
+          {activeNav === 'Support' && auth.user && <SupportDesk userId={auth.user.id} isAdmin />}
           {activeNav === 'Financials' && <FinancialsPanel />}
         </div>
       </section>

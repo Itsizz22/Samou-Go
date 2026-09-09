@@ -3,6 +3,7 @@ import { ok, created } from '../../lib/respond';
 import { parseWith } from '../../lib/validate';
 import { requireAuth } from '../../middleware/authenticate';
 import {
+  listTicketSchema,
   createTicketSchema,
   createMessageSchema,
   updateTicketStatusSchema,
@@ -18,11 +19,7 @@ export async function createSupportTicketHandler(req: Request, res: Response): P
 
 export async function listSupportTicketsHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);
-  const query = {
-    status: req.query.status as string,
-    priority: req.query.priority as string,
-    category: req.query.category as string,
-  };
+  const query = parseWith(listTicketSchema, req.query);
   ok(res, await supportService.listTickets(query, auth));
 }
 

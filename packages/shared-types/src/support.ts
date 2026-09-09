@@ -31,19 +31,20 @@ export interface TicketMessage {
   createdAt: string;
 }
 
+/** Identity and ticket number are always assigned by the authenticated server. */
 export interface CreateTicketInput {
-  ticketNumber: string;
-  userId: string;
+  ticketNumber?: string;
+  userId?: string;
   orderId?: string;
   category: string;
   subject: string;
+  message?: string;
   priority?: TicketPriority;
   status?: TicketStatus;
 }
-
 export interface CreateMessageInput {
-  senderId: string;
-  senderRole: 'CUSTOMER' | 'STORE_MANAGER' | 'CAPTAIN' | 'ADMIN' | 'SUPPORT';
+  senderId?: string;
+  senderRole?: TicketMessage['senderRole'];
   message: string;
   attachments?: string[];
 }

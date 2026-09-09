@@ -1,58 +1,40 @@
-import { MapPin, PackageOpen } from 'lucide-react';
 import { useLanguage } from '@samou-go/ui';
 import { useShowcaseCarousel } from '@/hooks/useShowcaseCarousel';
-import bannerImage from '@/assets/home-banner.png';
+import parcelImage from '@/assets/promo-parcel-delivery.jpeg';
+import trackingImage from '@/assets/promo-map-tracking.jpeg';
 
-/** Figma home 4:75; shared interactions retain the second upcoming service. */
+/** Upcoming services only; keep the shared swipe, pause and auto-advance behavior. */
 export function PromoBannerSlider() {
   const { t, dir } = useLanguage();
   const carousel = useShowcaseCarousel(2, 5500);
   const slides = [
     {
-      title: t('تابع حالة طلبك', 'Follow your order status'),
-      description: t(
-        'تابع تجهيز طلبك وتسليمه من صفحة الطلب. التتبع على الخريطة غير متاح حاليًا.',
-        'Follow preparation and delivery on your order page. Live map tracking is not currently available.'
-      ),
-      Icon: MapPin,
+      title: t('قريباً: توصيل الطرود', 'Coming soon: parcel delivery'),
+      image: parcelImage,
     },
     {
-      title: t('توصيل الطرود والأمانات', 'Package delivery'),
-      description: t(
-        'قريباً، توصيل طرودك ومشترياتك من أي مكان في السموع إلى باب بيتك.',
-        'Coming soon: packages and shopping delivered to your door.'
-      ),
-      Icon: PackageOpen,
+      title: t('قريباً: تتبع الطلب على الخريطة', 'Coming soon: live order tracking on the map'),
+      image: trackingImage,
     },
   ];
   return (
-    <section className="mx-auto max-w-md px-5 pt-4" aria-label="Feature banners">
+    <section className="mx-auto max-w-md px-5 pt-4" aria-label={t('إعلانات الخدمات القادمة', 'Upcoming services')}>
       <div
         {...carousel.bindings}
-        className="overflow-hidden rounded-[20px]"
+        className="overflow-hidden rounded-2xl border border-line bg-white shadow-card"
         style={{ touchAction: 'pan-y' }}
       >
         <div dir="ltr" className="flex" style={carousel.trackStyle}>
-          {slides.map(({ title, description, Icon }, index) => (
-            <div
-              key={index}
-              dir={dir}
-              aria-hidden={index !== carousel.active}
-              className="relative flex min-w-full flex-row-reverse items-center gap-3 p-4 text-white"
-            >
+          {slides.map(({ title, image }, index) => (
+            <div key={image} dir={dir} aria-hidden={index !== carousel.active} className="min-w-full shrink-0">
               <img
-                src={bannerImage}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover"
+                src={image}
+                alt={title}
+                width={1600}
+                height={1066}
+                draggable={false}
+                className="block h-auto w-full select-none"
               />
-              <div className="absolute inset-0 bg-slate-900/85" />
-              <div className="relative min-w-0 flex-1 text-start">
-                <h3 className="text-base font-bold leading-5 text-white">{title}</h3>
-                <p className="mt-1 text-xs leading-4 text-white/90">{description}</p>
-              </div>
-              <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand">
-                <Icon size={24} />
-              </span>
             </div>
           ))}
         </div>
@@ -60,16 +42,14 @@ export function PromoBannerSlider() {
       <div dir={dir} className="flex justify-center">
         {slides.map(({ title }, index) => (
           <button
-            key={index}
+            key={title}
             type="button"
             onClick={() => carousel.setIndex(index)}
             aria-label={title}
             aria-pressed={carousel.active === index}
-            className="flex h-11 w-11 items-center justify-center"
+            className="flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-brand"
           >
-            <span
-              className={`h-1.5 rounded-full transition-all motion-reduce:transition-none ${carousel.active === index ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`}
-            />
+            <span className={`h-1.5 rounded-full transition-all motion-reduce:transition-none ${carousel.active === index ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`} />
           </button>
         ))}
       </div>

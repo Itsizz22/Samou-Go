@@ -1,3 +1,4 @@
+import { CatalogueSearchField } from '@/components/CatalogueSearchField';
 import { ConnectionNotice } from '@/components/ConnectionNotice';
 import { ZoneSelector } from '@/components/ZoneProvider';
 import { HomeProductSearch } from '@/components/HomeProductSearch';
@@ -21,7 +22,6 @@ import {
   MessageSquarePlus,
   Plus,
   RefreshCw,
-  Search,
   ShoppingBag,
   ShoppingCart,
   Star,
@@ -233,22 +233,8 @@ export function SamouGoHome() {
       </header>
       <ConnectionNotice loading={stores.loading || popular.loading} failed={Boolean(stores.error || popular.error)} retry={() => { stores.reload(); popular.reload(); }} />
 
-      <section className="mx-auto max-w-md px-5" role="search" aria-label="Search">
-        <div className="flex min-h-14 items-center gap-3 rounded-2xl border border-line bg-canvas/80 px-4 py-1 shadow-card transition-all duration-200 hover:bg-surface focus-within:border-brand focus-within:bg-surface focus-within:ring-2 focus-within:ring-brand/30">
-          <Search size={20} className="shrink-0 text-brand" />
-          <input
-            value={searchTerm}
-            onChange={event => setSearchTerm(event.target.value)}
-            enterKeyHint="search"
-            aria-controls="catalogue-search-results"
-            maxLength={120}
-            onKeyDown={event => { if (event.key === 'Enter') setDebouncedSearch(searchTerm.trim()); }}
-            className="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-ink-subtle"
-            placeholder={t('ابحث عن متاجر أو منتجات', 'Search stores or products…')}
-            aria-label={t('ابحث عن متاجر أو منتجات', 'Search stores or products')}
-          />
-          {searchTerm && <button type="button" aria-label="مسح البحث" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ink-muted focus-visible:ring-2 focus-visible:ring-brand" onClick={event => { setSearchTerm(''); setDebouncedSearch(''); event.currentTarget.parentElement?.querySelector('input')?.focus(); }}>✕</button>}
-        </div>
+      <section className="mx-auto max-w-md px-5">
+        <CatalogueSearchField value={searchTerm} onChange={setSearchTerm} onSearch={() => setDebouncedSearch(searchTerm.trim())} />
       </section>
 
       {/* ==========================================================================
