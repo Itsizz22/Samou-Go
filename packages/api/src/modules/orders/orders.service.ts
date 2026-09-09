@@ -1510,10 +1510,13 @@ export async function updatePreparationTime(actor: { sub: string; role: UserRole
 /** Release only the caller's reservation; pickup and release share the captain/status lock. */
 export async function releaseReservation(actor: { sub: string; role: UserRole }, orderId: string, reason: string) {
   if (actor.role !== UserRole.CAPTAIN) throw forbidden();
+  // Read outside the transaction: concurrent SQLite readers must not all try to
+  // upgrade their read locks to writes. The first transactional statement is
+  // the authoritative compare-and-swap; history is committed only by its winner.
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { store: { select: { managerId: true, nameAr: true } } } });
+  if (!order || order.captainId !== actor.sub) throw forbidden('الطلب غير محجوز لك / This reservation is not yours');
+  if (!PREPARATION_POOL_STATUSES.some(status => status === order.status)) throw conflict('لا يمكن الاعتذار بعد الاستلام / Cannot withdraw after pickup');
   return prisma.$transaction(async tx => {
-    const order = await tx.order.findUnique({ where: { id: orderId }, include: { store: { select: { managerId: true, nameAr: true } } } });
-    if (!order || order.captainId !== actor.sub) throw forbidden('الطلب غير محجوز لك / This reservation is not yours');
-    if (!PREPARATION_POOL_STATUSES.some(status => status === order.status)) throw conflict('لا يمكن الاعتذار بعد الاستلام / Cannot withdraw after pickup');
     const released = await tx.order.updateMany({ where: { id: orderId, captainId: actor.sub, status: order.status }, data: { captainId: null, prepReminderSentAt: null, prepReminderLeaseUntil: null } });
     if (!released.count) throw conflict('تغير الطلب، حدّث الصفحة / Order changed; refresh');
     await tx.orderStatusHistory.create({ data: { orderId, status: order.status, changedByUserId: actor.sub, note: `اعتذار الكابتن عن التوصيل: ${reason}` } });
