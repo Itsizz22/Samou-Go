@@ -50,6 +50,8 @@ export type OrderWithRelations = PrismaOrder & {
 };
 
 export type OrderForSummary = PrismaOrder & {
+  customer?: Pick<PrismaUser, 'name' | 'phone'>;
+  deliveryZone?: Pick<PrismaDeliveryZone, 'nameAr'> | null;
   items: (Pick<PrismaOrderItem, 'quantity' | 'note'> & {
     product: Pick<PrismaProduct, 'nameAr'>;
   })[];
@@ -183,6 +185,7 @@ export function toOrderDetail(order: OrderWithRelations, viewerRole?: string): O
 }
 
 export function toOrderSummary(order: OrderForSummary, viewerRole?: string): OrderSummary {
+  const staff = viewerRole === UserRole.STORE_MANAGER || viewerRole === UserRole.CAPTAIN || viewerRole === UserRole.ADMIN;
   const raw = order as any;
   return {
     id: order.id,
@@ -190,6 +193,8 @@ export function toOrderSummary(order: OrderForSummary, viewerRole?: string): Ord
     status: order.status,
     captainId: order.captainId,
     cartCheckoutId: order.cartCheckoutId ?? null,
+    customerContact: staff && order.customer ? { name: order.customer.name, phone: order.customer.phone } : null,
+    deliveryDestination: staff ? { zoneNameAr: order.deliveryZone?.nameAr ?? null, address: order.customerAddressText, landmark: order.addressNote } : null,
     itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
     totalAmount: decimalToNumber(order.totalAmount),
     deliveryFee: decimalToNumber(order.deliveryFee),

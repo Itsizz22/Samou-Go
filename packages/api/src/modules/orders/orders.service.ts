@@ -82,6 +82,8 @@ export const SUMMARY_INCLUDE = {
     },
   },
   store: { select: { nameAr: true } },
+  customer: { select: { name: true, phone: true } },
+  deliveryZone: { select: { nameAr: true } },
 } satisfies Prisma.OrderInclude;
 
 /** Same-day sequence bumps happen atomically via `dailyOrderSequence` upsert. */

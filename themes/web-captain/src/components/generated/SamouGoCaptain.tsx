@@ -1,3 +1,4 @@
+import { OrderCustomerDetails } from '@samou-go/ui';
 import { ZoneLandmarkTrackingView } from '@samou-go/ui';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
@@ -677,6 +678,7 @@ export function SamouGoCaptain() {
                         )}
                       </p>
                     )}
+                    <OrderCustomerDetails order={order} showDestination />
                     {order.requiresHandoffCode && (
                       <p className="mt-2 flex items-center gap-1.5 rounded-lg bg-brand-surface px-2.5 py-1.5 text-[11px] font-bold text-brand-dark">
                         <KeyRound size={12} className="shrink-0" />
@@ -936,6 +938,7 @@ export function SamouGoCaptain() {
                               ))}
                           </div>
                         )}
+                      <OrderCustomerDetails order={order} showDestination />
                       {/* Delivery zone picker — only shown when zones are enabled */}
                       {!order.autoPriced && platformSettings.data?.enableDeliveryZones && zones.length > 0 && (
                         <OrderZonePicker

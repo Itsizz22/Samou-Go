@@ -1,3 +1,4 @@
+import { OrderCustomerDetails } from '@samou-go/ui';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
  * Samou' Go — store manager dashboard.
@@ -1280,6 +1281,8 @@ function OrderRow({ order, customerPhone, customerName, pending, onAccept, onSta
           </p>
         )}
       </div>
+
+      <OrderCustomerDetails order={order} />
 
       {/* READY_FOR_PICKUP: show pickup or delivery status */}
       {order.status === OrderStatus.READY_FOR_PICKUP && order.fulfillmentType === 'PICKUP' && (

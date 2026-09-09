@@ -363,6 +363,9 @@ export interface OrderDetail extends Order {
 
 /** The condensed row used in list views. */
 export interface OrderSummary {
+  /** Contact and destination, returned only to authorized staff list viewers. */
+  customerContact?: { name: string; phone: string } | null;
+  deliveryDestination?: { zoneNameAr: string | null; address: string; landmark: string | null } | null;
   id: string;
   orderNumber: string;
   status: OrderStatus;
