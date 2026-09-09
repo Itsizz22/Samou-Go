@@ -292,8 +292,8 @@ export async function assignCaptainHandler(req: Request, res: Response): Promise
         await sendPushToUser(captainId, {
           title: 'توصيل جديد 🚗',
           body: `لديك طلب جديد #${result.orderNumber} — اضغط للتوصيل`,
-          data: { orderId: result.id, screen: 'order' },
-        });
+          data: { orderId: result.id, type: 'CAPTAIN_ASSIGN', storeId: result.storeId, screen: 'order' },
+        }, { dataOnly: true });
       } catch {
         // Push failure must never break the assignment flow.
       }
