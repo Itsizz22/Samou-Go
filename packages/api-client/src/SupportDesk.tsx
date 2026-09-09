@@ -4,12 +4,12 @@ import { listSupportTickets, getSupportTicket, createSupportTicket, addSupportMe
 import { useResource } from './useApi';
 const labels: Record<string, string> = { OPEN: 'مفتوحة', IN_PROGRESS: 'قيد المتابعة', RESOLVED: 'تم الحل', CLOSED: 'مغلقة' };
 /** Shared ticket UI for signed-in customers and the admin support inbox. */
-export function SupportDesk({ userId, isAdmin = false }: { userId: string; isAdmin?: boolean }) {
+export function SupportDesk({ userId, isAdmin = false, orderId }: { userId: string; isAdmin?: boolean; orderId?: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [creating, setCreating] = useState(false);
-  const [subject, setSubject] = useState('');
-  const [category, setCategory] = useState('عام');
+  const [creating, setCreating] = useState(Boolean(orderId));
+  const [subject, setSubject] = useState(orderId ? 'مشكلة في الطلب' : '');
+  const [category, setCategory] = useState(orderId ? 'مشكلة في الطلب' : 'عام');
   const [message, setMessage] = useState('');
   const [reply, setReply] = useState('');
   const [pending, setPending] = useState(false);
@@ -24,7 +24,8 @@ export function SupportDesk({ userId, isAdmin = false }: { userId: string; isAdm
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-extrabold">{isAdmin ? 'صندوق الدعم الفني' : 'تذاكر الدعم الفني'}</h2><button type="button" className="min-h-11 rounded-xl border border-line px-3 text-sm" onClick={refresh}>تحديث</button></div>
     {error && <p role="alert" className="rounded-xl bg-danger-tint p-3 text-sm text-danger-ink">{error}</p>}
     {(selected || creating) && <button type="button" disabled={pending} className="min-h-11 text-sm font-bold text-brand" onClick={() => { setSelected(null); setCreating(false); setError(''); }}>العودة إلى التذاكر</button>}
-    {creating ? <form className="space-y-4 rounded-2xl border border-line bg-surface p-4" onSubmit={event => { event.preventDefault(); void run(async () => { const ticket = await createSupportTicket({ subject: subject.trim(), category, message: message.trim() }); setSubject(''); setMessage(''); open(ticket); tickets.refresh(); }); }}>
+    {creating ? <form className="space-y-4 rounded-2xl border border-line bg-surface p-4" onSubmit={event => { event.preventDefault(); void run(async () => { const ticket = await createSupportTicket({ subject: subject.trim(), category, orderId, message: message.trim() }); setSubject(''); setMessage(''); open(ticket); tickets.refresh(); }); }}>
+      {orderId && <p className="text-sm text-ink-muted">هذه التذكرة مرتبطة بطلبك تلقائياً.</p>}
       <label className="block text-sm font-bold">نوع المساعدة<select value={category} onChange={event => setCategory(event.target.value)} className={field}><option>عام</option><option>مشكلة في الطلب</option><option>الحساب</option><option>شكوى</option></select></label>
       <label className="block text-sm font-bold">عنوان التذكرة<input required maxLength={200} value={subject} onChange={event => setSubject(event.target.value)} className={field} /></label>
       <label className="block text-sm font-bold">كيف يمكننا مساعدتك؟<textarea required maxLength={2000} rows={4} value={message} onChange={event => setMessage(event.target.value)} className={field} /></label>

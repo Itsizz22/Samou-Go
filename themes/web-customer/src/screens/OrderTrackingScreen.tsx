@@ -1,3 +1,7 @@
+import { OrderChangePanel } from '@samou-go/api-client';
+import { PendingOrderEditor } from '@/components/PendingOrderEditor';
+import { PreparationCountdown } from '@samou-go/api-client';
+import { OrderRatingForm } from '@/components/OrderRatingForm';
 import { ZoneLandmarkTrackingView } from '@samou-go/ui';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 import { normalizeSelectedOptions } from '@samou-go/shared-types';
@@ -335,8 +339,13 @@ export function OrderTrackingScreen() {
                 </section>
               )}
 
+              {<PreparationCountdown order={order.data} customer />}
+              {order.data.status === OrderStatus.DELIVERED && <OrderRatingForm orderId={order.data.id} hasCaptain={Boolean(order.data.captainId)} />}
+              <PendingOrderEditor key={order.data.updatedAt} order={order.data} onSaved={order.refresh} />
+              <OrderChangePanel orderId={order.data.id} />
               {/* Re-order this basket */}
               <section className="rounded-2xl bg-surface p-4 shadow-card">
+                <button type="button" className="btn-secondary min-h-11 w-full" onClick={() => navigate(`/support?orderId=${encodeURIComponent(order.data!.id)}`)}>مشكلة في هذا الطلب؟ تواصل مع الدعم</button>
                 <button
                   type="button"
                   onClick={() => void handleReorder()}

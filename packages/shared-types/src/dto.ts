@@ -194,6 +194,7 @@ export interface ProductListQuery extends PaginationQuery {
  * ------------------------------------------------------------------------- */
 
 export interface CreateOrderItemInput {
+  selectedOptions?: { groupId: string; optionId: string }[];
   productId: string;
   quantity: number;
   note?: string;
@@ -212,6 +213,7 @@ export interface CreateOrderItemInput {
  * an amount — the server resolves it and computes the discount itself.
  */
 export interface CreateOrderInput {
+  unavailableAction?: "CONTACT" | "REMOVE" | "SUGGEST";
   requestId?: string;
   storeId: string;
   items: CreateOrderItemInput[];

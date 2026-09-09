@@ -1,3 +1,4 @@
+import { ProductPhotoFallback } from './ProductPhotoFallback';
 import { Link } from 'react-router-dom';
 import { Pause, Play, Plus, SlidersHorizontal, Store } from 'lucide-react';
 import { ImageWithFallback, useLanguage } from '@samou-go/ui';
@@ -71,6 +72,7 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
                   <div className="relative aspect-video overflow-hidden bg-canvas">
                     <ImageWithFallback
                       src={product.imageUrl ?? undefined}
+                  fallback={<ProductPhotoFallback />}
                       alt={product.nameAr}
                       className="h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-105 motion-reduce:transition-none"
                       fallbackText={product.nameAr.slice(0, 2)}

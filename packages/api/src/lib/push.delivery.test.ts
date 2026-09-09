@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  preferences: vi.fn().mockResolvedValue({ marketingNotificationsEnabled: true }),
   auditCreate: vi.fn().mockResolvedValue({ id: 'audit' }), auditUpdate: vi.fn().mockResolvedValue({}),
   send: vi.fn(), findMany: vi.fn(), deleteMany: vi.fn(), initialize: vi.fn(), cert: vi.fn(() => ({})),
 }));
 vi.mock('../config/env', () => ({ env: { firebase: { serviceAccountJson: '{}', serviceAccountPath: null, projectId: 'test-only' } } }));
-vi.mock('./prisma', () => ({ prisma: { notificationDelivery: { create: mocks.auditCreate, update: mocks.auditUpdate }, deviceToken: { findMany: mocks.findMany, deleteMany: mocks.deleteMany } } }));
+vi.mock('./prisma', () => ({ prisma: { user: { findUnique: mocks.preferences }, notificationDelivery: { create: mocks.auditCreate, update: mocks.auditUpdate }, deviceToken: { findMany: mocks.findMany, deleteMany: mocks.deleteMany } } }));
 vi.mock('firebase-admin/app', () => ({ getApps: () => [], initializeApp: mocks.initialize, cert: mocks.cert }));
 vi.mock('firebase-admin/messaging', () => ({ getMessaging: () => ({ sendEachForMulticast: mocks.send }) }));
 import { sendPushToUser } from './push';
@@ -61,5 +62,13 @@ it('records a provider exception with a code, never the token-bearing error mess
 it('does not duplicate a successful push when audit persistence is unavailable', async () => {
   mocks.auditUpdate.mockRejectedValueOnce(new Error('database unavailable'));
   await expect(sendPushToUser('user', { title: 'Order', body: 'Ready' })).resolves.toEqual({ sent: 1, failed: 0 });
+  expect(mocks.send).toHaveBeenCalledTimes(1);
+});
+
+it('allows order alerts while promotional notifications are disabled', async () => {
+  mocks.preferences.mockResolvedValue({ marketingNotificationsEnabled:false });
+  await sendPushToUser('user',{ title:'عرض',body:'خصم',data:{type:'PROMOTION'} });
+  expect(mocks.send).not.toHaveBeenCalled();
+  await sendPushToUser('user',{title:'طلب',body:'جاهز',data:{type:'NEW_ORDER'} });
   expect(mocks.send).toHaveBeenCalledTimes(1);
 });

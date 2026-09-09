@@ -34,3 +34,5 @@ export * from './PreparationStatus';
 export * from './SessionRecovery';
 
 export * from './ConnectionNotice';
+
+export { OrderChangePanel } from './OrderChangePanel';

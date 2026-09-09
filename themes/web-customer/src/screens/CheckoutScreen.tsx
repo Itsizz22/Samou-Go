@@ -1,3 +1,4 @@
+import { useCheckoutDraft } from '@/hooks/useCheckoutDraft';
 import { ConnectionNotice } from '@/components/ConnectionNotice';
 import { submitCheckoutAttempt } from '@/lib/checkoutAttempt';
 import { AutomaticPricingPreview } from '@/components/AutomaticPricingPreview';
@@ -88,12 +89,13 @@ export function CheckoutScreen() {
 
   const [saved, setSaved] = useState<SavedAddress[]>(() => readSavedAddresses() ?? []);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-  const [addressText, setAddressText] = useState('');
-  const [addressNote, setAddressNote] = useState('');
+  const [addressText, setAddressText] = useCheckoutDraft(`samou_checkout_draft:${auth.user?.id ?? 'guest'}:addressText`);
+  const [addressNote, setAddressNote] = useCheckoutDraft(`samou_checkout_draft:${auth.user?.id ?? 'guest'}:addressNote`);
   const [deliveryRegion, setDeliveryRegion] = useState<DeliveryRegion>('central');
   const zones = zoneContext.zones;
   const zoneId = zoneContext.activeZone?.id ?? '';
-  const [orderNote, setOrderNote] = useState('');
+  const [orderNote, setOrderNote] = useCheckoutDraft(`samou_checkout_draft:${auth.user?.id ?? 'guest'}:orderNote`);
+  const [unavailableAction, setUnavailableAction] = useState<'CONTACT' | 'REMOVE' | 'SUGGEST'>('CONTACT');
   const [saveForNextTime, setSaveForNextTime] = useState(true);
   /** Home / Work / Other — persisted with the saved address, shown as a chip. */
   const [addressTag, setAddressTag] = useState<AddressTag>('home');
@@ -417,6 +419,7 @@ export function CheckoutScreen() {
           deliveryRegion,
           addressNote: addressNote.trim() || useSavedAddress?.addressNote || undefined,
           orderNote: orderNote.trim() || undefined,
+          unavailableAction,
           deliveryPreset: deliveryPreset || undefined,
           latitude: pickedLat,
           longitude: pickedLng,
@@ -426,6 +429,7 @@ export function CheckoutScreen() {
         celebrationCleanup.current?.();
         celebrationCleanup.current = celebrateOrder();
         cart.clear();
+        setAddressText(''); setAddressNote(''); setOrderNote('');
         setPlacedCheckout(result);
       } else {
         // Single-store: existing flow.
@@ -436,6 +440,7 @@ export function CheckoutScreen() {
           deliveryRegion: fulfillmentType === 'PICKUP' ? undefined : deliveryRegion,
           addressNote: fulfillmentType === 'PICKUP' ? undefined : (addressNote.trim() || useSavedAddress?.addressNote || undefined),
           orderNote: orderNote.trim() || undefined,
+          unavailableAction,
           deliveryPreset: fulfillmentType === 'PICKUP' ? undefined : (deliveryPreset || undefined),
           latitude: fulfillmentType === 'PICKUP' ? undefined : pickedLat,
           longitude: fulfillmentType === 'PICKUP' ? undefined : pickedLng,
@@ -449,6 +454,7 @@ export function CheckoutScreen() {
         celebrationCleanup.current?.();
         celebrationCleanup.current = celebrateOrder();
         cart.clear();
+        setAddressText(''); setAddressNote(''); setOrderNote('');
         setPlacedOrder(created);
       }
     } catch (cause) {
@@ -995,6 +1001,7 @@ export function CheckoutScreen() {
             </p>
           )}
           <ConnectionNotice />
+          <fieldset className="mb-4 rounded-2xl border border-line bg-surface p-4"><legend className="text-sm font-bold">إذا لم يتوفر أحد الأصناف</legend>{([{ id: 'CONTACT', label: 'اتصل بي أولاً' }, { id: 'REMOVE', label: 'أفضل حذف الصنف' }, { id: 'SUGGEST', label: 'اقترح لي بديلاً' }] as const).map(option => <label key={option.id} className="flex min-h-11 items-center gap-3 text-sm"><input type="radio" name="unavailable" checked={unavailableAction === option.id} onChange={() => setUnavailableAction(option.id)} />{option.label}</label>)}<p className="text-xs text-ink-muted">سيعرض المتجر أي تعديل وسعره للموافقة قبل اعتماده.</p></fieldset>
           {submitError && (
             <div className="rounded-2xl border border-line bg-surface p-4 text-sm" role="status">
               <p>لم يكتمل تأكيد النتيجة. سلتك محفوظة؛ إعادة المحاولة بنفس البيانات تتحقق من الطلب نفسه.</p>

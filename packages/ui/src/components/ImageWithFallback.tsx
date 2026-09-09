@@ -37,15 +37,15 @@ export function ImageWithFallback({
   onError,
   ...rest
 }: ImageWithFallbackProps) {
-  const [failed, setFailed] = useState(false);
+  const [failedSource, setFailedSource] = useState<string | undefined>();
 
   const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     // Swallow the error — no console noise.
-    setFailed(true);
+    setFailedSource(src);
     onError?.(e);
   };
 
-  if (failed || !src) {
+  if ((failedSource !== undefined && failedSource === src) || !src) {
     return (
       <div className={`relative overflow-hidden ${className}`}>
         {fallback ?? <AutoFallback text={fallbackText ?? alt} />}

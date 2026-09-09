@@ -3,14 +3,14 @@ import { reserveOrder, releaseReservation, updatePreparationTime } from './api';
 
 type PreparationOrder = { id: string; status: string; captainId: string | null; estimatedReadyAt?: string | null };
 
-export function PreparationCountdown({ order }: { order: PreparationOrder }) {
+export function PreparationCountdown({ order, customer = false }: { order: PreparationOrder; customer?: boolean }) {
   const [now, setNow] = useState(Date.now);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 15_000); return () => clearInterval(timer); }, []);
   if (order.status !== 'ACCEPTED' && order.status !== 'PREPARING') return null;
   const remaining = order.estimatedReadyAt ? Math.ceil((Date.parse(order.estimatedReadyAt) - now) / 60_000) : null;
   return <p className="mt-3 rounded-xl bg-brand/10 p-3 text-sm font-bold text-brand">
     {remaining === null ? 'المتجر لم يحدد وقت الجاهزية بعد' : remaining > 0 ? `جاهز خلال نحو ${remaining} دقيقة` : 'بانتظار تأكيد الجاهزية من المتجر'}
-    <span className="mt-1 block text-xs font-normal text-ink-muted">موعد تقديري؛ لا تستلم الطلب قبل تأكيد المتجر.</span>
+    <span className="mt-1 block text-xs font-normal text-ink-muted">{customer ? (remaining !== null && remaining <= 0 ? 'استغرق التحضير وقتاً أطول من التقدير؛ سنحدث الحالة فور تأكيد المتجر.' : 'وقت تقديري للتحضير؛ وقت التوصيل يبدأ بعد استلام الكابتن.') : 'موعد تقديري؛ لا تستلم الطلب قبل تأكيد المتجر.'}</span>
   </p>;
 }
 
@@ -36,6 +36,8 @@ export function CaptainReservation({ order, captainId, onReserved }: { order: Pr
     {error && <p role="alert" className="mt-2 text-sm text-danger-ink">{error}</p>}
   </div>;
   return <div className="mt-3">
+    <p className="mb-2 text-sm font-bold text-brand">{order.status === 'READY_FOR_PICKUP' ? 'جاهز للاستلام — متاح للحجز' : 'قيد التحضير — متاح للحجز'}</p>
+    <p className="mb-2 text-xs text-ink-muted">تتحدث القائمة تلقائياً؛ قد يختفي الطلب إذا حجزه كابتن آخر أو أُلغي.</p>
     <button type="button" disabled={pending} className="min-h-11 w-full rounded-xl bg-brand px-4 py-2 font-bold text-white transition-transform active:scale-95 disabled:opacity-50" onClick={async () => {
       setPending(true); setError('');
       try { await reserveOrder(order.id); onReserved(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'تعذر حجز الطلب'); onReserved(); } finally { setPending(false); }

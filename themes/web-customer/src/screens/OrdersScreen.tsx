@@ -57,6 +57,7 @@ export function OrdersScreen() {
         </div>
       ) : (
         <section className="space-y-3" aria-live="polite">
+          <p className="rounded-xl bg-brand-surface p-3 text-sm text-ink-muted">إعادة الطلب تضيف الأصناف المتوفرة وإضافاتها إلى سلتك الحالية بالأسعار الجديدة. راجع السلة قبل التأكيد.</p>
           {orders.error ? (
             <div className="rounded-2xl border border-danger-tint bg-surface p-5 text-center shadow-card">
               <p className="text-sm font-extrabold">تعذّر تحميل الطلبات</p>
@@ -113,15 +114,19 @@ export function OrdersScreen() {
                   </div>
                   <button
                     type="button"
-                    disabled={reorderingId === row.key}
+                    disabled={reorderingId !== null}
                     onClick={async () => {
                       setReorderingId(row.key);
                       try {
                         let totalSkipped = 0;
-                        cart.clear();
-                        for (const o of row.orders) {
-                          const result = await reorderOrder(o.id);
-                          result.items.forEach((item) => cart.addItem(item.product, item.quantity, item.note, result.storeNameAr));
+
+                        const results = await Promise.all(row.orders.map(o => reorderOrder(o.id)));
+                        if (!results.some(result => result.items.length)) {
+                          toast.info("لا توجد أصناف متاحة لإعادة الطلب", "No available items to reorder");
+                          return;
+                        }
+                        for (const result of results) {
+                          result.items.forEach((item) => cart.addItem(item.product, item.quantity, item.note, result.storeNameAr, item.selectedOptions));
                           totalSkipped += result.skipped;
                         }
                         if (totalSkipped > 0) {
@@ -152,12 +157,13 @@ export function OrdersScreen() {
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <button type="button" onClick={() => navigate(`/orders/${row.orders[0].id}`)} className="rounded-xl border border-line py-2 text-xs font-bold text-ink-muted">التفاصيل <span dir="ltr">Details</span></button>
-                    <button type="button" disabled={reorderingId === row.orders[0].id} onClick={async () => {
+                    <button type="button" disabled={reorderingId !== null} onClick={async () => {
                       setReorderingId(row.orders[0].id);
                       try {
                         const result = await reorderOrder(row.orders[0].id);
-                        cart.clear();
-                        result.items.forEach((item) => cart.addItem(item.product, item.quantity, item.note, result.storeNameAr));
+                        if (!result.items.length) { toast.info("لا توجد أصناف متاحة لإعادة الطلب", "No available items to reorder"); return; }
+
+                        result.items.forEach((item) => cart.addItem(item.product, item.quantity, item.note, result.storeNameAr, item.selectedOptions));
                         if (result.skipped > 0) {
                           toast.info(
                             'تمت إضافة الأصناف المتوفرة فقط إلى السلة', 'Only available items were added to the cart',

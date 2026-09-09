@@ -2201,7 +2201,7 @@ export function updatePricingSettings(input: Pick<UpdatePlatformSettingsInput, '
 export interface FeaturedSelectionProduct { id: string; nameAr: string; imageUrl: string | null; isAvailable: boolean; store: { nameAr: string } }
 export const getFeaturedProducts = () => request<import('@samou-go/shared-types').PopularProduct[]>('GET', '/stores/featured-products', { auth: false });
 export const getFeaturedSelection = () => request<FeaturedSelectionProduct[]>('GET', '/stores/featured-selection', { auth: true });
-export const saveFeaturedSelection = (productIds: string[]) => request<FeaturedSelectionProduct[]>('PUT', '/stores/featured-selection', { auth: true, body: { productIds } });export interface OverdueOrders { items: { id: string; orderNumber: string; createdAt: string; store: { nameAr: string; phone: string | null } }[]; total: number; thresholdMinutes: number }
+export const saveFeaturedSelection = (productIds: string[]) => request<FeaturedSelectionProduct[]>('PUT', '/stores/featured-selection', { auth: true, body: { productIds } });export interface OverdueOrders { items: { id: string; orderNumber: string; status: string; createdAt: string; store: { nameAr: string; phone: string | null } }[]; total: number; thresholdMinutes: number }
 export const getOverdueOrders = (signal?: AbortSignal) => request<OverdueOrders>('GET', '/platform/admin/overdue-orders', { auth: true, signal });
 export const checkOrderSubmission = (requestId: string) => request<{ completed: boolean }>('GET', `/orders/submissions/${encodeURIComponent(requestId)}`, { auth: true });
 
@@ -2223,3 +2223,13 @@ export interface NotificationAudit {
 }
 export const getNotificationAudit = (page = 1, signal?: AbortSignal) => request<NotificationAudit>('GET', `/admin/notifications?page=${page}`, { auth: true, signal });
 export const recordNotificationOpened = (id: string) => request<{ recorded: boolean }>('POST', `/devices/notifications/${encodeURIComponent(id)}/opened`, { auth: true });
+
+export const rateDeliveredOrder = (orderId: string, body: { storeRating: number; captainRating?: number; comment?: string }) => request<unknown>("POST", `/platform/orders/${encodeURIComponent(orderId)}/rating`, { auth: true, body });
+
+export const getNotificationPreferences = () => request<{ marketingNotificationsEnabled: boolean }>('GET', '/auth/me/notifications', { auth: true });
+export const saveNotificationPreferences = (marketingNotificationsEnabled: boolean) => request<{ marketingNotificationsEnabled: boolean }>('PATCH', '/auth/me/notifications', { auth: true, body: { marketingNotificationsEnabled } });
+
+export const editPendingOrder = (orderId: string, body: { updatedAt: string; items: { id: string; quantity: number; note?: string }[]; orderNote?: string }) => request<OrderDetail>('PATCH', `/orders/${encodeURIComponent(orderId)}/items`, { auth: true, body });
+
+export const proposeOrderChange = (orderId: string, body: { updatedAt: string; items: CreateOrderInput['items'] }) => request<OrderDetail>('POST', `/orders/${encodeURIComponent(orderId)}/change-proposal`, { auth: true, body });
+export const decideOrderChange = (orderId: string, updatedAt: string, accept: boolean) => request<OrderDetail>('POST', `/orders/${encodeURIComponent(orderId)}/change-decision`, { auth: true, body: { updatedAt, accept } });

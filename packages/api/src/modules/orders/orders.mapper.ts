@@ -149,6 +149,9 @@ export function toOrderDetail(order: OrderWithRelations, viewerRole?: string, vi
   const base = toOrder(order);
   const restricted = viewerRole === UserRole.CAPTAIN && (!viewerId || order.captainId !== viewerId);
   return {
+    unavailableAction: order.unavailableAction === "REMOVE" ? "REMOVE" : order.unavailableAction === "SUGGEST" ? "SUGGEST" : "CONTACT",
+    changeProposal: restricted ? null : order.changeProposal,
+
     ...base,
     deliveryPin: viewerRole === 'CUSTOMER' ? base.deliveryPin : null,
     captainHandoffCode: canViewCaptainHandoffCode(viewerRole) ? base.captainHandoffCode : null,

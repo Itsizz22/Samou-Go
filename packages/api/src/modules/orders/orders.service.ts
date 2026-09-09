@@ -1,3 +1,5 @@
+import { sendPushToUser } from '../../lib/push';
+import { orderProposalSchema } from './orders.schemas';
 import { captainStoreIds, assignedStoresInclude } from '../auth/captain-stores';
 import { captainPoolScope, PREPARATION_POOL_STATUSES } from './captain-pool';
 import { withOrderSubmission } from '../../lib/order-submission';
@@ -23,7 +25,7 @@ import {
 import type { OrderDetail, OrderQuote, OrderSummary, Paginated, ReorderResult } from '@samou-go/shared-types';
 import { env } from '../../config/env';
 import { prisma } from '../../lib/prisma';
-import { badState, conflict, forbidden, notFound, unprocessable } from '../../lib/http-error';
+import { badRequest, badState, conflict, forbidden, notFound, unprocessable } from '../../lib/http-error';
 import { decimalToNumber } from '../../lib/decimal';
 import { formatOrderNumber, startOfDay } from '../../lib/order-number';
 import { hashPassword } from '../../lib/password';
@@ -99,6 +101,8 @@ export const SUMMARY_INCLUDE = {
 type OrderDb = Prisma.TransactionClient | PrismaClient;
 
 interface PricedLine {
+  nameAr?: string;
+  sourceIndex?: number;
   productId: string;
   quantity: number;
   unitPrice: number;
@@ -179,7 +183,7 @@ async function resolveVoucher(db: OrderDb, code: string, subtotal: number): Prom
 async function priceBasket(
   db: OrderDb,
   storeId: string,
-  items: readonly { productId: string; quantity: number; isOfferItem?: boolean; offerId?: string; offerTitle?: string; selectedOptions?: { groupId: string; optionId: string }[] }[]
+  items: readonly { productId: string; quantity: number; note?: string; isOfferItem?: boolean; offerId?: string; offerTitle?: string; selectedOptions?: { groupId: string; optionId: string }[] }[]
 ): Promise<PricedLine[]> {
   const store = await db.store.findUnique({
     where: { id: storeId },
@@ -204,18 +208,19 @@ async function priceBasket(
     : [];
   const offerById = new Map<string, any>(offers.map((o: any) => [o.id, o]));
 
-  const merged = new Map<string, { quantity: number; offerItem?: typeof items[number] }>();
-  for (const item of items) {
-    const existing = merged.get(item.productId);
+  const merged = new Map<string, { productId: string; quantity: number; sourceIndex: number; offerItem?: typeof items[number] }>();
+  for (const [sourceIndex, item] of items.entries()) {
+    const key = JSON.stringify([item.productId, item.offerId, item.note, [...(item.selectedOptions ?? [])].sort((a,b)=>a.optionId.localeCompare(b.optionId))]);
+    const existing = merged.get(key);
     if (existing) {
       existing.quantity += item.quantity;
     } else {
-      merged.set(item.productId, { quantity: item.quantity, offerItem: item });
+      merged.set(key, { productId: item.productId, quantity: item.quantity, sourceIndex, offerItem: item });
     }
   }
 
   const products = await db.product.findMany({
-    where: { id: { in: [...merged.keys()] }, storeId },
+    where: { id: { in: [...new Set(items.map(item => item.productId))] }, storeId },
     select: { id: true, nameAr: true, price: true, isAvailable: true },
   });
 
@@ -223,7 +228,7 @@ async function priceBasket(
 
   // Fetch all option groups and items for the products in this basket,
   // so we can validate selected options and price them server-side.
-  const productIds = [...merged.keys()];
+  const productIds = [...new Set(items.map(item => item.productId))];
   const optionGroups = await db.productOptionGroup.findMany({
     where: { productId: { in: productIds } },
     include: { items: { where: { isActive: true } } },
@@ -240,7 +245,7 @@ async function priceBasket(
   }
 
   const lines: PricedLine[] = [];
-  for (const [productId, { quantity, offerItem }] of merged) {
+  for (const { productId, quantity, offerItem, sourceIndex } of merged.values()) {
     // For standalone offer items, use the offer's DB price.
     if (offerItem?.isOfferItem && offerItem.offerId) {
       const offer = offerById.get(offerItem.offerId!) as any;
@@ -250,7 +255,7 @@ async function priceBasket(
           `العرض غير موجود أو بدون سعر / Offer not found or has no price: ${offerItem.offerId}`
         );
       }
-      lines.push({ productId, quantity, unitPrice: Number((offer as any).price) });
+      lines.push({ productId, quantity, sourceIndex, unitPrice: Number((offer as any).price) });
       continue;
     }
     const product = byId.get(productId);
@@ -325,7 +330,7 @@ async function priceBasket(
       basePrice += optionsTotal;
     }
 
-    lines.push({ productId, quantity, unitPrice: basePrice, ...(resolvedOptions ? { selectedOptions: resolvedOptions } : {}) });
+    lines.push({ productId, quantity, sourceIndex, nameAr: product.nameAr, unitPrice: basePrice, ...(resolvedOptions ? { selectedOptions: resolvedOptions } : {}) });
   }
 
   return lines;
@@ -463,6 +468,7 @@ export async function createOrder(
         customerAddressText: body.customerAddressText,
         addressNote: body.addressNote ?? null,
         orderNote: body.orderNote ?? null,
+        unavailableAction: body.unavailableAction,
         deliveryPreset: body.deliveryPreset ?? null,
         latitude: body.latitude ?? null,
         longitude: body.longitude ?? null,
@@ -486,7 +492,7 @@ export async function createOrder(
         voiceNoteDuration: (body as any).voiceNoteDuration ?? null,
         items: {
           create: lines.map(line => {
-            const itemSource = body.items.find((it: CreateOrderBody['items'][number]) => it.productId === line.productId);
+            const itemSource = body.items[line.sourceIndex ?? 0];
             return {
               productId: line.productId,
               quantity: line.quantity,
@@ -612,6 +618,7 @@ export async function createCheckoutOrders(
           customerAddressText: body.customerAddressText,
           addressNote: body.addressNote ?? null,
           orderNote: body.orderNote ?? null,
+        unavailableAction: body.unavailableAction,
           deliveryPreset: body.deliveryPreset ?? null,
           latitude: body.latitude ?? null,
           longitude: body.longitude ?? null,
@@ -632,7 +639,7 @@ export async function createCheckoutOrders(
           deliveryPin: storeGroup.fulfillmentType === 'PICKUP' ? null : generateDeliveryPin(),
           items: {
             create: lines.map(line => {
-              const itemSource = storeGroup.items.find(it => it.productId === line.productId);
+              const itemSource = storeGroup.items[line.sourceIndex ?? 0];
               return {
                 productId: line.productId,
                 quantity: line.quantity,
@@ -1055,6 +1062,7 @@ export async function updateOrderStatus(
           // so a stale writer can never silently overwrite a transition that
           // already committed (e.g. customer cancels while the store accepts).
           status: current,
+          ...(next === OrderStatus.ACCEPTED ? { changeProposal: null, updatedAt: order.updatedAt } : {}),
           // Optimistic lock for captain claim: if another captain already
           // claimed this order between our read and this write, Prisma will
           // throw P2025 (record not found for the filter) and we surface a
@@ -1492,6 +1500,8 @@ export async function reserveOrder(actor: { sub: string; role: UserRole }, order
   if (eligible.captainId === actor.sub) return getOrder(actor, orderId);
   const claimed = await prisma.order.updateMany({ where: { AND: [{ id: orderId, captainId: null }, scope] }, data: { captainId: actor.sub, prepReminderSentAt: null, prepReminderLeaseUntil: null } });
   if (claimed.count !== 1) throw conflict('سبقك كابتن آخر لحجز الطلب / Another captain reserved this order');
+  const store = await prisma.store.findUnique({ where: { id: (await getOrder(actor, orderId)).storeId }, select: { managerId: true } });
+  if (store) await sendPushToUser(store.managerId, { title: 'تم حجز التوصيل', body: 'حجز كابتن هذا الطلب وستصله تحديثات الجاهزية', data: { type: 'CAPTAIN_RESERVED', orderId } }).catch(() => undefined);
   return getOrder(actor, orderId);
 }
 
@@ -1522,5 +1532,69 @@ export async function releaseReservation(actor: { sub: string; role: UserRole },
     if (!released.count) throw conflict('تغير الطلب، حدّث الصفحة / Order changed; refresh');
     await tx.orderStatusHistory.create({ data: { orderId, status: order.status, changedByUserId: actor.sub, note: `اعتذار الكابتن عن التوصيل: ${reason}` } });
     return { orderId, orderNumber: order.orderNumber, storeId: order.storeId, store: order.store, status: order.status, released: true };
+  });
+}
+
+/** Customer edits only the existing frozen-price basket before store acceptance. */
+export async function editPendingOrder(customerId: string, orderId: string, body: import('zod').infer<typeof import('./orders.schemas').editPendingOrderSchema>): Promise<OrderDetail> {
+  const result = await prisma.$transaction(async tx => {
+    // Write-first CAS serializes against acceptance and prevents stale client edits.
+    const locked = await tx.order.updateMany({ where: { id: orderId, customerId, status: OrderStatus.PENDING, changeProposal: null, updatedAt: new Date(body.updatedAt) }, data: { updatedAt: new Date() } });
+    if (!locked.count) throw conflict('تغير الطلب أو قبله المتجر؛ حدّث الصفحة / Order changed or was accepted');
+    const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, include: DETAIL_INCLUDE });
+    const ids = new Set(body.items.map(item => item.id));
+    if (ids.size !== body.items.length || body.items.length !== order.items.length || order.items.some(item => !ids.has(item.id))) throw badRequest('الأصناف لا تطابق الطلب / Invalid order lines');
+    const next = body.items.map(item => ({ ...item, original: order.items.find(line => line.id === item.id)! }));
+    if (!next.some(item => item.quantity > 0)) throw badRequest('لا يمكن ترك الطلب فارغاً؛ استخدم الإلغاء / Use cancellation for an empty order');
+    if (next.some(item => item.quantity > item.original.quantity && !item.original.product.isAvailable)) throw badRequest('الصنف غير متوفر لزيادة الكمية / Product is unavailable');
+    const subtotal = Math.round(next.reduce((sum, item) => sum + decimalToNumber(item.original.unitPrice) * item.quantity, 0) * 100) / 100;
+    const voucher = order.voucher;
+    const discount = voucher ? calculateVoucherDiscount(subtotal, { type: voucher.discountType, value: decimalToNumber(voucher.discountValue), minSubtotal: voucher.minSubtotal === null ? undefined : decimalToNumber(voucher.minSubtotal), maxDiscount: voucher.maxDiscount === null ? undefined : decimalToNumber(voucher.maxDiscount) }) : 0;
+    for (const item of next) {
+      if (!item.quantity) await tx.orderItem.delete({ where: { id: item.id } });
+      else await tx.orderItem.update({ where: { id: item.id }, data: { quantity: item.quantity, totalPrice: lineTotal(decimalToNumber(item.original.unitPrice), item.quantity), note: item.note ?? item.original.note } });
+    }
+    return tx.order.update({ where: { id: orderId }, data: { subtotal, discount, totalAmount: Math.round((subtotal - discount + decimalToNumber(order.deliveryFee)) * 100) / 100, ...(body.orderNote !== undefined ? { orderNote: body.orderNote } : {}) }, include: DETAIL_INCLUDE });
+  });
+  return toOrderDetail(result, UserRole.CUSTOMER);
+}
+
+export async function proposeOrderChange(actor: { sub: string; role: UserRole }, orderId: string, body: import('zod').infer<typeof orderProposalSchema>): Promise<OrderDetail> {
+  const existing = await loadOrderOrThrow(orderId);
+  if (actor.role !== UserRole.ADMIN && existing.store.managerId !== actor.sub) throw forbidden();
+  const updated = await prisma.$transaction(async tx => {
+    const lock = await tx.order.updateMany({ where: { id: orderId, status: OrderStatus.PENDING, updatedAt: new Date(body.updatedAt) }, data: { updatedAt: new Date() } });
+    if (!lock.count) throw conflict('تغير الطلب؛ حدّث الصفحة / Order changed');
+    const lines = await priceBasket(tx, existing.storeId, body.items);
+    const subtotal = Math.round(lines.reduce((sum,line)=>sum+line.unitPrice*line.quantity,0)*100)/100;
+    const voucher = existing.voucher;
+    const discount = voucher ? calculateVoucherDiscount(subtotal, { type: voucher.discountType, value: decimalToNumber(voucher.discountValue), minSubtotal: voucher.minSubtotal === null ? undefined : decimalToNumber(voucher.minSubtotal), maxDiscount: voucher.maxDiscount === null ? undefined : decimalToNumber(voucher.maxDiscount) }) : 0;
+    const netSubtotal = Math.round((subtotal-discount)*100)/100;
+    const proposal = JSON.stringify({ input: body.items, lines, subtotal, discount, netSubtotal, totalAmount: Math.round((netSubtotal+decimalToNumber(existing.deliveryFee))*100)/100, autoPriced: existing.autoPriced, createdAt: new Date().toISOString() });
+    return tx.order.update({ where: { id: orderId }, data: { changeProposal: proposal }, include: DETAIL_INCLUDE });
+  });
+  await sendPushToUser(existing.customerId, { title: 'المتجر يقترح تعديل طلبك', body: `راجع البديل وسعره للطلب ${existing.orderNumber} قبل الموافقة`, data: { orderId, type: 'ORDER_CHANGE_PROPOSED' } }).catch(() => undefined);
+  return toOrderDetail(updated, actor.role, actor.sub);
+}
+export async function decideOrderChange(customerId: string, orderId: string, updatedAt: string, accept: boolean): Promise<OrderDetail> {
+  return prisma.$transaction(async tx => {
+    const locked = await tx.order.updateMany({ where: { id: orderId, customerId, status: OrderStatus.PENDING, updatedAt: new Date(updatedAt), changeProposal: { not: null } }, data: { updatedAt: new Date() } });
+    if (!locked.count) throw conflict('تغير المقترح؛ حدّث الطلب / Proposal changed');
+    const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, include: DETAIL_INCLUDE });
+    if (!accept) return toOrderDetail(await tx.order.update({ where: { id: orderId }, data: { changeProposal: null }, include: DETAIL_INCLUDE }), UserRole.CUSTOMER);
+    const raw: unknown = JSON.parse(order.changeProposal!);
+    if (!raw || typeof raw !== 'object' || !('input' in raw) || !('lines' in raw)) throw badRequest('مقترح غير صالح / Invalid proposal');
+    const parsed = orderProposalSchema.parse({ updatedAt, items: raw.input });
+    const lines = await priceBasket(tx, order.storeId, parsed.items);
+    if (JSON.stringify(lines) !== JSON.stringify(raw.lines)) throw conflict('تغير السعر أو التوفر؛ اطلب مقترحاً محدثاً / Price or availability changed');
+    const subtotal = Math.round(lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0) * 100) / 100;
+    const voucher = order.voucher;
+    const discount = voucher ? calculateVoucherDiscount(subtotal, { type: voucher.discountType, value: decimalToNumber(voucher.discountValue), minSubtotal: voucher.minSubtotal === null ? undefined : decimalToNumber(voucher.minSubtotal), maxDiscount: voucher.maxDiscount === null ? undefined : decimalToNumber(voucher.maxDiscount) }) : 0;
+    if (!('discount' in raw) || raw.discount !== discount) throw conflict('تغير الخصم؛ اطلب مقترحاً محدثاً / Discount changed');
+    await tx.orderItem.deleteMany({ where: { orderId } });
+    return toOrderDetail(await tx.order.update({ where: { id: orderId }, data: {
+      changeProposal: null, subtotal, discount, totalAmount: Math.round((subtotal - discount + decimalToNumber(order.deliveryFee)) * 100) / 100,
+      items: { create: lines.map((line,index) => ({ productId: line.productId, quantity: line.quantity, unitPrice: line.unitPrice, totalPrice: lineTotal(line.unitPrice,line.quantity), note: parsed.items[line.sourceIndex ?? index]?.note, selectedOptions: line.selectedOptions ?? [], isOfferItem: parsed.items[line.sourceIndex ?? index]?.isOfferItem ?? false, offerId: parsed.items[line.sourceIndex ?? index]?.offerId, offerTitle: parsed.items[line.sourceIndex ?? index]?.offerTitle })) },
+    }, include: DETAIL_INCLUDE }), UserRole.CUSTOMER);
   });
 }

@@ -122,7 +122,7 @@ const h = vi.hoisted(() => {
 vi.mock('../../lib/prisma', () => ({
   prisma: {
     order: { findUnique: vi.fn(async () => h.state.order) },
-    rating: { create: vi.fn(async ({ data }: any) => data) },
+    rating: { upsert: vi.fn(async ({ create }: { create: unknown }) => create) },
     chatMessage: { create: vi.fn(async ({ data }: any) => ({ id: 'm-1', ...data })) },
     wallet: {
       findUnique: vi.fn(async () => h.state.wallet),
@@ -278,7 +278,7 @@ describe('rateOrder', () => {
       statusCode: 404,
       code: 'NOT_FOUND',
     });
-    expect(prisma.rating.create).not.toHaveBeenCalled();
+    expect(prisma.rating.upsert).not.toHaveBeenCalled();
   });
 
   it('400 when the order has not been delivered yet', async () => {
@@ -288,7 +288,7 @@ describe('rateOrder', () => {
       statusCode: 400,
       code: 'BAD_REQUEST',
     });
-    expect(prisma.rating.create).not.toHaveBeenCalled();
+    expect(prisma.rating.upsert).not.toHaveBeenCalled();
   });
 
   it('creates the rating once the order is delivered', async () => {
@@ -300,8 +300,10 @@ describe('rateOrder', () => {
       comment: 'ممتاز',
     });
 
-    expect(prisma.rating.create).toHaveBeenCalledWith({
-      data: {
+    expect(prisma.rating.upsert).toHaveBeenCalledWith({
+      where: { orderId: 'order-1' },
+      update: { storeRating: 5, captainRating: 4, comment: 'ممتاز' },
+      create: {
         orderId: 'order-1',
         customerId: 'customer-1',
         storeId: 'store-1',

@@ -250,6 +250,10 @@ export function isPushEnabled(): boolean {
 
 /** Provider acceptance is not proof that Android displayed or sounded an alert. */
 export async function sendPushToUser(userId: string, payload: PushPayload, options?: SendPushOptions): Promise<{ sent: number; failed: number }> {
+  if (['PROMOTION', 'OFFER', 'MARKETING'].includes(payload.data?.type ?? '')) {
+    const preferences = await prisma.user.findUnique({ where: { id: userId }, select: { marketingNotificationsEnabled: true } });
+    if (preferences?.marketingNotificationsEnabled === false) return { sent: 0, failed: 0 };
+  }
   const audit = await prisma.notificationDelivery.create({ data: {
     userId, orderId: payload.data?.orderId, type: payload.data?.type ?? 'GENERAL', title: payload.title,
   } }).catch(() => { console.error('[push-audit] Could not create delivery audit'); return null; });

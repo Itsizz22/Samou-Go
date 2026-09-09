@@ -1,3 +1,4 @@
+import { NotificationPreferences } from '@/components/NotificationPreferences';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -336,7 +337,8 @@ export function ProfileScreen() {
         <AccountSwitcher auth={auth} compact />
 
         <button type="button" onClick={() => navigate('/settings')} className="flex min-h-11 w-full items-center justify-center gap-2 text-xs font-semibold text-ink-muted"><Settings size={16} />{t('إعدادات الحساب', 'Account settings')}</button>
+      <NotificationPreferences />
       </div>
-    </ScreenShell>
+</ScreenShell>
   );
 }

@@ -356,6 +356,8 @@ export interface OrderItemWithProduct extends OrderItem {
 
 /** The full order as the tracking and store-manager screens consume it. */
 export interface OrderDetail extends Order {
+  unavailableAction?: "CONTACT" | "REMOVE" | "SUGGEST";
+  changeProposal?: string | null;
   items: OrderItemWithProduct[];
   customer: Pick<PublicUser, 'id' | 'name' | 'phone'>;
   store: Pick<Store, 'id' | 'nameAr' | 'nameEn' | 'phone' | 'latitude' | 'longitude'>;

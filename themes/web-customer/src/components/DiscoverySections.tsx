@@ -1,3 +1,5 @@
+import { StoreHours } from './StoreHours';
+import { ProductPhotoFallback } from './ProductPhotoFallback';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ImageWithFallback, useLanguage } from '@samou-go/ui';
@@ -56,7 +58,7 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
         )}
       </div>
       <div className="space-y-2 p-3">
-        <h3 className="truncate font-bold">{store.nameAr}</h3>
+        <h3 className="truncate font-bold">{store.nameAr}</h3><StoreHours store={store} />
         {rating && store.averageRating != null && (
           <p className="text-sm font-bold text-brand">
             <span dir="ltr">
@@ -133,6 +135,7 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
               <div className="relative aspect-video bg-canvas">
                 <ImageWithFallback
                   src={product.imageUrl ?? undefined}
+                  fallback={<ProductPhotoFallback />}
                   alt={product.nameAr}
                   className="h-full w-full object-cover"
                   fallbackText={product.nameAr.slice(0, 2)}

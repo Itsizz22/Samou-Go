@@ -64,8 +64,10 @@ export async function rateOrder(orderId: string, customerId: string, rawBody: un
     throw badRequest('يمكن التقييم بعد التسليم فقط / Rating is available after delivery');
   }
   const body = parseWith(ratingSchema, rawBody);
-  return prisma.rating.create({
-    data: { orderId, customerId, storeId: order.storeId, captainId: order.captainId, ...body },
+  return prisma.rating.upsert({
+    where: { orderId },
+    create: { orderId, customerId, storeId: order.storeId, captainId: order.captainId, ...body },
+    update: { ...body },
   });
 }
 

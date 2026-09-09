@@ -32,6 +32,11 @@ export interface CartLine {
   selectedOptions?: SelectedOption[];
 }
 
+export function cartLineKey(line: CartLine): string {
+  return JSON.stringify([line.productId, line.offerId ?? '', normalizeSelectedOptions(line.selectedOptions).map(o => [o.groupId,o.id]).sort()]);
+}
+function matchesLine(line: CartLine, key: string): boolean { return cartLineKey(line) === key || line.productId === key; }
+
 /** Groups of lines by store, for the checkout screen to render per-store. */
 export interface CartStoreGroup {
   storeId: string;
@@ -165,14 +170,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setLines(current => {
       // When options are present, always create a new line (different option combo = different line).
       if (selectedOptions && selectedOptions.length > 0) {
-        const optKey = JSON.stringify(selectedOptions);
+        const optKey = JSON.stringify(normalizeSelectedOptions(selectedOptions).map(o => [o.groupId, o.id]).sort());
         const existing = current.find(
-          line => line.productId === product.id && JSON.stringify(line.selectedOptions ?? []) === optKey,
+          line => line.productId === product.id && JSON.stringify(normalizeSelectedOptions(line.selectedOptions).map(o => [o.groupId, o.id]).sort()) === optKey,
         );
         if (existing) {
           return current.map(line =>
             line === existing
-              ? { ...line, quantity: Math.min(99, line.quantity + quantity), note: note || line.note }
+              ? { ...line, product, selectedOptions: normalizeSelectedOptions(selectedOptions), quantity: Math.min(99, line.quantity + quantity), note: note || line.note }
               : line,
           );
         }
@@ -190,7 +195,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (existing) {
         return current.map(line =>
           line === existing
-            ? { ...line, quantity: Math.min(99, line.quantity + quantity), note: note || line.note }
+            ? { ...line, product, selectedOptions: normalizeSelectedOptions(selectedOptions), quantity: Math.min(99, line.quantity + quantity), note: note || line.note }
             : line,
         );
       }
@@ -252,21 +257,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const setQuantity = useCallback((productId: string, quantity: number) => {
     setLines(current =>
       quantity <= 0
-        ? current.filter(line => line.productId !== productId)
+        ? current.filter(line => !matchesLine(line, productId))
         : current.map(line =>
-            line.productId === productId ? { ...line, quantity: Math.min(99, quantity) } : line,
+            matchesLine(line, productId) ? { ...line, quantity: Math.min(99, quantity) } : line,
           ),
     );
   }, []);
 
   const removeItem = useCallback((productId: string) => {
     void hapticTap();
-    setLines(current => current.filter(line => line.productId !== productId));
+    setLines(current => current.filter(line => !matchesLine(line, productId)));
   }, []);
 
   const setNote = useCallback((productId: string, note: string) => {
     setLines(current =>
-      current.map(line => line.productId === productId ? { ...line, note } : line),
+      current.map(line => matchesLine(line, productId) ? { ...line, note } : line),
     );
   }, []);
 

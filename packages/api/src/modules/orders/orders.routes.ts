@@ -1,3 +1,9 @@
+import { z } from 'zod';
+import { orderProposalSchema } from './orders.schemas';
+import { proposeOrderChange, decideOrderChange } from './orders.service';
+import { editPendingOrderSchema } from './orders.schemas';
+import { editPendingOrder } from './orders.service';
+import { parseWith } from '../../lib/validate';
 import { prisma } from '../../lib/prisma';
 import { ok } from '../../lib/respond';
 import { requireAuth } from '../../middleware/authenticate';
@@ -147,3 +153,15 @@ ordersRouter.patch(
 );
 ordersRouter.post('/:orderId/quote-fee', authorize(UserRole.CAPTAIN), asyncHandler(controller.quoteCaptainFeeHandler));
 ordersRouter.post('/:orderId/accept-fee', authorize(UserRole.CUSTOMER), asyncHandler(controller.acceptCaptainFeeHandler));
+
+ordersRouter.patch('/:orderId/items', authorize(UserRole.CUSTOMER), asyncHandler(async (req, res) => {
+  ok(res, await editPendingOrder(requireAuth(req).sub, String(req.params.orderId), parseWith(editPendingOrderSchema, req.body)));
+}));
+
+ordersRouter.post('/:orderId/change-proposal', authorize(UserRole.STORE_MANAGER, UserRole.ADMIN), asyncHandler(async (req,res) => {
+  ok(res, await proposeOrderChange(requireAuth(req), String(req.params.orderId), parseWith(orderProposalSchema,req.body)));
+}));
+ordersRouter.post('/:orderId/change-decision', authorize(UserRole.CUSTOMER), asyncHandler(async (req,res) => {
+  const body = parseWith(z.object({ updatedAt: z.string().datetime(), accept: z.boolean() }),req.body);
+  ok(res, await decideOrderChange(requireAuth(req).sub,String(req.params.orderId),body.updatedAt,body.accept));
+}));

@@ -120,6 +120,7 @@ enum StoreType {
 /// One account, one role. Phone is the login identifier — Samou' users do not
 /// reliably have email.
 model User {
+  marketingNotificationsEnabled Boolean @default(true)
   id           String   @id @default(cuid())
   name         String
   /// Human-friendly reference code (e.g. CUST-XXXXX / CAPT-XXXXX).
@@ -319,6 +320,9 @@ model Product {
 /// `deliveryFee` always comes from `calculateDeliveryFee(itemCount)` in
 /// @samou-go/shared-types, never from the client.
 model Order {
+  unavailableAction String @default("CONTACT")
+  changeProposal String?
+  unclaimedAlertAt DateTime?
   autoPriced Boolean @default(false)
   captainSharePercentage Decimal @default(100)
 
@@ -427,8 +431,8 @@ model OrderItem {
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
   offer   Offer?  @relation(fields: [offerId], references: [id], onDelete: SetNull)
 
-  /// One row per product per order — quantity carries the count.
-  @@unique([orderId, productId])
+  /// Multiple rows preserve different options and notes for the same product.
+  @@index([orderId, productId])
   @@index([productId])
   @@index([offerId])
   @@map("order_items")

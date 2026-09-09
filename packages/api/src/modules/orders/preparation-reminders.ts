@@ -54,6 +54,7 @@ export function startPreparationReminderScheduler(): () => Promise<void> {
       await prisma.backgroundJobHeartbeat.upsert({ where: { id }, create: { id, lastStartedAt: new Date() }, update: { lastStartedAt: new Date() } });
       try {
         await dispatchPreparationReminders();
+        await dispatchUnclaimedAlerts();
         await prisma.backgroundJobHeartbeat.update({ where: { id }, data: { lastSucceededAt: new Date() } });
       } catch (error) {
         await prisma.backgroundJobHeartbeat.update({ where: { id }, data: { lastFailedAt: new Date() } });
@@ -65,4 +66,17 @@ export function startPreparationReminderScheduler(): () => Promise<void> {
   timer.unref();
   tick();
   return async () => { stopped = true; clearInterval(timer); await running; };
+}
+
+/** Escalate once when a delivery has remained without a captain for ten minutes. */
+export async function dispatchUnclaimedAlerts(now = new Date()): Promise<void> {
+  const where = { captainId: null, fulfillmentType: 'DELIVERY' as const, status: { in: [OrderStatus.ACCEPTED, OrderStatus.PREPARING, OrderStatus.READY_FOR_PICKUP] }, unclaimedAlertAt: null, createdAt: { lte: new Date(now.getTime()-10*60_000) } };
+  const waiting = await prisma.order.findMany({ where, take:100, orderBy:{ createdAt:'asc' }, select:{id:true,orderNumber:true,storeId:true} });
+  if (!waiting.length) return;
+  const admins = await prisma.user.findMany({ where:{role:'ADMIN',isActive:true},select:{id:true} });
+  for(const order of waiting) {
+    if(!(await prisma.order.updateMany({where:{...where,id:order.id},data:{unclaimedAlertAt:now}})).count)continue;
+    try { await sendPushToMany(admins.map(u=>u.id),{ title:'طلب ينتظر كابتناً', body:`لم يُحجز الطلب ${order.orderNumber} بعد؛ راجع توفر الكباتن`,data:{type:'UNCLAIMED_ORDER',orderId:order.id,storeId:order.storeId} }); }
+    catch(error) { await prisma.order.updateMany({where:{id:order.id,unclaimedAlertAt:now},data:{unclaimedAlertAt:null}});throw error; }
+  }
 }

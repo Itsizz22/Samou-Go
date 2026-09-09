@@ -74,6 +74,7 @@ export const createOrderSchema = z.object({
   deliveryRegion: z.enum(['central', 'outer', 'remote']).nullable().optional(),
   addressNote: z.string().trim().max(500).optional(),
   orderNote: z.string().trim().max(500).optional(),
+  unavailableAction: z.enum(["CONTACT", "REMOVE", "SUGGEST"]).default("CONTACT"),
   deliveryPreset: z.string().trim().max(50).optional(),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
@@ -184,6 +185,7 @@ export const checkoutSchema = z.object({
   deliveryRegion: z.enum(['central', 'outer', 'remote']).nullable().optional(),
   addressNote: z.string().trim().max(500).optional(),
   orderNote: z.string().trim().max(500).optional(),
+  unavailableAction: z.enum(["CONTACT", "REMOVE", "SUGGEST"]).default("CONTACT"),
   deliveryPreset: z.string().trim().max(50).optional(),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
@@ -218,3 +220,11 @@ export type OrderListQuery = z.infer<typeof orderListQuerySchema>;
 export type SetReviewBody = z.infer<typeof reviewSchema>;
 export type SetDeliveryFeeBody = z.infer<typeof setDeliveryFeeSchema>;
 export type QuoteCaptainFeeBody = z.infer<typeof quoteCaptainFeeSchema>;
+
+export const editPendingOrderSchema = z.object({
+  updatedAt: z.string().datetime(),
+  items: z.array(z.object({ id: z.string().min(1), quantity: z.number().int().min(0).max(99), note: z.string().trim().max(500).optional() })).min(1).max(60),
+  orderNote: z.string().trim().max(500).optional(),
+});
+
+export const orderProposalSchema = z.object({ updatedAt: z.string().datetime(), items: z.array(orderItemInputSchema).min(1).max(60) });

@@ -1,3 +1,4 @@
+import { OrderChangePanel } from '@samou-go/api-client';
 import { PreparationCountdown, PreparationTimeEditor } from '@samou-go/api-client';
 import { BrandLogo, OrderCustomerDetails } from '@samou-go/ui';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
@@ -1098,6 +1099,7 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
       <OrderCustomerDetails order={order} />
       <PreparationCountdown order={order} />
       <PreparationTimeEditor order={order} />
+      {order.status === 'PENDING' && <OrderChangePanel orderId={order.id} manager />}
 
       {/* READY_FOR_PICKUP: show pickup or delivery status */}
       {order.status === OrderStatus.READY_FOR_PICKUP && order.fulfillmentType === 'PICKUP' && (

@@ -3,7 +3,7 @@ import { UserRole } from '@samou-go/shared-types';
 import { signAccessToken } from '../../lib/jwt';
 import { eligibleCaptainIds } from './captain-pool';
 import { readFileSync } from 'node:fs';
-import { dispatchPreparationReminders } from './preparation-reminders';
+import { dispatchUnclaimedAlerts, dispatchPreparationReminders } from './preparation-reminders';
 import { sendPushToMany } from '../../lib/push';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { execFileSync } from 'node:child_process';
@@ -489,4 +489,59 @@ it('backfills legacy assignments into the relation without duplicate memberships
   await fixture.db.$executeRawUnsafe(backfill);
   const captain = await fixture.db.user.findUniqueOrThrow({ where: { id: 'CAPTAIN_TWO' }, include: { assignedStores: true } });
   expect(captain.assignedStores.map(store => store.id)).toEqual(['store']);
+});
+
+it('keeps product variants separate and edits pending quantities with ownership and stale-write protection', async () => {
+  await fixture.db.product.create({ data:{ id:'ux-product',storeId:'store',nameAr:'بيتزا اختبار',price:10,isAvailable:true } });
+  await fixture.db.productOptionGroup.create({data:{id:'ux-group',productId:'ux-product',name:'إضافات',minSelect:0,maxSelect:2,required:false,items:{create:{id:'ux-cheese',name:'جبنة',price:4,isActive:true}}}});
+  const created=await request<OrderDetail>('POST','/orders','CUSTOMER',{storeId:'store',items:[{productId:'ux-product',quantity:1,note:'عادية'},{productId:'ux-product',quantity:2,note:'جبنة',selectedOptions:[{groupId:'ux-group',optionId:'ux-cheese'}]}],customerAddressText:'عنوان فحص تجربة المستخدم',unavailableAction:'SUGGEST'});
+  expect(created.status,JSON.stringify(created.error)).toBe(201);
+  expect(created.data.items).toHaveLength(2);expect(created.data.subtotal).toBe(38);
+  const body={updatedAt:created.data.updatedAt,items:created.data.items.map(i=>({id:i.id,quantity:i.quantity+1,note:i.note??''}))};
+  expect((await request('PATCH',`/orders/${created.data.id}/items`,'CAPTAIN',body)).status).toBe(403);
+  const edited=await request<OrderDetail>('PATCH',`/orders/${created.data.id}/items`,'CUSTOMER',body);
+  expect(edited.status,JSON.stringify(edited.error)).toBe(200);expect(edited.data.subtotal).toBe(62);
+  expect((await request('PATCH',`/orders/${created.data.id}/items`,'CUSTOMER',body)).status).toBe(409);
+  await request('PATCH',`/orders/${created.data.id}/status`,'STORE_MANAGER',{status:'ACCEPTED'});
+  expect((await request('PATCH',`/orders/${created.data.id}/items`,'CUSTOMER',{...body,updatedAt:edited.data.updatedAt})).status).toBe(409);
+});
+it('requires customer approval for replacement and rejects changed prices or stale decisions', async () => {
+  const created=await request<OrderDetail>('POST','/orders','CUSTOMER',{storeId:'store',items:[{productId:'ux-product',quantity:1}],customerAddressText:'عنوان بديل تجريبي'});
+  const route=`/orders/${created.data.id}`;
+  const body={updatedAt:created.data.updatedAt,items:[{productId:'ux-product',quantity:2}]};
+  expect((await request('POST',route+'/change-proposal','CUSTOMER',body)).status).toBe(403);
+  const proposal=await request<OrderDetail>('POST',route+'/change-proposal','STORE_MANAGER',body);
+  expect(proposal.status,JSON.stringify(proposal.error)).toBe(200);expect(proposal.data.subtotal).toBe(10);
+  expect((await request('PATCH',route+'/status','STORE_MANAGER',{status:'ACCEPTED'})).status).toBe(409);
+  await fixture.db.product.update({where:{id:'ux-product'},data:{price:11}});
+  expect((await request('POST',route+'/change-decision','CUSTOMER',{updatedAt:proposal.data.updatedAt,accept:true})).status).toBe(409);
+  const latest=await request<OrderDetail>('GET',route,'CUSTOMER');
+  const fresh=await request<OrderDetail>('POST',route+'/change-proposal','STORE_MANAGER',{...body,updatedAt:latest.data.updatedAt});
+  const accepted=await request<OrderDetail>('POST',route+'/change-decision','CUSTOMER',{updatedAt:fresh.data.updatedAt,accept:true});
+  expect(accepted.status,JSON.stringify(accepted.error)).toBe(200);expect(accepted.data.subtotal).toBe(22);expect(accepted.data.changeProposal).toBeNull();
+  expect((await request('POST',route+'/change-decision','CUSTOMER',{updatedAt:fresh.data.updatedAt,accept:true})).status).toBe(409);
+});
+it('persists marketing preferences only for the signed-in account', async()=>{
+  expect((await request('PATCH','/auth/me/notifications',undefined,{marketingNotificationsEnabled:false})).status).toBe(401);
+  expect((await request('PATCH','/auth/me/notifications','CUSTOMER',{marketingNotificationsEnabled:false})).status).toBe(200);
+  const prefs=await request<{marketingNotificationsEnabled:boolean}>('GET','/auth/me/notifications','CUSTOMER');
+  expect(prefs.data.marketingNotificationsEnabled).toBe(false);
+  expect((await fixture.db.user.findUniqueOrThrow({where:{id:'STORE_MANAGER'}})).marketingNotificationsEnabled).toBe(true);
+});
+
+it('escalates an unclaimed delivery once and ignores assigned jobs',async()=>{
+  const order=await preparationOrder();
+  const now=new Date();
+  await fixture.db.order.update({where:{id:order.id},data:{captainId:null,createdAt:new Date(now.getTime()-11*60_000)}});
+  const pushes=vi.mocked(sendPushToMany);pushes.mockClear();
+  await dispatchUnclaimedAlerts(now);await dispatchUnclaimedAlerts(now);
+  const messages=pushes.mock.calls.filter(call=>call[1].data?.orderId===order.id && call[1].data?.type==='UNCLAIMED_ORDER');
+  expect(messages).toHaveLength(1);expect(messages[0]?.[0]).toContain('ADMIN');
+});
+it('saves separate store and captain ratings and allows correcting the same rating',async()=>{
+  const order=await fixture.db.order.findFirstOrThrow({where:{status:'DELIVERED',customerId:'CUSTOMER'}});
+  const route=`/platform/orders/${order.id}/rating`;
+  expect((await request('POST',route,'CUSTOMER',{storeRating:5,captainRating:3})).status).toBe(201);
+  expect((await request('POST',route,'CUSTOMER',{storeRating:4,captainRating:5})).status).toBe(201);
+  expect(await fixture.db.rating.findUnique({where:{orderId:order.id}})).toMatchObject({storeRating:4,captainRating:5});
 });
