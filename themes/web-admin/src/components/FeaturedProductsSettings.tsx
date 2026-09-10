@@ -32,7 +32,7 @@ export function FeaturedProductsSettings() {
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      searchProducts(query, 1, controller.signal)
+      searchProducts(query, 1, controller.signal, true)
         .then(data => {
           if (!controller.signal.aborted) setResults(data.items);
         })
@@ -74,7 +74,7 @@ export function FeaturedProductsSettings() {
     >
       <h3 className="font-bold">منتجات الصفحة الرئيسية</h3>
       <p className="text-sm text-ink-muted">
-        اختر حتى 12 منتجًا مع صورة، ثم رتب ظهورها. المنتج المغلق أو غير المتاح يختفي من عرض العميل
+        اختر حتى 12 طبقًا بصورة من المطاعم والمقاهي والحلويات والمخابز، ثم رتب ظهورها. المنتج المغلق أو غير المتاح يختفي من عرض العميل
         تلقائيًا.
       </p>
       <label className="block text-sm">

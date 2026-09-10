@@ -1,3 +1,4 @@
+import { dishStoreIds } from './dish-stores';
 import { deliveryEstimates } from './delivery-estimates';
 import type { Prisma } from '../../lib/prisma-types';
 import type {
@@ -650,9 +651,9 @@ async function listDiscoveryStores(query: StoreListQuery, where: Prisma.StoreWhe
   return paginate(items, ids.length, query.page, limit);
 }
 
-export async function getNewProducts(limit: number): Promise<import('@samou-go/shared-types').DiscoveryProduct[]> {
+export async function getNewProducts(limit: number, dishesOnly = false): Promise<import('@samou-go/shared-types').DiscoveryProduct[]> {
   const since = recentSince();
-  const where: Prisma.ProductWhereInput = { isAvailable: true, store: { isActive: true, isApproved: true, storeStatus: { not: 'CLOSED' } } };
+  const where: Prisma.ProductWhereInput = { ...(dishesOnly ? { storeId: { in: await dishStoreIds() } } : {}), isAvailable: true, store: { isActive: true, isApproved: true, storeStatus: { not: 'CLOSED' } } };
   const recent = await prisma.product.findMany({ where: { ...where, createdAt: { gte: since } }, select: { id: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], take: limit });
   const popular = recent.length < limit ? await prisma.orderItem.groupBy({ by: ['productId'], where: { product: where, order: { status: 'DELIVERED' } }, _sum: { quantity: true }, orderBy: [{ _sum: { quantity: 'desc' } }, { productId: 'asc' }], take: limit }) : [];
   const remaining = recent.length < limit ? await prisma.product.findMany({ where, select: { id: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], take: limit }) : [];
@@ -667,9 +668,10 @@ export async function getNewProducts(limit: number): Promise<import('@samou-go/s
 }
 
 /** Search the whole public catalogue; an empty query samples eligible products. */
-export async function searchProducts(search: string, page: number) {
+export async function searchProducts(search: string, page: number, dishesOnly = false) {
   const pageSize = 12;
   const where: Prisma.ProductWhereInput = {
+    ...(dishesOnly ? { storeId: { in: await dishStoreIds() } } : {}),
     isAvailable: true,
     store: { isActive: true, isApproved: true, storeStatus: { not: 'CLOSED' } },
     ...(search ? { nameAr: caseInsensitiveContains(search) } : {}),

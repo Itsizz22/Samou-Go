@@ -19,16 +19,16 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
   return (
     <section
       className="mx-auto max-w-md px-5 pt-5 font-sans"
-      aria-label={t('منتجات مميزة اخترناها لك', 'Featured products picked for you')}
+      aria-label={t('أطباق مميزة اخترناها لك', 'Featured dishes picked for you')}
       aria-busy={loading}
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <div>
           <h2 className="text-lg font-bold">
-            {t('منتجات مميزة اخترناها لك', 'Featured products picked for you')}
+            {t('أطباق مميزة اخترناها لك', 'Featured dishes picked for you')}
           </h2>
           <p className="text-xs text-ink-muted">
-            {t('اختيارات مميزة من متاجرنا', 'Handpicked dishes from our stores')}
+            {t('من المطاعم والمقاهي والحلويات والمخابز', 'Restaurants, cafés, bakeries and sweets')}
           </p>
         </div>
         {products.length > 1 && (
@@ -39,7 +39,7 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
               carousel.stopped ? 'تشغيل العرض التلقائي' : 'إيقاف العرض التلقائي',
               carousel.stopped ? 'Start slideshow' : 'Pause slideshow'
             )}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink-muted focus-visible:ring-2 focus-visible:ring-brand"
           >
             {carousel.stopped ? <Play size={17} /> : <Pause size={17} />}
           </button>
@@ -93,9 +93,9 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
                   </div>
                   <div className="space-y-2 p-4">
                     <h3 className="line-clamp-2 min-h-6 text-base font-bold">{product.nameAr}</h3>
-                    <p className="line-clamp-2 min-h-10 text-xs leading-5 text-ink-muted">
+                    {product.description && <p className="line-clamp-2 text-sm leading-6 text-ink-muted">
                       {product.description}
-                    </p>
+                    </p>}
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span dir="ltr" className="text-lg font-extrabold text-brand">
                         {formatCurrency(product.price)}
@@ -104,7 +104,7 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
                         type="button"
                         disabled={!product.isAvailable}
                         onClick={() => onAdd(product)}
-                        className="relative z-20 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-4 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
+                        className="relative z-20 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-4 text-xs font-bold text-white transition hover:bg-brand-dark focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:opacity-50"
                       >
                         {product.optionsEnabled && product.hasOptions ? (
                           <SlidersHorizontal size={17} />

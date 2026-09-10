@@ -2186,12 +2186,12 @@ export function updateSupportTicketStatus(
   });
 }
 
-export function getNewProducts(limit = 12, signal?: AbortSignal): Promise<import("@samou-go/shared-types").DiscoveryProduct[]> {
-  return request("GET", "/stores/new-products", { query: { limit: String(limit), sort: "newest" }, signal });
+export function getNewProducts(limit = 12, signal?: AbortSignal, dishesOnly = false): Promise<import("@samou-go/shared-types").DiscoveryProduct[]> {
+  return request("GET", "/stores/new-products", { query: { limit: String(limit), sort: "newest", dishesOnly: String(dishesOnly) }, signal });
 }
 
-export function searchProducts(search = '', page = 1, signal?: AbortSignal): Promise<{ items: import('@samou-go/shared-types').PopularProduct[]; total: number; page: number; pageSize: number }> {
-  return request('GET', '/stores/search-products', { query: { search, page: String(page) }, signal });
+export function searchProducts(search = '', page = 1, signal?: AbortSignal, dishesOnly = false): Promise<{ items: import('@samou-go/shared-types').PopularProduct[]; total: number; page: number; pageSize: number }> {
+  return request('GET', '/stores/search-products', { query: { search, page: String(page), dishesOnly: String(dishesOnly) }, signal });
 }
 
 export function updatePricingSettings(input: Pick<UpdatePlatformSettingsInput, 'autoPricingEnabled' | 'baseDeliveryFee' | 'perKmFee' | 'captainSharePercentage'>): Promise<PlatformSettings> {

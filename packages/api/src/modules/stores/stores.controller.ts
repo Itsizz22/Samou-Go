@@ -158,10 +158,10 @@ export async function popularProductsHandler(req: Request, res: Response): Promi
 
 export async function newProductsHandler(req: Request, res: Response): Promise<void> {
   const query = parseWith(discoveryQuerySchema, req.query);
-  ok(res, await storesService.getNewProducts(query.limit));
+  ok(res, await storesService.getNewProducts(query.limit, query.dishesOnly));
 }
 
 export async function searchProductsHandler(req: Request, res: Response): Promise<void> {
   const query = parseWith(productSearchQuerySchema, req.query);
-  ok(res, await storesService.searchProducts(query.search, query.page));
+  ok(res, await storesService.searchProducts(query.search, query.page, query.dishesOnly));
 }

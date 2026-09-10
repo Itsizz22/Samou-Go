@@ -1,8 +1,9 @@
+import { Plus, SlidersHorizontal } from 'lucide-react';
 import { StoreHours } from './StoreHours';
 import { ProductPhotoFallback } from './ProductPhotoFallback';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { classifyStore, ImageWithFallback, useLanguage } from '@samou-go/ui';
+import { ImageWithFallback, useLanguage } from '@samou-go/ui';
 import { getStores, getNewProducts, useResource } from '@/hooks/useApi';
 import type { PopularProduct, Store } from '@samou-go/shared-types';
 import { formatCurrency } from '@/lib/delivery';
@@ -25,21 +26,21 @@ function Reel({ children, label }: { children: ReactNode; label: string }) {
 export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) => void }) {
   const { t } = useLanguage();
   const [active, setActive] = useState('discovery');
+  const [visibleCount, setVisibleCount] = useState(8);
   const stores = useResource('discovery:stores', signal =>
     getStores({ sort: 'newest', limit: 24 }, signal)
   );
-  const products = useResource('discovery:products', signal => getNewProducts(24, signal));
+  const products = useResource('discovery:dishes', signal => getNewProducts(24, signal, true));
   const rated = useResource('discovery:ratings', signal =>
     getStores({ sort: 'rating', limit: 24 }, signal)
   );
   const orderedProducts = useMemo(() => {
-    const restaurantIds = new Set((stores.data?.items ?? []).filter(store => classifyStore(store) === 'restaurant').map(store => store.id));
-    return [...(products.data ?? [])].sort((a, b) => Number(restaurantIds.has(b.storeId)) - Number(restaurantIds.has(a.storeId)) || Number(Boolean(b.imageUrl)) - Number(Boolean(a.imageUrl)));
-  }, [products.data, stores.data]);
+    return [...(products.data ?? [])].sort((a, b) => Number(Boolean(b.imageUrl)) - Number(Boolean(a.imageUrl)));
+  }, [products.data]);
   const pills = [
     ['discovery', t('الكل', 'All')],
     ['new-stores', t('متاجر جديدة', 'New stores')],
-    ['new-products', t('منتجات جديدة', 'New products')],
+    ['new-products', t('أطباق اليوم', 'Today’s dishes')],
     ['top-rated', t('الأعلى تقييماً', 'Top rated')],
     ['exclusive-offers', t('عروض حصرية', 'Exclusive offers')],
   ];
@@ -112,24 +113,25 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
         ))}
       </nav>
       <section id="new-products" className="scroll-mt-4 pb-5">
-        <h2 className="mb-3 text-lg font-bold">{t('اكتشف طبقك اليوم', 'Discover your next dish')}</h2>
+        <div className="mb-4 space-y-1"><h2 className="text-lg font-bold">{t('اكتشف طبقك اليوم', 'Discover your next dish')}</h2><p className="text-sm leading-6 text-ink-muted">{t('وجبة، قهوة أو شيء حلو — اختر ما تشتهيه', 'A meal, coffee or a sweet treat — find your craving')}</p></div>
         <LoadState
           loading={products.loading}
           error={!!products.error}
-          empty={!products.data?.length}
+          empty={!orderedProducts.length}
           retry={products.refresh}
         />
         <div className="grid grid-cols-2 gap-3">
-          {orderedProducts.map(product => (
+          {orderedProducts.slice(0, visibleCount).map(product => (
             <article
               key={product.id}
-              className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-card"
+              className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-card"
             >
-              <Link to={`/stores/${encodeURIComponent(product.storeId)}?productId=${encodeURIComponent(product.id)}`} aria-label={`عرض ${product.nameAr}`} className="relative block aspect-[4/3] bg-canvas">
+              <Link to={`/stores/${encodeURIComponent(product.storeId)}?productId=${encodeURIComponent(product.id)}`} aria-label={`عرض ${product.nameAr}`} className="relative block aspect-square overflow-hidden bg-canvas focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand">
                 <ImageWithFallback
                   src={product.imageUrl ?? undefined}
                   fallback={<ProductPhotoFallback />}
                   alt={product.nameAr}
+                  loading="lazy"
                   className="h-full w-full object-cover"
                   fallbackText={product.nameAr.slice(0, 2)}
                 />
@@ -139,18 +141,20 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
                     : t('من اقتراحاتنا', 'Recommended')}
                 </span>
               </Link>
-              <div className="space-y-2 p-3">
-                <p className="truncate text-xs text-ink-muted">{product.storeNameAr}</p>
-                <h3 className="truncate font-bold">{product.nameAr}</h3>
-                <p dir="ltr" className="text-start text-lg font-bold text-brand">
+              <div className="flex flex-1 flex-col gap-2 p-3">
+                <Link to={`/stores/${encodeURIComponent(product.storeId)}`} className="flex min-h-11 items-center gap-1.5 text-xs text-ink-muted focus-visible:ring-2 focus-visible:ring-brand"><ImageWithFallback src={product.storeLogoUrl ?? undefined} alt="" className="size-6 shrink-0 rounded-full object-contain" fallbackText={product.storeNameAr.slice(0, 1)} /><span className="line-clamp-2">{product.storeNameAr}</span></Link>
+                <h3 className="line-clamp-2 min-h-12 text-sm font-bold leading-6"><Link to={`/stores/${encodeURIComponent(product.storeId)}?productId=${encodeURIComponent(product.id)}`} className="focus-visible:ring-2 focus-visible:ring-brand">{product.nameAr}</Link></h3>
+                <p dir="ltr" className="mt-auto text-start text-base font-bold text-brand">
                   {formatCurrency(product.price)}
                 </p>
                 <button
                   type="button"
                   onClick={() => onAdd(product)}
                   disabled={!product.isAvailable}
-                  className="min-h-11 w-full rounded-xl bg-brand px-3 text-sm font-bold text-white hover:bg-brand-dark disabled:opacity-50"
+                  aria-label={`${product.optionsEnabled && product.hasOptions ? t('تخصيص', 'Customize') : t('إضافة', 'Add')} ${product.nameAr}`}
+                  className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-brand px-2 text-sm font-bold text-white hover:bg-brand-dark focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:opacity-50"
                 >
+                  {product.optionsEnabled && product.hasOptions ? <SlidersHorizontal size={15} aria-hidden="true" /> : <Plus size={15} aria-hidden="true" />}
                   {product.optionsEnabled && product.hasOptions
                     ? t('تخصيص الطلب', 'Customize')
                     : t('أضف للسلة', 'Add to cart')}
@@ -159,6 +163,7 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
             </article>
           ))}
         </div>
+        {orderedProducts.length > visibleCount && <button type="button" onClick={() => setVisibleCount(count => count + 8)} className="mt-4 min-h-11 w-full rounded-xl border border-brand bg-brand-tint px-4 text-sm font-bold text-brand-deep focus-visible:ring-2 focus-visible:ring-brand">{t('اكتشف المزيد من الأطباق', 'Discover more dishes')}</button>}
       </section>
       <section id="new-stores" className="scroll-mt-4 pb-5">
         <h2 className="mb-3 text-lg font-bold">{t('متاجر جديدة', 'New stores')}</h2>

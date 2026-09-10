@@ -153,12 +153,9 @@ export function SamouGoHome() {
   const offers = useAllOffers();
   const activeOffers = useMemo(() => (offers.data?.items ?? []).slice(0, 6), [offers.data]);
 
-  // Popular products across all stores.
+  // Featured dishes from eligible food venues, in admin-selected order.
   const popular = useFeaturedProducts();
-  const restaurantProducts = useMemo(() => {
-    const restaurantIds = new Set((stores.data?.items ?? []).filter(store => classifyStore(store) === 'restaurant').map(store => store.id));
-    return [...(popular.data ?? [])].sort((a, b) => Number(restaurantIds.has(b.storeId)) - Number(restaurantIds.has(a.storeId)));
-  }, [popular.data, stores.data]);
+  const dishProducts = popular.data ?? [];
   const cart = useCart();
   const [optionsProduct, setOptionsProduct] = useState<PopularProduct | null>(null);
 
@@ -258,9 +255,9 @@ export function SamouGoHome() {
       <PromoBannerSlider />
 
       <PromoBannerSlider kind="product" />
-      <CravingShortcuts products={restaurantProducts} />
+      <CravingShortcuts products={dishProducts} />
 
-      <FeaturedProductsShowcase products={restaurantProducts} loading={popular.loading} onAdd={handlePopularAdd} />
+      <FeaturedProductsShowcase products={dishProducts} loading={popular.loading} onAdd={handlePopularAdd} />
 
       <section className="mx-auto max-w-md px-5 pt-7" aria-labelledby="categories-title">
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -288,7 +285,6 @@ export function SamouGoHome() {
         </div>
       </section>
 
-      <HomeProductSearch query="" onAdd={handlePopularAdd} />
       <DiscoverySections onAdd={handlePopularAdd} />
 
       {/* Store Ads & Offers Feed */}

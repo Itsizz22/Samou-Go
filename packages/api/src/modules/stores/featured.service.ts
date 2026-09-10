@@ -1,3 +1,5 @@
+import { dishStoreIds } from './dish-stores';
+import { isDishStore } from '@samou-go/shared-types';
 import { prisma } from "../../lib/prisma";
 import { badRequest } from "../../lib/http-error";
 import { toProduct } from "./stores.mapper";
@@ -5,6 +7,7 @@ import { toProduct } from "./stores.mapper";
 export async function listFeaturedProducts() {
   const rows = await prisma.product.findMany({
     where: {
+      storeId: { in: await dishStoreIds() },
       featuredRank: { not: null },
       isAvailable: true,
       imageUrl: { not: null },
@@ -59,13 +62,13 @@ export async function saveFeaturedProducts(ids: string[]) {
         isAvailable: true,
         store: { isActive: true, isApproved: true },
       },
-      select: { id: true, imageUrl: true },
+      select: { id: true, imageUrl: true, store: { select: { nameAr: true, nameEn: true, storeType: true } } },
     });
     if (
       products.length !== ids.length ||
-      products.some((p) => !p.imageUrl?.trim())
+      products.some((p) => !p.imageUrl?.trim() || !isDishStore(p.store))
     )
-      throw badRequest("اختر منتجات متاحة ذات صور من متاجر معتمدة");
+      throw badRequest("اختر أطباقًا بصور من المطاعم أو المقاهي أو الحلويات والمخابز المعتمدة");
     // Serialize simultaneous admin edits through the singleton settings row.
     await tx.platformSettings.upsert({
       where: { id: "platform" },

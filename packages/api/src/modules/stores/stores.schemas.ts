@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { StoreStatus, StoreType } from '@samou-go/shared-types';
 
 export const productSearchQuerySchema = z.object({
+  dishesOnly: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
   search: z.string().trim().max(120).default(''),
   page: z.coerce.number().int().positive().default(1),
 });
@@ -146,4 +147,4 @@ export type UpdateStoreBody = z.infer<typeof updateStoreSchema>;
 export type CreateCategoryBody = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryBody = z.infer<typeof updateCategorySchema>;
 
-export const discoveryQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(24).default(12), sort: z.literal("newest").optional() });
+export const discoveryQuerySchema = z.object({ dishesOnly: z.enum(["true", "false"]).default("false").transform(v => v === "true"), limit: z.coerce.number().int().min(1).max(24).default(12), sort: z.literal("newest").optional() });

@@ -6,9 +6,9 @@ import { getStores, searchProducts, useResource } from '@/hooks/useApi';
 import type { PopularProduct } from '@samou-go/shared-types';
 import { formatCurrency } from '@/lib/delivery';
 
-export function HomeProductSearch({ query, onAdd, contained = false }: { query: string; onAdd: (product: PopularProduct) => void; contained?: boolean }) {
+export function HomeProductSearch({ query, onAdd, contained = false, dishesOnly = false }: { query: string; onAdd: (product: PopularProduct) => void; contained?: boolean; dishesOnly?: boolean }) {
   const [page, setPage] = useState(1);
-  const products = useResource(`product-search:${query}:${page}`, signal => searchProducts(query, page, signal));
+  const products = useResource(`product-search:${query}:${page}:${dishesOnly}`, signal => searchProducts(query, page, signal, dishesOnly));
   const stores = useResource(`store-search:${query}:${page}`, signal => getStores({ search: query, activeOnly: true, page, pageSize: 12 }, signal), { enabled: Boolean(query) });
   const busy = products.loading || products.refreshing || (Boolean(query) && (stores.loading || stores.refreshing));
   const pages = Math.ceil(Math.max(products.data?.total ?? 0, stores.data?.total ?? 0) / 12);

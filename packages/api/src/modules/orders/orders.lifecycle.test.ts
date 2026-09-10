@@ -767,3 +767,28 @@ it('filters active customer orders before pagination and preserves the unavailab
   expect(result.data.items.some(order => order.id === created.data.id)).toBe(true);
   expect(result.data.items.every(order => order.status !== 'DELIVERED' && order.status !== 'CANCELLED')).toBe(true);
 });
+
+it('limits dish discovery and featured selections to food venues without restricting general search', async () => {
+  const venues = [
+    ['restaurant', 'RESTAURANT', 'المميز'], ['cafe', 'CAFE', 'قهوة'], ['sweets', 'BAKERY_SWEETS', 'حلويات'],
+    ['bakery', null, 'مخابز النور'], ['coffee', null, 'كافيه البلد'], ['grocery', 'SUPERMARKET', 'مطعم البقالة'],
+    ['shop', 'STORE', 'متجر'], ['butcher', 'BUTCHERY', 'ملحمة'], ['produce', 'VEGETABLES_FRUITS', 'خضار'],
+  ] as const;
+  for (const [index, [key, storeType, nameAr]] of venues.entries()) {
+    await fixture.db.store.create({ data: { id: `dish-${key}`, managerId: 'STORE_MANAGER', nameAr, nameEn: '', storeType, phone: `059888880${index}`, isApproved: true, isActive: true, isAcceptingOrders: true, storeStatus: 'OPEN' } });
+    await fixture.db.product.create({ data: { id: `dish-product-${key}`, storeId: `dish-${key}`, nameAr: 'اختبارالأطباق', price: 10, imageUrl: 'https://example.com/dish.jpg', featuredRank: index } });
+  }
+  const expected = venues.slice(0, 5).map(([key]) => `dish-product-${key}`).sort();
+  const searched = await request<{ items: { id: string }[] }>('GET', '/stores/search-products?search=اختبارالأطباق&dishesOnly=true');
+  expect(searched.status).toBe(200);
+  expect(searched.data.items.map(p => p.id).sort()).toEqual(expected);
+  const general = await request<{ items: { id: string }[] }>('GET', '/stores/search-products?search=اختبارالأطباق');
+  expect(general.data.items).toHaveLength(9);
+  const discovery = await request<{ id: string }[]>('GET', '/stores/new-products?limit=24&dishesOnly=true');
+  expect(discovery.status).toBe(200);
+  expect(discovery.data.filter(p => p.id.startsWith('dish-product-')).map(p => p.id).sort()).toEqual(expected);
+  const featured = await request<{ id: string }[]>('GET', '/stores/featured-products');
+  expect(featured.data.filter(p => p.id.startsWith('dish-product-')).map(p => p.id).sort()).toEqual(expected);
+  expect((await request('PUT', '/stores/featured-selection', 'ADMIN', { productIds: ['dish-product-grocery'] })).status).toBe(400);
+  expect((await request('PUT', '/stores/featured-selection', 'ADMIN', { productIds: expected })).status).toBe(200);
+});
