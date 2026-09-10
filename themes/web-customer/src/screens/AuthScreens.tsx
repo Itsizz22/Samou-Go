@@ -125,7 +125,14 @@ export function RegisterScreen() {
   const navigate = useNavigate();
   const toast = useToast();
   const { t } = useLanguage();
-  const [step, setStep] = useState<'form' | 'location'>('form');
+  const [step, setStep] = useState<'form' | 'otp' | 'location'>('form');
+  const [code, setCode] = useState('');
+  const [resendSeconds, setResendSeconds] = useState(0);
+  useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const timer = window.setTimeout(() => setResendSeconds(value => value - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendSeconds]);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -140,15 +147,24 @@ export function RegisterScreen() {
   const [geoPending, setGeoPending] = useState(false);
   const [geoApplied, setGeoApplied] = useState(false);
   const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
-  if (auth.ready && auth.user) return <Navigate to={roleHomePath(auth.user.role)} replace />;
+  if (auth.ready && auth.user && step !== 'location') return <Navigate to={roleHomePath(auth.user.role)} replace />;
 
-  /**
-   * Direct registration — no OTP. The server creates the account, hashes
-   * the password, marks the user verified, and returns access + refresh
-   * tokens so we can enter the app immediately.
-   */
+  const sendRegistrationCode = async () => {
+    if (!valid || pending || resendSeconds > 0) return;
+    setPending(true);
+    setError(null);
+    try {
+      await requestOtp({ phone: phone.trim() });
+      setCode('');
+      setResendSeconds(60);
+      setStep('otp');
+    } catch (cause) {
+      setError(apiErrorMessage(cause, { ar: 'تعذر إرسال الرمز. حاول مجدداً.', en: 'Could not send code. Try again.' }));
+    } finally { setPending(false); }
+  };
+
   const handleRegister = async () => {
-    if (!valid || pending) return;
+    if (!valid || pending || !/^\d{6}$/.test(code)) return;
     setPending(true);
     setError(null);
     try {
@@ -156,12 +172,14 @@ export function RegisterScreen() {
         name: name.trim(),
         phone: normalizePhone(phone),
         password,
+        otpCode: code,
       });
       // Store tokens via the API client's token layer.
       const { setToken, setRefreshToken } = await import('@samou-go/api-client');
       setToken(result.accessToken);
       setRefreshToken(result.refreshToken ?? null);
       // Refresh auth context to pick up the user profile.
+      setStep('location');
       await auth.refresh();
       toast.success('تم إنشاء الحساب — أهلاً بك!', 'Account created — welcome!');
       setStep('location');
@@ -239,7 +257,7 @@ export function RegisterScreen() {
           noValidate
           onSubmit={event => {
             event.preventDefault();
-            void handleRegister();
+            void sendRegistrationCode();
           }}
         >
           <label className="mt-5 block text-sm font-bold">
@@ -322,8 +340,22 @@ export function RegisterScreen() {
             disabled={!valid || pending}
             className="btn-primary mt-5 w-full justify-center disabled:opacity-60"
           >
-            {pending && <Loader2 className="animate-spin" size={18} />} إنشاء الحساب
+            {pending && <Loader2 className="animate-spin" size={18} />} إرسال رمز التحقق
           </button>
+        </form>
+      )}
+      {step === 'otp' && (
+        <form onSubmit={event => { event.preventDefault(); void handleRegister(); }}>
+          <p className="my-5 text-sm text-ink-muted">{t('أدخل الرمز المرسل إلى', 'Enter the code sent to')} <span dir="ltr">{phone}</span></p>
+          <OtpPinInput value={code} onChange={setCode} disabled={pending} autoFocus />
+          <ErrorBanner error={error} />
+          <button type="submit" disabled={pending || code.length !== 6} className="btn-primary mt-5 w-full justify-center disabled:opacity-60">
+            {pending && <Loader2 size={18} className="animate-spin" />}{t('تأكيد وإنشاء الحساب', 'Verify and create account')}
+          </button>
+          <button type="button" disabled={pending || resendSeconds > 0} onClick={() => void sendRegistrationCode()} className="mt-4 w-full text-sm font-bold text-brand disabled:opacity-50">
+            {resendSeconds > 0 ? t('إعادة الإرسال بعد', 'Resend in') + ' ' + resendSeconds : t('إعادة إرسال الرمز', 'Resend code')}
+          </button>
+          <button type="button" disabled={pending} onClick={() => { setCode(''); setError(null); setResendSeconds(0); setStep('form'); }} className="mt-4 w-full text-sm text-ink-muted">{t('تعديل رقم الهاتف', 'Change phone number')}</button>
         </form>
       )}
       {step === 'location' && (

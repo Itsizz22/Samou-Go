@@ -61,9 +61,11 @@ export async function register(
     throw conflict('رقم الجوال مسجّل مسبقاً / This phone number is already registered');
   }
 
-  // Registration is password-based — no OTP step. Create the account,
-  // mark it verified, and issue tokens immediately so the user can
-  // enter the app without an extra verification wall.
+  // Public registration must prove phone ownership before creating a user or session.
+  if (callerRole !== UserRole.ADMIN) {
+    if (!body.otpCode) throw unprocessable('PHONE_VERIFICATION_REQUIRED', 'يرجى التحقق من رقم الهاتف أولاً / Phone verification is required');
+    await verifyAndConsumeOtp(body.phone, body.otpCode);
+  }
   const user = await prisma.user.create({ include: assignedStoresInclude,
     data: {
       publicCode: await nextPublicCode(requestedRole, prisma),

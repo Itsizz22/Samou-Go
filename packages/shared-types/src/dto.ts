@@ -68,6 +68,8 @@ export interface PaginationQuery {
  * ------------------------------------------------------------------------- */
 
 export interface RegisterInput {
+  /** Required for public registration; admins provision accounts separately. */
+  otpCode?: string;
   name: string;
   /** `05XXXXXXXX` — Palestinian mobile. */
   phone: string;

@@ -38,6 +38,7 @@ export const passwordSchema = z
   .max(128);
 
 export const registerSchema = z.object({
+  otpCode: z.string().trim().regex(/^\d{6}$/).optional(),
   name: z
     .string()
     .trim()
