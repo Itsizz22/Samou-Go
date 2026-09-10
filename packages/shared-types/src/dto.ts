@@ -103,6 +103,7 @@ export interface AuthResponse {
 
 /** POST /auth/otp/request — ask for a one-time code on a mobile number. */
 export interface OtpRequestInput {
+  purpose?: 'password-reset';
   /** `05XXXXXXXX` — Palestinian mobile. */
   phone: string;
 }

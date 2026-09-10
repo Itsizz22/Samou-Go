@@ -162,6 +162,12 @@ export async function requestOtp(
   const { phone } = body;
   const now = new Date();
 
+  if (body.purpose === 'password-reset') {
+    const account = await prisma.user.findUnique({ where: { phone } });
+    if (!account || account.isActive === false) {
+      throw notFound('لا يوجد حساب متاح بهذا الرقم. تأكد من الرقم أو أنشئ حساباً / No account is available for this number');
+    }
+  }
   const existing = await prisma.otpRequest.findUnique({ where: { phone } });
 
   if (existing) {

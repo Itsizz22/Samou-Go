@@ -446,3 +446,15 @@ describe('adminVerifyCaptainOtp — captain provisioning', () => {
     expect(h.state.otp).toBeNull();
   });
 });
+
+it('does not send a password reset SMS for an unregistered phone', async () => {
+  h.state.user = null;
+  await expect(requestOtp({ phone: '0599000008', purpose: 'password-reset' })).rejects.toMatchObject({ statusCode: 404 });
+  expect(h.gateway.send).not.toHaveBeenCalled();
+});
+it('sends password reset SMS for a registered active account', async () => {
+  h.state.user = { id: 'existing', phone: '0599000008', isActive: true };
+  await requestOtp({ phone: '0599000008', purpose: 'password-reset' });
+  expect(h.gateway.send).toHaveBeenCalledOnce();
+});
+

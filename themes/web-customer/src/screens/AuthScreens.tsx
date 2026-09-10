@@ -469,7 +469,7 @@ export function ForgotPasswordScreen() {
     if (!phoneValid(phone) || pending) return;
     setPending(true);
     setError(null);
-    void requestOtp({ phone: phone.trim() })
+    void requestOtp({ phone: phone.trim(), purpose: 'password-reset' })
       .then(() => {
         setStep(2);
         setResendIn(RESEND_COOLDOWN);
