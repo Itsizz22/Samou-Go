@@ -373,6 +373,7 @@ export interface UpdateCategoryInput {
 }
 
 export interface UpdateStoreInput {
+  storeType?: StoreType | null;
   nameAr?: string;
   nameEn?: string;
   phone?: string;

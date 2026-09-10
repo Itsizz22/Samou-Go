@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { ApiError, removeCurrentImage, updateStore, useStore, useToast, useUploadImage } from '@samou-go/api-client';
+import { STORE_TYPE_LABELS, type StoreType as StoreKind } from '@samou-go/shared-types';
 import type { Store as StoreType } from '@samou-go/shared-types';
 import { useLanguage } from '@samou-go/ui';
 
@@ -27,6 +28,7 @@ interface Props {
 }
 
 interface FormState {
+  storeType: StoreKind | '';
   nameAr: string;
   nameEn: string;
   phone: string;
@@ -37,6 +39,7 @@ interface FormState {
 
 function formFromStore(s: StoreType): FormState {
   return {
+    storeType: s.storeType ?? '',
     nameAr: s.nameAr,
     nameEn: s.nameEn,
     phone: s.phone,
@@ -71,6 +74,7 @@ export function StoreProfilePanel({ storeId }: Props) {
   }, [storeData]);
 
   const [form, setForm] = useState<FormState>({
+    storeType: '',
     nameAr: '',
     nameEn: '',
     phone: '',
@@ -103,6 +107,7 @@ export function StoreProfilePanel({ storeId }: Props) {
     setSaveError(null);
     try {
       await updateStore(storeId, {
+        storeType: form.storeType || null,
         nameAr: form.nameAr.trim(),
         nameEn: form.nameEn.trim() || undefined,
         // Always send phone when it has a non-empty value so the backend persists it.
@@ -302,6 +307,13 @@ export function StoreProfilePanel({ storeId }: Props) {
             />
           </label>
 
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold text-ink">{t('نوع المتجر', 'Store type')}</span>
+            <select value={form.storeType} onChange={event => update('storeType', event.target.value as StoreKind | '')} className="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm">
+              <option value="">{t('غير محدد', 'Not specified')}</option>
+              {Object.entries(STORE_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{t(label.ar, label.en)}</option>)}
+            </select>
+          </label>
           {/* Phone */}
           <label className="block">
             <span className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-ink">
