@@ -54,7 +54,6 @@ import {
   useMutation,
   useMyStores,
   useOrders,
-  useRoleRedirect,
   useStoreManager,
   useToast,
   usePlatformSettings,
@@ -143,7 +142,7 @@ export function SamouGoStoreManager() {
   const isArabic = language === 'ar';
 
   // Unified login: non-store-manager roles are sent to their own workspace.
-  useRoleRedirect('store-manager');
+  // App RoleGuard uses the shared session; do not mount a second auth instance.
 
   /* -- Role gate --------------------------------------------------------- */
   const isManager = auth.user?.role === UserRole.STORE_MANAGER;

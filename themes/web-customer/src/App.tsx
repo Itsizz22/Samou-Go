@@ -207,7 +207,7 @@ function RoleGuard({
 }) {
   if (!auth.ready) return null;
   if (!auth.user) return <Navigate to="/login" replace />;
-  if (auth.user.role !== role) return <Navigate to="/" replace />;
+  if (auth.user.role !== role) return <Navigate to={roleHomePath(auth.user.role)} replace />;
   return <>{children}</>;
 }
 

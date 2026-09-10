@@ -46,7 +46,6 @@ import {
   useOrder,
   useOrders,
   usePlatformSettings,
-  useRoleRedirect,
   useToast,
   useWallet,
   getWalletStatement,
@@ -145,7 +144,7 @@ export function SamouGoCaptain() {
   const isArabic = language === 'ar';
 
   // Unified login: non-captain roles are sent to their own workspace.
-  useRoleRedirect('captain');
+  // App RoleGuard uses the shared session; do not mount a second auth instance.
 
   const [available, setAvailable] = useState<boolean>(auth.user?.isAvailable ?? false);
   const [activeTab, setActiveTab] = useState('home');

@@ -92,7 +92,9 @@ export function useAccounts(): UseAccountsResult {
     if (!account) return null;
     setBusyId(accountId);
     try {
-      return await resolveLiveProfile();
+      const profile = await resolveLiveProfile();
+      // Never commit a different identity from a stale saved snapshot.
+      return profile?.id === accountId ? profile : null;
     } finally {
       setBusyId(null);
     }

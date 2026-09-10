@@ -62,7 +62,9 @@ export function AccountSwitcher({ auth, compact = false }: AccountSwitcherProps)
         auth.setUser(profile);
         toast.success('تم تبديل الحساب', 'Account switched');
       } else {
-        toast.error('تعذّر استعادة الجلسة', 'Could not restore this session');
+        setPhone(accounts.find(account => account.id === accountId)?.phone ?? '');
+        setAdding(true);
+        setFormError('انتهت صلاحية الجلسة؛ سجّل الدخول مجدداً / Please sign in again');
       }
     } catch {
       toast.error('تعذّر التبديل', 'Switch failed');
@@ -211,7 +213,7 @@ export function AccountSwitcher({ auth, compact = false }: AccountSwitcherProps)
         </button>
       )}
 
-      {full && (
+      {full && !adding && (
         <p className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-warning-tint px-3 py-2.5 text-[11px] font-bold text-warning-ink" role="status">
           <Info size={13} className="shrink-0" />
           {isArabic
@@ -220,7 +222,7 @@ export function AccountSwitcher({ auth, compact = false }: AccountSwitcherProps)
         </p>
       )}
 
-      {!full && adding && (
+      {adding && (
         <form onSubmit={handleSubmit} className="mt-3 rounded-xl bg-canvas p-3" noValidate>
           <p className="text-[11px] font-bold text-ink-muted">
             {isArabic
