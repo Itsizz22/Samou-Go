@@ -183,3 +183,18 @@
 @media (prefers-reduced-motion: no-preference) {
  [role="dialog"], [role="menu"], [data-sonner-toast] { animation: samou-dialog-enter 180ms ease-out; }
 }
+
+/* Customer storefront: restrained surfaces and a consistent mobile rhythm. */
+@layer components {
+  .customer-home .home-header {
+    background: linear-gradient(180deg, var(--color-surface), var(--color-canvas));
+  }
+  .customer-home h2 { letter-spacing: 0; text-wrap: balance; }
+  .customer-home .home-store-card { border: 1px solid var(--color-line); box-shadow: 0 3px 14px color-mix(in srgb, var(--color-brand) 5%, transparent); }
+  .customer-home .home-store-card:active { transform: scale(.99); }
+  .customer-home [dir="ltr"] { font-variant-numeric: tabular-nums; }
+  .sq-bottom-nav { box-shadow: 0 -4px 24px color-mix(in srgb, var(--color-ink) 5%, transparent); }
+  @media (prefers-reduced-motion: reduce) {
+    .customer-home *, .sq-bottom-nav * { scroll-behavior: auto; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+}

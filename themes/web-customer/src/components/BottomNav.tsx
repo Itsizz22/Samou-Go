@@ -59,15 +59,18 @@ export function BottomNav() {
 
   // Listen for cart:item-added events and trigger bounce + ripple animation.
   useEffect(() => {
+    let bounceTimeout: ReturnType<typeof setTimeout>;
+    let rippleTimeout: ReturnType<typeof setTimeout>;
     const handler = () => {
       setCartBounce(true);
       setCartRipple(true);
-      const bounceTimeout = setTimeout(() => setCartBounce(false), 500);
-      const rippleTimeout = setTimeout(() => setCartRipple(false), 700);
-      return () => { clearTimeout(bounceTimeout); clearTimeout(rippleTimeout); };
+      clearTimeout(bounceTimeout); clearTimeout(rippleTimeout);
+      bounceTimeout = setTimeout(() => setCartBounce(false), 500);
+      rippleTimeout = setTimeout(() => setCartRipple(false), 700);
+
     };
     window.addEventListener('cart:item-added', handler);
-    return () => window.removeEventListener('cart:item-added', handler);
+    return () => { window.removeEventListener('cart:item-added', handler); clearTimeout(bounceTimeout); clearTimeout(rippleTimeout); };
   }, []);
 
   return (
@@ -90,9 +93,9 @@ export function BottomNav() {
             to={to}
             end={to === '/home'}
             className={({ isActive }) =>
-              `relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-xs font-medium transition-colors ${
+              `relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand ${
                 isActive
-                  ? 'text-brand'
+                  ? 'bg-brand-surface text-brand'
                   : 'text-ink-muted hover:bg-canvas'
               }`
             }

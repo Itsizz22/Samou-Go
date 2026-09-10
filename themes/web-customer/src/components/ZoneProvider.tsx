@@ -164,14 +164,14 @@ export function useDeliveryZone() {
   if (!value) throw new Error('ZoneProvider is required');
   return value;
 }
-export function ZoneSelector() {
+export function ZoneSelector({ compact = false }: { compact?: boolean }) {
   const zone = useDeliveryZone();
   return (
-    <label className="block text-sm font-bold">
+    <label className={compact ? "home-zone block min-w-0 flex-1 text-xs font-medium text-ink-muted" : "block text-sm font-bold"}>
       منطقة التوصيل
       <select
         aria-label="منطقة التوصيل"
-        className="mt-2 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-ink"
+        className={compact ? "mt-0 min-h-11 w-full rounded-xl border-0 bg-transparent pe-6 text-sm font-bold text-ink focus-visible:ring-2 focus-visible:ring-brand" : "mt-2 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-ink"}
         value={zone.activeZone?.id ?? ''}
         onChange={event => zone.selectZone(event.target.value)}
         disabled={zone.loading}

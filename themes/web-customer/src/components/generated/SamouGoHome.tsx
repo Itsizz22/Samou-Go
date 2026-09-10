@@ -39,7 +39,7 @@ import { BottomNav } from '@/components/BottomNav';
 import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import { useDrawer } from '@/components/NavigationDrawer';
 import { DeliveryFee } from '@samou-go/ui';
-import { API_URL, ENABLE_LOCATION } from '@/hooks/useApi';
+import { API_URL } from '@/hooks/useApi';
 import { FeaturedProductsShowcase } from '@/components/FeaturedProductsShowcase';
 import { CravingShortcuts } from '@/components/CravingShortcuts';
 import { PromoBannerSlider } from '@/components/PromoBannerSlider';
@@ -197,7 +197,8 @@ export function SamouGoHome() {
 
 
   return <main dir="rtl" className="customer-home sq-customer-screen min-h-screen bg-canvas pb-28 font-sans text-ink">
-      <header className="bg-canvas px-5 py-3">
+      <a href="#home-results" className="sr-only focus:not-sr-only focus:block focus:p-3">تجاوز إلى المتاجر</a>
+      <header className="home-header px-5 pb-4 pt-3">
         <nav className="mx-auto flex max-w-md items-center justify-between gap-2" aria-label="Main navigation">
           <button
             type="button"
@@ -227,13 +228,7 @@ export function SamouGoHome() {
             </Link>
           </div>
         </nav>
-        <section className="mx-auto mt-3 flex max-w-md items-end justify-between" aria-label="Location and greeting">
-          {ENABLE_LOCATION && (
-            <div className="flex items-center gap-2 text-end"><MapPin size={18} /><div><p className="text-sm font-semibold">{t('السموع، الخليل', "Al-Samou', Hebron")}</p></div></div>
-          )}
-          <div className="text-start"><p className="text-[22px] font-bold leading-7">{t('مرحباً بك! 👋', 'Welcome! 👋')}</p></div>
-        </section>
-      <div className="mx-auto mt-3 max-w-md"><ZoneSelector /></div>
+<div className="mx-auto mt-3 flex max-w-md items-center gap-3 rounded-2xl bg-surface px-3 py-1"><span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand"><MapPin size={20} aria-hidden="true" /></span><ZoneSelector compact /></div>
       </header>
       {auth.user?.role === 'CUSTOMER' && <><ActiveOrderStrip orders={ongoing.data?.items ?? []} />{(ongoing.data?.total ?? 0) > 8 && <Link className="mx-auto block max-w-md px-5 pb-3 text-sm text-brand" to="/orders">عرض كل الطلبات الجارية</Link>}</>}
       <ConnectionNotice loading={stores.loading || popular.loading} failed={Boolean(stores.error || popular.error)} retry={() => { stores.reload(); popular.reload(); }} />
@@ -272,7 +267,7 @@ export function SamouGoHome() {
             const active = activeCategory === category.key;
             const representative = (stores.data?.items ?? []).find(store => classifyStore(store) === category.key && (store.coverUrl || store.logoUrl));
             const photo = representative?.coverUrl || representative?.logoUrl;
-            return <button key={category.key} type="button" aria-pressed={active} onClick={() => setActiveCategory(category.key)} className={`flex min-w-0 flex-col items-center gap-2 rounded-2xl border p-1.5 pb-3 text-center transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-brand ${active ? 'border-brand bg-brand-tint text-brand-dark' : 'border-line bg-surface text-ink-soft'}`}>
+            return <button key={category.key} type="button" aria-pressed={active} onClick={() => { setActiveCategory(category.key); requestAnimationFrame(() => document.getElementById('home-results')?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })); }} className={`flex min-w-0 flex-col items-center gap-2 rounded-2xl border p-1.5 pb-3 text-center transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-brand ${active ? 'border-brand bg-brand-tint text-brand-dark' : 'border-line bg-surface text-ink-soft'}`}>
               <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-brand-surface text-brand">{photo ? <ImageWithFallback src={photo} alt="" className="h-full w-full object-cover" /> : <Icon size={26} />}</span>
               <span className="text-[11px] font-bold leading-relaxed">{t(category.ar, category.en)}</span>
             </button>;
@@ -280,7 +275,7 @@ export function SamouGoHome() {
         </div>
         <div className="mt-3 flex gap-2" aria-label="Store availability filter">
           {([['all', t('الكل', 'All')], ['open', t('مفتوح', 'Open')], ['closed', t('مغلق', 'Closed')]] as const).map(([value, label]) => (
-            <button key={value} type="button" onClick={() => setAvailabilityFilter(value)} aria-pressed={availabilityFilter === value} className={`rounded-full px-3 py-1.5 text-micro font-bold ${availabilityFilter === value ? 'bg-brand text-white' : 'bg-surface text-ink-muted shadow-card'}`}>{label}</button>
+            <button key={value} type="button" onClick={() => setAvailabilityFilter(value)} aria-pressed={availabilityFilter === value} className={`min-h-11 rounded-full px-4 py-2 text-xs font-bold ${availabilityFilter === value ? 'bg-brand text-white' : 'bg-surface text-ink-muted shadow-card'}`}>{label}</button>
           ))}
         </div>
       </section>
@@ -427,14 +422,14 @@ export function SamouGoHome() {
 
 
       </>}
-      {!searchTerm.trim() && !stores.error && (stores.loading || cards.length > 0) && <section id="home-results" aria-live="polite" className="mx-auto max-w-md px-5 pt-8" aria-labelledby="nearby-title" aria-busy={stores.loading}>
+      {!searchTerm.trim() && !stores.error && (stores.loading || cards.length > 0) && <section id="home-results" aria-live="polite" className="scroll-mt-4 mx-auto max-w-md px-5 pt-8" aria-labelledby="nearby-title" aria-busy={stores.loading}>
         <div className="mb-4 flex items-end justify-between"><div><h2 id="nearby-title" className="text-lg font-extrabold">{t('كل المتاجر', "All stores in Al-Samou'")}</h2></div>{stores.refreshing ? <Loader2 size={16} className="animate-spin text-brand" aria-label="Refreshing" /> : <ChevronLeft size={18} className="text-ink-subtle" />}</div>
         <div className="space-y-3">
           {stores.loading
             ? [0, 1, 2].map(index => <div key={index} className="skeleton flex items-center gap-3 rounded-2xl p-3 shadow-card" aria-hidden="true"><div className="h-12 w-12 shrink-0 rounded-xl bg-line-soft" /><div className="flex-1 space-y-2"><div className="ms-auto h-3 w-1/2 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-2/3 rounded bg-line-soft" /></div><div className="h-6 w-12 shrink-0 rounded-full bg-line-soft" /></div>)
             : cards.map(({ store, category, initials, tint }) => (
-                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card transition-all duration-200 hover:-translate-y-px hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
-                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-black ${tint}`}>{store.logoUrl ? <ImageWithFallback src={store.logoUrl} alt="" className="h-full w-full object-cover" fallbackText={initials} /> : initials}</div>
+                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="home-store-card flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card transition-all duration-200 hover:-translate-y-px hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
+                  <div className={`flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl text-sm font-black ${tint}`}>{store.coverUrl || store.logoUrl ? <ImageWithFallback src={store.coverUrl || store.logoUrl || undefined} alt="" className="h-full w-full object-cover" fallbackText={initials} /> : initials}</div>
                   <div className="min-w-0 flex-1 text-start"><h3 className="truncate text-sm font-extrabold">{t(store.nameAr, store.nameEn)}{store.isRecommended && <span className="ms-1.5 inline-flex items-center gap-0.5 rounded-full bg-brand-tint px-1.5 py-0.5 align-middle text-micro font-bold text-brand-deep" title={t('ينصح به لدينا', 'Recommended by us')}><Star size={9} fill="currentColor" />{t('موصى به', 'Recommended')}</span>}</h3><p className="mt-1 flex items-center gap-2 text-micro font-semibold text-ink-muted"><DeliveryFee amount={baseFee} variant="inline" /></p><StoreHours store={store} /><DeliveryEstimate store={store} /></div>
                   <span className={`shrink-0 rounded-full px-2 py-1 text-micro font-bold ${storeIsOpen(store) ? 'bg-brand-tint text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{storeIsOpen(store) ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
                 </Link>
