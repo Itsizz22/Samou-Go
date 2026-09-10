@@ -33,23 +33,27 @@ export interface SettleResult {
 }
 
 export async function updateCaptainLocation(captainId: string, body: LocationBody) {
+  if (!(await getPlatformSettings()).gpsCaptureEnabled) throw forbidden('التتبع متوقف / Tracking disabled');
+  const order = await prisma.order.findUnique({ where: { id: body.orderId }, select: { captainId: true, status: true } });
+  if (!order || order.captainId !== captainId || !['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'ON_THE_WAY'].includes(order.status)) throw forbidden('مشاركة الموقع متاحة للطلب المسند النشط فقط / Active assigned order required');
+  const { orderId: _orderId, ...coordinates } = body;
   return prisma.captainLocation.upsert({
     where: { captainId },
-    create: { captainId, ...body },
-    update: body,
+    create: { captainId, ...coordinates },
+    update: coordinates,
   });
 }
 
 export async function getOrderLocation(auth: JwtPayload, orderId: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { captainId: true, customerId: true, storeId: true },
+    select: { captainId: true, customerId: true, storeId: true, status: true, store: { select: { managerId: true } } },
   });
   if (!order) throw notFound('الطلب غير موجود / Order not found');
-  if (auth.role !== UserRole.ADMIN && auth.sub !== order.customerId && auth.sub !== order.captainId) {
+  if (!isOrderPartyMember(auth, order)) {
     throw forbidden();
   }
-  return order.captainId
+  return !["DELIVERED", "CANCELLED"].includes(order.status) && order.captainId
     ? prisma.captainLocation.findUnique({ where: { captainId: order.captainId } })
     : null;
 }

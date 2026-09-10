@@ -1,3 +1,4 @@
+import { OperationsPanel } from './OperationsPanel';
 import { useState } from 'react';
 import { getNotificationAudit, useResource } from '@samou-go/api-client';
 const labels: Record<string, string> = { PENDING: 'قيد الإرسال', ACCEPTED: 'قبله مزوّد الإشعارات', PARTIAL: 'إرسال جزئي', FAILED: 'فشل الإرسال', NO_DEVICE: 'لا يوجد جهاز مسجل', DISABLED: 'الإرسال غير متاح', EXPIRED: 'انتهت صلاحية التنبيه' };
@@ -5,6 +6,7 @@ export function NotificationAuditPanel() {
   const [page, setPage] = useState(1);
   const resource = useResource(`notification-audit:${page}`, signal => getNotificationAudit(page, signal), { pollMs: 15000 });
   return <section dir="rtl" className="space-y-4">
+    <OperationsPanel />
     <div className="flex items-center justify-between"><h2 className="text-xl font-bold">سجل الإشعارات</h2><button className="btn-primary" disabled={resource.loading || resource.refreshing} onClick={resource.refresh}>تحديث</button></div>
     <p className="text-sm text-ink-muted">قبول الرسالة من Firebase لا يثبت ظهورها أو رنين الهاتف. يظهر وقت الفتح عند وصول تأكيد من التطبيق؛ غيابه لا يثبت عدم المشاهدة.</p>
     {resource.error && <p role="alert">تعذر تحديث السجل. أعد المحاولة؛ النتائج السابقة محفوظة على الشاشة.</p>}

@@ -11,9 +11,10 @@ export const walletIdParamsSchema = z.object({
 });
 
 export const locationSchema = z.object({
-  lat: z.number().finite(),
-  lng: z.number().finite(),
-  heading: z.number().finite().optional(),
+  orderId: z.string().min(1).max(100),
+  lat: z.number().finite().min(-90).max(90),
+  lng: z.number().finite().min(-180).max(180),
+  heading: z.number().finite().min(0).lt(360).optional(),
 });
 
 export const ratingSchema = z.object({

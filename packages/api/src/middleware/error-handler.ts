@@ -1,3 +1,4 @@
+import { recordServerFailure } from '../lib/operations';
 import type { NextFunction, Request, Response } from 'express';
 import { Prisma } from '../lib/prisma-runtime';
 import { ZodError } from 'zod';
@@ -130,6 +131,8 @@ export function errorHandler(
   }
 
   const { statusCode, code, message, details, unexpected } = normalise(error);
+
+  if (unexpected || statusCode >= 500) recordServerFailure(code);
 
   // 429s from the OTP limiter carry a "when can I retry?" hint for the client.
   if (

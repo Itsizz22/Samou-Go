@@ -1,3 +1,4 @@
+import { getPlatformSettings } from './modules/platform/platform.service';
 import type { Server, Socket } from 'socket.io';
 import { UserRole } from '@samou-go/shared-types';
 import { prisma } from './lib/prisma';
@@ -86,22 +87,13 @@ export async function handleCaptainLocation(
   markLocationWrite(auth.sub, now);
 
   try {
-    const location = await prisma.captainLocation.upsert({
-      where: { captainId: auth.sub },
-      create: { captainId: auth.sub, lat, lng, heading },
-      update: { lat, lng, heading },
-    });
-
+    if (!(await getPlatformSettings()).gpsCaptureEnabled) return;
     const orderId = (payload as { orderId?: unknown }).orderId;
-    if (typeof orderId === 'string' && orderId.length > 0) {
-      const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        select: { captainId: true },
-      });
-      if (order?.captainId === auth.sub) {
-        io.to(`order:${orderId}`).emit('captain:location', location);
-      }
-    }
+    if (typeof orderId !== 'string' || !orderId) return;
+    const order = await prisma.order.findUnique({ where: { id: orderId }, select: { captainId: true, status: true } });
+    if (order?.captainId !== auth.sub || !['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'ON_THE_WAY'].includes(order.status)) return;
+    const location = await prisma.captainLocation.upsert({ where: { captainId: auth.sub }, create: { captainId: auth.sub, lat, lng, heading }, update: { lat, lng, heading } });
+    io.to('order:' + orderId).emit('captain:location', location);
   } catch {
     // DB failure — silently drop this location update rather than crashing the socket handler.
   }

@@ -1,3 +1,4 @@
+vi.mock('./modules/platform/platform.service', () => ({ getPlatformSettings: async () => ({ gpsCaptureEnabled: true }) }));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Server, Socket } from 'socket.io';
 import { UserRole } from '@samou-go/shared-types';
@@ -142,6 +143,7 @@ describe('handleOrderJoin — S-1 room-join gating', () => {
 });
 
 describe('handleCaptainLocation — S-2 location write', () => {
+  beforeEach(() => { h.state.order = { id: 'order-1', captainId: 'captain-1', status: 'ON_THE_WAY' }; });
   it('ignores non-captain callers entirely', async () => {
     await handleCaptainLocation(makeIo() as unknown as Server, CUSTOMER, {
       lat: 31.5,
@@ -162,26 +164,23 @@ describe('handleCaptainLocation — S-2 location write', () => {
     expect(prisma.captainLocation.upsert).not.toHaveBeenCalled();
   });
 
-  it('writes the location and stays silent without an order id', async () => {
+  it('does not persist a location without an active assigned order', async () => {
     const io = makeIo() as unknown as Server;
-
-    await handleCaptainLocation(io, CAPTAIN, { lat: 31.5, lng: 35.1, heading: 90 });
-
-    expect(prisma.captainLocation.upsert).toHaveBeenCalledWith({
-      where: { captainId: 'captain-1' },
-      create: { captainId: 'captain-1', lat: 31.5, lng: 35.1, heading: 90 },
-      update: { lat: 31.5, lng: 35.1, heading: 90 },
-    });
-    expect(io.to).not.toHaveBeenCalled();
+    await handleCaptainLocation(io, CAPTAIN, { lat: 31.5, lng: 35.1 });
+    expect(prisma.captainLocation.upsert).not.toHaveBeenCalled();
+    resetLocationThrottle();
+    h.state.order = { captainId: 'captain-1', status: 'DELIVERED' };
+    await handleCaptainLocation(io, CAPTAIN, { orderId: 'order-1', lat: 31.5, lng: 35.1 });
+    expect(prisma.captainLocation.upsert).not.toHaveBeenCalled();
   });
 
   it('broadcasts only to the order actually assigned to this captain', async () => {
-    h.state.order = { id: 'order-1', captainId: 'captain-2' };
+    h.state.order = { id: 'order-1', captainId: 'captain-2', status: 'ON_THE_WAY' };
     const ioOther = makeIo() as unknown as Server;
     await handleCaptainLocation(ioOther, CAPTAIN, { orderId: 'order-1', lat: 31.5, lng: 35.1 });
     expect(ioOther.to).not.toHaveBeenCalled();
 
-    h.state.order = { id: 'order-1', captainId: 'captain-1' };
+    h.state.order = { id: 'order-1', captainId: 'captain-1', status: 'ON_THE_WAY' };
     resetLocationThrottle();
     const ioMine = makeIo() as unknown as Server;
     await handleCaptainLocation(ioMine, CAPTAIN, { orderId: 'order-1', lat: 31.5, lng: 35.1 });
@@ -194,8 +193,8 @@ describe('handleCaptainLocation — S-2 location write', () => {
   it('throttles repeated writes within the minimum interval', async () => {
     const io = makeIo() as unknown as Server;
 
-    await handleCaptainLocation(io, CAPTAIN, { lat: 31.5, lng: 35.1 });
-    await handleCaptainLocation(io, CAPTAIN, { lat: 31.6, lng: 35.2 });
+    await handleCaptainLocation(io, CAPTAIN, { orderId: 'order-1', lat: 31.5, lng: 35.1 });
+    await handleCaptainLocation(io, CAPTAIN, { orderId: 'order-1', lat: 31.6, lng: 35.2 });
 
     expect(prisma.captainLocation.upsert).toHaveBeenCalledTimes(1);
   });
@@ -204,18 +203,20 @@ describe('handleCaptainLocation — S-2 location write', () => {
     const io = makeIo() as unknown as Server;
 
     // First write registers captain-1 in the throttle map.
-    await handleCaptainLocation(io, CAPTAIN, { lat: 31.5, lng: 35.1 });
+    await handleCaptainLocation(io, CAPTAIN, { orderId: 'order-1', lat: 31.5, lng: 35.1 });
     // 500 further distinct captains push the map past its 500-entry cap, which
     // evicts the oldest entry (captain-1).
     for (let i = 2; i <= 501; i += 1) {
+      h.state.order = { captainId: `captain-${i}`, status: 'ON_THE_WAY' };
       await handleCaptainLocation(
         io,
         { sub: `captain-${i}`, role: UserRole.CAPTAIN },
-        { lat: 31.5, lng: 35.1 }
+        { orderId: 'order-1', lat: 31.5, lng: 35.1 }
       );
     }
+    h.state.order = { captainId: 'captain-1', status: 'ON_THE_WAY' };
     // captain-1 is no longer tracked, so its immediate re-write is not throttled.
-    await handleCaptainLocation(io, CAPTAIN, { lat: 31.6, lng: 35.2 });
+    await handleCaptainLocation(io, CAPTAIN, { orderId: 'order-1', lat: 31.6, lng: 35.2 });
 
     expect(prisma.captainLocation.upsert).toHaveBeenCalledTimes(502);
   });

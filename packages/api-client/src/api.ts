@@ -2233,3 +2233,13 @@ export const editPendingOrder = (orderId: string, body: { updatedAt: string; ite
 
 export const proposeOrderChange = (orderId: string, body: { updatedAt: string; items: CreateOrderInput['items'] }) => request<OrderDetail>('POST', `/orders/${encodeURIComponent(orderId)}/change-proposal`, { auth: true, body });
 export const decideOrderChange = (orderId: string, updatedAt: string, accept: boolean) => request<OrderDetail>('POST', `/orders/${encodeURIComponent(orderId)}/change-decision`, { auth: true, body: { updatedAt, accept } });
+
+export interface OperationsStatus {
+  checkedAt: string; database: 'reachable'; schedulerHealthy: boolean;
+  notifications: { since: string; counts: Record<string, number>; failed: number; stuckPending: number };
+  errors: { startedAt: string; scope: 'current-process-last-hour'; retainedLimit: number; count: number; last: { code: string; at: string }[] };
+}
+export const getOperationsStatus = (signal?: AbortSignal) => request<OperationsStatus>('GET', '/admin/operations', { auth: true, signal });
+
+export const getLiveOrderTracking = (id: string, signal?: AbortSignal) => request<import('@samou-go/shared-types').LiveOrderTracking>('GET', '/platform/orders/' + encodeURIComponent(id) + '/tracking', { auth: true, signal });
+export const sendCaptainPosition = (body: { orderId: string; lat: number; lng: number; heading?: number }) => request<unknown>('PUT', '/platform/captains/me/location', { auth: true, body });

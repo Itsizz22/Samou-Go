@@ -1,3 +1,5 @@
+import { getLiveOrderTracking } from '@samou-go/api-client';
+import { OrderTrackingToggle } from '@samou-go/ui/map';
 import { OrderChangePanel } from '@samou-go/api-client';
 import { PreparationCountdown, PreparationTimeEditor } from '@samou-go/api-client';
 import { BrandLogo, OrderCustomerDetails } from '@samou-go/ui';
@@ -1037,6 +1039,8 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
 
   return (
     <article className="rounded-2xl border border-line bg-surface p-4 shadow-card">
+      {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && order.captainId && <OrderTrackingToggle orderId={order.id} load={getLiveOrderTracking} />}
+
       <div className="flex items-start justify-between border-b border-line-soft pb-3">
         <div>
           <p dir="ltr" className="text-sm font-extrabold text-ink">

@@ -1,3 +1,5 @@
+import { getLiveOrderTracking } from '@samou-go/api-client';
+import { LiveTrackingCard } from '@samou-go/ui/map';
 import { CaptainStoreAssignment, assignedIds } from '../StoreAssignmentPicker';
 import { NotificationAuditPanel } from '../NotificationAuditPanel';
 import { SupportDesk } from '@samou-go/api-client';
@@ -984,6 +986,7 @@ function StatusKpi({
  * ------------------------------------------------------------------------- */
 
 function OrdersPanel() {
+  const [trackingId, setTrackingId] = useState<string | null>(null);
   const toast = useToast();
   const { t } = useLanguage();
   const [page, setPage] = useState(1);
@@ -1080,6 +1083,7 @@ function OrdersPanel() {
         </div>
       }
     >
+      {trackingId && <div className="mb-4"><button type="button" onClick={() => setTrackingId(null)} className="mb-2 rounded-xl border border-line p-2">إغلاق التتبع</button><LiveTrackingCard orderId={trackingId} load={getLiveOrderTracking} /></div>}
       <div className="overflow-x-auto">
         <table className="w-full min-w-180 text-start">
           <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
@@ -1110,6 +1114,7 @@ function OrdersPanel() {
                     <tr key={order.id} className="text-xs hover:bg-canvas">
                       <td className="px-5 py-3 font-bold text-brand-deep" dir="ltr">
                         {order.orderNumber}
+                        {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <button type="button" className="block rounded-xl border border-line p-2 text-brand" onClick={() => setTrackingId(order.id)}>تتبع الطلب</button>}
                       </td>
                       <td className="px-3 py-3 text-ink-muted">{order.storeNameAr}</td>
                       <td className="px-3 py-3">

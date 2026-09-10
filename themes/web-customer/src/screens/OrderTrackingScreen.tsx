@@ -1,3 +1,5 @@
+import { getLiveOrderTracking } from '@samou-go/api-client';
+import { LiveTrackingCard } from '@samou-go/ui/map';
 import { OrderChangePanel } from '@samou-go/api-client';
 import { PendingOrderEditor } from '@/components/PendingOrderEditor';
 import { PreparationCountdown } from '@samou-go/api-client';
@@ -28,7 +30,7 @@ import { useAuth } from '@/hooks/useApi';
 import { useOrder, useToast, reorderOrder } from '@/hooks/useApi';
 import { updateOrderStatus } from '@samou-go/api-client';
 import { connectRealtime } from '@samou-go/api-client';
-import { LeafletMap } from '@samou-go/ui/map';
+
 import { useCart } from '@/components/CartProvider';
 import { CustomerAuthGate } from '@/components/CustomerAuthGate';
 import { OrderStatusTimeline } from '@/components/OrderStatusTimeline';
@@ -68,7 +70,6 @@ export function OrderTrackingScreen() {
   const cart = useCart();
   const toast = useToast();
   const [reordering, setReordering] = useState(false);
-  const [captainLocation, setCaptainLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
   // 2-minute cancellation window: remaining time in seconds.
@@ -96,15 +97,6 @@ export function OrderTrackingScreen() {
       setCancelling(false);
     }
   };
-  useEffect(() => {
-    if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING || !orderId) return;
-    const socket = connectRealtime();
-    socket.emit('order:join', orderId);
-    socket.on('captain:location', (location: { lat: number; lng: number }) => setCaptainLocation(location));
-    socket.on('order:status_updated', () => void order.refresh());
-    return () => { socket.disconnect(); };
-  }, [orderId, order.refresh]);
-
   const handleReorder = async () => {
     if (reordering || !order.data) return;
     setReordering(true);
@@ -232,7 +224,7 @@ export function OrderTrackingScreen() {
                 </div>
               </section>
               {!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <ZoneLandmarkTrackingView order={order.data} contactPhone={order.data.captain?.phone ?? order.data.store.phone} />}
-              {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && order.data.store.latitude !== null && order.data.store.longitude !== null && <section className="rounded-2xl bg-surface p-2 shadow-card">{FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && (<LeafletMap center={captainLocation ? [captainLocation.lat, captainLocation.lng] : [order.data.store.latitude, order.data.store.longitude]} markers={[{ position: [order.data.store.latitude, order.data.store.longitude], label: t(order.data.store.nameAr, order.data.store.nameEn) }, ...(captainLocation ? [{ position: [captainLocation.lat, captainLocation.lng] as [number, number], label: t('السائق', 'Captain') }] : [])]} />)}</section>}
+              {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <LiveTrackingCard orderId={order.data.id} load={getLiveOrderTracking} />}
 
               {/* Items */}
               <section className="rounded-2xl bg-surface p-3 shadow-card">
@@ -391,8 +383,8 @@ export function OrderTrackingScreen() {
               <section className="rounded-2xl border border-line bg-brand-surface p-3 text-center">
                 <p className="text-[10px] leading-relaxed text-ink-soft">
                   {t(
-                    'الكابتن سيتصل بك عند وصوله — السائق لا يمتلك إحداثيات GPS.',
-                    "The captain will call you on arrival — Samou' has no street GPS."
+                    'يمكن للكابتن الاتصال بك لتأكيد العنوان عند الوصول.',
+                    "The captain may call to confirm your address on arrival."
                   )}
                 </p>
               </section>

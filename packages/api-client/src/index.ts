@@ -36,3 +36,5 @@ export * from './SessionRecovery';
 export * from './ConnectionNotice';
 
 export { OrderChangePanel } from './OrderChangePanel';
+
+export { useCaptainTracking } from './useCaptainTracking';

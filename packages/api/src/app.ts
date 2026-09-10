@@ -1,3 +1,4 @@
+import { databaseReady } from './lib/readiness';
 import path from 'node:path';
 import { storage } from './uploads/storage';
 import { asyncHandler } from './lib/async-handler';
@@ -87,6 +88,12 @@ export function createApp(): Application {
   app.get('/health', (_req: Request, res: Response) => {
     ok(res, { status: 'ok', service: 'samou-go-api', environment: env.nodeEnv });
   });
+
+  app.get('/ready', asyncHandler(async (_req, res) => {
+    const ready = await databaseReady();
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(ready ? 200 : 503).json({ success: ready, data: { status: ready ? 'ready' : 'unavailable' } });
+  }));
 
   app.use(API_PREFIX, apiRouter);
 

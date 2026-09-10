@@ -625,3 +625,46 @@ it('allocates unique public references concurrently and exposes searchable codes
   const stores = await request<{ items: { id: string }[] }>('GET', `/stores?search=${storeCode}`, 'CUSTOMER');
   expect(stores.data.items.map(store => store.id)).toContain('store');
 });
+
+
+it('protects operations telemetry and reports delivery failures and readiness', async () => {
+  expect((await request('GET', '/admin/operations')).status).toBe(401);
+  expect((await request('GET', '/admin/operations', 'CUSTOMER')).status).toBe(403);
+  await fixture.db.notificationDelivery.create({ data: { id: 'ops-failure', userId: 'CAPTAIN', title: 'اختبار', type: 'TEST', status: 'FAILED', failedCount: 1 } });
+  const result = await request<{ database: string; notifications: { failed: number }; errors: { scope: string } }>('GET', '/admin/operations', 'ADMIN');
+  expect(result.status).toBe(200);
+  expect(result.data.database).toBe('reachable');
+  expect(result.data.notifications.failed).toBeGreaterThanOrEqual(1);
+  expect(result.data.errors.scope).toBe('current-process-last-hour');
+  const ready = await fetch(base + '/ready');
+  expect(ready.status).toBe(200);
+  expect(ready.headers.get('cache-control')).toBe('no-store');
+  await fixture.db.notificationDelivery.delete({ where: { id: 'ops-failure' } });
+});
+
+
+it('tracks only assigned active deliveries, changes destination and hides stale or completed locations', async () => {
+  await request('PATCH', '/platform/settings', 'ADMIN', { gpsCaptureEnabled: true });
+  await fixture.db.order.updateMany({ where: { customerId: 'CUSTOMER', status: 'ON_THE_WAY' }, data: { status: 'DELIVERED' } });
+  const created = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', { storeId: 'store', fulfillmentType: 'DELIVERY', customerAddressText: 'عنوان اختبار GPS', latitude: 31.4, longitude: 35.07, items: [{ productId: 'product', quantity: 1 }] });
+  expect(created.status).toBe(201);
+  const id = created.data.id;
+  await fixture.db.store.update({ where: { id: 'store' }, data: { latitude: 31.39, longitude: 35.06 } });
+  await fixture.db.order.update({ where: { id }, data: { captainId: 'CAPTAIN', status: 'PREPARING' } });
+  expect((await request('PUT', '/platform/captains/me/location', 'CUSTOMER', { orderId: id, lat: 31.395, lng: 35.065 })).status).toBe(403);
+  expect((await request('PUT', '/platform/captains/me/location', 'CAPTAIN', { orderId: id, lat: 99, lng: 35 })).status).toBe(422);
+  expect((await request('PUT', '/platform/captains/me/location', 'CAPTAIN', { orderId: id, lat: 31.395, lng: 35.065 })).status).toBe(200);
+  type Snapshot = { stage: string; location: unknown; distanceMeters: number | null; stale: boolean };
+  expect((await request('GET', '/platform/orders/' + id + '/tracking')).status).toBe(401);
+  const beforePickup = await request<Snapshot>('GET', '/platform/orders/' + id + '/tracking', 'STORE_MANAGER');
+  expect(beforePickup.status).toBe(200); expect(beforePickup.data.stage).toBe('store');
+  expect(beforePickup.data.distanceMeters).toBeGreaterThan(0);
+  await fixture.db.order.update({ where: { id }, data: { status: 'ON_THE_WAY' } });
+  expect((await request<Snapshot>('GET', '/platform/orders/' + id + '/tracking', 'CUSTOMER')).data.stage).toBe('customer');
+  await fixture.db.captainLocation.update({ where: { captainId: 'CAPTAIN' }, data: { updatedAt: new Date(Date.now() - 120000) } });
+  const stale = await request<Snapshot>('GET', '/platform/orders/' + id + '/tracking', 'CUSTOMER');
+  expect(stale.data.stale).toBe(true); expect(stale.data.distanceMeters).toBeNull();
+  await fixture.db.order.update({ where: { id }, data: { status: 'DELIVERED' } });
+  expect((await request<Snapshot>('GET', '/platform/orders/' + id + '/tracking', 'CUSTOMER')).data.location).toBeNull();
+  expect((await request('PUT', '/platform/captains/me/location', 'CAPTAIN', { orderId: id, lat: 31.395, lng: 35.065 })).status).toBe(403);
+});

@@ -61,3 +61,8 @@ node_modules/.tmp/
 .browser-audit-profile/
 browser-audit-final.mjs
 browser-audit-results.json
+
+# Release signing material must never enter source history
+*.jks
+*.keystore
+keystore.properties

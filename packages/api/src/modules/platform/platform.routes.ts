@@ -1,3 +1,7 @@
+import { getTracking } from './tracking.service';
+import { requireAuth } from '../../middleware/authenticate';
+import { parseWith } from '../../lib/validate';
+import { orderIdParamsSchema } from './platform.schemas';
 import { prisma } from '../../lib/prisma';
 import { ok } from '../../lib/respond';
 import { Router } from 'express';
@@ -9,6 +13,11 @@ import * as controller from './platform.controller';
 export const platformRouter: Router = Router();
 
 platformRouter.use(authenticate);
+platformRouter.get('/orders/:orderId/tracking', asyncHandler(async (req, res) => {
+  const { orderId } = parseWith(orderIdParamsSchema, req.params);
+  res.setHeader('Cache-Control', 'no-store');
+  ok(res, await getTracking(requireAuth(req), orderId));
+}));
 
 platformRouter.put(
   '/captains/me/location',

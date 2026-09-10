@@ -1,3 +1,5 @@
+import { useCaptainTracking, getLiveOrderTracking } from '@samou-go/api-client';
+import { LiveTrackingCard } from '@samou-go/ui/map';
 import { PreparationCountdown, CaptainReservation } from '@samou-go/api-client';
 import { BrandLogo, OrderCustomerDetails } from '@samou-go/ui';
 import { ZoneLandmarkTrackingView } from '@samou-go/ui';
@@ -81,7 +83,7 @@ import {
 } from '@samou-go/shared-types';
 import { DRIVER_FEE_LABEL } from '@/lib/delivery';
 import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
-import { LeafletMap } from '@samou-go/ui/map';
+
 
 /* ---------------------------------------------------------------------------
  * Helpers
@@ -207,18 +209,7 @@ export function SamouGoCaptain() {
   const captainRate = platformSettings.data?.captainDeliveryRate ?? 0;
   const wallet = useWallet({ enabled: isCaptain });
 
-  useEffect(() => {
-    if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING || !isCaptain || !activeItems[0]?.id || !navigator.geolocation) return;
-    const socket = connectRealtime();
-    const orderId = activeItems[0].id;
-    const watchId = navigator.geolocation.watchPosition((position) => {
-      socket.emit('captain:location', { orderId, lat: position.coords.latitude, lng: position.coords.longitude, heading: position.coords.heading ?? undefined });
-    }, () => undefined, { enableHighAccuracy: true, maximumAge: 5_000 });
-    return () => { navigator.geolocation.clearWatch(watchId); socket.disconnect(); };
-    // Depend on the ORDER ID, not `activeItems`: `availableOrders` re-fetches
-    // every 10 s, producing a fresh array reference that would otherwise tear
-    // down and rebuild the socket + GPS watch on every poll.
-  }, [activeItems[0]?.id, isCaptain]);
+  const gpsTracking = useCaptainTracking(activeItems[0]?.id, isCaptain);
 
   // Load active delivery zones once on mount for the zone picker.
   useEffect(() => {
@@ -1059,7 +1050,7 @@ export function SamouGoCaptain() {
             {activeItems.length > 0 && activeOrderDetail.data ? (
               <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
                 {!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <ZoneLandmarkTrackingView order={activeOrderDetail.data} contactPhone={activeOrderDetail.data.customer.phone} />}
-                {activeOrderDetail.data.store.latitude !== null && activeOrderDetail.data.store.longitude !== null && FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && (<LeafletMap center={[activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude]} markers={[{ position: [activeOrderDetail.data.store.latitude, activeOrderDetail.data.store.longitude], label: activeOrderDetail.data.store.nameAr }]} />)}
+                {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <><p role="status" className="text-sm text-ink-muted">{gpsTracking.message}</p><button type="button" className="rounded-xl border border-line px-3 py-2 text-brand" onClick={gpsTracking.retry}>إعادة تحديد الموقع</button><LiveTrackingCard orderId={activeOrderDetail.data.id} load={getLiveOrderTracking} /></>}
                 <div className="flex items-center justify-between">
                   <span className="rounded-full bg-warning-tint px-2.5 py-1 text-micro font-extrabold text-warning-ink">
                     {t('توصيل جاري', 'Active route')}

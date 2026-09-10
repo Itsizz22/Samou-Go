@@ -54,5 +54,7 @@
 	<string>اختيار صورة لإرفاقها بطلبك أو ملفك الشخصي أو منتجات متجرك.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>تسجيل ملاحظة صوتية لتوضيح تفاصيل التوصيل للكابتن عند رغبتك.</string>
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>نستخدم موقعك عند استخدام التطبيق لتحديد عنوان التسليم ومشاركة موقع الكابتن أثناء الطلب النشط.</string>
 </dict>
 </plist>

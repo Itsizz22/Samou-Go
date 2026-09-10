@@ -1,3 +1,4 @@
+import 'leaflet/dist/leaflet.css';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
  * Interactive map picker — drop a pin on an OpenStreetMap canvas to capture
@@ -13,17 +14,17 @@ import L from 'leaflet';
 import { ArrowRight, Crosshair, X } from 'lucide-react';
 import { useLanguage } from '@samou-go/ui';
 
-// Default center: Samou' area (Bethlehem Governorate, Palestine)
-const SAMOU_LAT = 31.705;
-const SAMOU_LNG = 35.208;
+// Default center: Samou' area (Hebron Governorate, Palestine)
+const SAMOU_LAT = 31.3967;
+const SAMOU_LNG = 35.0661;
 
 // Custom pin icon (inline SVG data URI — avoids external file deps)
 const PIN_ICON = new L.DivIcon({
-  className: '',
+  className: 'text-brand',
   iconSize: [28, 36],
   iconAnchor: [14, 36],
   html: `<svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M14 0C6.268 0 0 6.268 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.268 21.732 0 14 0z" fill="#E04B2F"/>
+    <path d="M14 0C6.268 0 0 6.268 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.268 21.732 0 14 0z" fill="currentColor"/>
     <circle cx="14" cy="13" r="6" fill="white"/>
   </svg>`,
 });

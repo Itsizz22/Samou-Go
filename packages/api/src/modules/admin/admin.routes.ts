@@ -1,3 +1,4 @@
+import { operationsHandler } from './operations.controller';
 import { notificationAuditHandler } from '../admin/notification-audit.controller';
 import { updatePlatformSettingsHandler } from '../platform/platform.controller';
 import { Router } from 'express';
@@ -25,3 +26,5 @@ adminRouter.delete('/users/:userId', asyncHandler(adminDeleteUserHandler));
 adminRouter.patch('/settings/pricing', asyncHandler(updatePlatformSettingsHandler));
 
 adminRouter.get('/notifications', asyncHandler(notificationAuditHandler));
+
+adminRouter.get('/operations', asyncHandler(operationsHandler));
