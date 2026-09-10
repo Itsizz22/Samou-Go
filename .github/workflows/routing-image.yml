@@ -1,0 +1,25 @@
+name: Validate private routing image
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  routing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build regional routing data
+        run: docker build -t samou-routing:test ops/osrm
+      - name: Start isolated routing service
+        run: docker run -d --name routing --read-only --tmpfs /tmp --cap-drop ALL -p 127.0.0.1:5000:5000 samou-routing:test
+      - name: Verify road route
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:5000/nearest/v1/driving/35.0661,31.3967' >/dev/null; then break; fi
+            sleep 2
+          done
+          node ops/osrm/smoke.mjs
+      - name: Stop service
+        if: always()
+        run: docker rm -f routing || true

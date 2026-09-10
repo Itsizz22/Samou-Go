@@ -1,0 +1,11 @@
+# Deploy deliberately as a separate Blueprint; this creates a paid service.
+# Select the SAME region as the existing API before applying.
+services:
+  - type: pserv
+    name: samou-routing
+    runtime: docker
+    plan: 1c-2g
+    region: frankfurt
+    dockerContext: ./ops/osrm
+    dockerfilePath: ./ops/osrm/Dockerfile
+    autoDeployTrigger: off

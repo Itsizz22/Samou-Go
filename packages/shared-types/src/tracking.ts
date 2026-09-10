@@ -1,5 +1,13 @@
 export interface TrackingPoint { lat: number; lng: number; }
+export interface RoadRoute {
+  coordinates: [number, number][];
+  distanceMeters: number;
+  durationSeconds: number;
+  calculatedAt: string;
+  trafficAware: false;
+}
 export interface LiveOrderTracking {
+  route?: RoadRoute | null;
   enabled: boolean;
   stage: 'store' | 'customer' | 'complete';
   location: (TrackingPoint & { updatedAt: string }) | null;

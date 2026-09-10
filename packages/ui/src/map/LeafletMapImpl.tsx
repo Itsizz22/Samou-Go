@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AttributionControl, MapContainer, Marker, Popup, TileLayer, ZoomControl, useMap } from 'react-leaflet';
+import { AttributionControl, MapContainer, Marker, Polyline, Popup, TileLayer, ZoomControl, useMap } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -17,6 +17,7 @@ export interface LeafletMapMarker {
 export interface LeafletMapProps {
   center: [number, number];
   markers: readonly LeafletMapMarker[];
+  route?: readonly [number, number][];
   zoom?: number;
   className?: string;
 }
@@ -61,6 +62,7 @@ function MovingMarker({ marker }: { marker: LeafletMapMarker }) {
 export function LeafletMap({
   center,
   markers,
+  route = [],
   zoom = 15,
   className = 'h-64 w-full rounded-2xl',
 }: LeafletMapProps) {
@@ -69,6 +71,7 @@ export function LeafletMap({
   return (
     <MapContainer center={centerExpr} zoom={zoom} zoomControl={false} attributionControl={false} className={`samou-map isolate overflow-hidden border border-line ${className}`}>
             <style>{`
+        .samou-map .samou-road-route { stroke: var(--color-brand); }
         .samou-map .leaflet-control-attribution { margin: 0 6px 6px 0; padding: 2px 6px; border-radius: 6px; background: rgb(255 255 255 / 90%); color: rgb(71 85 105); font: 10px/1.5 system-ui, sans-serif; direction: ltr; }
         .samou-map .leaflet-control-attribution a { color: inherit; text-decoration: none; }
         .samou-map .leaflet-control-attribution a:hover { text-decoration: underline; }
@@ -81,7 +84,8 @@ export function LeafletMap({
       `}</style>
       <AttributionControl prefix={false} position="bottomright" />
       <ZoomControl position="bottomleft" zoomInTitle="تكبير الخريطة" zoomOutTitle="تصغير الخريطة" />
-      <FitMarkers markers={markers} />
+      <FitMarkers markers={[...markers, ...route.map(position => ({ position, label: '' }))]} />
+      {route.length > 1 && <><Polyline positions={[...route]} pathOptions={{ color: 'white', weight: 9, opacity: 0.9 }} /><Polyline positions={[...route]} pathOptions={{ color: 'var(--color-brand)', weight: 5, opacity: 0.95 }} /></>}
       {tileError && <div role="status" className="absolute inset-x-2 top-2 z-[1000] rounded-xl bg-surface p-2 text-sm text-ink shadow-card">تعذر تحميل بعض أجزاء الخريطة؛ تحقق من الإنترنت. العنوان والمسافة يبقيان متاحين عند وصول الموقع.</div>}
       <TileLayer
         eventHandlers={{ tileerror: () => setTileError(true) }}

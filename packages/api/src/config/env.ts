@@ -8,6 +8,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  OSRM_BASE_URL: z.string().url().optional(),
   PORT: z.coerce.number().int().positive().default(4000),
 
   // Local dev/test runs on SQLite (schema.sqlite.prisma, file:./dev.db) and do
@@ -223,6 +224,7 @@ export const env = {
   corsOrigins: raw.CORS_ORIGINS.split(',')
     .map(origin => origin.trim())
     .filter(Boolean),
+  osrmBaseUrl: raw.OSRM_BASE_URL,
   publicApiOrigin: raw.PUBLIC_API_ORIGIN,
   uploads: {
     dir: raw.UPLOAD_DIR,
