@@ -4,6 +4,7 @@
  * by editing `.env` alone.
  */
 
+import { createSupercodeGateway } from './supercode';
 import { env } from '../../config/env';
 import { createConsoleGateway, createGenericGateway, createMockGateway, createNoopGateway } from './generic';
 import { createTwilioGateway } from './twilio';
@@ -16,6 +17,9 @@ export function getSmsGateway(): SmsGateway {
   if (cached) return cached;
 
   switch (env.sms.provider) {
+    case 'supercode':
+      cached = createSupercodeGateway();
+      break;
     case 'twilio':
       cached = createTwilioGateway();
       break;

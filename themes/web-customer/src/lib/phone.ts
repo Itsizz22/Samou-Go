@@ -4,6 +4,8 @@
  * Only Palestinian numbers (059/056) are accepted.
  */
 export function normalizePhone(input: string): string {
+  const international = input.trim().replace(/[\s-()]/g, "").replace(/^00/, "+");
+  if (/^\+?9725[0-578]\d{7}$/.test(international)) return `+${international.replace(/^\+/, "")}`;
   const digits = input
     .trim()
     .replace(/[\s-()]/g, '')
@@ -16,7 +18,7 @@ export function normalizePhone(input: string): string {
 }
 
 export function isValidPalestinianMobile(input: string): boolean {
-  return /^05[69]\d{7}$/.test(normalizePhone(input));
+  return /^(?:05[69]\d{7}|\+9725[0-578]\d{7})$/.test(normalizePhone(input));
 }
 
 /**
@@ -25,5 +27,5 @@ export function isValidPalestinianMobile(input: string): boolean {
  */
 export function toE164(input: string, countryCode = '+970'): string {
   const normalized = normalizePhone(input);
-  return normalized.startsWith('05') ? `${countryCode}${normalized.slice(1)}` : `+${normalized}`;
+  return normalized.startsWith('05') ? `${countryCode}${normalized.slice(1)}` : normalized.startsWith("+") ? normalized : `+${normalized}`;
 }

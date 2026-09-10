@@ -29,7 +29,7 @@ const envSchema = z.object({
   /* ---- SMS / OTP --------------------------------------------------------- */
   /** Which gateway dispatches OTP codes. `console` logs codes (dev only), `none` swallows them,
    *  `mock` logs them but reports `dispatched: false` (test-only fallback). */
-  SMS_PROVIDER: z.enum(['twilio', 'infobip', 'generic', 'console', 'mock', 'none']).default('console'),
+  SMS_PROVIDER: z.enum(['twilio', 'infobip', 'supercode', 'generic', 'console', 'mock', 'none']).default('console'),
   /** Country code prepended to local `05XXXXXXXX` numbers before they reach the carrier. */
   SMS_COUNTRY_CODE: z.string().default('+970'),
   /**
@@ -41,6 +41,8 @@ const envSchema = z.object({
   SMS_ALLOW_INSECURE_TEST_PROVIDERS: z
     .enum(['true', 'false'])
     .default('false'),
+  SMS_SUPERCODE_API_ID: z.string().trim().min(1).optional(),
+  SMS_SUPERCODE_SENDER: z.string().trim().min(1).optional(),
   SMS_GENERIC_ENDPOINT: z.string().url().optional(),
   SMS_GENERIC_API_KEY: z.string().optional(),
   SMS_GENERIC_SENDER: z.string().optional(),
@@ -196,6 +198,7 @@ export const env = {
   sms: {
     provider: raw.SMS_PROVIDER,
     countryCode: raw.SMS_COUNTRY_CODE,
+    supercode: { apiId: raw.SMS_SUPERCODE_API_ID, sender: raw.SMS_SUPERCODE_SENDER },
     generic: {
       endpoint: raw.SMS_GENERIC_ENDPOINT,
       apiKey: raw.SMS_GENERIC_API_KEY,

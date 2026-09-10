@@ -11,6 +11,8 @@ export const phoneSchema = z
   .string()
   .trim()
   .transform((value) => {
+    const international = value.replace(/[\s-()]/g, "").replace(/^00/, "+");
+    if (/^\+?9725[0-578]\d{7}$/.test(international)) return `+${international.replace(/^\+/, "")}`;
     const digits = value.replace(/[\s-()]/g, "").replace(/^\+/, "");
     if (digits.startsWith("00970")) return `0${digits.slice(5)}`;
     if (digits.startsWith("00972")) return `0${digits.slice(5)}`;
@@ -22,7 +24,7 @@ export const phoneSchema = z
     z
       .string()
       .regex(
-        /^05[69]\d{7}$/,
+        /^(?:05[69]\d{7}|\+9725[0-578]\d{7})$/,
         "يرجى إدخال رقم جوال فلسطيني صالح يبدأ بـ 059 أو 056 / Please enter a valid Palestinian mobile starting with 059 or 056",
       ),
   );
@@ -56,9 +58,10 @@ export const loginSchema = z.object({
 });
 
 /** POST /auth/otp/request — the phoneSchema normalises before the service runs. */
-export const otpRequestSchema = z.object({
-  phone: phoneSchema,
-});
+export const otpRequestSchema = z.object({ phone: z.string() }).transform(({ phone }) => ({
+  phone,
+  smsCountryCode: /^(?:\+|00)?972/.test(phone.trim()) ? "+972" as const : undefined,
+})).pipe(z.object({ phone: phoneSchema, smsCountryCode: z.literal("+972").optional() }));
 
 /** POST /auth/otp/verify — 6-digit code, digits only, case/space tolerant. */
 export const otpVerifySchema = z.object({

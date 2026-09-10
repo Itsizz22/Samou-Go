@@ -35,7 +35,7 @@ export function PhoneVerificationScreen() {
     setBusy(true);
     setError('');
     try {
-      const result = await requestOtp({ phone: normalizePhone(phone) });
+      const result = await requestOtp({ phone: phone.trim() });
       setNow(Date.now());
       setRetryAt(Date.now() + Math.max(60, result.retryAfterSeconds) * 1000);
       if (!result.dispatched) {

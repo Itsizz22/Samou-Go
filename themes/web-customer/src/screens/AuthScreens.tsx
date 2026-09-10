@@ -437,7 +437,7 @@ export function ForgotPasswordScreen() {
     if (!phoneValid(phone) || pending) return;
     setPending(true);
     setError(null);
-    void requestOtp({ phone: normalizePhone(phone) })
+    void requestOtp({ phone: phone.trim() })
       .then(() => {
         setStep(2);
         setResendIn(RESEND_COOLDOWN);
