@@ -1,3 +1,5 @@
+import { ActiveOrderStrip } from '@/components/ActiveOrderStrip';
+import { DeliveryEstimate } from '@/components/DeliveryEstimate';
 import { StoreHours, storeIsOpen } from '@/components/StoreHours';
 import { CatalogueSearchField } from '@/components/CatalogueSearchField';
 import { ConnectionNotice } from '@/components/ConnectionNotice';
@@ -39,6 +41,7 @@ import { useDrawer } from '@/components/NavigationDrawer';
 import { DeliveryFee } from '@samou-go/ui';
 import { API_URL, ENABLE_LOCATION } from '@/hooks/useApi';
 import { FeaturedProductsShowcase } from '@/components/FeaturedProductsShowcase';
+import { CravingShortcuts } from '@/components/CravingShortcuts';
 import { PromoBannerSlider } from '@/components/PromoBannerSlider';
 import { useApiMeta, useOrders, useStores, useAuth, useAllOffers, useFeaturedProducts, type PopularProduct } from '@/hooks/useApi';
 import { useFavorites } from '@/components/FavoritesProvider';
@@ -125,6 +128,8 @@ export function SamouGoHome() {
     { enabled: Boolean(auth.user), pollMs: 15_000 }
   );
 
+  const ongoing = useOrders({ activeOnly: true, pageSize: 8 }, { enabled: auth.user?.role === 'CUSTOMER', pollMs: 15000 });
+
   // Server-backed favorites, shared across every screen. A guest who taps a
   // heart is routed to the Favorites screen (the sign-in gate).
   const favorites = useFavorites();
@@ -150,6 +155,10 @@ export function SamouGoHome() {
 
   // Popular products across all stores.
   const popular = useFeaturedProducts();
+  const restaurantProducts = useMemo(() => {
+    const restaurantIds = new Set((stores.data?.items ?? []).filter(store => classifyStore(store) === 'restaurant').map(store => store.id));
+    return [...(popular.data ?? [])].sort((a, b) => Number(restaurantIds.has(b.storeId)) - Number(restaurantIds.has(a.storeId)));
+  }, [popular.data, stores.data]);
   const cart = useCart();
   const [optionsProduct, setOptionsProduct] = useState<PopularProduct | null>(null);
 
@@ -229,6 +238,7 @@ export function SamouGoHome() {
         </section>
       <div className="mx-auto mt-3 max-w-md"><ZoneSelector /></div>
       </header>
+      {auth.user?.role === 'CUSTOMER' && <><ActiveOrderStrip orders={ongoing.data?.items ?? []} />{(ongoing.data?.total ?? 0) > 8 && <Link className="mx-auto block max-w-md px-5 pb-3 text-sm text-brand" to="/orders">عرض كل الطلبات الجارية</Link>}</>}
       <ConnectionNotice loading={stores.loading || popular.loading} failed={Boolean(stores.error || popular.error)} retry={() => { stores.reload(); popular.reload(); }} />
 
       <section className="mx-auto max-w-md px-5">
@@ -247,25 +257,10 @@ export function SamouGoHome() {
       {!searchTerm.trim() && <>
       <PromoBannerSlider />
 
-      {/* Custom Order quick-action banner */}
-      <section className="mx-auto max-w-md px-5" aria-label="Custom order">
-        <Link
-          to="/custom-requests"
-          className="flex items-center gap-3 rounded-[20px] border border-brand bg-brand-surface p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised active:scale-[0.98]"
-        >
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand text-white">
-            <MessageSquarePlus size={20} strokeWidth={2.5} />
-          </span>
-          <div className="min-w-0 flex-1 text-start">
-            <p className="text-base font-bold text-brand">{t('طلب خاص', 'Custom Order')}</p>
-            <p className="mt-0.5 text-micro text-ink-muted">{t('اطلب أي منتج أو غرض غير موجود في القائمة وسنقوم بتوصيله!', 'Order any item not on the menu and we will deliver it!')}</p>
-          </div>
-        </Link>
-      </section>
+      <PromoBannerSlider kind="product" />
+      <CravingShortcuts products={restaurantProducts} />
 
-
-
-      <FeaturedProductsShowcase products={popular.data ?? []} loading={popular.loading} onAdd={handlePopularAdd} />
+      <FeaturedProductsShowcase products={restaurantProducts} loading={popular.loading} onAdd={handlePopularAdd} />
 
       <section className="mx-auto max-w-md px-5 pt-7" aria-labelledby="categories-title">
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -396,7 +391,7 @@ export function SamouGoHome() {
                     </div>
                     <div className="p-3 text-end">
                       <h3 className="truncate text-sm font-extrabold">{t(store.nameAr, store.nameEn)}</h3>
-                      <p className="mt-2 text-micro text-ink-muted">{t(category.ar, category.en)}</p>
+                      <p className="mt-2 text-micro text-ink-muted">{t(category.ar, category.en)}</p><DeliveryEstimate store={store} />
                       <div className="mt-2 flex items-center justify-between gap-2"><span className="flex items-center gap-1"><DeliveryFee amount={baseFee} variant="badge" showIcon /></span></div>
                     </div>
                   </article>
@@ -416,6 +411,26 @@ export function SamouGoHome() {
         />
       )}
 
+      {!searchTerm.trim() && <>
+      {/* Custom Order quick-action banner */}
+      <section className="mx-auto max-w-md px-5" aria-label="Custom order">
+        <Link
+          to="/custom-requests"
+          className="flex items-center gap-3 rounded-[20px] border border-brand bg-brand-surface p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised active:scale-[0.98]"
+        >
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand text-white">
+            <MessageSquarePlus size={20} strokeWidth={2.5} />
+          </span>
+          <div className="min-w-0 flex-1 text-start">
+            <p className="text-base font-bold text-brand">{t('طلب خاص', 'Custom Order')}</p>
+            <p className="mt-0.5 text-micro text-ink-muted">{t('اطلب أي منتج أو غرض غير موجود في القائمة وسنقوم بتوصيله!', 'Order any item not on the menu and we will deliver it!')}</p>
+          </div>
+        </Link>
+      </section>
+
+
+
+      </>}
       {!searchTerm.trim() && !stores.error && (stores.loading || cards.length > 0) && <section id="home-results" aria-live="polite" className="mx-auto max-w-md px-5 pt-8" aria-labelledby="nearby-title" aria-busy={stores.loading}>
         <div className="mb-4 flex items-end justify-between"><div><h2 id="nearby-title" className="text-lg font-extrabold">{t('كل المتاجر', "All stores in Al-Samou'")}</h2></div>{stores.refreshing ? <Loader2 size={16} className="animate-spin text-brand" aria-label="Refreshing" /> : <ChevronLeft size={18} className="text-ink-subtle" />}</div>
         <div className="space-y-3">
@@ -424,7 +439,7 @@ export function SamouGoHome() {
             : cards.map(({ store, category, initials, tint }) => (
                 <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card transition-all duration-200 hover:-translate-y-px hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
                   <div className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-black ${tint}`}>{store.logoUrl ? <ImageWithFallback src={store.logoUrl} alt="" className="h-full w-full object-cover" fallbackText={initials} /> : initials}</div>
-                  <div className="min-w-0 flex-1 text-start"><h3 className="truncate text-sm font-extrabold">{t(store.nameAr, store.nameEn)}{store.isRecommended && <span className="ms-1.5 inline-flex items-center gap-0.5 rounded-full bg-brand-tint px-1.5 py-0.5 align-middle text-micro font-bold text-brand-deep" title={t('ينصح به لدينا', 'Recommended by us')}><Star size={9} fill="currentColor" />{t('موصى به', 'Recommended')}</span>}</h3><p className="mt-1 flex items-center gap-2 text-micro font-semibold text-ink-muted"><DeliveryFee amount={baseFee} variant="inline" /></p><StoreHours store={store} /></div>
+                  <div className="min-w-0 flex-1 text-start"><h3 className="truncate text-sm font-extrabold">{t(store.nameAr, store.nameEn)}{store.isRecommended && <span className="ms-1.5 inline-flex items-center gap-0.5 rounded-full bg-brand-tint px-1.5 py-0.5 align-middle text-micro font-bold text-brand-deep" title={t('ينصح به لدينا', 'Recommended by us')}><Star size={9} fill="currentColor" />{t('موصى به', 'Recommended')}</span>}</h3><p className="mt-1 flex items-center gap-2 text-micro font-semibold text-ink-muted"><DeliveryFee amount={baseFee} variant="inline" /></p><StoreHours store={store} /><DeliveryEstimate store={store} /></div>
                   <span className={`shrink-0 rounded-full px-2 py-1 text-micro font-bold ${storeIsOpen(store) ? 'bg-brand-tint text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{storeIsOpen(store) ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
                 </Link>
               ))}

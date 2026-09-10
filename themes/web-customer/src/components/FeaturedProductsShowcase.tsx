@@ -50,6 +50,7 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
       ) : (
         <>
           <div
+            data-swipe-back="off"
             {...carousel.bindings}
             className="overflow-hidden rounded-3xl border border-line bg-surface shadow-card"
             style={{ touchAction: 'pan-y' }}
@@ -125,7 +126,8 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
           </div>
           {products.length > 1 && (
             <div
-              {...carousel.bindings}
+              data-swipe-back="off"
+            {...carousel.bindings}
               dir={dir}
               className="flex flex-wrap items-center justify-center"
               aria-label={t('اختيار المنتج', 'Choose product')}

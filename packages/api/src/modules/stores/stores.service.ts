@@ -1,3 +1,4 @@
+import { deliveryEstimates } from './delivery-estimates';
 import type { Prisma } from '../../lib/prisma-types';
 import type {
   Category,
@@ -159,10 +160,10 @@ export async function listStores(
 
   // Compute smart badges for each store (only for customer-facing lists).
   const storeIds = rows.map(r => r.id);
-  const badgesMap = await computeStoreBadges(storeIds);
+  const [badgesMap, estimates] = await Promise.all([computeStoreBadges(storeIds), deliveryEstimates(storeIds)]);
 
   return paginate(
-    rows.map(r => ({ ...toStore(r), badges: badgesMap.get(r.id) ?? [] })),
+    rows.map(r => ({ ...toStore(r), deliveryEstimate: estimates.get(r.id) ?? null, badges: badgesMap.get(r.id) ?? [] })),
     total,
     query.page,
     query.pageSize,
@@ -213,7 +214,8 @@ export async function getStoreWithCatalogue(storeId: string): Promise<StoreWithC
     throw notFound('المتجر غير موجود / Store not found');
   }
 
-  return toStoreWithCatalogue(store as any);
+  const estimates = await deliveryEstimates([storeId]);
+  return { ...toStoreWithCatalogue(store as any), deliveryEstimate: estimates.get(storeId) ?? null };
 }
 
 /**
@@ -251,7 +253,8 @@ export async function getStoreWithFullCatalogue(storeId: string): Promise<StoreW
 
   if (!store) throw notFound('المتجر غير موجود / Store not found');
 
-  return toStoreWithCatalogue(store as any);
+  const estimates = await deliveryEstimates([storeId]);
+  return { ...toStoreWithCatalogue(store as any), deliveryEstimate: estimates.get(storeId) ?? null };
 }
 
 export async function listStoreProducts(
@@ -638,10 +641,11 @@ async function listDiscoveryStores(query: StoreListQuery, where: Prisma.StoreWhe
   const selected = ids.slice((query.page - 1) * limit, query.page * limit);
   const rows = await prisma.store.findMany({ where: { AND: [where, { id: { in: selected } }] } });
   const byId = new Map(rows.map(row => [row.id, row]));
+  const estimates = await deliveryEstimates(selected);
   const items = selected.flatMap(id => {
     const row = byId.get(id); if (!row) return [];
     const rating = scores.get(id);
-    return [{ ...toStore(row), isRecent: row.createdAt >= since, averageRating: rating?._avg.storeRating ?? null, ratingCount: rating?._count.id ?? 0 }];
+    return [{ ...toStore(row), deliveryEstimate: estimates.get(row.id) ?? null, isRecent: row.createdAt >= since, averageRating: rating?._avg.storeRating ?? null, ratingCount: rating?._count.id ?? 0 }];
   });
   return paginate(items, ids.length, query.page, limit);
 }

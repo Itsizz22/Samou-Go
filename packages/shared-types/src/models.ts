@@ -54,6 +54,8 @@ export interface PublicUser {
  * ------------------------------------------------------------------------- */
 
 export interface Store {
+  /** Recent completed delivery range, not a live route ETA. Null when fewer than five valid samples. */
+  deliveryEstimate?: { minMinutes: number; maxMinutes: number; sampleSize: number } | null;
   publicCode?: string | null;
   isRecent?: boolean;
   averageRating?: number | null;

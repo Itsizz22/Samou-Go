@@ -229,6 +229,12 @@ export async function getPlatformSettings() {
 
 /** PATCH — admin updates one or more knobs on the singleton row. */
 export async function updatePlatformSettings(body: PlatformSettingsBody) {
+  const advertisedStoreIds = [...new Set((body.homeBanners ?? []).filter(banner => banner.kind === 'product').flatMap(banner => banner.storeId ? [banner.storeId] : []))];
+  if (advertisedStoreIds.length) {
+    const count = await prisma.store.count({ where: { id: { in: advertisedStoreIds } } });
+    if (count !== advertisedStoreIds.length) throw badRequest('متجر أحد الإعلانات غير موجود / An advertised store does not exist');
+  }
+
   const row = await prisma.platformSettings.upsert({
     where: { id: 'platform' },
     create: {

@@ -1,3 +1,4 @@
+import { MealComplements } from '@/components/MealComplements';
 import { AutomaticPricingPreview } from '@/components/AutomaticPricingPreview';
 import { useState } from 'react';
 import { CheckoutAuthGate } from '@/components/CheckoutAuthGate';
@@ -174,6 +175,7 @@ export function CartScreen() {
                 </div>
               )}
 
+              {cart.storeGroups.map(group => <MealComplements key={group.storeId} group={group} />)}
               <div className="mt-5 rounded-2xl bg-surface p-4 shadow-card">
                 <div className="flex justify-between text-xs text-ink-muted">
                   <span>المجموع الفرعي</span>

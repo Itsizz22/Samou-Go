@@ -733,7 +733,7 @@ export async function listOrders(
     AND: [
       await visibilityScope(actor),
       {
-        ...(query.preparationPool ? { status: { in: PREPARATION_POOL_STATUSES }, fulfillmentType: "DELIVERY" } : query.status ? { status: query.status } : {}),
+        ...(query.preparationPool ? { status: { in: PREPARATION_POOL_STATUSES }, fulfillmentType: "DELIVERY" } : query.status ? { status: query.status } : query.activeOnly ? { status: { notIn: [OrderStatus.DELIVERED, OrderStatus.CANCELLED] } } : {}),
         ...(query.storeId ? { storeId: query.storeId } : {}),
         ...(query.captainId ? { captainId: query.captainId } : {}),
       },

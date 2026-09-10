@@ -706,6 +706,13 @@ it('saves home banners for admin only and validates image URLs', async () => {
   const settings = await request<{ homeBanners: unknown[] }>('GET', '/platform/settings', 'CUSTOMER');
   expect(settings.data.homeBanners).toEqual(homeBanners);
   expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeBanners: [{ ...homeBanners[0], imageUrl: 'javascript:alert(1)' }] })).status).toBe(422);
+  const store = await fixture.db.store.findFirstOrThrow();
+  const productBanner = { ...homeBanners[0], kind: 'product', storeId: store.id };
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeBanners: [{ ...productBanner, storeId: undefined }] })).status).toBe(422);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeBanners: [{ ...productBanner, storeId: 'missing-store' }] })).status).toBe(400);
+  const manyBanners = Array.from({ length: 15 }, (_, index) => ({ ...productBanner, id: `product-ad-${index}` }));
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeBanners: manyBanners })).status).toBe(200);
+  expect((await request<{ homeBanners: unknown[] }>('GET', '/platform/settings', 'CUSTOMER')).data.homeBanners).toEqual(manyBanners);
   expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeBanners: [] })).status).toBe(200);
   expect((await request<{ homeBanners: unknown[] }>('GET', '/platform/settings', 'CUSTOMER')).data.homeBanners).toEqual([]);
 });
@@ -734,4 +741,29 @@ it('uploads product and category images through HTTP and persists decodable WebP
     const removed = await fetch(`${base}/api/v1/uploads/current`, { method: 'DELETE', headers: { Authorization: `Bearer ${tokens.STORE_MANAGER}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, resourceId: kind }) });
     expect(removed.status).toBe(204);
   }
+});
+
+it('returns bounded delivery estimates from real delivery history, excluding pickup and insufficient samples', async () => {
+  const { deliveryEstimates, estimateDelivery } = await import('../stores/delivery-estimates');
+  expect(estimateDelivery([30, 40, 50, 60])).toBeNull();
+  expect(estimateDelivery([NaN, -5, 500, 30, 35, 40, 45, 50])).toEqual({ minMinutes: 30, maxMinutes: 50, sampleSize: 5 });
+  await fixture.db.store.create({ data: { id: 'eta-store', managerId: 'STORE_MANAGER', nameAr: 'مطعم الوقت', nameEn: 'ETA restaurant', phone: '0599991098', isApproved: true } });
+  const createdAt = new Date(Date.now() - 90 * 60000);
+  for (let index = 0; index < 6; index++) {
+    await fixture.db.order.create({ data: { id: `eta-${index}`, orderNumber: `ETA-${index}`, storeId: 'eta-store', customerId: 'CUSTOMER', status: 'DELIVERED', fulfillmentType: index === 5 ? 'PICKUP' : 'DELIVERY', createdAt, customerAddressText: 'اختبار الوقت', subtotal: 10, deliveryFee: 0, totalAmount: 10, statusHistory: { create: { status: 'DELIVERED', createdAt: new Date(createdAt.getTime() + (30 + index * 5) * 60000) } } } });
+  }
+  expect((await deliveryEstimates(['eta-store'])).get('eta-store')).toEqual({ minMinutes: 30, maxMinutes: 50, sampleSize: 5 });
+  const detail = await request<import('@samou-go/shared-types').StoreWithCatalogue>('GET', '/stores/eta-store', undefined);
+  expect(detail.data.deliveryEstimate?.sampleSize).toBe(5);
+  const list = await request<import('@samou-go/shared-types').Paginated<import('@samou-go/shared-types').Store>>('GET', '/stores', undefined);
+  expect(list.data.items.find(store => store.id === 'eta-store')?.deliveryEstimate?.minMinutes).toBe(30);
+});
+it('filters active customer orders before pagination and preserves the unavailable-item preference', async () => {
+  const created = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', { storeId: 'store', items: [{ productId: 'product', quantity: 1 }], customerAddressText: 'عنوان اختبار', unavailableAction: 'REMOVE' });
+  expect(created.status).toBe(201);
+  expect(created.data.unavailableAction).toBe('REMOVE');
+  const result = await request<import('@samou-go/shared-types').Paginated<import('@samou-go/shared-types').OrderSummary>>('GET', '/orders?activeOnly=true&pageSize=100', 'CUSTOMER');
+  expect(result.status).toBe(200);
+  expect(result.data.items.some(order => order.id === created.data.id)).toBe(true);
+  expect(result.data.items.every(order => order.status !== 'DELIVERED' && order.status !== 'CANCELLED')).toBe(true);
 });

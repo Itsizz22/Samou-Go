@@ -1,3 +1,6 @@
+import { DeliveryEstimate } from '@/components/DeliveryEstimate';
+import { StoreOfferSheet } from '@/components/StoreOfferSheet';
+import type { Offer } from '@samou-go/shared-types';
 import { ProductImageViewer } from '@/components/ProductImageViewer';
 import { storeIsOpen } from '@/components/StoreHours';
 import { normalizeOptionGroups, resolveSelectedOptions } from '@samou-go/shared-types';
@@ -42,7 +45,8 @@ export function StoreDetailScreen() {
     if (!toggled) navigate('/favorites');
   };
 
-  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>('all');
+  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
 
   const [menuSearch, setMenuSearch] = useState('');
   const query = menuSearch.trim().toLocaleLowerCase();
@@ -52,7 +56,7 @@ export function StoreDetailScreen() {
   })).filter(category => !query || category.products.length > 0), [store.data, query]);
 
   const active = useMemo(
-    () => activeCategoryId === "popular" && popular.data?.length ? "popular" : categories.some(category => category.id === activeCategoryId) ? activeCategoryId : popular.data?.length ? "popular" : categories[0]?.id ?? null,
+    () => activeCategoryId === "all" ? "all" : activeCategoryId === "popular" && popular.data?.length ? "popular" : categories.some(category => category.id === activeCategoryId) ? activeCategoryId : "all",
     [activeCategoryId, categories, popular.data]
   );
 
@@ -89,7 +93,7 @@ export function StoreDetailScreen() {
   }, [offers.data]);
 
   const current = store.data!;
-  const products = query ? categories.flatMap(category => category.products) : active === "popular" ? popular.data ?? [] : active
+  const products = query || active === "all" ? categories.flatMap(category => category.products) : active === "popular" ? popular.data ?? [] : active
     ? categories.find((category) => category.id === active)?.products ?? []
     : [];
 
@@ -180,48 +184,20 @@ export function StoreDetailScreen() {
   return (
     <PageTransition>
       <main className="sq-store-menu min-h-screen bg-canvas pb-28 font-sans text-ink">
-        <header className="safe-top relative isolate min-h-72 overflow-hidden bg-brand-deep px-5 pb-5 pt-4 text-white">
-          {current.coverUrl && <img src={current.coverUrl} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover" />}
-          <div className="absolute inset-0 -z-10 bg-linear-to-t from-brand-deep via-brand-deep/70 to-brand-deep/30" />
-          <div className="mx-auto grid min-h-40 max-w-md grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-start gap-3">
+        <header className="bg-surface">
+          <div className="safe-top relative bg-brand-tint">
+            <div className="h-36 overflow-hidden sm:h-44" data-swipe-back="off">
+              {current.coverUrl && <ImageWithFallback src={current.coverUrl} alt="" className="h-full w-full object-cover" />}
+            </div>
+            <div className="absolute inset-x-0 top-3 mx-auto flex max-w-md items-center justify-between px-5 safe-top">
             <button
               type="button"
               aria-label={t('رجوع', 'Back')}
               onClick={() => navigate(-1)}
-              className="rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-surface/95 p-2 text-ink transition hover:bg-canvas active:scale-95"
             >
               <ArrowRight size={22} className="rtl:rotate-180" />
             </button>
-            <div className="order-last col-span-3 min-w-0 self-end text-center">
-              {current.logoUrl && <ImageWithFallback src={current.logoUrl} alt="" className="mx-auto mb-3 h-24 w-24 rounded-3xl border-4 border-white/80 bg-surface p-1 object-contain shadow-card" />}
-              <h1 className="text-lg font-extrabold">{t(current.nameAr, current.nameEn)}</h1>
-              {current.publicCode && <p className="text-xs text-white/80">رقم المتجر: <span dir="ltr">{current.publicCode}</span></p>}
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs">
-                <span className="rounded-full bg-white/15 px-3 py-2 font-bold">{!storeIsOpen(current) ? t('مغلق حالياً', 'Closed') : current.storeStatus === StoreStatus.BUSY ? t('مشغول — يستقبل الطلبات', 'Busy — accepting orders') : t('مفتوح ويستقبل الطلبات', 'Open for orders')}</span>
-                {current.openingTime && <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-2"><Clock3 size={14} />{t('ساعات العمل', 'Hours')} <span dir="ltr">{current.openingTime}{current.closingTime ? ` – ${current.closingTime}` : ''}</span></span>}
-              </div>
-              <p className="mt-2 text-xs text-white/80">{t('يحدد المتجر وقت التجهيز عند قبول طلبك', 'Preparation time is confirmed when the store accepts your order')}</p>
-              {current.isRecommended && (
-                <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-micro font-bold text-white">
-                  <Star size={10} fill="currentColor" />
-                  {t('موصى به لدينا', 'Recommended by us')}
-                </span>
-              )}
-              <p className="truncate text-[11px] text-white/80" dir="ltr">
-                {current.phone}
-              </p>
-              {current.phone && (
-                <a
-                  href={formatWhatsAppLink(current.phone, `مرحباً، أريد الاستفسار عن متجر ${current.nameAr}`)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-1 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-micro font-bold text-white transition hover:bg-white/25 active:scale-95"
-                >
-                  <MessageCircle size={10} />
-                  {t('تواصل عبر واتساب', 'WhatsApp')}
-                </a>
-              )}
-            </div>
             <button
               type="button"
               aria-label={
@@ -230,7 +206,7 @@ export function StoreDetailScreen() {
               aria-pressed={favorites.isFavorite(storeId)}
               onClick={() => void handleToggleFavorite()}
               disabled={favorites.pending.includes(storeId)}
-              className="justify-self-end rounded-full p-2 text-white transition hover:bg-surface/15 active:scale-95 disabled:opacity-60"
+              className="justify-self-end flex h-11 w-11 items-center justify-center rounded-full bg-surface/95 p-2 text-ink transition hover:bg-canvas active:scale-95 disabled:opacity-60"
             >
               <Heart size={20} fill={favorites.isFavorite(storeId) ? 'currentColor' : 'none'} />
             </button>
@@ -238,7 +214,7 @@ export function StoreDetailScreen() {
               type="button"
               aria-label={`السلة (${cart.itemCount})`}
               onClick={() => navigate('/cart')}
-              className="relative rounded-full p-2 transition hover:bg-surface/15 active:scale-95"
+              className="relative flex h-11 w-11 items-center justify-center rounded-full bg-surface/95 p-2 text-ink transition hover:bg-canvas active:scale-95"
             >
               <ShoppingCart size={20} />
               <AnimatePresence>
@@ -255,7 +231,42 @@ export function StoreDetailScreen() {
                 )}
               </AnimatePresence>
             </button>
+            </div>
+            <div className="absolute inset-x-0 -bottom-10 flex justify-center">
+              <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl border-4 border-surface bg-surface p-1 shadow-card">
+                {current.logoUrl ? <ImageWithFallback src={current.logoUrl} alt={t('شعار المتجر', 'Store logo')} className="h-full w-full object-contain" /> : <Store size={36} className="text-brand" />}
+              </div>
+            </div>
           </div>
+            <div className="mx-auto max-w-md px-5 pb-5 pt-14 text-center">
+              <h1 className="text-lg font-extrabold">{t(current.nameAr, current.nameEn)}</h1>
+              {current.publicCode && <p className="text-xs text-ink-muted">رقم المتجر: <span dir="ltr">{current.publicCode}</span></p>}
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs">
+                <span className="rounded-full bg-brand-tint px-3 py-2 font-bold">{!storeIsOpen(current) ? t('مغلق حالياً', 'Closed') : current.storeStatus === StoreStatus.BUSY ? t('مشغول — يستقبل الطلبات', 'Busy — accepting orders') : t('مفتوح ويستقبل الطلبات', 'Open for orders')}</span>
+                <span className="inline-flex items-center gap-2 rounded-xl border border-line bg-canvas px-3 py-2"><Clock3 size={16} className="text-brand" /><strong>{t('مواعيد العمل', 'Opening hours')}</strong><span dir={current.openingTime ? 'ltr' : undefined}>{current.openingTime ? `${current.openingTime}${current.closingTime ? ` – ${current.closingTime}` : ''}` : t('مواعيد العمل غير محددة', 'Hours not set')}</span></span>
+              </div>
+              <DeliveryEstimate store={current} />
+              {current.isRecommended && (
+                <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-brand-tint px-2 py-0.5 text-micro font-bold text-brand-dark">
+                  <Star size={10} fill="currentColor" />
+                  {t('موصى به لدينا', 'Recommended by us')}
+                </span>
+              )}
+              <p className="truncate text-[11px] text-ink-muted" dir="ltr">
+                {current.phone}
+              </p>
+              {current.phone && (
+                <a
+                  href={formatWhatsAppLink(current.phone, `مرحباً، أريد الاستفسار عن متجر ${current.nameAr}`)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex items-center gap-1 rounded-full bg-brand-tint px-2 py-0.5 text-micro font-bold text-brand-dark transition hover:bg-brand/10 active:scale-95"
+                >
+                  <MessageCircle size={10} />
+                  {t('تواصل عبر واتساب', 'WhatsApp')}
+                </a>
+              )}
+            </div>
         </header>
 
         {/* Store status banner — shows when store is not OPEN */}
@@ -318,6 +329,7 @@ export function StoreDetailScreen() {
           trackClassName="gap-2"
           showArrows={false}
         >
+          <button type="button" aria-pressed={active === 'all'} onClick={() => { setActiveCategoryId('all'); setMenuSearch(''); }} className={`min-h-11 shrink-0 rounded-full px-4 text-xs font-bold ${active === 'all' ? 'bg-brand text-white' : 'bg-canvas text-ink-muted'}`}>{t('كل القائمة', 'Full menu')}</button>
           {!!popular.data?.length && <button type="button" aria-pressed={active === 'popular'} onClick={() => { setActiveCategoryId('popular'); setMenuSearch(''); }} className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-xs font-bold ${active === 'popular' ? 'bg-brand text-white' : 'bg-canvas text-ink-muted'}`}><Star size={14} />{t('الأكثر طلباً', 'Most ordered')}</button>}
           {categories.map((category) => (
             <button
@@ -348,29 +360,15 @@ export function StoreDetailScreen() {
         </HorizontalScrollGallery>
         </div>
 
-        {/* Active offers banner */}
-        {(() => {
-          const activeOffers = (offers.data?.items ?? []).filter(o => o.imageUrl);
-          if (activeOffers.length === 0) return null;
-          return (
-            <div className="mx-auto w-full max-w-md px-5 pt-4">
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {activeOffers.slice(0, 3).map(o => (
-                  <div
-                    key={o.id}
-                    className="shrink-0 overflow-hidden rounded-xl border border-line bg-surface shadow-card"
-                  >
-                    <ImageWithFallback
-                      src={o.imageUrl!}
-                      alt={t(o.titleAr, o.titleEn)}
-                      className="h-20 w-36 object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
+        {!!offers.data?.items.length && <section className="mx-auto max-w-md px-5 pt-5" aria-label={t('عروض المتجر', 'Store offers')}>
+          <h2 className="mb-3 text-lg font-extrabold">{t('عروض تستحق التجربة', 'Offers worth trying')}</h2>
+          <div data-swipe-back="off" className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-2">
+            {offers.data.items.map(offer => <button key={offer.id} type="button" onClick={() => setSelectedOffer(offer)} className="w-64 shrink-0 snap-start overflow-hidden rounded-2xl border border-line bg-surface text-start shadow-card focus-visible:ring-2 focus-visible:ring-brand">
+              <ImageWithFallback src={offer.imageUrl ?? current.coverUrl ?? undefined} alt={t(offer.titleAr, offer.titleEn)} className="h-36 w-full object-cover" fallbackText={offer.titleAr} />
+              <div className="space-y-2 p-3"><h3 className="font-bold">{t(offer.titleAr, offer.titleEn)}</h3><div className="flex items-center justify-between text-sm font-bold text-brand"><span>{t('شاهد العرض', 'View offer')}</span>{offer.price != null && <span dir="ltr">{formatCurrency(offer.price)}</span>}</div></div>
+            </button>)}
+          </div>
+        </section>}
 
         <div className="mx-auto w-full max-w-md px-5 pt-5 min-w-0">
           {products.length === 0 ? (
@@ -378,7 +376,7 @@ export function StoreDetailScreen() {
               {query ? 'لا توجد نتائج مطابقة لبحثك في هذا المتجر' : 'لا توجد منتجات في هذه الفئة حالياً'}
             </p>
           ) : (
-            <div className="grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {products
                 .filter((product) => product.isAvailable)
                 .map((product, index) => {
@@ -392,7 +390,7 @@ export function StoreDetailScreen() {
                       key={product.id}
                       id={"product-" + product.id}
                       tabIndex={-1}
-                      className="group relative scroll-mt-44 grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-card sq-menu-enter"
+                      className="group relative scroll-mt-44 flex min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-card sq-menu-enter"
                       style={{ animationDelay: `${Math.min(index * 50, 500)}ms` }}
                     >
                       {/* Offer badge */}
@@ -403,7 +401,7 @@ export function StoreDetailScreen() {
                       )}
 
                       {/* Media — fixed aspect ratio; elegant gradient fallback */}
-                      <button type="button" disabled={!product.imageUrl} aria-label={t(`تكبير صورة ${product.nameAr}`, `Enlarge ${product.nameAr}`)} onClick={() => { if (product.imageUrl) setPreview({ src: product.imageUrl, name: product.nameAr }); }} className="relative row-span-2 h-18 w-18 overflow-hidden rounded-xl bg-linear-to-br from-brand-tint to-brand-surface focus-visible:ring-2 focus-visible:ring-brand">
+                      <button type="button" disabled={!product.imageUrl} aria-label={t(`تكبير صورة ${product.nameAr}`, `Enlarge ${product.nameAr}`)} onClick={() => { if (product.imageUrl) setPreview({ src: product.imageUrl, name: product.nameAr }); }} className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-linear-to-br from-brand-tint to-brand-surface focus-visible:ring-2 focus-visible:ring-brand">
                         {product.imageUrl ? (
                           <ImageWithFallback
                             src={product.imageUrl}
@@ -419,7 +417,7 @@ export function StoreDetailScreen() {
                       </button>
 
                       {/* Text & Price */}
-                      <div className="flex min-w-0 flex-col text-start">
+                      <div className="flex min-w-0 flex-1 flex-col px-3 pt-3 text-start">
                         <h3 className="line-clamp-2 text-sm font-bold text-ink">
                           {product.nameAr}
                         </h3>
@@ -434,7 +432,7 @@ export function StoreDetailScreen() {
                       </div>
 
                       {/* Counter / add */}
-                      <div className="col-start-2 mt-2 flex justify-end">
+                      <div className="mt-auto flex justify-center p-3">
                         {line && !hasOptions ? (
                           <div className="flex items-center gap-1 rounded-full bg-brand px-1 py-1 text-white">
                             <button
@@ -444,7 +442,7 @@ export function StoreDetailScreen() {
                                 cart.setQuantity(product.id, line.quantity - 1);
                                 void hapticTap();
                               }}
-                              className="rounded-full p-2 transition active:scale-90"
+                              className="flex h-11 w-11 items-center justify-center rounded-full transition active:scale-90"
                             >
                               <Minus size={14} />
                             </button>
@@ -459,7 +457,7 @@ export function StoreDetailScreen() {
                                 cart.setQuantity(product.id, line.quantity + 1);
                                 void hapticTap();
                               }}
-                              className="rounded-full p-2 transition active:scale-90"
+                              className="flex h-11 w-11 items-center justify-center rounded-full transition active:scale-90"
                             >
                               <Plus size={14} />
                             </button>
@@ -470,7 +468,7 @@ export function StoreDetailScreen() {
                             aria-label={!orderable ? t("المتجر مغلق", "Store closed") : hasOptions ? t(`اختر خيارات ${product.nameAr}`, `Customize ${product.nameAr}`) : `أضف ${product.nameAr} إلى السلة`}
                             disabled={!orderable}
                             onClick={() => handleAdd(product.id, product)}
-                            className="flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-brand-tint px-4 text-xs font-bold text-brand-dark transition active:scale-95 disabled:bg-canvas disabled:text-ink-muted"
+                            className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-brand-tint px-2 text-xs font-bold text-brand-dark transition active:scale-95 disabled:bg-canvas disabled:text-ink-muted"
                           >
                             {!orderable ? t('المتجر مغلق', 'Store closed') : hasOptions ? hasSize ? t('اختر الحجم', 'Choose size') : t('اختر الإضافات', 'Choose extras') : <><Plus size={18} strokeWidth={2.5} />{t('إضافة', 'Add')}</>}
                           </button>
@@ -507,6 +505,7 @@ export function StoreDetailScreen() {
           )}
         </AnimatePresence>
 
+        {selectedOffer && <StoreOfferSheet offer={selectedOffer} storeName={current.nameAr} canOrder={storeIsOpen(current)} onClose={() => setSelectedOffer(null)} onAdd={() => { if (selectedOffer.price != null && selectedOffer.price > 0 && storeIsOpen(current)) { cart.addOfferItem({ ...selectedOffer, price: selectedOffer.price }, 1, current.nameAr); setSelectedOffer(null); navigate('/cart'); } }} onBrowse={() => { setSelectedOffer(null); setActiveCategoryId('all'); setMenuSearch(''); }} />}
         {preview && <ProductImageViewer src={preview.src} name={preview.name} onClose={() => setPreview(null)} />}
         {/* Product options sheet */}
         {optionsProduct && (

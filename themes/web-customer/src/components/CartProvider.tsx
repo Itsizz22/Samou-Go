@@ -209,7 +209,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }];
     });
     // Notify BottomNav to trigger cart bounce animation.
-    window.dispatchEvent(new CustomEvent('cart:item-added'));
+    window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { name: product.nameAr, imageUrl: product.imageUrl } }));
   }, []);
 
   const addOfferItem = useCallback((
@@ -251,7 +251,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         offerTitle: offer.titleAr,
       }];
     });
-    window.dispatchEvent(new CustomEvent('cart:item-added'));
+    window.dispatchEvent(new CustomEvent('cart:item-added', { detail: { name: offer.titleAr, imageUrl: offer.imageUrl } }));
   }, []);
 
   const setQuantity = useCallback((productId: string, quantity: number) => {

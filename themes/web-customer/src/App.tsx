@@ -1,3 +1,4 @@
+import { CartAddedNotice } from '@/components/CartAddedNotice';
 import { SessionRecovery, needsSessionRecovery, ConnectionNotice } from '@samou-go/api-client';
 import { StaffOrderDetailsScreen } from './screens/StaffOrderDetailsScreen';
 import { StartupIntro } from './components/StartupIntro';
@@ -152,6 +153,7 @@ function App() {
         <OfflineBanner />
         <ConnectionNotice />
         <StartupRoutes auth={auth} />
+        {(!auth.user || auth.user.role === UserRole.CUSTOMER) && <CartAddedNotice />}
         <NavigationDrawer />
         {ENABLE_LOCATION && gpsCaptureEnabled && auth.user && pushCheckedFor === auth.user.id && (
           <LocationPermissionPrompt key={auth.user.id} auth={auth} />

@@ -258,6 +258,7 @@ export interface SetDeliveryFeeInput {
 }
 
 export interface OrderListQuery extends PaginationQuery {
+  activeOnly?: boolean;
   preparationPool?: boolean;
   status?: OrderStatus;
   storeId?: string;
@@ -624,6 +625,8 @@ export interface RespondCustomRequestInput {
 
 /** GET/PATCH /platform/settings — the platform-wide economy knobs. */
 export interface HomeBanner {
+  kind?: "announcement" | "product";
+  storeId?: string;
   id: string;
   title: string;
   imageUrl: string;
@@ -634,8 +637,8 @@ export interface HomeBanner {
 
 export const DEFAULT_HOME_BANNERS: HomeBanner[] = [
   { id: "parcels", title: "قريبًا: توصيل الطرود", imageUrl: "/banners/parcels.jpeg", fit: "cover", positionY: 48, enabled: true },
-  { id: "services", title: "كل احتياجاتك بسرعة وسهولة", imageUrl: "/banners/samou-services.png", fit: "contain", positionY: 50, enabled: true },
-  { id: "grocery", title: "بقالة سريعة وموثوقة", imageUrl: "/banners/grocery.jpg", fit: "contain", positionY: 50, enabled: true },
+  { id: "services", title: "كل احتياجاتك بسرعة وسهولة", imageUrl: "/banners/samou-services.png", fit: "cover", positionY: 50, enabled: true },
+  { id: "grocery", title: "بقالة سريعة وموثوقة", imageUrl: "/banners/grocery.jpg", fit: "cover", positionY: 50, enabled: true },
 ];
 
 export interface PlatformSettings {

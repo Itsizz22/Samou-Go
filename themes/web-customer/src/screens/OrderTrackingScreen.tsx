@@ -109,11 +109,11 @@ export function OrderTrackingScreen() {
       result.items.forEach((item) => item.offer ? cart.addOfferItem(item.offer, item.quantity, result.storeNameAr) : cart.addItem(item.product, item.quantity, item.note ?? '', result.storeNameAr, item.selectedOptions));
       if (result.skipped > 0) {
         toast.info(
-          `أُضيفت ${result.items.length} أصناف. ${result.skipped} منتجات لم تعد متاحة وتم تخطّيها`,
+          `أُضيفت ${result.items.length} أصناف. ${result.skipped} أصناف أو تخصيصات لم تعد متاحة وتم تخطّيها`,
           `Added ${result.items.length} items. Skipped ${result.skipped} unavailable.`
         );
       } else {
-        toast.success('أُضيفت الأصناف إلى السلة', 'Items added to your cart');
+        toast.success('أُعيدت الأصناف مع تخصيصاتك وبالأسعار الحالية؛ راجع السلة قبل التأكيد', 'Restored your options at current prices; review your cart before checkout');
       }
       navigate('/cart');
     } catch {
@@ -371,6 +371,7 @@ export function OrderTrackingScreen() {
                     {order.data.addressNote}
                   </div>
                 )}
+                <div className="rounded-2xl bg-surface p-4 text-xs text-ink-soft shadow-card"><strong className="text-ink">في حال نفاد صنف: </strong>{order.data.unavailableAction === 'REMOVE' ? 'أفضل حذف الصنف' : order.data.unavailableAction === 'SUGGEST' ? 'اقتراح بديل لموافقتي' : 'التواصل معي قبل الاستبدال'}<p className="mt-1 text-ink-muted">أي تغيير يتطلب موافقتك على التفاصيل والسعر الجديد.</p></div>
                 {order.data.orderNote && (
                   <div className="rounded-2xl bg-surface p-4 text-xs text-ink-soft shadow-card">
                     <span className="font-bold text-ink">ملاحظة الطلب: </span>

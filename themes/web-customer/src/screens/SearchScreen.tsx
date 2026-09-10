@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { normalizeOptionGroups, resolveSelectedOptions, type PopularProduct } from '@samou-go/shared-types';
 import { ScreenShell } from '@/components/ScreenShell';
 import { CatalogueSearchField } from '@/components/CatalogueSearchField';
@@ -8,8 +9,10 @@ import { useCart } from '@/components/CartProvider';
 import { hapticConfirm } from '@/lib/haptics';
 
 export function SearchScreen() {
-  const [term, setTerm] = useState('');
-  const [query, setQuery] = useState('');
+  const [params, setParams] = useSearchParams();
+  const term = params.get('q') ?? '';
+  const setTerm = (value: string) => setParams(value ? { q: value } : {}, { replace: true });
+  const [query, setQuery] = useState(term.trim());
   const [optionsProduct, setOptionsProduct] = useState<PopularProduct | null>(null);
   const cart = useCart();
   useEffect(() => { const timer = window.setTimeout(() => setQuery(term.trim()), 350); return () => window.clearTimeout(timer); }, [term]);

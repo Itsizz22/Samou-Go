@@ -1,8 +1,8 @@
 import { StoreHours } from './StoreHours';
 import { ProductPhotoFallback } from './ProductPhotoFallback';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ImageWithFallback, useLanguage } from '@samou-go/ui';
+import { classifyStore, ImageWithFallback, useLanguage } from '@samou-go/ui';
 import { getStores, getNewProducts, useResource } from '@/hooks/useApi';
 import type { PopularProduct, Store } from '@samou-go/shared-types';
 import { formatCurrency } from '@/lib/delivery';
@@ -11,6 +11,7 @@ import { formatCurrency } from '@/lib/delivery';
 function Reel({ children, label }: { children: ReactNode; label: string }) {
   return (
     <div
+      data-swipe-back="off"
       role="region"
       aria-label={label}
       tabIndex={0}
@@ -25,12 +26,16 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
   const { t } = useLanguage();
   const [active, setActive] = useState('discovery');
   const stores = useResource('discovery:stores', signal =>
-    getStores({ sort: 'newest', limit: 12 }, signal)
+    getStores({ sort: 'newest', limit: 24 }, signal)
   );
-  const products = useResource('discovery:products', signal => getNewProducts(12, signal));
+  const products = useResource('discovery:products', signal => getNewProducts(24, signal));
   const rated = useResource('discovery:ratings', signal =>
-    getStores({ sort: 'rating', limit: 12 }, signal)
+    getStores({ sort: 'rating', limit: 24 }, signal)
   );
+  const orderedProducts = useMemo(() => {
+    const restaurantIds = new Set((stores.data?.items ?? []).filter(store => classifyStore(store) === 'restaurant').map(store => store.id));
+    return [...(products.data ?? [])].sort((a, b) => Number(restaurantIds.has(b.storeId)) - Number(restaurantIds.has(a.storeId)) || Number(Boolean(b.imageUrl)) - Number(Boolean(a.imageUrl)));
+  }, [products.data, stores.data]);
   const pills = [
     ['discovery', t('الكل', 'All')],
     ['new-stores', t('متاجر جديدة', 'New stores')],
@@ -106,33 +111,21 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
           </a>
         ))}
       </nav>
-      <section id="new-stores" className="scroll-mt-4 pb-5">
-        <h2 className="mb-3 text-lg font-bold">{t('متاجر جديدة', 'New stores')}</h2>
-        <LoadState
-          loading={stores.loading}
-          error={!!stores.error}
-          empty={!stores.data?.items.length}
-          retry={stores.refresh}
-        />
-        <Reel label={t('متاجر جديدة', 'New stores')}>
-          {stores.data?.items.map(store => storeCard(store))}
-        </Reel>
-      </section>
       <section id="new-products" className="scroll-mt-4 pb-5">
-        <h2 className="mb-3 text-lg font-bold">{t('منتجات جديدة', 'New products')}</h2>
+        <h2 className="mb-3 text-lg font-bold">{t('اكتشف طبقك اليوم', 'Discover your next dish')}</h2>
         <LoadState
           loading={products.loading}
           error={!!products.error}
           empty={!products.data?.length}
           retry={products.refresh}
         />
-        <Reel label={t('منتجات جديدة', 'New products')}>
-          {products.data?.map(product => (
+        <div className="grid grid-cols-2 gap-3">
+          {orderedProducts.map(product => (
             <article
               key={product.id}
-              className="w-64 shrink-0 snap-start overflow-hidden rounded-2xl border border-line bg-surface shadow-card"
+              className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-card"
             >
-              <div className="relative aspect-video bg-canvas">
+              <Link to={`/stores/${encodeURIComponent(product.storeId)}?productId=${encodeURIComponent(product.id)}`} aria-label={`عرض ${product.nameAr}`} className="relative block aspect-[4/3] bg-canvas">
                 <ImageWithFallback
                   src={product.imageUrl ?? undefined}
                   fallback={<ProductPhotoFallback />}
@@ -145,7 +138,7 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
                     ? t('وصل حديثاً', 'Just arrived')
                     : t('من اقتراحاتنا', 'Recommended')}
                 </span>
-              </div>
+              </Link>
               <div className="space-y-2 p-3">
                 <p className="truncate text-xs text-ink-muted">{product.storeNameAr}</p>
                 <h3 className="truncate font-bold">{product.nameAr}</h3>
@@ -165,6 +158,18 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
               </div>
             </article>
           ))}
+        </div>
+      </section>
+      <section id="new-stores" className="scroll-mt-4 pb-5">
+        <h2 className="mb-3 text-lg font-bold">{t('متاجر جديدة', 'New stores')}</h2>
+        <LoadState
+          loading={stores.loading}
+          error={!!stores.error}
+          empty={!stores.data?.items.length}
+          retry={stores.refresh}
+        />
+        <Reel label={t('متاجر جديدة', 'New stores')}>
+          {stores.data?.items.map(store => storeCard(store))}
         </Reel>
       </section>
       <section id="top-rated" className="scroll-mt-4">

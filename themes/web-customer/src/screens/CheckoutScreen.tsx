@@ -1,3 +1,4 @@
+import { CheckoutDeliveryEstimate } from '@/components/DeliveryEstimate';
 import { useCheckoutDraft } from '@/hooks/useCheckoutDraft';
 import { ConnectionNotice } from '@/components/ConnectionNotice';
 import { submitCheckoutAttempt } from '@/lib/checkoutAttempt';
@@ -95,7 +96,8 @@ export function CheckoutScreen() {
   const zones = zoneContext.zones;
   const zoneId = zoneContext.activeZone?.id ?? '';
   const [orderNote, setOrderNote] = useCheckoutDraft(`samou_checkout_draft:${auth.user?.id ?? 'guest'}:orderNote`);
-  const [unavailableAction, setUnavailableAction] = useState<'CONTACT' | 'REMOVE' | 'SUGGEST'>('CONTACT');
+  const [unavailableDraft, setUnavailableAction] = useCheckoutDraft(`samou_checkout_draft:${auth.user?.id ?? 'guest'}:unavailableAction`);
+  const unavailableAction: 'CONTACT' | 'REMOVE' | 'SUGGEST' = unavailableDraft === 'REMOVE' || unavailableDraft === 'SUGGEST' ? unavailableDraft : 'CONTACT';
   const [saveForNextTime, setSaveForNextTime] = useState(true);
   /** Home / Work / Other — persisted with the saved address, shown as a chip. */
   const [addressTag, setAddressTag] = useState<AddressTag>('home');
@@ -1001,7 +1003,8 @@ export function CheckoutScreen() {
             </p>
           )}
           <ConnectionNotice />
-          <fieldset className="mb-4 rounded-2xl border border-line bg-surface p-4"><legend className="text-sm font-bold">إذا لم يتوفر أحد الأصناف</legend>{([{ id: 'CONTACT', label: 'اتصل بي أولاً' }, { id: 'REMOVE', label: 'أفضل حذف الصنف' }, { id: 'SUGGEST', label: 'اقترح لي بديلاً' }] as const).map(option => <label key={option.id} className="flex min-h-11 items-center gap-3 text-sm"><input type="radio" name="unavailable" checked={unavailableAction === option.id} onChange={() => setUnavailableAction(option.id)} />{option.label}</label>)}<p className="text-xs text-ink-muted">سيعرض المتجر أي تعديل وسعره للموافقة قبل اعتماده.</p></fieldset>
+          {cart.storeGroups.map(group => <CheckoutDeliveryEstimate key={group.storeId} storeId={group.storeId} pickup={(cart.isMultiStore ? group.fulfillmentType : fulfillmentType) === 'PICKUP'} />)}
+          <fieldset className="mb-4 rounded-2xl border border-line bg-surface p-4"><legend className="text-sm font-bold">إذا لم يتوفر أحد الأصناف</legend>{([{ id: 'CONTACT', label: 'تواصل معي قبل الاستبدال' }, { id: 'REMOVE', label: 'أفضل حذف الصنف' }, { id: 'SUGGEST', label: 'اقترح لي بديلاً' }] as const).map(option => <label key={option.id} className="flex min-h-11 items-center gap-3 text-sm"><input type="radio" name="unavailable" checked={unavailableAction === option.id} onChange={() => setUnavailableAction(option.id)} />{option.label}</label>)}<p className="text-xs text-ink-muted">لن يتم الاستبدال تلقائيًا. سيصلك أي تعديل أو حذف وسعر الطلب الجديد للموافقة قبل اعتماده.</p></fieldset>
           {submitError && (
             <div className="rounded-2xl border border-line bg-surface p-4 text-sm" role="status">
               <p>لم يكتمل تأكيد النتيجة. سلتك محفوظة؛ إعادة المحاولة بنفس البيانات تتحقق من الطلب نفسه.</p>

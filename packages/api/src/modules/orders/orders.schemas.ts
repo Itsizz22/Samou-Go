@@ -137,6 +137,7 @@ export const releaseReservationSchema = z.object({ reason: z.string().trim().min
 export const preparationTimeSchema = z.object({ estimatedPrepMinutes: z.number().int().min(5).max(180) });
 
 export const orderListQuerySchema = paginationSchema.extend({
+  activeOnly: z.enum(["true", "false"]).transform(v => v === "true").optional(),
   preparationPool: z.enum(["true", "false"]).transform(v => v === "true").optional(),
   status: caseInsensitiveOrderStatus.optional(),
   storeId: z.string().min(1).optional(),

@@ -1,7 +1,7 @@
 /**
  * Swipe-to-go-back for mobile.
  *
- * A rightward horizontal drag anywhere on the screen walks history back one
+ * A rightward horizontal drag from the left edge walks history back one
  * step (`navigate(-1)`), the same gesture Android/iOS users expect. Vertical
  * scrolling is untouched (the gesture must be clearly horizontal), and touches
  * that start inside a horizontally-scrollable strip (category rails, product
@@ -53,7 +53,8 @@ export function useSwipeBack<T extends HTMLElement>(): React.RefObject<T> {
       }
       startX = event.touches[0].clientX;
       startY = event.touches[0].clientY;
-      tracking = true;
+      // Reserve back navigation for the edge; product and offer swipes stay local.
+      tracking = startX <= 24;
       moving = false;
     };
 
