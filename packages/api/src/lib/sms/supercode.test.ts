@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-vi.mock('../../config/env', () => ({ env: { sms: { countryCode: '+970', supercode: { httpTestRecipient: undefined as string | undefined, apiId: 'test-secret', sender: 'SamouQuick' } } } }));
+vi.mock('../../config/env', () => ({ env: { sms: { countryCode: '+970', supercode: { allowHttp: false, apiId: 'test-secret', sender: 'SamouQuick' } } } }));
 import { env } from '../../config/env';
 import { createSupercodeGateway } from './supercode';
-afterEach(() => { vi.unstubAllGlobals(); Object.assign(env.sms.supercode, { httpTestRecipient: undefined }); });
+afterEach(() => { vi.unstubAllGlobals(); Object.assign(env.sms.supercode, { allowHttp: false }); });
 describe('Supercode adapter', () => {
   it('encodes Arabic and sends one international destination in the POST body', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ STATUS: 'Message Sent Successfully' })));
@@ -34,12 +34,12 @@ describe('Supercode adapter', () => {
   });
 });
 
-it('uses HTTP only for the explicitly configured test recipient', async () => {
-  Object.assign(env.sms.supercode, { httpTestRecipient: '970566010623' });
+it('uses HTTP only when the explicit compatibility flag is enabled', async () => {
+  Object.assign(env.sms.supercode, { allowHttp: true });
   const mock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ STATUS: 'Message Sent Successfully' })));
   vi.stubGlobal('fetch', mock);
   await createSupercodeGateway().send({ to: '0566010623', body: 'test' });
   await createSupercodeGateway().send({ to: '0599000008', body: 'test' });
   expect(mock.mock.calls[0]?.[0]).toBe('http://sms.supercode.ps/API/SendJSON.aspx');
-  expect(mock.mock.calls[1]?.[0]).toBe('https://sms.supercode.ps/API/SendJSON.aspx');
+  expect(mock.mock.calls[1]?.[0]).toBe('http://sms.supercode.ps/API/SendJSON.aspx');
 });

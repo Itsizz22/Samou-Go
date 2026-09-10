@@ -11,8 +11,8 @@ export function createSupercodeGateway(): SmsGateway {
     async send(message) {
       const to = toE164(message.to, env.sms.countryCode).replace(/^\+/, '');
       if (!/^[1-9]\d{7,14}$/.test(to)) throw new Error('Supercode invalid destination');
-      // Explicit, recipient-scoped temporary test override; other destinations remain HTTPS.
-      const protocol = env.sms.supercode.httpTestRecipient === to ? 'http' : 'https';
+      // Temporary operator-approved compatibility setting; HTTPS remains the default.
+      const protocol = env.sms.supercode.allowHttp ? 'http' : 'https';
       let response: Response;
       try {
         response = await fetch(`${protocol}://sms.supercode.ps/API/SendJSON.aspx`, {
