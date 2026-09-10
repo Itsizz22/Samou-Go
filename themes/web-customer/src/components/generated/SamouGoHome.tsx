@@ -39,7 +39,6 @@ import { BottomNav } from '@/components/BottomNav';
 import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import { useDrawer } from '@/components/NavigationDrawer';
 import { DeliveryFee } from '@samou-go/ui';
-import { API_URL } from '@/hooks/useApi';
 import { FeaturedProductsShowcase } from '@/components/FeaturedProductsShowcase';
 import { CravingShortcuts } from '@/components/CravingShortcuts';
 import { PromoBannerSlider } from '@/components/PromoBannerSlider';
@@ -196,7 +195,7 @@ export function SamouGoHome() {
 
 
 
-  return <main dir="rtl" className="customer-home sq-customer-screen min-h-screen bg-canvas pb-28 font-sans text-ink">
+  return <main dir={isArabic ? "rtl" : "ltr"} className="customer-home sq-customer-screen min-h-screen bg-canvas pb-28 font-sans text-ink">
       <a href="#home-results" className="sr-only focus:not-sr-only focus:block focus:p-3">تجاوز إلى المتاجر</a>
       <header className="home-header px-5 pb-4 pt-3">
         <nav className="mx-auto flex max-w-md items-center justify-between gap-2" aria-label="Main navigation">
@@ -237,58 +236,28 @@ export function SamouGoHome() {
         <CatalogueSearchField value={searchTerm} onChange={setSearchTerm} onSearch={() => setDebouncedSearch(searchTerm.trim())} />
       </section>
 
-      {/* ==========================================================================
-          BANNER SLIDER INJECTION POINT
-          The upcoming dynamic Banner Slider component will render here — just below
-          the main Header/Search and above the Store Rails. Keep this marker element
-          (id: banners-slider-placeholder) so the injection point is always locatable.
-          ======================================================================== */}
       {searchTerm.trim() && (searchTerm.trim() !== debouncedSearch
         ? <p id="catalogue-search-results" role="status" className="mx-auto max-w-md px-5 pt-6 text-sm text-ink-muted">جارٍ البحث…</p>
         : <HomeProductSearch key={debouncedSearch} query={debouncedSearch} onAdd={handlePopularAdd} />)}
       {!searchTerm.trim() && <>
-      <PromoBannerSlider />
-
       <CravingShortcuts products={dishProducts} />
+
+      <PromoBannerSlider />
 
       <FeaturedProductsShowcase products={dishProducts} loading={popular.loading} onAdd={handlePopularAdd} />
 
-      <section className="mx-auto max-w-md px-5 pt-7" aria-labelledby="categories-title">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 id="categories-title" className="text-lg font-extrabold">{t('الفئات', 'Categories')}</h2>
-          <button type="button" aria-expanded={!categoriesCollapsed} aria-controls="category-chips" onClick={() => setCategoriesCollapsed(value => !value)} className="flex min-h-11 items-center gap-1 rounded-full px-3 text-xs font-bold text-brand focus-visible:ring-2 focus-visible:ring-brand">
-            {categoriesCollapsed ? t('المزيد', 'More') : t('عرض أقل', 'Show less')}<ChevronDown size={16} className={categoriesCollapsed ? '' : 'rotate-180'} />
-          </button>
-        </div>
-        <div id="category-chips" className="grid grid-cols-4 gap-2">
-          {STORE_CATEGORIES.filter((category, index) => !categoriesCollapsed || index < 4 || category.key === activeCategory).map(category => {
-            const Icon = CATEGORY_ICONS[category.key];
-            const active = activeCategory === category.key;
-            const representative = (stores.data?.items ?? []).find(store => classifyStore(store) === category.key && (store.coverUrl || store.logoUrl));
-            const photo = representative?.coverUrl || representative?.logoUrl;
-            return <button key={category.key} type="button" aria-pressed={active} onClick={() => { setActiveCategory(category.key); requestAnimationFrame(() => document.getElementById('home-results')?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })); }} className={`flex min-w-0 flex-col items-center gap-2 rounded-2xl border p-1.5 pb-3 text-center transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-brand ${active ? 'border-brand bg-brand-tint text-brand-dark' : 'border-line bg-surface text-ink-soft'}`}>
-              <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-brand-surface text-brand">{photo ? <ImageWithFallback src={photo} alt="" className="h-full w-full object-cover" /> : <Icon size={26} />}</span>
-              <span className="text-[11px] font-bold leading-relaxed">{t(category.ar, category.en)}</span>
-            </button>;
-          })}
-        </div>
-        <div className="mt-3 flex gap-2" aria-label="Store availability filter">
-          {([['all', t('الكل', 'All')], ['open', t('مفتوح', 'Open')], ['closed', t('مغلق', 'Closed')]] as const).map(([value, label]) => (
-            <button key={value} type="button" onClick={() => setAvailabilityFilter(value)} aria-pressed={availabilityFilter === value} className={`min-h-11 rounded-full px-4 py-2 text-xs font-bold ${availabilityFilter === value ? 'bg-brand text-white' : 'bg-surface text-ink-muted shadow-card'}`}>{label}</button>
-          ))}
-        </div>
-      </section>
 
-      <DiscoverySections onAdd={handlePopularAdd} />
+
+      <DiscoverySections onAdd={handlePopularAdd} featuredProducts={dishProducts} />
       <PromoBannerSlider kind="product" />
 
       {/* Store Ads & Offers Feed */}
-      <section className="mx-auto max-w-md px-5 pt-7" id="exclusive-offers" aria-labelledby="offers-title">
+      {(offers.loading || activeOffers.length > 0) && <section className="mx-auto max-w-md px-5 pt-7" id="exclusive-offers" aria-labelledby="offers-title">
         <div className="mb-4 flex items-end justify-between">
-          <h2 id="offers-title" className="text-lg font-extrabold">{t('عروض وإعلانات المتاجر', 'Store offers & ads')}</h2>
+          <h2 id="offers-title" className="text-lg font-extrabold">{t('من قوائم متاجرنا', 'From our stores')}</h2>
         </div>
         {offers.loading ? (
-          <div className="flex flex-col gap-3.5 pb-2">
+          <div data-swipe-back="off" className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-2 scrollbar-none">
             {[0, 1, 2].map(index => (
               <div key={index} className="skeleton w-full overflow-hidden rounded-[20px] border border-line shadow-card" aria-hidden="true">
                 <div className="h-32.5 bg-line-soft" />
@@ -300,12 +269,12 @@ export function SamouGoHome() {
             ))}
           </div>
         ) : activeOffers.length > 0 ? (
-          <div className="flex flex-col gap-3.5 pb-2">
+          <div data-swipe-back="off" className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-2 scrollbar-none">
             {activeOffers.map((offer) => (
               <Link
                 key={offer.id}
                 to={`/stores/${encodeURIComponent(offer.storeId)}`}
-                className="w-full overflow-hidden rounded-[20px] border border-line bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40"
+                className="w-[86%] shrink-0 snap-start overflow-hidden rounded-2xl border border-line bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40"
               >
                 {offer.imageUrl ? (
                   <img
@@ -319,7 +288,7 @@ export function SamouGoHome() {
                     <Star size={28} className="text-brand/30" />
                   </div>
                 )}
-                <div className="p-3 text-end">
+                <div className="p-3 text-start">
                   <div className="flex items-center justify-between gap-2">
                     <p className="truncate text-sm font-extrabold">{t(offer.titleAr, offer.titleEn)}</p>
                     {offer.price != null && offer.price > 0 && (
@@ -341,14 +310,13 @@ export function SamouGoHome() {
             <p className="mt-2 text-xs font-bold text-ink-muted">{t('لا توجد عروض حالياً — تابع المتاجر للحصول على أحدث العروض', 'No offers yet — follow stores for the latest deals')}</p>
           </div>
         )}
-      </section>
+      </section>}
 
       {stores.error && <section className="mx-auto max-w-md px-5 pt-8" aria-live="assertive">
           <div className="rounded-2xl border border-danger-tint bg-surface p-5 text-center shadow-card">
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger-ink"><AlertTriangle size={22} /></span>
             <h2 className="mt-3 text-sm font-extrabold">{t('تعذّر تحميل المتاجر', 'Could not load stores')}</h2>
             <p className="mt-2 text-xs text-ink-soft">{isArabic ? stores.error.message : stores.error.localizedMessage}</p>
-            <p className="mt-2 text-micro break-all text-ink-muted" dir="ltr">Failed URL: {API_URL}/stores</p>
             <button type="button" onClick={stores.refresh} disabled={stores.refreshing} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-60">
               {stores.refreshing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
               {t('إعادة المحاولة', 'Retry')}
@@ -380,7 +348,7 @@ export function SamouGoHome() {
                       <span className={`absolute inset-s-2 bottom-2 rounded-full px-2 py-1 text-micro font-bold ${storeIsOpen(store) ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{storeIsOpen(store) ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
                       <button type="button" aria-label={t(`إضافة ${store.nameAr} إلى المفضلة`, `Favorite ${store.nameEn}`)} aria-pressed={favorites.isFavorite(store.id)} onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggleLike(store.id); }} disabled={favorites.pending.includes(store.id)} className="absolute inset-e-2 top-2 rounded-full bg-surface/85 p-2 text-brand"><Heart size={15} fill={favorites.isFavorite(store.id) ? 'currentColor' : 'none'} /></button>
                     </div>
-                    <div className="p-3 text-end">
+                    <div className="p-3 text-start">
                       <h3 className="truncate text-sm font-extrabold">{t(store.nameAr, store.nameEn)}</h3>
                       <p className="mt-2 text-micro text-ink-muted">{t(category.ar, category.en)}</p><DeliveryEstimate store={store} />
                       <div className="mt-2 flex items-center justify-between gap-2"><span className="flex items-center gap-1"><DeliveryFee amount={baseFee} variant="badge" showIcon /></span></div>
@@ -422,16 +390,50 @@ export function SamouGoHome() {
 
 
       </>}
+      {!searchTerm.trim() && <>
+      <section className="mx-auto max-w-md px-5 pt-7" aria-labelledby="categories-title">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 id="categories-title" className="text-lg font-extrabold">{t('الفئات', 'Categories')}</h2>
+          <button type="button" aria-expanded={!categoriesCollapsed} aria-controls="category-chips" onClick={() => setCategoriesCollapsed(value => !value)} className="flex min-h-11 items-center gap-1 rounded-full px-3 text-xs font-bold text-brand focus-visible:ring-2 focus-visible:ring-brand">
+            {categoriesCollapsed ? t('المزيد', 'More') : t('عرض أقل', 'Show less')}<ChevronDown size={16} className={categoriesCollapsed ? '' : 'rotate-180'} />
+          </button>
+        </div>
+        <div id="category-chips" className="grid grid-cols-4 gap-2">
+          {STORE_CATEGORIES.filter((category, index) => !categoriesCollapsed || index < 4 || category.key === activeCategory).map(category => {
+            const Icon = CATEGORY_ICONS[category.key];
+            const active = activeCategory === category.key;
+            const representative = (stores.data?.items ?? []).find(store => classifyStore(store) === category.key && (store.coverUrl || store.logoUrl));
+            const photo = representative?.coverUrl || representative?.logoUrl;
+            return <button key={category.key} type="button" aria-pressed={active} onClick={() => { setActiveCategory(category.key); requestAnimationFrame(() => document.getElementById('home-results')?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })); }} className={`flex min-w-0 flex-col items-center gap-2 rounded-2xl border p-1.5 pb-3 text-center transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-brand ${active ? 'border-brand bg-brand-tint text-brand-dark' : 'border-line bg-surface text-ink-soft'}`}>
+              <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-brand-surface text-brand">{photo ? <ImageWithFallback src={photo} alt="" className="h-full w-full object-cover" /> : <Icon size={26} />}</span>
+              <span className="text-[11px] font-bold leading-relaxed">{t(category.ar, category.en)}</span>
+            </button>;
+          })}
+        </div>
+        <div className="mt-3 flex gap-2" aria-label="Store availability filter">
+          {([['all', t('الكل', 'All')], ['open', t('مفتوح', 'Open')], ['closed', t('مغلق', 'Closed')]] as const).map(([value, label]) => (
+            <button key={value} type="button" onClick={() => setAvailabilityFilter(value)} aria-pressed={availabilityFilter === value} className={`min-h-11 rounded-full px-4 py-2 text-xs font-bold ${availabilityFilter === value ? 'bg-brand text-white' : 'bg-surface text-ink-muted shadow-card'}`}>{label}</button>
+          ))}
+        </div>
+      </section>
+      </>}
       {!searchTerm.trim() && !stores.error && (stores.loading || cards.length > 0) && <section id="home-results" aria-live="polite" className="scroll-mt-4 mx-auto max-w-md px-5 pt-8" aria-labelledby="nearby-title" aria-busy={stores.loading}>
         <div className="mb-4 flex items-end justify-between"><div><h2 id="nearby-title" className="text-lg font-extrabold">{t('كل المتاجر', "All stores in Al-Samou'")}</h2></div>{stores.refreshing ? <Loader2 size={16} className="animate-spin text-brand" aria-label="Refreshing" /> : <ChevronLeft size={18} className="text-ink-subtle" />}</div>
         <div className="space-y-3">
           {stores.loading
             ? [0, 1, 2].map(index => <div key={index} className="skeleton flex items-center gap-3 rounded-2xl p-3 shadow-card" aria-hidden="true"><div className="h-12 w-12 shrink-0 rounded-xl bg-line-soft" /><div className="flex-1 space-y-2"><div className="ms-auto h-3 w-1/2 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-2/3 rounded bg-line-soft" /></div><div className="h-6 w-12 shrink-0 rounded-full bg-line-soft" /></div>)
             : cards.map(({ store, category, initials, tint }) => (
-                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="home-store-card flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card transition-all duration-200 hover:-translate-y-px hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
-                  <div className={`flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl text-sm font-black ${tint}`}>{store.coverUrl || store.logoUrl ? <ImageWithFallback src={store.coverUrl || store.logoUrl || undefined} alt="" className="h-full w-full object-cover" fallbackText={initials} /> : initials}</div>
-                  <div className="min-w-0 flex-1 text-start"><h3 className="truncate text-sm font-extrabold">{t(store.nameAr, store.nameEn)}{store.isRecommended && <span className="ms-1.5 inline-flex items-center gap-0.5 rounded-full bg-brand-tint px-1.5 py-0.5 align-middle text-micro font-bold text-brand-deep" title={t('ينصح به لدينا', 'Recommended by us')}><Star size={9} fill="currentColor" />{t('موصى به', 'Recommended')}</span>}</h3><p className="mt-1 flex items-center gap-2 text-micro font-semibold text-ink-muted"><DeliveryFee amount={baseFee} variant="inline" /></p><StoreHours store={store} /><DeliveryEstimate store={store} /></div>
-                  <span className={`shrink-0 rounded-full px-2 py-1 text-micro font-bold ${storeIsOpen(store) ? 'bg-brand-tint text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{storeIsOpen(store) ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
+                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="home-store-card block overflow-hidden rounded-2xl bg-surface transition active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-brand" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
+                  <div className="relative aspect-[5/2] overflow-hidden bg-brand-surface">
+                    <ImageWithFallback src={store.coverUrl || store.logoUrl || undefined} alt="" className="h-full w-full object-cover" fallbackText={initials} />
+                    <span className={`absolute end-3 top-3 rounded-full px-3 py-1 text-xs font-bold ${storeIsOpen(store) ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{storeIsOpen(store) ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
+                  </div>
+                  <div className="p-4">
+                    <div className="flex items-center gap-3"><ImageWithFallback src={store.logoUrl ?? undefined} alt="" fallbackText={initials} className={`size-12 shrink-0 rounded-xl object-contain ${tint}`} /><div className="min-w-0"><h3 className="truncate text-base font-extrabold">{t(store.nameAr, store.nameEn)}</h3><p className="mt-1 text-xs text-ink-muted">{t(category.ar, category.en)}</p></div></div>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-muted"><DeliveryFee amount={baseFee} variant="inline" /><DeliveryEstimate store={store} /></div>
+                    <div className="mt-2"><StoreHours store={store} /></div>
+                    {dishProducts.some(product => product.storeId === store.id && product.imageUrl) && <div className="mt-3 flex gap-2" aria-hidden="true">{dishProducts.filter(product => product.storeId === store.id && product.imageUrl).slice(0, 3).map(product => <ImageWithFallback key={product.id} src={product.imageUrl!} alt="" className="aspect-[4/3] min-w-0 flex-1 rounded-lg object-cover" />)}</div>}
+                  </div>
                 </Link>
               ))}
         </div>

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Pizza, Sandwich, Flame, CakeSlice, Drumstick } from 'lucide-react';
+import { Pizza, Sandwich, Flame, CakeSlice, Drumstick, Coffee, Croissant } from 'lucide-react';
 import { ImageWithFallback, useLanguage } from '@samou-go/ui';
 import type { Product } from '@samou-go/shared-types';
 
@@ -9,6 +9,8 @@ const cravings = [
   { ar: 'مشاوي', en: 'Grills', match: /مشاوي|كباب|grill/i, icon: Flame },
   { ar: 'شاورما', en: 'Shawarma', match: /شاورما|shawarma/i, icon: Sandwich },
   { ar: 'حلويات', en: 'Desserts', match: /حلويات|كنافة|كيك|dessert|cake/i, icon: CakeSlice },
+  { ar: 'قهوة', en: 'Coffee', match: /قهوة|لاتيه|coffee|latte/i, icon: Coffee },
+  { ar: 'مخبوزات', en: 'Bakery', match: /مناقيش|كرواسون|فطائر|croissant|pastry/i, icon: Croissant },
   { ar: 'دجاج', en: 'Chicken', match: /دجاج|chicken/i, icon: Drumstick },
 ];
 

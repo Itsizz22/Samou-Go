@@ -198,3 +198,11 @@
     .customer-home *, .sq-bottom-nav * { scroll-behavior: auto; animation-duration: .01ms !important; transition-duration: .01ms !important; }
   }
 }
+
+@theme { --color-sale: #8b3038; }
+@layer components {
+  .customer-home { background: color-mix(in srgb, var(--color-canvas) 93%, #d5bca0); }
+  .customer-home .dish-card { box-shadow: 0 3px 14px color-mix(in srgb, var(--color-ink) 6%, transparent); }
+  .customer-home section { scroll-margin-block-start: 1rem; }
+  .customer-home h2 { line-height: 1.55; }
+}
