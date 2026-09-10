@@ -1,4 +1,4 @@
-param([int]$VersionCode = 3, [string]$VersionName = '1.0.2', [string]$JdkHome = (Join-Path $env:USERPROFILE '.jdks/jbr-21.0.11'))
+param([int]$VersionCode = 4, [string]$VersionName = '1.0.3', [string]$JdkHome = (Join-Path $env:USERPROFILE '.jdks/jbr-21.0.11'))
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $signingDir = Join-Path $env:USERPROFILE '.samou-quick-signing'

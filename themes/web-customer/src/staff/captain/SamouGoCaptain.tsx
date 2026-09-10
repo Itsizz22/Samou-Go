@@ -189,9 +189,10 @@ export function SamouGoCaptain() {
     [activeOrders.data]
   );
 
-  const activeOrderDetail = useOrder(activeItems[0]?.id, { enabled: Boolean(auth.user) && isCaptain, pollMs: 10_000 });
+  const trackingOrderId = activeItems[0]?.id ?? availableItems.find(order => order.captainId === auth.user?.id)?.id;
+  const activeOrderDetail = useOrder(trackingOrderId, { enabled: Boolean(auth.user) && isCaptain, pollMs: 10_000 });
 
-  const gpsTracking = useCaptainTracking(activeItems[0]?.id, isCaptain);
+  const gpsTracking = useCaptainTracking(trackingOrderId, isCaptain);
 
   // Load active delivery zones once on mount for the zone picker.
   useEffect(() => {
@@ -940,7 +941,7 @@ export function SamouGoCaptain() {
               </div>
             </div>
 
-            {activeItems.length > 0 && activeOrderDetail.data ? (
+            {trackingOrderId && activeOrderDetail.data ? (
               <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
                 {!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <ZoneLandmarkTrackingView order={activeOrderDetail.data} contactPhone={activeOrderDetail.data.customer.phone} />}
                 {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <><p role="status" className="text-sm text-ink-muted">{gpsTracking.message}</p><button type="button" className="rounded-xl border border-line px-3 py-2 text-brand" onClick={gpsTracking.retry}>إعادة تحديد الموقع</button><LiveTrackingCard orderId={activeOrderDetail.data.id} load={getLiveOrderTracking} /></>}
