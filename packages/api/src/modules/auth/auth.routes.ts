@@ -13,6 +13,8 @@ import { authLimiter } from "../../middleware/rate-limit";
 import * as controller from "./auth.controller";
 
 export const authRouter: Router = Router();
+authRouter.post("/otp/request", authLimiter, asyncHandler(controller.requestOtpHandler));
+authRouter.post("/otp/verify", authLimiter, asyncHandler(controller.verifyOtpHandler));
 
 // `optionalAuthenticate` so an authenticated ADMIN can register staff accounts,
 // while an anonymous visitor can still register themselves as a CUSTOMER.

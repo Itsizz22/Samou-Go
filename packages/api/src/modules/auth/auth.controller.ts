@@ -11,6 +11,8 @@ import {
   adminUpdateUserSchema,
   captainIdParamsSchema,
   loginSchema,
+  otpRequestSchema,
+  otpVerifySchema,
   logoutSchema,
   refreshTokenSchema,
   resetPasswordSchema,
@@ -201,4 +203,11 @@ export async function adminDeleteUserHandler(
   if (auth.role !== UserRole.ADMIN) throw forbidden();
   const { userId } = parseWith(userIdParamsSchema, req.params);
   ok(res, await authService.adminDeleteUser(userId, auth.sub));
+}
+export async function requestOtpHandler(req: Request, res: Response): Promise<void> {
+  ok(res, await otpService.requestOtp(parseWith(otpRequestSchema, req.body)));
+}
+
+export async function verifyOtpHandler(req: Request, res: Response): Promise<void> {
+  ok(res, await otpService.verifyOtp(parseWith(otpVerifySchema, req.body)));
 }
