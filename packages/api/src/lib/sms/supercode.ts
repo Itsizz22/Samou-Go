@@ -2,7 +2,7 @@ import { env } from '../../config/env';
 import { toE164 } from './phone';
 import type { SmsGateway } from './types';
 
-/** Supercode JSON contract: URI-encoded text and international digits without +. */
+/** Live Supercode JSON gateway accepts raw Unicode text; JSON handles transport encoding. */
 export function createSupercodeGateway(): SmsGateway {
   const { apiId, sender } = env.sms.supercode;
   if (!apiId || !sender) throw new Error('Supercode requires API ID and approved sender');
@@ -18,7 +18,7 @@ export function createSupercodeGateway(): SmsGateway {
         response = await fetch(`${protocol}://sms.supercode.ps/API/SendJSON.aspx`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           redirect: 'error', signal: AbortSignal.timeout(10_000),
-          body: JSON.stringify({ id: apiId, sender, to, msg: encodeURIComponent(message.body), mode: '0' }),
+          body: JSON.stringify({ id: apiId, sender, to, msg: message.body, mode: '0' }),
         });
       } catch {
         throw new Error('Supercode transport failed; delivery status unknown');

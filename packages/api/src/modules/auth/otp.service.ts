@@ -64,12 +64,8 @@ function generateOtpCode(length: number): string {
 }
 
 function buildSmsBody(code: string): string {
-  return (
-    `رمز تحقق Samou Quick الخاص بك هو: ${code}\n` +
-    `صالح لمدة ${Math.round(env.otp.ttlMs / 60_000)} دقيقة.\n` +
-    `---\n` +
-    `Your Samou Quick verification code is: ${code}`
-  );
+  const seconds = Math.ceil(env.otp.ttlMs / 1_000);
+  return `Samou Quick\nرمز التحقق: ${code}\nصالح ${seconds} ثانية. لا تشاركه مع أحد.`;
 }
 
 export interface OtpRequestResult {

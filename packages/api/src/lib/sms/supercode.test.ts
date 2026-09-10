@@ -4,7 +4,7 @@ import { env } from '../../config/env';
 import { createSupercodeGateway } from './supercode';
 afterEach(() => { vi.unstubAllGlobals(); Object.assign(env.sms.supercode, { allowHttp: false }); });
 describe('Supercode adapter', () => {
-  it('encodes Arabic and sends one international destination in the POST body', async () => {
+  it('sends raw Arabic and one international destination in the JSON body', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ STATUS: 'Message Sent Successfully' })));
     vi.stubGlobal('fetch', fetchMock);
     await expect(createSupercodeGateway().send({ to: '0599000008', body: 'رمزك 123456' })).resolves.toEqual({ accepted: true });
@@ -12,7 +12,7 @@ describe('Supercode adapter', () => {
     expect(url).toBe('https://sms.supercode.ps/API/SendJSON.aspx');
     expect(init.redirect).toBe('error');
     expect(init.method).toBe('POST');
-    expect(JSON.parse(init.body)).toEqual({ id: 'test-secret', sender: 'SamouQuick', to: '970599000008', msg: encodeURIComponent('رمزك 123456'), mode: '0' });
+    expect(JSON.parse(init.body)).toEqual({ id: 'test-secret', sender: 'SamouQuick', to: '970599000008', msg: 'رمزك 123456', mode: '0' });
   });
   it.each(['Authentication Failed', 'Insufficient Credit', 'IP Not Allowed', 'Sender Not Allowed', 'test-secret 123456'])('rejects HTTP 200 provider failure: %s', async status => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ STATUS: status }))));

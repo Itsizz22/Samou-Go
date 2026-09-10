@@ -1,6 +1,6 @@
 # Supercode activation
 
-Implementation follows the supplied HTTP API guide, pages 3–6 and 10.
+Implementation uses the supplied HTTP API guide, pages 3–6 and 10, with a live-verified correction: do not URI-encode msg inside JSON. The provider sends percent escapes literally; confirmed by the recipient screenshot.
 
 Server-only Render variables:
 - SMS_PROVIDER=supercode
@@ -10,7 +10,7 @@ Server-only Render variables:
 
 Credentials and sender have been configured on Render. If the provider restricts IPs, allow Render outbound addresses through the provider account. Handset delivery still requires confirmation.
 
-POST JSON to the fixed Supercode SendJSON.aspx endpoint, one recipient, mode 0, URI-encoded message. Only the exact documented success STATUS counts as gateway acceptance. It does not prove handset delivery. No automatic retry on uncertain network delivery. No raw provider body or credentials logged. Ten-second timeout and redirects disabled.
+POST JSON to the fixed Supercode SendJSON.aspx endpoint, one recipient, mode 0, raw Unicode message (JSON encoding only). Only the exact documented success STATUS counts as gateway acceptance. It does not prove handset delivery. No automatic retry on uncertain network delivery. No raw provider body or credentials logged. Ten-second timeout and redirects disabled.
 
 Verification: 37 SMS/phone/OTP tests passed, API TypeScript check passed. Adapter tests use mocked transport and consume no credit.
 
