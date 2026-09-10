@@ -16,7 +16,7 @@ describe('Supercode adapter', () => {
   });
   it.each(['Authentication Failed', 'Insufficient Credit', 'IP Not Allowed', 'Sender Not Allowed', 'test-secret 123456'])('rejects HTTP 200 provider failure: %s', async status => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ STATUS: status }))));
-    await expect(createSupercodeGateway().send({ to: '0599000008', body: '123456' })).rejects.toThrow('Supercode rejected message; check credit, sender and IP permissions');
+    await expect(createSupercodeGateway().send({ to: '0599000008', body: '123456' })).rejects.toThrow(status === 'test-secret 123456' ? 'Supercode rejected message; check credit, sender and IP permissions' : 'Supercode rejected: ' + status);
   });
   it('rejects malformed JSON', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('unexpected html')));
@@ -29,7 +29,7 @@ describe('Supercode adapter', () => {
     expect(mock).toHaveBeenCalledTimes(1);
   });
   it('rejects HTTP failures', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('test-secret', { status: 500 })));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ STATUS: 'unknown' }), { status: 500 })));
     await expect(createSupercodeGateway().send({ to: '0599000008', body: '123456' })).rejects.toThrow('Supercode HTTP failure (500)');
   });
 });
