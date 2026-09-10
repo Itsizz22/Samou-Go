@@ -7,8 +7,8 @@
   "main": "./dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "npm run prisma:generate && npm run prisma:generate:prod && tsc -p tsconfig.json",
-    "start": "node dist/server.js",
+    "build": "npm run prisma:generate && npm run prisma:generate:prod && tsc -p tsconfig.json && node scripts/prepare-routing.cjs",
+    "start": "node scripts/start-production.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "generate:prod": "prisma generate",
     "prisma:generate": "prisma generate --schema=prisma/schema.sqlite.prisma",
