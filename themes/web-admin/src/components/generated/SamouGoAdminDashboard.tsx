@@ -1,11 +1,10 @@
-import { BannerSettings } from '../BannerSettings';
 import { getLiveOrderTracking } from '@samou-go/api-client';
 import { LiveTrackingCard } from '@samou-go/ui/map';
 import { CaptainStoreAssignment, assignedIds } from '../StoreAssignmentPicker';
 import { NotificationAuditPanel } from '../NotificationAuditPanel';
 import { SupportDesk } from '@samou-go/api-client';
 import { OverdueOrdersPanel } from '../OverdueOrdersPanel';
-import { FeaturedProductsSettings } from '../FeaturedProductsSettings';
+import { AppAppearancePanel } from '../AppAppearancePanel';
 import { PricingSettings } from '../PricingSettings';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
@@ -301,6 +300,7 @@ export function SamouGoAdminDashboard() {
           {activeNav === 'Zones' && <ZonesPanel />}
           {activeNav === 'Offers' && <OffersPanel />}
           {activeNav === 'NotificationLog' && <NotificationAuditPanel />}
+          {activeNav === 'AppAppearance' && <AppAppearancePanel />}
           {activeNav === 'Settings' && <AdminSettingsPanel auth={auth} />}
           {activeNav === 'Support' && auth.user && <SupportDesk userId={auth.user.id} isAdmin />}
           {activeNav === 'Financials' && <FinancialsPanel />}
@@ -406,8 +406,6 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
     >
       <div className="grid gap-4 p-5 lg:grid-cols-2">
         <PricingSettings />
-        <FeaturedProductsSettings />
-        <BannerSettings />
         <label className="rounded-2xl border border-line bg-surface p-4 text-sm font-bold">تذكير الكابتن قبل الجاهزية (دقيقة)
           <input type="number" dir="ltr" min={1} max={30} step={1} value={preparationReminderMinutes} onChange={event => setPreparationReminderMinutes(Number(event.target.value))} className="mt-3 min-h-11 w-full rounded-xl border border-line bg-surface px-3" />
           <span className="mt-2 block text-xs font-normal text-ink-muted">تذكير قصير قبل الموعد المتوقع، ثم تنبيه الطلب عند تأكيد الجاهزية. يُحفظ مع إعدادات المنصة.</span>
