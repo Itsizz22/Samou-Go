@@ -83,7 +83,14 @@ function useAndroidBackButton() {
       try {
         const { App } = await import('@capacitor/app');
         const handler = await App.addListener('backButton', ({ canGoBack }) => {
-          if (!active || dismissAndroidOverlay()) return;
+          if (!active) return;
+          // Back first dismisses the focused editor/keyboard, preserving form data.
+          const editor = document.activeElement;
+          if (editor instanceof HTMLInputElement || editor instanceof HTMLTextAreaElement || (editor instanceof HTMLElement && editor.isContentEditable)) {
+            editor.blur();
+            return;
+          }
+          if (dismissAndroidOverlay()) return;
           if (canGoBack) {
             navigate(-1);
           } else if (pathnameRef.current !== '/') {
