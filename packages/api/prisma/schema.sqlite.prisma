@@ -129,6 +129,7 @@ model User {
   /// Canonical Palestinian mobile: 10 digits, `05XXXXXXXX`.
   phone        String   @unique
   /// bcrypt hash. Never selected into an API response.
+  sessionVersion Int @default(0)
   passwordHash String
   role         UserRole @default(CUSTOMER)
   isActive     Boolean  @default(true)

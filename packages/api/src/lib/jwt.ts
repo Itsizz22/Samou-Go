@@ -14,9 +14,10 @@ export function signAccessToken(input: {
   userId: string;
   role: UserRole;
   phone: string;
+  sessionVersion?: number;
 }): IssuedToken {
   const accessToken = jwt.sign(
-    { role: input.role, phone: input.phone },
+    { role: input.role, phone: input.phone, sessionVersion: input.sessionVersion ?? 0 },
     env.jwt.secret,
     {
       subject: input.userId,

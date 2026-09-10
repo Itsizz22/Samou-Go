@@ -1,3 +1,4 @@
+vi.mock('./lib/live-session', () => ({ verifyLiveAccessToken: async () => ({ sub: 'viewer' }) }));
 vi.mock('./modules/platform/platform.service', () => ({ getPlatformSettings: async () => ({ gpsCaptureEnabled: true }) }));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Server, Socket } from 'socket.io';
@@ -63,7 +64,8 @@ function makeIo() {
       emits.push({ room, event, payload });
     }),
   }));
-  return { to, emits };
+  const inRoom = (room: string) => ({ fetchSockets: async () => [{ handshake: { auth: { token: 'test' } }, emit: (event: string, payload: unknown) => to(room).emit(event, payload), disconnect: vi.fn() }] });
+  return { to, in: inRoom, emits };
 }
 
 const CUSTOMER = { sub: 'customer-1', role: UserRole.CUSTOMER };

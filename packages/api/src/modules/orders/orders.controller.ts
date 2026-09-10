@@ -1,3 +1,4 @@
+import { verifyLiveAccessToken } from '../../lib/live-session';
 import { preparationTimeSchema, releaseReservationSchema } from './orders.schemas';
 import { eligibleCaptainIds } from './captain-pool';
 import { isReplayedSubmission } from '../../lib/order-submission';
@@ -69,6 +70,7 @@ export async function orderEventSSEHandler(req: Request, res: Response): Promise
   // the order is next updated. We re-query Prisma every 3 seconds.
   const intervalId = setInterval(async () => {
     try {
+      if (req.auth) await verifyLiveAccessToken(req.headers.authorization?.split(' ')[1] ?? '');
       const order = await ordersService.loadOrderOrThrow(orderId);
       const status = ORDER_STATUS_LABELS[order.status];
       const event = {

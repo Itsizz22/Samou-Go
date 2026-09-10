@@ -1,3 +1,4 @@
+import { emitLiveOrderEvent } from './lib/live-broadcast';
 import { getPlatformSettings } from './modules/platform/platform.service';
 import type { Server, Socket } from 'socket.io';
 import { UserRole } from '@samou-go/shared-types';
@@ -93,7 +94,7 @@ export async function handleCaptainLocation(
     const order = await prisma.order.findUnique({ where: { id: orderId }, select: { captainId: true, status: true } });
     if (order?.captainId !== auth.sub || !['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'ON_THE_WAY'].includes(order.status)) return;
     const location = await prisma.captainLocation.upsert({ where: { captainId: auth.sub }, create: { captainId: auth.sub, lat, lng, heading }, update: { lat, lng, heading } });
-    io.to('order:' + orderId).emit('captain:location', location);
+    await emitLiveOrderEvent(io, orderId, 'captain:location', location);
   } catch {
     // DB failure — silently drop this location update rather than crashing the socket handler.
   }
@@ -119,7 +120,7 @@ export async function handleChatSend(io: Server, auth: Auth, payload: unknown): 
     const row = await prisma.chatMessage.create({
       data: { orderId, senderId: auth.sub, senderRole: auth.role, message: message.trim() },
     });
-    io.to(`order:${orderId}`).emit('chat:message', row);
+    await emitLiveOrderEvent(io, orderId, 'chat:message', row);
   } catch {
     // DB failure — silently drop this chat message rather than crashing the socket handler.
   }

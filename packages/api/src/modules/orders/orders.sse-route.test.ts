@@ -47,6 +47,7 @@ const h = vi.hoisted(() => {
   };
 
   const prisma = {
+    user: { findUnique: async () => ({ isActive: true, role: "CUSTOMER", sessionVersion: 0 }) },
     order: { findUnique: async () => order },
   };
 

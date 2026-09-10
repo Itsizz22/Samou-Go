@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import type { JwtPayload, UserRole } from '@samou-go/shared-types';
 import { forbidden, unauthorized } from '../lib/http-error';
-import { verifyAccessToken } from '../lib/jwt';
+import { verifyLiveAccessToken } from '../lib/live-session';
 
 function readBearerToken(req: Request): string | null {
   const header = req.headers.authorization;
@@ -27,7 +27,7 @@ function readBearerToken(req: Request): string | null {
 }
 
 /** Hard gate: 401 unless a valid bearer token is present. */
-export function authenticate(req: Request, _res: Response, next: NextFunction): void {
+export async function authenticate(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const token = readBearerToken(req);
   if (!token) {
     next(unauthorized());
@@ -35,7 +35,7 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
   }
 
   try {
-    req.auth = verifyAccessToken(token);
+    req.auth = await verifyLiveAccessToken(token);
     next();
   } catch (error) {
     next(error);
@@ -49,7 +49,7 @@ export function authenticateIfPresent(req: Request, res: Response, next: NextFun
 }
 
 /** Public catalogue gate: ignore invalid credentials and serve anonymous data. */
-export function optionalAuthenticate(req: Request, _res: Response, next: NextFunction): void {
+export async function optionalAuthenticate(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const token = readBearerToken(req);
   if (!token) {
     next();
@@ -57,7 +57,7 @@ export function optionalAuthenticate(req: Request, _res: Response, next: NextFun
   }
 
   try {
-    req.auth = verifyAccessToken(token);
+    req.auth = await verifyLiveAccessToken(token);
   } catch {
     // A bad token on a public route is simply ignored.
   }

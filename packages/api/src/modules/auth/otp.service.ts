@@ -91,9 +91,9 @@ interface OtpVerifyErrors {
  * Shared OTP verification for every flow — customer sign-in, store-manager
  * provisioning, captain provisioning. Checks existence, expiry, the attempt
  * budget, then the code itself (bcrypt compare), throwing the caller's error
- * on the first violation. It does NOT consume the row on success: each caller
- * provisions its account first and deletes the code only once that work is
- * guaranteed, so a transient provisioning failure never forces a fresh code.
+ * on the first violation. Atomically consumes the exact verified challenge
+ * before any account mutation or session issuance. Concurrent requests cannot
+ * reuse it, and a replacement challenge cannot be consumed by an older check.
  */
 async function verifyOtpCode(
   phone: string,
@@ -113,6 +113,13 @@ async function verifyOtpCode(
     throw errors.maxAttempts();
   }
 
+  const consume = async (): Promise<void> => {
+    const result = await prisma.otpRequest.deleteMany({
+      where: { phone, codeHash: record.codeHash, expiresAt: { gt: new Date() }, attempts: { lt: env.otp.maxAttempts } },
+    });
+    if (result.count !== 1) throw errors.invalid();
+  };
+
   // Twilio Verify path: delegate code check to the carrier.
   // Wrapped in try/catch — a carrier outage must never crash the request;
   // fall back to local bcrypt comparison on failure.
@@ -128,7 +135,6 @@ async function verifyOtpCode(
         });
         throw new OtpCodeInvalidError();
       }
-      return;
     } catch (err) {
       // If the carrier said "invalid code", re-throw as the caller's error.
       if (err instanceof OtpCodeInvalidError) throw errors.invalid();
@@ -142,6 +148,8 @@ async function verifyOtpCode(
         "خدمة التحقق مؤقتاً غير متاحة، يرجى المحاولة بعد قليل / Verification service is temporarily unavailable — please try again shortly",
       );
     }
+    await consume();
+    return;
   }
 
   // Local bcrypt path (console / generic / noop / raw-twilio-messages).
@@ -153,6 +161,7 @@ async function verifyOtpCode(
     });
     throw errors.invalid();
   }
+  await consume();
 }
 
 /** POST /auth/otp/request — rate-limited dispatch of a one-time code. */
@@ -326,8 +335,7 @@ export async function requestOtp(
 /**
  * Verifies a code AND consumes it in one call — for flows where a single
  * proof must not be reusable (e.g. changing the phone number on an account).
- * `verifyOtpCode` alone leaves the row in place so a transient provisioning
- * failure can retry; callers that have no such step consume explicitly.
+ * The shared verifier consumes the challenge atomically for every flow.
  */
 export async function verifyAndConsumeOtp(phone: string, code: string): Promise<void> {
   await verifyOtpCode(phone, code, {
@@ -336,7 +344,6 @@ export async function verifyAndConsumeOtp(phone: string, code: string): Promise<
     maxAttempts: () => CODE_EXPIRED,
     invalid: () => CODE_INVALID,
   });
-  await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
 }
 
 /** POST /auth/otp/verify — exchange a valid code for a session. */
@@ -350,9 +357,7 @@ export async function verifyOtp(body: OtpVerifyInput): Promise<AuthResponse> {
     invalid: () => CODE_INVALID,
   });
 
-  // Provision the account BEFORE consuming the code: if the create fails
-  // (e.g. a transient DB error), the code stays valid and the customer can
-  // simply retry instead of being forced to request a fresh one.
+  // The one-time proof is already consumed before provisioning.
   const user = await findOrCreateCustomer(phone, name);
 
   // A proven phone is a verified phone. This must land before any session is
@@ -366,11 +371,10 @@ export async function verifyOtp(body: OtpVerifyInput): Promise<AuthResponse> {
           data: { isVerified: true },
         });
 
-  // One-time use — consume the row now that the session is guaranteed.
-  await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
 
   const { accessToken, expiresIn } = signAccessToken({
     userId: verified.id,
+    sessionVersion: verified.sessionVersion,
     role: verified.role,
     phone: verified.phone,
   });
@@ -453,10 +457,10 @@ export async function adminVerifyStoreOtp(body: AdminOtpVerifyBody): Promise<Aut
   });
 
   // Consume the code
-  await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
 
   const { accessToken, expiresIn } = signAccessToken({
     userId: user.id,
+    sessionVersion: user.sessionVersion,
     role: user.role,
     phone: user.phone,
   });
@@ -499,11 +503,11 @@ export async function adminVerifyCaptainOtp(body: AdminOtpVerifyBody): Promise<A
   });
 
   // Consume the code
-  await prisma.otpRequest.delete({ where: { phone } }).catch(() => {});
 
   // Sign in the captain
   const { accessToken, expiresIn } = signAccessToken({
     userId: user.id,
+    sessionVersion: user.sessionVersion,
     role: user.role,
     phone: user.phone,
   });

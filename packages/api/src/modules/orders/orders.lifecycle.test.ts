@@ -321,7 +321,7 @@ it('enforces availability, verification, dedicated-store eligibility, role and p
   expect((await request('POST', route, 'CUSTOMER')).status).toBe(403);
   for (const data of [{ isAvailable: false }, { isVerified: false }, { isActive: false }]) {
     await fixture.db.user.update({ where: { id: 'CAPTAIN' }, data });
-    expect((await request('POST', route, 'CAPTAIN')).status).toBe(403);
+    expect((await request('POST', route, 'CAPTAIN')).status).toBe('isActive' in data ? 401 : 403);
     await fixture.db.user.update({ where: { id: 'CAPTAIN' }, data: { isAvailable: true, isVerified: true, isActive: true } });
   }
   await fixture.db.user.update({ where: { id: 'CAPTAIN_TWO' }, data: { assignedStoreId: 'store' } });
@@ -871,4 +871,28 @@ it('restricts store type to admins and charges product discounts from database p
   expect(restored.status).toBe(200);
   expect(restored.data.originalPrice).toBeNull();
   expect(restored.data.price).toBe(25);
+});
+
+it('revokes access and refresh immediately on password change and suspension, including after reactivation', async () => {
+  const phone = '0599991099';
+  const password = 'Session-test-old-2026!';
+  await fixture.db.user.create({ data: { id: 'SESSION_TEST', phone, name: 'Session test', role: 'CUSTOMER', passwordHash: await hashPassword(password) } });
+  type Session = { accessToken: string; refreshToken: string };
+  const first = await request<Session>('POST', '/auth/login', undefined, { phone, password });
+  expect(first.status).toBe(200);
+  tokens.SESSION_TEST = first.data.accessToken;
+  expect((await request('GET', '/auth/me', 'SESSION_TEST')).status).toBe(200);
+  expect((await request('PATCH', '/auth/me', 'SESSION_TEST', { currentPassword: password, newPassword: 'Session-test-new-2026!' })).status).toBe(200);
+  expect((await request('GET', '/auth/me', 'SESSION_TEST')).status).toBe(401);
+  expect((await request('GET', '/orders', 'SESSION_TEST')).status).toBe(401);
+  expect((await request('POST', '/auth/refresh', undefined, { refreshToken: first.data.refreshToken })).status).toBe(401);
+  const second = await request<Session>('POST', '/auth/login', undefined, { phone, password: 'Session-test-new-2026!' });
+  expect(second.status).toBe(200);
+  tokens.SESSION_TEST = second.data.accessToken;
+  expect((await request('GET', '/auth/me', 'SESSION_TEST')).status).toBe(200);
+  expect((await request('PATCH', '/users/SESSION_TEST', 'ADMIN', { isActive: false })).status).toBe(200);
+  expect((await request('GET', '/orders', 'SESSION_TEST')).status).toBe(401);
+  expect((await request('PATCH', '/users/SESSION_TEST', 'ADMIN', { isActive: true })).status).toBe(200);
+  expect((await request('GET', '/auth/me', 'SESSION_TEST')).status).toBe(401);
+  expect((await request('POST', '/auth/refresh', undefined, { refreshToken: second.data.refreshToken })).status).toBe(401);
 });

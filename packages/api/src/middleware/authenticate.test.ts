@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { UserRole } from '@samou-go/shared-types';
@@ -15,6 +15,8 @@ import { HttpError } from '../lib/http-error';
 
 const h = vi.hoisted(() => ({
   secret: 'unit-test-secret-that-is-at-least-32-characters-long',
+  active: true,
+  version: 0,
   wrongSecret: 'a-completely-different-secret-for-forged-tokens-!!',
 }));
 
@@ -32,6 +34,11 @@ vi.mock('../config/env', () => ({
     deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' },
   },
 }));
+
+vi.mock('../lib/prisma', () => ({ prisma: { user: { findUnique: async ({ where }: { where: { id: string } }) => ({
+  isActive: h.active, sessionVersion: h.version, role: where.id === 'u-admin' ? UserRole.ADMIN : UserRole.CUSTOMER,
+}) } } }));
+beforeEach(() => { h.active = true; h.version = 0; });
 
 function makeRequest(headers: Record<string, unknown> = {}): Request {
   return { headers: { authorization: undefined, ...headers } } as unknown as Request;
@@ -63,15 +70,15 @@ const admin = signAccessToken({
 }).accessToken;
 
 describe('authenticate', () => {
-  it('rejects requests with no Authorization header (401)', () => {
+  it('rejects requests with no Authorization header (401)', async () => {
     const next = makeNext();
-    authenticate(makeRequest(), {} as Response, next as unknown as NextFunction);
+    await authenticate(makeRequest(), {} as Response, next as unknown as NextFunction);
     expectHttpError(next, 'UNAUTHORIZED', 401);
   });
 
-  it('rejects a non-Bearer scheme (401)', () => {
+  it('rejects a non-Bearer scheme (401)', async () => {
     const next = makeNext();
-    authenticate(makeRequest({ authorization: `Token ${customer}` }), {} as Response, next as unknown as NextFunction);
+    await authenticate(makeRequest({ authorization: `Token ${customer}` }), {} as Response, next as unknown as NextFunction);
     expectHttpError(next, 'UNAUTHORIZED', 401);
   });
 
@@ -81,26 +88,26 @@ describe('authenticate', () => {
     ['Bearer NaN'],
     ['Bearer '],
     ['Bearer'],
-  ])('rejects a phantom bearer %j as 401, never 400', (header) => {
+  ])('rejects a phantom bearer %j as 401, never 400', async (header) => {
     const next = makeNext();
-    authenticate(makeRequest({ authorization: header }), {} as Response, next as unknown as NextFunction);
+    await authenticate(makeRequest({ authorization: header }), {} as Response, next as unknown as NextFunction);
     expectHttpError(next, 'UNAUTHORIZED', 401);
   });
 
-  it('rejects a garbage / malformed token (401)', () => {
+  it('rejects a garbage / malformed token (401)', async () => {
     const next = makeNext();
-    authenticate(makeRequest({ authorization: 'Bearer not.a.real.jwt' }), {} as Response, next as unknown as NextFunction);
+    await authenticate(makeRequest({ authorization: 'Bearer not.a.real.jwt' }), {} as Response, next as unknown as NextFunction);
     expectHttpError(next, 'UNAUTHORIZED', 401);
   });
 
-  it('rejects a token signed with the wrong secret (401)', () => {
+  it('rejects a token signed with the wrong secret (401)', async () => {
     const forged = jwt.sign(
       { role: UserRole.ADMIN, phone: '0599000001' },
       h.wrongSecret,
       { subject: 'u-customer' }
     );
     const next = makeNext();
-    authenticate(
+    await authenticate(
       makeRequest({ authorization: `Bearer ${forged}` }),
       {} as Response,
       next as unknown as NextFunction
@@ -108,14 +115,14 @@ describe('authenticate', () => {
     expectHttpError(next, 'UNAUTHORIZED', 401);
   });
 
-  it('rejects an expired token (401)', () => {
+  it('rejects an expired token (401)', async () => {
     const expired = jwt.sign(
       { role: UserRole.CUSTOMER, phone: '0599000001', exp: Math.floor(Date.now() / 1000) - 60 },
       h.secret,
       { subject: 'u-customer' }
     );
     const next = makeNext();
-    authenticate(
+    await authenticate(
       makeRequest({ authorization: `Bearer ${expired}` }),
       {} as Response,
       next as unknown as NextFunction
@@ -123,10 +130,10 @@ describe('authenticate', () => {
     expectHttpError(next, 'UNAUTHORIZED', 401);
   });
 
-  it('accepts a valid token and attaches the verified claims to req.auth', () => {
+  it('accepts a valid token and attaches the verified claims to req.auth', async () => {
     const req = makeRequest({ authorization: `Bearer ${customer}` });
     const next = makeNext();
-    authenticate(req, {} as Response, next as unknown as NextFunction);
+    await authenticate(req, {} as Response, next as unknown as NextFunction);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(next.mock.calls[0]![0]).toBeUndefined();
@@ -135,20 +142,20 @@ describe('authenticate', () => {
 });
 
 describe('authorize (role gate)', () => {
-  it('403 when no token made it through (should never happen behind authenticate)', () => {
+  it('403 when no token made it through (should never happen behind authenticate)', async () => {
     const next = makeNext();
     authorize(UserRole.ADMIN)(makeRequest(), {} as Response, next as unknown as NextFunction);
     expectHttpError(next, 'UNAUTHORIZED', 401);
   });
 
-  it('403 when the verified role is not on the allow-list', () => {
+  it('403 when the verified role is not on the allow-list', async () => {
     const req = { auth: { sub: 'u-customer', role: UserRole.CUSTOMER, phone: '0599000001' } } as Request;
     const next = makeNext();
     authorize(UserRole.ADMIN)(req, {} as Response, next as unknown as NextFunction);
     expectHttpError(next, 'FORBIDDEN', 403);
   });
 
-  it('passes when the verified role is allowed', () => {
+  it('passes when the verified role is allowed', async () => {
     const req = { auth: { sub: 'u-admin', role: UserRole.ADMIN, phone: '0599000004' } } as Request;
     const next = makeNext();
     authorize(UserRole.ADMIN)(req, {} as Response, next as unknown as NextFunction);
@@ -156,7 +163,7 @@ describe('authorize (role gate)', () => {
     expect(next.mock.calls[0]![0]).toBeUndefined();
   });
 
-  it('passes for any authenticated role when no allow-list is given', () => {
+  it('passes for any authenticated role when no allow-list is given', async () => {
     const req = { auth: { sub: 'u-customer', role: UserRole.CUSTOMER, phone: '0599000001' } } as Request;
     const next = makeNext();
     authorize()(req, {} as Response, next as unknown as NextFunction);
@@ -165,35 +172,35 @@ describe('authorize (role gate)', () => {
 });
 
 describe('optionalAuthenticate', () => {
-  it('lets an anonymous request through', () => {
+  it('lets an anonymous request through', async () => {
     const req = makeRequest();
     const next = makeNext();
-    optionalAuthenticate(req, {} as Response, next as unknown as NextFunction);
+    await optionalAuthenticate(req, {} as Response, next as unknown as NextFunction);
     expect(next).toHaveBeenCalledTimes(1);
     expect(next.mock.calls[0]![0]).toBeUndefined();
     expect(req.auth).toBeUndefined();
   });
 
-  it('ignores a bad token on a public route', () => {
+  it('ignores a bad token on a public route', async () => {
     const req = makeRequest({ authorization: 'Bearer garbage' });
     const next = makeNext();
-    optionalAuthenticate(req, {} as Response, next as unknown as NextFunction);
+    await optionalAuthenticate(req, {} as Response, next as unknown as NextFunction);
     expect(next.mock.calls[0]![0]).toBeUndefined();
     expect(req.auth).toBeUndefined();
   });
 
-  it('ignores a phantom "Bearer null" on a public route', () => {
+  it('ignores a phantom "Bearer null" on a public route', async () => {
     const req = makeRequest({ authorization: 'Bearer null' });
     const next = makeNext();
-    optionalAuthenticate(req, {} as Response, next as unknown as NextFunction);
+    await optionalAuthenticate(req, {} as Response, next as unknown as NextFunction);
     expect(next.mock.calls[0]![0]).toBeUndefined();
     expect(req.auth).toBeUndefined();
   });
 
-  it('attaches claims when a valid token is present', () => {
+  it('attaches claims when a valid token is present', async () => {
     const req = makeRequest({ authorization: `Bearer ${customer}` });
     const next = makeNext();
-    optionalAuthenticate(req, {} as Response, next as unknown as NextFunction);
+    await optionalAuthenticate(req, {} as Response, next as unknown as NextFunction);
     expect(req.auth).toMatchObject({ sub: 'u-customer', role: UserRole.CUSTOMER });
   });
 });
@@ -208,8 +215,25 @@ describe('requireAuth', () => {
     }
   });
 
-  it('returns the verified claims when present', () => {
+  it('returns the verified claims when present', async () => {
     const req = { auth: { sub: 'u-admin', role: UserRole.ADMIN, phone: '0599000004' } } as Request;
     expect(requireAuth(req)).toMatchObject({ sub: 'u-admin', role: UserRole.ADMIN });
   });
+});
+
+it('rejects an unexpired token after account suspension', async () => {
+  h.active = false;
+  const next = makeNext();
+  await authenticate(makeRequest({ authorization: `Bearer ${customer}` }), {} as Response, next);
+  expectHttpError(next, 'UNAUTHORIZED', 401);
+});
+it('rejects old versions even after the account is enabled again', async () => {
+  h.version = 1;
+  const next = makeNext();
+  await authenticate(makeRequest({ authorization: `Bearer ${customer}` }), {} as Response, next);
+  expectHttpError(next, 'UNAUTHORIZED', 401);
+  const fresh = signAccessToken({ userId: 'u-customer', role: UserRole.CUSTOMER, phone: '0599000001', sessionVersion: 1 });
+  const accepted = makeNext();
+  await authenticate(makeRequest({ authorization: `Bearer ${fresh.accessToken}` }), {} as Response, accepted);
+  expect(accepted).toHaveBeenCalledWith();
 });

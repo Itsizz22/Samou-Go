@@ -36,6 +36,7 @@ const SELF_SERVICE_ROLES: readonly UserRole[] = [UserRole.CUSTOMER];
 async function buildAuthResponse(user: User): Promise<AuthResponse> {
   const { accessToken, expiresIn } = signAccessToken({
     userId: user.id,
+    sessionVersion: user.sessionVersion,
     role: user.role,
     phone: user.phone,
   });
@@ -109,6 +110,7 @@ export async function refreshSession(body: RefreshTokenBody): Promise<AuthRespon
 
   const { accessToken, expiresIn } = signAccessToken({
     userId: user.id,
+    sessionVersion: user.sessionVersion,
     role: user.role,
     phone: user.phone,
   });
@@ -289,6 +291,9 @@ export async function adminUpdateUser(
     },
   });
 
+  if (body.isActive === false || (body.role && body.role !== user.role)) {
+    await revokeAllUserRefreshTokens(targetId);
+  }
   return toPublicUser(updated);
 }
 

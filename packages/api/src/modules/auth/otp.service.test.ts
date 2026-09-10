@@ -8,6 +8,7 @@ import {
   requestOtp,
   resetPassword,
   verifyOtp,
+  verifyAndConsumeOtp,
 } from './otp.service';
 
 /**
@@ -111,6 +112,12 @@ vi.mock('../../lib/prisma', () => {
         update: vi.fn(async ({ where, data }: any) => {
           if (data?.attempts?.increment) h.state.otp!.attempts += 1;
           return h.state.otp;
+        }),
+        deleteMany: vi.fn(async ({ where }: { where: { phone: string; codeHash: string; expiresAt: { gt: Date }; attempts: { lt: number } } }) => {
+          const record = h.state.otp;
+          if (!record || record.phone !== where.phone || record.codeHash !== where.codeHash || record.expiresAt <= where.expiresAt.gt || record.attempts >= where.attempts.lt) return { count: 0 };
+          h.state.otp = null;
+          return { count: 1 };
         }),
         delete: vi.fn(async () => {
           h.state.otp = null;
@@ -480,4 +487,13 @@ it('does not send a phone-change code to a registered number', async () => {
   await expect(requestOtp({ phone: PHONE, purpose: 'phone-change' })).rejects.toMatchObject({ statusCode: 409 });
   expect(h.gateway.send).not.toHaveBeenCalled();
   expect(h.state.otp).toBeNull();
+});
+
+it('accepts a valid OTP only once under concurrent verification', async () => {
+  seedOtp();
+  const results = await Promise.allSettled([
+    verifyAndConsumeOtp(PHONE, CODE),
+    verifyAndConsumeOtp(PHONE, CODE),
+  ]);
+  expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
 });

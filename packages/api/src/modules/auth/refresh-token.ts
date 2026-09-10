@@ -129,8 +129,8 @@ export async function findUserIdForRefreshToken(raw: string): Promise<string | n
 
 /** Revokes every live refresh token for a user (e.g. on a password change). */
 export async function revokeAllUserRefreshTokens(userId: string): Promise<void> {
-  await prisma.refreshToken.updateMany({
-    where: { userId, revokedAt: null },
-    data: { revokedAt: new Date() },
+  await prisma.$transaction(async tx => {
+    await tx.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } } });
+    await tx.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
   });
 }

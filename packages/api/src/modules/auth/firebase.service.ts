@@ -114,6 +114,7 @@ export async function verifyFirebaseToken(
   // Issue Samou Quick session tokens.
   const { accessToken, expiresIn } = signAccessToken({
     userId: user.id,
+    sessionVersion: user.sessionVersion,
     role: user.role,
     phone: user.phone,
   });

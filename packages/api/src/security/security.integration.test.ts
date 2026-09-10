@@ -33,11 +33,12 @@ const h = vi.hoisted(() => {
 
   const prisma = {
     user: {
-      findUnique: async () => ({
+      findUnique: async ({ where }: { where: { id?: string } }) => ({
         id: 'u-customer-1',
         name: 'زبون',
         phone: '0599000001',
-        role: UserRole.CUSTOMER,
+        role: where.id?.includes('admin') ? UserRole.ADMIN : where.id?.includes('manager') ? UserRole.STORE_MANAGER : where.id?.includes('captain') ? UserRole.CAPTAIN : UserRole.CUSTOMER,
+        sessionVersion: 0,
         isActive: true,
         isVerified: false,
         isAvailable: false,

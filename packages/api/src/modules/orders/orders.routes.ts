@@ -10,7 +10,7 @@ import { requireAuth } from '../../middleware/authenticate';
 import { Router } from 'express';
 import { UserRole } from '@samou-go/shared-types';
 import { asyncHandler } from '../../lib/async-handler';
-import { authenticate, authorize, optionalAuthenticate } from '../../middleware/authenticate';
+import { authenticate, authenticateIfPresent, authorize, optionalAuthenticate } from '../../middleware/authenticate';
 import { orderLimiter, quoteLimiter } from '../../middleware/rate-limit';
 import * as controller from './orders.controller';
 
@@ -44,7 +44,7 @@ ordersRouter.get('/submissions/:requestId', authenticate, asyncHandler(async (re
 }));
 ordersRouter.get(
   '/:orderId/events',
-  optionalAuthenticate,
+  authenticateIfPresent,
   asyncHandler(controller.orderEventSSEHandler)
 );
 
