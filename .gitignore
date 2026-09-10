@@ -69,3 +69,25 @@ keystore.properties
 
 # Native routing data downloaded at build time
 packages/api/.routing/
+
+# Local assistant tooling and historical working notes
+/.agents/
+/.claude/
+/.opencode/
+/.freebuff/
+/CLAUDE.md
+/skills-lock.json
+/To_Do_old_versions/
+/architecture-changes-prompt.md
+/map.md
+/REFACTOR_PLAN.md
+/SAMOU-QUICK-READINESS-2026-09-09.md
+
+# Local QA output and temporary review files
+/artifacts/
+/review-index.tmp
+/docs/yatta-ui-review.md
+/docs/verification-2026-09-10.md
+/docs/gps-delivery-verification-20260910.md
+/docs/gps-physical-verification-20260910.md
+/docs/launch-preparation-20260910.md
