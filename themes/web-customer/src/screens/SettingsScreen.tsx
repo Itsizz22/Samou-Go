@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { NotificationPreferences } from '@/components/NotificationPreferences';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
@@ -11,7 +12,7 @@ import { FEATURE_FLAGS } from '@samou-go/api-client';
  * Every control applies instantly — no restart, no reload.
  */
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
 import { Check, Globe, Loader2, MapPin, Moon, Palette, Phone, Sun, type LucideIcon } from 'lucide-react';
 import { useLanguage } from '@samou-go/ui';
 import { getRingOnOrder, setRingOnOrder } from '@/lib/ringPreference';
@@ -40,7 +41,7 @@ function Segmented<T extends string>({
           type="button"
           onClick={() => onChange(option)}
           aria-pressed={value === option}
-          className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition active:scale-[0.98] ${
+          className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition active:scale-[0.98] ${
             value === option ? 'bg-brand text-white shadow-card' : 'text-ink-muted'
           }`}
         >
@@ -83,6 +84,9 @@ function SettingsRow({
 }
 
 export function SettingsScreen() {
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
   const auth = useAuth();
   const user = auth.user;
   const { accent, mode, setAccent, setMode } = useTheme();
@@ -102,7 +106,7 @@ export function SettingsScreen() {
     user?.latitude != null && user?.longitude != null;
 
   const detectLocation = () => {
-    if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING) return;
+    if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING) { setLocationMessage({ ar: 'خدمة الموقع غير متاحة حاليًا', en: 'Location is currently unavailable' }); return; }
     if (!navigator.geolocation) {
       setLocationMessage({ ar: 'تحديد الموقع غير مدعوم في هذا المتصفح', en: 'Geolocation is unavailable' });
       return;
@@ -251,13 +255,14 @@ export function SettingsScreen() {
           <button
             type="button"
             role="switch"
+            aria-label={t("رنين الطلبات", "Order ringtone")}
             aria-checked={ringOnOrder}
             onClick={() => {
               const next = !ringOnOrder;
               setRingOnOrderState(next);
               void setRingOnOrder(next);
             }}
-            className={`flex h-7 w-12 items-center rounded-full p-1 transition ${
+            className={`flex h-11 w-16 items-center rounded-full p-2 transition ${
               ringOnOrder ? 'justify-end bg-brand' : 'justify-start bg-line'
             }`}
           >
@@ -274,6 +279,11 @@ export function SettingsScreen() {
             )}
           </p>
         </SettingsRow>
+        <nav aria-label="الخصوصية والحساب" className="grid gap-3 rounded-2xl border border-line bg-surface p-4">
+          <Link className="flex min-h-11 items-center font-bold text-brand-dark" to="/privacy">{t("سياسة الخصوصية", "Privacy policy")}</Link>
+          <Link className="flex min-h-11 items-center font-bold text-brand-dark" to="/terms">{t("شروط الاستخدام", "Terms of use")}</Link>
+          <Link className="flex min-h-11 items-center font-bold text-brand-dark" to="/delete-account">{t("طلب حذف الحساب والبيانات", "Request account and data deletion")}</Link>
+        </nav>
         <AccountSwitcher auth={auth} />
       </div>
     </ScreenShell>

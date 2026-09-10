@@ -1,3 +1,4 @@
+import { LegalScreen } from './screens/LegalScreen';
 import { MenuScreen } from './screens/MenuScreen';
 import { CartAddedNotice } from '@/components/CartAddedNotice';
 import { SessionRecovery, needsSessionRecovery, ConnectionNotice } from '@samou-go/api-client';
@@ -247,7 +248,10 @@ function StartupRoutes({ auth }: { auth: Auth }) {
       <Route path="/favorites" element={<ProtectedRoute auth={auth}><FavoritesScreen /></ProtectedRoute>} />
       <Route path="/search" element={<SearchScreen />} />
       <Route path="/custom-requests" element={<ProtectedRoute auth={auth}><CustomRequestsScreen /></ProtectedRoute>} />
-      <Route path="/support" element={<ProtectedRoute auth={auth}><SupportScreen /></ProtectedRoute>} />
+      <Route path="/privacy" element={<LegalScreen kind="privacy" />} />
+      <Route path="/terms" element={<LegalScreen kind="terms" />} />
+      <Route path="/delete-account" element={<LegalScreen kind="deletion" />} />
+      <Route path="/support" element={<ProtectedRoute auth={auth} allowStaff><SupportScreen /></ProtectedRoute>} />
       <Route path="/login" element={<AuthRoute auth={auth}><LoginScreen /></AuthRoute>} />
       <Route path="/verify-phone" element={<AuthRoute auth={auth}><PhoneVerificationScreen /></AuthRoute>} />
       <Route path="/register" element={<AuthRoute auth={auth}><RegisterScreen /></AuthRoute>} />

@@ -552,7 +552,7 @@ export function SamouGoStoreManager() {
 
       {/* KPIs */}
       <section className="mx-auto max-w-md px-4 pt-5" aria-label="ملخص الأداء">
-        <div className="scrollbar-none flex gap-3 overflow-x-auto overflow-y-hidden pb-1" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
+        <div className="grid grid-cols-3 gap-2 pb-1">
           <KpiTile
             icon={<span className="text-lg">₪</span>}
             labelAr="الطلبات النشطة"
@@ -970,11 +970,11 @@ interface KpiTileProps {
 function KpiTile({ icon, labelAr, labelEn, value, suffix, isLoading }: KpiTileProps) {
   const { t } = useLanguage();
   return (
-    <article className="min-w-31.5 flex-1 rounded-2xl border border-line bg-surface p-3 shadow-card">
+    <article className="min-w-0 rounded-2xl border border-line bg-surface p-2.5 shadow-card">
       <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-xl bg-brand-tint text-brand">
         {icon}
       </div>
-      <p className="mt-0.5 whitespace-nowrap text-[12px] font-bold text-ink-soft">{t(labelAr, labelEn)}</p>
+      <p className="mt-0.5 min-h-8 text-xs font-bold leading-4 text-ink-soft">{t(labelAr, labelEn)}</p>
       <p dir="ltr" className="mt-1 text-xl font-extrabold tracking-tight text-ink">
         {isLoading ? (
           <span className="inline-block h-6 w-12 animate-pulse rounded bg-line-soft" aria-hidden="true" />
