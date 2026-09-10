@@ -239,8 +239,8 @@ export function SamouGoAdminDashboard() {
       />
 
       {/* Main content */}
-      <section className="sq-admin-content flex min-h-screen w-full flex-col">
-        <header className="sticky top-0 z-20 flex min-h-17 items-center justify-between border-b border-line bg-surface/95 px-5 shadow-card backdrop-blur md:px-8">
+      <section className="sq-admin-content flex min-h-screen min-w-0 w-full flex-col">
+        <header className="sticky top-0 z-20 flex min-h-17 flex-wrap gap-y-2 py-2 md:flex-nowrap items-center justify-between border-b border-line bg-surface/95 px-5 shadow-card backdrop-blur md:px-8">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -259,7 +259,7 @@ export function SamouGoAdminDashboard() {
               </h1>
             </div>
           </div>
-          <div className="flex items-center gap-3 md:gap-5">
+          <div className="flex w-full items-center justify-between gap-2 md:w-auto md:gap-5">
             <button
               type="button"
               onClick={() => void stats.reload()}
@@ -285,7 +285,7 @@ export function SamouGoAdminDashboard() {
           </div>
         </header>
 
-        <div className="w-full flex-1 px-5 py-7 md:px-8 md:py-9">
+        <div className="min-w-0 w-full flex-1 px-5 py-7 md:px-8 md:py-9">
           {activeNav === 'Dashboard' && (
             <DashboardTab
               stats={stats.data}
