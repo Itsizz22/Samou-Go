@@ -1,3 +1,4 @@
+import { useAuth } from '@/hooks/useApi';
 import type { ReactNode } from 'react';
 import { ArrowRight, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -22,6 +23,8 @@ export function ScreenShell({ title, subtitle, children }: ScreenShellProps) {
   const { openDrawer } = useDrawer();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const auth = useAuth();
+  const staff = auth.user?.role === "CAPTAIN" || auth.user?.role === "STORE_MANAGER";
 
   return (
     <main className="sq-customer-screen min-h-svh bg-canvas pb-28 font-sans text-ink">
@@ -46,7 +49,7 @@ export function ScreenShell({ title, subtitle, children }: ScreenShellProps) {
 
       <div className="mx-auto max-w-md px-5 pt-6">{children}</div>
 
-      <BottomNav />
+      {!staff && <BottomNav />}
       <SupportWhatsAppButton />
     </main>
   );

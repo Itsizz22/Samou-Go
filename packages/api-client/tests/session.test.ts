@@ -249,3 +249,15 @@ describe('proactive access expiry', () => {
     expect(new Headers(fetch.mock.calls[0]?.[1]?.headers).has('Authorization')).toBe(false);
   });
 });
+
+it('publishes a complete credential pair when switching saved accounts', async () => {
+  const api = await signedIn();
+  const vault = await import('../src/accountVault');
+  localStorage.setItem('samou_quick_accounts', JSON.stringify([{ id: 'other', phone: '0599000002', name: 'Other', role: 'STORE_MANAGER', token: 'other-access', refreshToken: 'other-refresh', avatar: null, lastActiveAt: new Date().toISOString() }]));
+  const pairs: Array<[string | null, string | null]> = [];
+  const unsubscribe = api.subscribeTokenChange(() => pairs.push([api.getToken(), api.getRefreshToken()]));
+  expect(vault.switchAccount('other')?.id).toBe('other');
+  unsubscribe();
+  expect(pairs).toContainEqual(['other-access', 'other-refresh']);
+  expect(pairs).not.toContainEqual(['other-access', 'initial-refresh']);
+});

@@ -415,6 +415,7 @@ export interface UpdateUserInput {
   isVerified?: boolean;
   /** ADMIN-only captain assignment; null returns a captain to the shared pool. */
   assignedStoreIds?: string[];
+  blockedStoreIds?: string[];
   /** @deprecated Use assignedStoreIds. */
   assignedStoreId?: string | null;
 }
@@ -622,7 +623,23 @@ export interface RespondCustomRequestInput {
  * ------------------------------------------------------------------------- */
 
 /** GET/PATCH /platform/settings — the platform-wide economy knobs. */
+export interface HomeBanner {
+  id: string;
+  title: string;
+  imageUrl: string;
+  fit: "contain" | "cover";
+  positionY: number;
+  enabled: boolean;
+}
+
+export const DEFAULT_HOME_BANNERS: HomeBanner[] = [
+  { id: "parcels", title: "قريبًا: توصيل الطرود", imageUrl: "/banners/parcels.jpeg", fit: "cover", positionY: 48, enabled: true },
+  { id: "services", title: "كل احتياجاتك بسرعة وسهولة", imageUrl: "/banners/samou-services.png", fit: "contain", positionY: 50, enabled: true },
+  { id: "grocery", title: "بقالة سريعة وموثوقة", imageUrl: "/banners/grocery.jpg", fit: "contain", positionY: 50, enabled: true },
+];
+
 export interface PlatformSettings {
+  homeBanners?: HomeBanner[] | null;
   autoPricingEnabled?: boolean;
   baseDeliveryFee?: number;
   perKmFee?: number;
@@ -651,6 +668,7 @@ export interface PlatformSettings {
 
 /** PATCH /platform/settings — admin updates one or more knobs. */
 export interface UpdatePlatformSettingsInput {
+  homeBanners?: HomeBanner[];
   autoPricingEnabled?: boolean;
   baseDeliveryFee?: number;
   perKmFee?: number;

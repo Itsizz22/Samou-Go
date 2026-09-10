@@ -112,7 +112,7 @@ export function OtpPinInput({
         </label>
       )}
       <motion.div
-        className="flex gap-2"
+        className="flex w-full max-w-76 gap-2"
         variants={animationProps}
         initial={animationProps ? 'initial' : false}
         animate="animate"
@@ -138,7 +138,7 @@ export function OtpPinInput({
               onKeyDown={(event) => handleKeyDown(index, event)}
               onPaste={handlePaste}
               onFocus={(event) => event.target.select()}
-              className={`h-12 w-11 rounded-xl border-2 bg-surface text-center text-lg font-extrabold outline-none transition-all focus:border-brand focus:ring-2 focus:ring-brand/30 ${
+              className={`h-12 min-w-0 flex-1 rounded-xl border-2 bg-surface text-center text-lg font-extrabold outline-none transition-all focus:border-brand focus:ring-2 focus:ring-brand/30 ${
                 disabled ? 'opacity-60' : ''
               } ${filled ? 'border-brand/60 bg-brand-tint' : ''} ${ringClass}`}
               aria-label={t(`الرقم ${index + 1}`, `Digit ${index + 1}`)}

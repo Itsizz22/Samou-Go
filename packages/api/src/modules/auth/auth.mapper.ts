@@ -6,7 +6,7 @@ import type { PublicUser } from '@samou-go/shared-types';
  * Strips `passwordHash` and serialises dates. This is the ONLY way a User
  * leaves the API — never `res.json(user)` directly.
  */
-export function toPublicUser(user: User & { assignedStores?: { id: string }[] }): PublicUser {
+export function toPublicUser(user: User & { assignedStores?: { id: string }[]; blockedStores?: { id: string }[] }): PublicUser {
   return {
     id: user.id,
     publicCode: user.publicCode ?? null,
@@ -17,6 +17,7 @@ export function toPublicUser(user: User & { assignedStores?: { id: string }[] })
     isVerified: user.isVerified,
     isAvailable: user.isAvailable,
     assignedStoreIds: captainStoreIds(user),
+    blockedStoreIds: user.blockedStores?.map(store => store.id) ?? [],
     assignedStoreId: user.assignedStoreId,
     profileImageUrl: user.profileImageUrl,
     latitude: user.latitude,

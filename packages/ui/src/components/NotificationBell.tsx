@@ -171,7 +171,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
         aria-expanded={open}
         aria-haspopup="true"
         className={cn(
-          'relative flex h-10 w-10 items-center justify-center rounded-full transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand/40',
+          'relative flex h-11 w-11 items-center justify-center rounded-full transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand/40',
           onDark ? 'hover:bg-white/15' : 'hover:bg-canvas'
         )}
       >
@@ -189,7 +189,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
       {open && (
         <div
           role="menu"
-          className={cn('z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-line bg-surface shadow-raised', align === 'start' ? 'fixed inset-s-4 top-24 md:absolute md:inset-s-0 md:top-full' : 'absolute inset-e-0 top-full')}
+          className={cn('z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-line bg-surface shadow-raised', align === 'start' ? 'fixed inset-s-4 top-24 md:absolute md:inset-s-0 md:top-full' : 'fixed inset-x-4 top-24 mx-auto sm:absolute sm:inset-s-auto sm:inset-e-0 sm:top-full sm:mx-0')}
         >
           <div className="flex items-center justify-between gap-3 border-b border-line bg-canvas/50 px-4 py-3">
             <p className="text-sm font-bold text-ink">{pick(labelAr, labelEn)}</p>

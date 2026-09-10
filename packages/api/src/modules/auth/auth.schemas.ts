@@ -174,6 +174,7 @@ export const adminUpdateUserSchema = z
     isVerified: z.boolean().optional(),
     /** ADMIN-only. Empty array returns the captain to the shared pool. */
     assignedStoreIds: z.array(z.string().min(1)).max(100).optional(),
+    blockedStoreIds: z.array(z.string().min(1)).max(100).optional(),
     assignedStoreId: z.string().min(1).nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {

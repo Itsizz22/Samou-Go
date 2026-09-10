@@ -1,3 +1,4 @@
+import { BannerSettings } from '../BannerSettings';
 import { getLiveOrderTracking } from '@samou-go/api-client';
 import { LiveTrackingCard } from '@samou-go/ui/map';
 import { CaptainStoreAssignment, assignedIds } from '../StoreAssignmentPicker';
@@ -406,6 +407,7 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
       <div className="grid gap-4 p-5 lg:grid-cols-2">
         <PricingSettings />
         <FeaturedProductsSettings />
+        <BannerSettings />
         <label className="rounded-2xl border border-line bg-surface p-4 text-sm font-bold">تذكير الكابتن قبل الجاهزية (دقيقة)
           <input type="number" dir="ltr" min={1} max={30} step={1} value={preparationReminderMinutes} onChange={event => setPreparationReminderMinutes(Number(event.target.value))} className="mt-3 min-h-11 w-full rounded-xl border border-line bg-surface px-3" />
           <span className="mt-2 block text-xs font-normal text-ink-muted">تذكير قصير قبل الموعد المتوقع، ثم تنبيه الطلب عند تأكيد الجاهزية. يُحفظ مع إعدادات المنصة.</span>
@@ -1461,7 +1463,7 @@ function UsersPanel() {
                       <td className="px-3 py-3">
                         {user.role === UserRole.CAPTAIN ? (
                           <CaptainStoreAssignment user={user} stores={stores.data?.items ?? []} disabled={busy || stores.loading}
-                            onSave={ids => runUpdate(user.id, { assignedStoreIds: ids }, 'تم تحديث المتاجر المخصصة', 'Dedicated stores updated')} />
+                            onSave={(ids, blockedIds) => runUpdate(user.id, { assignedStoreIds: ids, blockedStoreIds: blockedIds }, 'تم تحديث المتاجر المخصصة', 'Dedicated stores updated')} />
                         ) : (
                           <span className="text-ink-subtle">—</span>
                         )}
@@ -1881,7 +1883,10 @@ function StoresPanel() {
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2.5">
                             <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-tint text-micro font-extrabold text-brand-deep">
-                              {store.logoUrl ? (
+                              <p className="max-w-64 whitespace-normal text-xs text-ink-muted">
+                              السائقون المخصصون: {(captains.data?.items ?? []).filter(captain => assignedIds(captain).includes(store.id)).map(captain => captain.name).join('، ') || 'لا يوجد — يستقبل طلباته السائقون العامون'}
+                            </p>
+                            {store.logoUrl ? (
                                 <img
                                   src={store.logoUrl}
                                   alt=""
@@ -2040,11 +2045,11 @@ function StoresPanel() {
                                 className="max-w-28 bg-transparent text-[11px] outline-none"
                                 aria-label={`Assign dedicated captain to ${store.nameAr}`}
                               >
-                                <option value="">Assign Captain</option>
+                                <option value="">إضافة سائق مخصص</option>
                                 {(captains.data?.items ?? [])
                                   .filter(
                                     captain =>
-                                      !assignedIds(captain).includes(store.id)
+                                      !assignedIds(captain).includes(store.id) && !(captain.blockedStoreIds ?? []).includes(store.id)
                                   )
                                   .map(captain => (
                                     <option key={captain.id} value={captain.id}>
@@ -2416,7 +2421,7 @@ function CaptainsPanel() {
                       </td>
                       <td className="px-3 py-3 text-[11px] font-semibold text-ink-soft">
                         <CaptainStoreAssignment user={captain} stores={stores.data?.items ?? []} disabled={busy || stores.loading}
-                          onSave={ids => runAction(captain.id, () => updateMutation.run({ assignedStoreIds: ids }), 'تم تحديث متاجر الكابتن', 'Captain stores updated')} />
+                          onSave={(ids, blockedIds) => runAction(captain.id, () => updateMutation.run({ assignedStoreIds: ids, blockedStoreIds: blockedIds }), 'تم تحديث متاجر الكابتن', 'Captain stores updated')} />
                       </td>
                       <td className="px-3 py-3">
                         <span

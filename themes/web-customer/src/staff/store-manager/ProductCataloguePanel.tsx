@@ -387,7 +387,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
 
       {/* Product table */}
       {!catalogue.loading && visibleProducts.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+        <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-card mobile-product-list">
           <table className="w-full text-sm">
             <thead className="bg-canvas text-micro font-bold uppercase tracking-wide text-ink-muted">
               <tr>

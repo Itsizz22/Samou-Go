@@ -112,9 +112,9 @@ export const updateStoreSchema = z
     /** Store category — drives the customer home filter bar. */
     storeType: z.nativeEnum(StoreType).optional().nullable(),
     /** Store opening hour (HH:mm). */
-    openingTime: z.string().trim().max(5).optional().nullable(),
+    openingTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "الوقت يجب أن يكون HH:mm").optional().nullable(),
     /** Store closing hour (HH:mm). */
-    closingTime: z.string().trim().max(5).optional().nullable(),
+    closingTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "الوقت يجب أن يكون HH:mm").optional().nullable(),
     /** Shopfront GPS — set by the store manager from the location flow. */
     latitude: z
       .number()

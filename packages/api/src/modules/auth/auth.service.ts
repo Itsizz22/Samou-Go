@@ -269,6 +269,9 @@ export async function adminUpdateUser(
   const user = await prisma.user.findUnique({ include: assignedStoresInclude, where: { id: targetId } });
   if (!user) throw notFound('المستخدم غير موجود / User not found');
   let storeIds = await validateCaptainStores(body);
+  let blockedIds = await validateCaptainStores({ assignedStoreIds: body.blockedStoreIds });
+  if (blockedIds !== undefined && (body.role ?? user.role) !== UserRole.CAPTAIN) throw unprocessable("NOT_A_CAPTAIN", "المستخدم ليس كابتن توصيل");
+  if (body.role && body.role !== UserRole.CAPTAIN) blockedIds = [];
   if (storeIds !== undefined && (body.role ?? user.role) !== UserRole.CAPTAIN) throw unprocessable('NOT_A_CAPTAIN', 'المستخدم ليس كابتن توصيل / User is not a captain');
   if (body.role && body.role !== UserRole.CAPTAIN) storeIds = [];
 
@@ -279,6 +282,7 @@ export async function adminUpdateUser(
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
       ...(body.role !== undefined ? { role: body.role } : {}),
       ...(body.isVerified !== undefined ? { isVerified: body.isVerified } : {}),
+      ...(blockedIds !== undefined ? { blockedStores: { set: blockedIds.map(id => ({ id })) } } : {}),
       ...(storeIds !== undefined ? { assignedStoreId: storeIds[0] ?? null, assignedStores: { set: storeIds.map(id => ({ id })) } } : {}),
     },
   });

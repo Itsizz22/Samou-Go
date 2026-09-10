@@ -33,6 +33,7 @@ export interface PublicUser {
   isAvailable: boolean;
   /** All dedicated stores; an empty list means the shared pool. */
   assignedStoreIds: string[];
+  blockedStoreIds?: string[];
   /** @deprecated First store for older clients. */
   assignedStoreId: string | null;
   /** Customer's own location from the browser geolocation flow. */

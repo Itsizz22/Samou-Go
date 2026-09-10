@@ -1,42 +1,34 @@
 import { useLanguage } from '@samou-go/ui';
 import { useShowcaseCarousel } from '@/hooks/useShowcaseCarousel';
-import parcelImage from '@/assets/promo-parcel-delivery.jpeg';
-import trackingImage from '@/assets/promo-map-tracking.jpeg';
+import { DEFAULT_HOME_BANNERS } from '@samou-go/shared-types';
+import { usePlatformSettings } from '@samou-go/api-client';
 
-/** Upcoming services only; keep the shared swipe, pause and auto-advance behavior. */
+
+/** Samou Quick announcements only; keep the shared swipe, pause and auto-advance behavior. */
 export function PromoBannerSlider() {
   const { t, dir } = useLanguage();
-  const carousel = useShowcaseCarousel(2, 5500);
-  const slides = [
-    {
-      title: t('قريباً: توصيل الطرود', 'Coming soon: parcel delivery'),
-      image: parcelImage,
-      position: "50% 48%",
-    },
-    {
-      title: t('قريباً: تتبع الطلب على الخريطة', 'Coming soon: live order tracking on the map'),
-      image: trackingImage,
-      position: "50% 80%",
-    },
-  ];
+  const settings = usePlatformSettings({ pollMs: 60000 });
+  const slides = (settings.data?.homeBanners ?? DEFAULT_HOME_BANNERS).filter(slide => slide.enabled);
+  const carousel = useShowcaseCarousel(slides.length, 5500);
+  if (!slides.length) return null;
   return (
-    <section className="mx-auto max-w-md px-5 pt-4" aria-label={t('إعلانات الخدمات القادمة', 'Upcoming services')}>
+    <section className="mx-auto max-w-md px-5 pt-4" aria-label={t('إعلانات سموع كويك', 'Samou Quick announcements')}>
       <div
         {...carousel.bindings}
         className="overflow-hidden rounded-2xl border border-line bg-white shadow-card"
         style={{ touchAction: 'pan-y' }}
       >
         <div dir="ltr" className="flex" style={carousel.trackStyle}>
-          {slides.map(({ title, image, position }, index) => (
-            <div key={image} dir={dir} aria-hidden={index !== carousel.active} className="w-full min-w-0 flex-none">
+          {slides.map(({ id, title, imageUrl, fit, positionY }, index) => (
+            <div key={id} dir={dir} aria-hidden={index !== carousel.active} className="w-full min-w-0 flex-none">
               <img
-                src={image}
+                src={imageUrl}
                 alt={title}
                 width={1600}
                 height={1066}
                 draggable={false}
-                style={{ objectPosition: position }}
-                className="block h-44 w-full select-none object-cover sm:h-52"
+                style={{ objectPosition: `50% ${positionY}%`, objectFit: fit }}
+                className="block h-44 w-full select-none sm:h-52"
               />
               <h3 className="px-4 py-3 text-start text-sm font-bold text-ink bg-surface">{title}</h3>
             </div>

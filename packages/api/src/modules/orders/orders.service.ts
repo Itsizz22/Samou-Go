@@ -988,6 +988,7 @@ export async function updateOrderStatus(
         'ضع حالتك على "متاح" لاستقبال الطلبات / Set your status to Available before accepting orders'
       );
     }
+    if (captain.blockedStores?.some(store => store.id === order.storeId)) throw unprocessable("CAPTAIN_STORE_BLOCKED", "الكابتن محجوب عن هذا المتجر");
     if (captainStoreIds(captain).length > 0 && !captainStoreIds(captain).includes(order.storeId)) {
       throw forbidden('هذا الطلب مخصص لمتجر آخر / This order belongs to another store');
     }
@@ -1193,6 +1194,7 @@ export async function assignCaptain(
       'الكابتن غير موثّق بعد — وثّق الحساب أولاً / Captain is not verified yet — verify the account first'
     );
   }
+  if (captain.blockedStores?.some(store => store.id === order.storeId)) throw unprocessable("CAPTAIN_STORE_BLOCKED", "الكابتن محجوب عن هذا المتجر");
   if (captainStoreIds(captain).length > 0 && !captainStoreIds(captain).includes(order.storeId)) {
     throw unprocessable('CAPTAIN_STORE_MISMATCH', 'الكابتن مخصص لمتجر آخر / Captain is dedicated to another store');
   }

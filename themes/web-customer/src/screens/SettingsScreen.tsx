@@ -1,3 +1,4 @@
+import { NotificationPreferences } from '@/components/NotificationPreferences';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
  * Samou' Go — `/settings`.
@@ -11,25 +12,13 @@ import { FEATURE_FLAGS } from '@samou-go/api-client';
  */
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { Bell, Check, Globe, Loader2, MapPin, Moon, Palette, Phone, Sun, type LucideIcon } from 'lucide-react';
+import { Check, Globe, Loader2, MapPin, Moon, Palette, Phone, Sun, type LucideIcon } from 'lucide-react';
 import { useLanguage } from '@samou-go/ui';
 import { getRingOnOrder, setRingOnOrder } from '@/lib/ringPreference';
 import { AccountSwitcher, updateMyLocation, useAuth, ENABLE_LOCATION } from '@/hooks/useApi';
 import { ScreenShell } from '@/components/ScreenShell';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ACCENT_OPTIONS } from '@/theme/presets';
-
-const NOTIFICATIONS_STORAGE_KEY = 'samou.settings.notifications';
-
-function readBoolean(key: string, fallback: boolean): boolean {
-  try {
-    const stored = window.localStorage.getItem(key);
-    if (stored !== null) return stored === '1' || stored === 'true';
-  } catch {
-    /* Private mode — use the fallback. */
-  }
-  return fallback;
-}
 
 /** Copyable unified switch row used for the segmented controls below. */
 function Segmented<T extends string>({
@@ -99,9 +88,6 @@ export function SettingsScreen() {
   const { accent, mode, setAccent, setMode } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const isArabic = language === 'ar';
-  const [notifications, setNotifications] = useState(() =>
-    readBoolean(NOTIFICATIONS_STORAGE_KEY, true)
-  );
   const [ringOnOrder, setRingOnOrderState] = useState(true);
 
   // Load ring preference on mount (async because it may read SharedPreferences)
@@ -111,16 +97,6 @@ export function SettingsScreen() {
   const [locationMessage, setLocationMessage] = useState<{ ar: string; en: string } | null>(null);
   const [locBusy, setLocBusy] = useState(false);
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        NOTIFICATIONS_STORAGE_KEY,
-        notifications ? '1' : '0'
-      );
-    } catch {
-      /* Private mode — preference is lost on reload, acceptable. */
-    }
-  }, [notifications]);
 
   const hasLocation =
     user?.latitude != null && user?.longitude != null;
@@ -165,7 +141,11 @@ export function SettingsScreen() {
   };
 
   return (
-    <ScreenShell title="الإعدادات" subtitle="Settings">
+    <ScreenShell title="إعدادات الحساب" subtitle="Account settings">
+      <section className="mb-5 rounded-2xl border border-brand/20 bg-brand-tint p-5">
+        <h2 className="text-lg font-extrabold text-brand">{user?.name}</h2>
+        <p className="mt-2 text-sm leading-6 text-ink-muted">خصّص المظهر واللغة والإشعارات من مكان واحد. تُحفظ التفضيلات مباشرة.</p>
+      </section>
       <div className="space-y-4">
         <AccountSwitcher auth={auth} />
 
@@ -261,31 +241,7 @@ export function SettingsScreen() {
         </SettingsRow>
         )}
 
-        <SettingsRow
-          icon={Bell}
-          titleAr="الإشعارات"
-          titleEn="Notifications"
-          hint="تنبيهات حالة الطلب والطلبات الجديدة"
-        >
-          <button
-            type="button"
-            role="switch"
-            aria-checked={notifications}
-            onClick={() => setNotifications((value) => !value)}
-            className={`flex h-7 w-12 items-center rounded-full p-1 transition ${
-              notifications ? 'justify-end bg-brand' : 'justify-start bg-line'
-            }`}
-          >
-            <span
-              className={`h-5 w-5 rounded-full ${
-                notifications ? 'bg-white' : 'bg-ink-subtle'
-              }`}
-            />
-          </button>
-          <p className="mt-2 text-[11px] text-ink-muted">
-            {t(notifications ? 'الإشعارات مفعّلة' : 'الإشعارات متوقفة', notifications ? 'On' : 'Off')}
-          </p>
-        </SettingsRow>
+        <NotificationPreferences />
 
         <SettingsRow
           icon={Phone}

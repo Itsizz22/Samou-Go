@@ -12,6 +12,7 @@ import { useLanguage, OfflineBanner } from '@samou-go/ui';
 import { updateMyLocation, usePlatformSettings, ENABLE_LOCATION } from '@samou-go/api-client';
 import { SamouGoHome } from './components/generated/SamouGoHome';
 const OrdersScreen = lazy(() => import('./screens/OrdersScreen').then(module => ({ default: module.OrdersScreen })));
+const PhoneVerificationScreen = lazy(() => import('./screens/PhoneVerificationScreen').then(module => ({ default: module.PhoneVerificationScreen })));
 const ProfileScreen = lazy(() => import('./screens/ProfileScreen').then(module => ({ default: module.ProfileScreen })));
 const SettingsScreen = lazy(() => import('./screens/SettingsScreen').then(module => ({ default: module.SettingsScreen })));
 const FavoritesScreen = lazy(() => import('./screens/FavoritesScreen').then(module => ({ default: module.FavoritesScreen })));
@@ -115,6 +116,7 @@ function App() {
   // is signed out by the gate instead of rendering a wrong-role UI.
   const auth = useAuth();
   const [splashElapsed, setSplashElapsed] = useState(false);
+  const [pushCheckedFor, setPushCheckedFor] = useState<string | null>(null);
   const finishIntro = useCallback(() => setSplashElapsed(true), []);
   const platformSettings = usePlatformSettings();
 
@@ -126,20 +128,19 @@ function App() {
   // open the order tracking screen without a full page reload.
   useEffect(() => { setGlobalNavigate(navigate); }, [navigate]);
 
-  // Register for push notifications when the user is authenticated.
-  // Wrapped in try/catch — PushNotifications plugin may not be available
-  // on all platforms or may throw on permission denial.
+  // Request native notifications before location, after the intro and login.
+  // Registration still refreshes the device binding for each authenticated account.
   useEffect(() => {
-    if (auth.ready && auth.user) {
-      const token = getToken();
-      if (token) {
-        registerForPushNotifications(token).catch((err: unknown) => {
-          console.warn('[app] Push registration failed:', err);
-        });
-      }
-    }
-  }, [auth.ready, auth.user]);
-
+    let active = true;
+    const userId = auth.user?.id;
+    if (!auth.ready || !splashElapsed || !userId) { setPushCheckedFor(null); return; }
+    const token = getToken();
+    if (!token) return;
+    void registerForPushNotifications(token).finally(() => {
+      if (active) setPushCheckedFor(userId);
+    });
+    return () => { active = false; };
+  }, [auth.ready, auth.user?.id, splashElapsed]);
   if (splashElapsed && needsSessionRecovery(auth)) return <SessionRecovery auth={auth} />;
 
   // Keep the intro (or its final still) until playback and session restoration finish.
@@ -152,8 +153,8 @@ function App() {
         <ConnectionNotice />
         <StartupRoutes auth={auth} />
         <NavigationDrawer />
-        {ENABLE_LOCATION && gpsCaptureEnabled && auth.user?.role === UserRole.CUSTOMER && (
-          <CustomerLocationPrompt auth={auth} />
+        {ENABLE_LOCATION && gpsCaptureEnabled && auth.user && pushCheckedFor === auth.user.id && (
+          <LocationPermissionPrompt key={auth.user.id} auth={auth} />
         )}
       </NavigationDrawerProvider>
     </ThemeProvider>
@@ -226,6 +227,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
       <Route path="/custom-requests" element={<ProtectedRoute auth={auth}><CustomRequestsScreen /></ProtectedRoute>} />
       <Route path="/support" element={<ProtectedRoute auth={auth}><SupportScreen /></ProtectedRoute>} />
       <Route path="/login" element={<AuthRoute auth={auth}><LoginScreen /></AuthRoute>} />
+      <Route path="/verify-phone" element={<AuthRoute auth={auth}><PhoneVerificationScreen /></AuthRoute>} />
       <Route path="/register" element={<AuthRoute auth={auth}><RegisterScreen /></AuthRoute>} />
       <Route path="/forgot-password" element={<AuthRoute auth={auth}><ForgotPasswordScreen /></AuthRoute>} />
 
@@ -297,15 +299,9 @@ function StartupRoutes({ auth }: { auth: Auth }) {
   );
 }
 
-/**
- * CustomerLocationPrompt — first-login nudge: when a CUSTOMER has no GPS
- * coords on their profile yet, offer to persist them via PUT /users/me/location.
- * Rendered app-wide (any route) because the saved location is profile state,
- * not a screen's concern. Dismissal is remembered per user so it never nags
- * again after the first skip; a successful save also clears it.
- */
-function customerLocationDismissKey(userId: string): string {
-  return `samou.user-location.dismissed.${userId}`;
+/** Device permission onboarding for customer, captain and store manager. Only customers save profile coordinates. */
+function locationDismissKey(userId: string): string {
+  return `samou.location-permission.v2.${userId}`;
 }
 
 function readLocationDismissed(key: string): boolean {
@@ -324,57 +320,79 @@ function markLocationDismissed(key: string): void {
   }
 }
 
-function CustomerLocationPrompt({ auth }: { auth: Auth }) {
+function LocationPermissionPrompt({ auth }: { auth: Auth }) {
   const { t, language } = useLanguage();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ar: string; en: string } | null>(null);
   const user = auth.user;
 
-  const dismissKey = user ? customerLocationDismissKey(user.id) : '';
+  const dismissKey = user ? locationDismissKey(user.id) : '';
   const [dismissed, setDismissed] = useState(() => (dismissKey ? readLocationDismissed(dismissKey) : true));
 
-  // Re-read on user change (e.g. a fresh login on another account).
+  // The parent keys this component by account, isolating pending GPS callbacks.
+  const mounted = useRef(false);
+  const capturePending = useRef(false);
   useEffect(() => {
-    if (dismissKey) setDismissed(readLocationDismissed(dismissKey));
-    else setDismissed(true);
-  }, [dismissKey]);
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   const needsLocation =
-    user?.role === UserRole.CUSTOMER &&
-    (user.latitude === null || user.longitude === null) &&
+    Boolean(user && [UserRole.CUSTOMER, UserRole.CAPTAIN, UserRole.STORE_MANAGER].some(role => role === user.role)) &&
     !dismissed;
 
-  if (!needsLocation) return null;
+  const attempted = useRef(false);
+  useEffect(() => {
+    if (!needsLocation || attempted.current) return;
+    attempted.current = true;
+    // Persist the attempt so denial/timeout never loops on each app launch.
+    if (dismissKey) markLocationDismissed(dismissKey);
+    capture();
+  }, [needsLocation, dismissKey]);
 
-  const capture = () => {
+  function capture() {
     if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING) return;
-    if (busy) return;
+    if (capturePending.current) return;
     if (!navigator.geolocation) {
       setStatus({ ar: 'تحديد الموقع غير مدعوم في هذا المتصفح', en: 'Geolocation is unavailable' });
       return;
     }
+    const sessionToken = getToken();
+    if (!sessionToken) return;
+    const isCurrentSession = () => mounted.current && getToken() === sessionToken;
+    capturePending.current = true;
     setBusy(true);
     setStatus({ ar: 'جارٍ تحديد موقعك…', en: 'Detecting your location…' });
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
+        if (!isCurrentSession()) return;
         try {
-          const updated = await updateMyLocation(coords.latitude, coords.longitude);
-          if (updated) auth.setUser(updated);
+          if (user?.role === UserRole.CUSTOMER) {
+            const updated = await updateMyLocation(coords.latitude, coords.longitude);
+            if (!isCurrentSession()) return;
+            if (updated) auth.setUser(updated);
+          }
           if (dismissKey) markLocationDismissed(dismissKey);
           setDismissed(true);
         } catch {
+          if (!isCurrentSession()) return;
           setStatus({ ar: 'تعذّر حفظ الموقع — حاول مجدداً', en: 'Could not save your location — try again' });
         } finally {
-          setBusy(false);
+          capturePending.current = false;
+          if (isCurrentSession()) setBusy(false);
         }
       },
       () => {
+        capturePending.current = false;
+        if (!isCurrentSession()) return;
         setBusy(false);
-        setStatus({ ar: 'تعذّر تحديد الموقع — تحقق من إذن الموقع', en: 'Location permission was not granted' });
+        setStatus({ ar: 'تعذّر تحديد الموقع. يمكنك تفعيل الإذن من إعدادات التطبيق أو المتابعة الآن', en: 'Location permission was not granted' });
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 }
     );
   };
+
+  if (!needsLocation) return null;
 
   const skip = () => {
     if (dismissKey) markLocationDismissed(dismissKey);
@@ -390,11 +408,11 @@ function CustomerLocationPrompt({ auth }: { auth: Auth }) {
           </span>
           <div className="min-w-0 flex-1">
             <h2 className="text-sm font-extrabold text-ink">
-              {t('حدّد موقعك لتحسين خدمة التوصيل', 'Set your location for better delivery')}
+              {t('السماح بالوصول إلى الموقع', 'Set your location for better delivery')}
             </h2>
             <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
               {t(
-                'يُستخدم موقعك لمساعدتك على كتابة عنوان التوصيل بشكل أسرع.',
+                user?.role === UserRole.CAPTAIN ? 'يُستخدم موقعك أثناء فتح التطبيق لتتبع توصيل الطلبات.' : user?.role === UserRole.STORE_MANAGER ? 'اسمح بالموقع لتسهيل تحديد مكانك. لن يتغير عنوان المتجر تلقائيًا.' : 'يُستخدم موقعك لمساعدتك على كتابة عنوان التوصيل بشكل أسرع.',
                 'Your location is used to speed up entering your delivery address.',
               )}
             </p>

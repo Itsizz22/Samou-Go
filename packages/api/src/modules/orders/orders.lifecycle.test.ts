@@ -668,3 +668,70 @@ it('tracks only assigned active deliveries, changes destination and hides stale 
   expect((await request<Snapshot>('GET', '/platform/orders/' + id + '/tracking', 'CUSTOMER')).data.location).toBeNull();
   expect((await request('PUT', '/platform/captains/me/location', 'CAPTAIN', { orderId: id, lat: 31.395, lng: 35.065 })).status).toBe(403);
 });
+
+it('supports two dedicated captains and enforces general captain exclusions on reads, reservations and alerts', async () => {
+  const storeId = 'pool-exclusion-store';
+  await fixture.db.store.create({ data: { id: storeId, managerId: 'STORE_MANAGER', nameAr: 'اختبار حجب', nameEn: 'Exclusion test', phone: '0599991099', isApproved: true } });
+  for (const id of ['CAPTAIN', 'CAPTAIN_TWO']) {
+    await fixture.db.user.update({ where: { id }, data: { isAvailable: true, isActive: true, isVerified: true } });
+    expect((await request('PATCH', `/users/${id}`, 'ADMIN', { assignedStoreIds: [storeId], blockedStoreIds: [] })).status).toBe(200);
+  }
+  expect(await eligibleCaptainIds(storeId)).toEqual(expect.arrayContaining(['CAPTAIN', 'CAPTAIN_TWO']));
+  await request('PATCH', '/users/CAPTAIN', 'ADMIN', { assignedStoreIds: [] });
+  expect(await eligibleCaptainIds(storeId)).not.toContain('CAPTAIN');
+  await request('PATCH', '/users/CAPTAIN_TWO', 'ADMIN', { assignedStoreIds: [] });
+  expect(await eligibleCaptainIds(storeId)).toContain('CAPTAIN');
+  const blocked = await request<import('@samou-go/shared-types').PublicUser>('PATCH', '/users/CAPTAIN', 'ADMIN', { blockedStoreIds: [storeId] });
+  expect(blocked.status).toBe(200);
+  expect(blocked.data.blockedStoreIds).toEqual([storeId]);
+  expect(await eligibleCaptainIds(storeId)).not.toContain('CAPTAIN');
+  expect(await eligibleCaptainIds(storeId)).toContain('CAPTAIN_TWO');
+  const order = await preparationOrder();
+  await fixture.db.order.update({ where: { id: order.id }, data: { storeId } });
+  expect((await request('GET', `/orders/${order.id}`, 'CAPTAIN')).status).toBe(403);
+  expect((await request('POST', `/orders/${order.id}/reserve`, 'CAPTAIN')).status).toBe(403);
+  expect((await request('PATCH', `/orders/${order.id}/captain`, 'ADMIN', { captainId: 'CAPTAIN' })).status).toBe(422);
+  expect((await request('PATCH', '/users/CAPTAIN', 'CUSTOMER', { blockedStoreIds: [] })).status).toBe(403);
+  expect((await request('PATCH', '/users/CAPTAIN', 'ADMIN', { blockedStoreIds: ['missing-store'] })).status).toBe(404);
+  expect((await request('PATCH', '/users/CUSTOMER', 'ADMIN', { blockedStoreIds: [storeId] })).status).toBe(422);
+  await request('PATCH', '/users/CAPTAIN', 'ADMIN', { blockedStoreIds: [] });
+  expect((await request('POST', `/orders/${order.id}/reserve`, 'CAPTAIN')).status).toBe(200);
+  await fixture.db.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
+});
+
+it('saves home banners for admin only and validates image URLs', async () => {
+  const homeBanners = [{ id: 'promo-test', title: 'عرض تجريبي', imageUrl: 'https://example.com/banner.jpg', fit: 'contain', positionY: 50, enabled: true }];
+  expect((await request('PATCH', '/platform/settings', 'CUSTOMER', { homeBanners })).status).toBe(403);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeBanners })).status).toBe(200);
+  const settings = await request<{ homeBanners: unknown[] }>('GET', '/platform/settings', 'CUSTOMER');
+  expect(settings.data.homeBanners).toEqual(homeBanners);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeBanners: [{ ...homeBanners[0], imageUrl: 'javascript:alert(1)' }] })).status).toBe(422);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeBanners: [] })).status).toBe(200);
+  expect((await request<{ homeBanners: unknown[] }>('GET', '/platform/settings', 'CUSTOMER')).data.homeBanners).toEqual([]);
+});
+
+it('uploads product and category images through HTTP and persists decodable WebP files', async () => {
+  const sharp = (await import('sharp')).default;
+  const image = await sharp({ create: { width: 100, height: 80, channels: 3, background: { r: 30, g: 140, b: 100 } } }).png().toBuffer();
+  for (const kind of ['product', 'category'] as const) {
+    expect((await request('POST', '/uploads/presign', 'CUSTOMER', { kind, resourceId: kind, contentType: 'image/png' })).status).toBe(403);
+    const presign = await request<{ key: string }>('POST', '/uploads/presign', 'STORE_MANAGER', { kind, resourceId: kind, contentType: 'image/png' });
+    expect(presign.status).toBe(201);
+    const raw = await fetch(`${base}/api/v1/uploads/raw/${encodeURIComponent(presign.data.key)}`, {
+      method: 'PUT', headers: { Authorization: `Bearer ${tokens.STORE_MANAGER}`, 'Content-Type': 'image/png' }, body: new Uint8Array(image),
+    });
+    expect(raw.status).toBe(204);
+    const finalized = await request<{ url: string }>('POST', '/uploads/finalize', 'STORE_MANAGER', { kind, key: presign.data.key });
+    expect(finalized.status, JSON.stringify(finalized.error)).toBe(200);
+    const row = kind === 'product' ? await fixture.db.product.findUniqueOrThrow({ where: { id: kind } }) : await fixture.db.category.findUniqueOrThrow({ where: { id: kind } });
+    expect(row.imageUrl).toBe(finalized.data.url);
+    const path = new URL(finalized.data.url, base).pathname;
+    const downloaded = await fetch(`${base}${path}`);
+    expect(downloaded.status).toBe(200);
+    expect((await sharp(Buffer.from(await downloaded.arrayBuffer())).metadata()).format).toBe('webp');
+    const reloaded = kind === 'product' ? await fixture.db.product.findUniqueOrThrow({ where: { id: kind } }) : await fixture.db.category.findUniqueOrThrow({ where: { id: kind } });
+    expect(reloaded.imageUrl).toBe(finalized.data.url);
+    const removed = await fetch(`${base}/api/v1/uploads/current`, { method: 'DELETE', headers: { Authorization: `Bearer ${tokens.STORE_MANAGER}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, resourceId: kind }) });
+    expect(removed.status).toBe(204);
+  }
+});

@@ -1,5 +1,6 @@
+import { useCart } from '@/components/CartProvider';
 import { useEffect, useState } from 'react';
-import { Home, Heart, FileText, User, BadgePercent, type LucideIcon } from 'lucide-react';
+import { Home, ShoppingCart, Heart, FileText, User, BadgePercent, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useLanguage } from '@samou-go/ui';
 import { useAuth, useOrders } from '@/hooks/useApi';
@@ -28,6 +29,7 @@ const TABS: readonly TabItem[] = [
   { to: '/home', labelAr: 'الرئيسية', labelEn: 'Home', icon: Home },
   { to: '/offers', labelAr: 'العروض', labelEn: 'Offers', icon: BadgePercent },
   { to: '/orders', labelAr: 'طلباتي', labelEn: 'Orders', icon: FileText },
+  { to: '/cart', labelAr: 'السلة', labelEn: 'Cart', icon: ShoppingCart },
   { to: '/favorites', labelAr: 'المفضلة', labelEn: 'Favorites', icon: Heart },
   { to: '/profile', labelAr: 'حسابي', labelEn: 'Profile', icon: User },
 ];
@@ -50,6 +52,7 @@ function useActiveOrderCount() {
 
 export function BottomNav() {
   const { t } = useLanguage();
+  const cart = useCart();
   const { count: activeOrders, error: ordersError, refresh: refreshOrders } = useActiveOrderCount();
   const [cartBounce, setCartBounce] = useState(false);
   const [cartRipple, setCartRipple] = useState(false);
@@ -80,7 +83,7 @@ export function BottomNav() {
           </button>
         </p>
       )}
-      <div className="mx-auto grid max-w-md grid-cols-5 items-stretch gap-0.5 sm:grid-cols-5">
+      <div className="mx-auto grid max-w-md grid-cols-6 items-stretch gap-0.5 sm:grid-cols-6">
         {TABS.map(({ to, labelAr, labelEn, icon: Icon }) => (
           <NavLink
             key={to}
@@ -102,13 +105,14 @@ export function BottomNav() {
                     strokeWidth={isActive ? 2.5 : 1.8}
                     fill="none"
                     className={`${
-                      to === '/orders' && cartBounce ? 'cart-bounce' : ''
+                      to === '/cart' && cartBounce ? 'cart-bounce' : ''
                     } ${
-                      to === '/orders' && cartRipple ? 'animate-[greenRipple_0.6s_ease-out_both]' : ''
+                      to === '/cart' && cartRipple ? 'animate-[greenRipple_0.6s_ease-out_both]' : ''
                     } ${
                       isActive ? 'text-brand-deep' : ''
                     }`}
                   />
+                  {to === '/cart' && cart.itemCount > 0 && <span className="absolute -inset-e-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-xs font-bold text-white" dir="ltr">{cart.itemCount > 99 ? "99+" : cart.itemCount}</span>}
                   {/* Active-order badge — only on the Orders tab */}
                   {to === '/orders' && activeOrders > 0 && (
                     <span className="absolute -inset-e-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[8px] font-black text-white animate-[cartPop_0.3s_var(--ease-spring)_both]">

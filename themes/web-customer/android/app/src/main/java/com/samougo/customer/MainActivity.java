@@ -28,6 +28,17 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(StopAlarmPlugin.class);
         registerPlugin(SettingsPlugin.class);
         super.onCreate(savedInstanceState);
+        // Apply system-bar/cutout insets to the entire WebView viewport, including
+        // fixed headers and sheets. Do not include IME insets (adjustResize handles it).
+        android.view.View content = findViewById(android.R.id.content);
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(content, (view, insets) -> {
+            androidx.core.graphics.Insets bars = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.systemBars()
+                | androidx.core.view.WindowInsetsCompat.Type.displayCutout());
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            return androidx.core.view.WindowInsetsCompat.CONSUMED;
+        });
+        androidx.core.view.ViewCompat.requestApplyInsets(content);
         createNotificationChannels();
 
         // Handle notification tap — start alarm service if it's an order notification

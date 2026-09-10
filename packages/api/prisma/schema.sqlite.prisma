@@ -136,6 +136,7 @@ model User {
   isVerified   Boolean  @default(false)
   /// CAPTAIN self-managed availability — must be on to claim orders.
   isAvailable  Boolean  @default(false)
+  blockedStores Store[] @relation("BlockedCaptainStores")
   assignedStores Store[] @relation("MultiStoreCaptains")
   assignedStoreId String?
   /// Processed avatar URL served by the uploads pipeline (webp, immutable-cached).
@@ -258,6 +259,7 @@ model Store {
   offers     Offer[]
   favorites  Favorite[] @relation("StoreFavorites")
   legacyDedicatedCaptains User[] @relation("DedicatedStoreCaptain")
+  blockedCaptains User[] @relation("BlockedCaptainStores")
   dedicatedCaptains User[] @relation("MultiStoreCaptains")
   ratings Rating[]
   wallet Wallet?
@@ -756,6 +758,7 @@ model PlatformSettings {
   /// WhatsApp support phone number shown in the floating support button across all apps.
   whatsappSupportNumber String?
   /// When enabled, the app prompts users (customers, store managers) to share their GPS coordinates.
+  homeBannersJson String?
   gpsCaptureEnabled Boolean @default(false)
   preparationReminderMinutes Int @default(5)
   updatedAt DateTime @updatedAt

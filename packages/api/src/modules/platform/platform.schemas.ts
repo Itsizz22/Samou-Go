@@ -59,6 +59,11 @@ export const platformSettingsSchema = z.object({
   enableDeliveryZones: z.boolean().optional(),
   requireOtpForSensitiveActions: z.boolean().optional(),
   whatsappSupportNumber: z.string().max(20).nullable().optional(),
+  homeBanners: z.array(z.object({
+    id: z.string().min(1).max(80), title: z.string().trim().min(1).max(120),
+    imageUrl: z.string().max(2048).refine(value => /^\/banners\/[a-zA-Z0-9._-]+$/.test(value) || (() => { try { return new URL(value).protocol === 'https:'; } catch { return false; } })(), 'رابط الصورة يجب أن يكون HTTPS'),
+    fit: z.enum(['contain', 'cover']), positionY: z.number().int().min(0).max(100), enabled: z.boolean(),
+  })).max(12).refine(items => new Set(items.map(item => item.id)).size === items.length, 'معرفات البانرات مكررة').optional(),
   gpsCaptureEnabled: z.boolean().optional(),
   preparationReminderMinutes: z.number().int().min(1).max(30).optional(),
 });

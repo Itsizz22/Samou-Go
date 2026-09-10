@@ -445,6 +445,7 @@ export function SamouGoCaptain() {
     return (
       <main className="min-h-screen bg-canvas pb-24" aria-busy="true">
         <header className="bg-surface px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-ink">
+        <a href="/settings" className="mb-3 flex min-h-11 items-center justify-center rounded-xl border border-brand/20 bg-brand-tint px-4 text-sm font-bold text-brand">إعدادات الحساب والإشعارات</a>
           <div className="mx-auto flex max-w-md items-center justify-between" aria-hidden="true">
             <span className="h-10 w-10 rounded-full bg-surface/15" />
             <span className="h-5 w-32 rounded bg-surface/20" />
@@ -705,6 +706,7 @@ export function SamouGoCaptain() {
         </div>
       </aside>
       <header className="bg-surface px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-ink">
+        <a href="/settings" className="mb-3 flex min-h-11 items-center justify-center rounded-xl border border-brand/20 bg-brand-tint px-4 text-sm font-bold text-brand">إعدادات الحساب والإشعارات</a>
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Captain navigation">
           <button type="button" aria-label="Profile" onClick={() => setActiveTab('account')} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-surface/15 transition hover:bg-surface/25">
             <UserRound size={21} />

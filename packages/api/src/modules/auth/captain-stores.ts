@@ -1,6 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { notFound } from '../../lib/http-error';
-export const assignedStoresInclude = { assignedStores: { select: { id: true }, orderBy: { id: 'asc' as const } } };
+export const assignedStoresInclude = { blockedStores: { select: { id: true } }, assignedStores: { select: { id: true }, orderBy: { id: 'asc' as const } } };
 export function captainStoreIds(captain: { assignedStoreId?: string | null; assignedStores?: { id: string }[] }): string[] {
   return captain.assignedStores?.length ? captain.assignedStores.map(store => store.id) : captain.assignedStoreId ? [captain.assignedStoreId] : [];
 }

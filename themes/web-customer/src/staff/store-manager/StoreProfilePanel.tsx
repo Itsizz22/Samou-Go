@@ -31,6 +31,8 @@ interface FormState {
   nameEn: string;
   phone: string;
   isActive: boolean;
+  openingTime: string;
+  closingTime: string;
 }
 
 function formFromStore(s: StoreType): FormState {
@@ -39,6 +41,8 @@ function formFromStore(s: StoreType): FormState {
     nameEn: s.nameEn,
     phone: s.phone,
     isActive: s.isActive,
+    openingTime: s.openingTime ?? "",
+    closingTime: s.closingTime ?? "",
   };
 }
 
@@ -68,6 +72,8 @@ export function StoreProfilePanel({ storeId }: Props) {
     nameEn: '',
     phone: '',
     isActive: true,
+    openingTime: "",
+    closingTime: "",
   });
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -100,6 +106,8 @@ export function StoreProfilePanel({ storeId }: Props) {
         // Using undefined would silently skip the phone update in the Prisma data spread.
         phone: form.phone.trim() ? form.phone.trim() : undefined,
         isActive: form.isActive,
+        openingTime: form.openingTime || null,
+        closingTime: form.closingTime || null,
       });
       setDirty(false);
       setSaved(true);
@@ -345,6 +353,15 @@ export function StoreProfilePanel({ storeId }: Props) {
             </p>
           </label>
 
+          <section className="rounded-2xl border border-line bg-canvas p-4">
+            <h3 className="mb-3 font-bold">مواعيد العمل</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-sm">موعد الفتح<input type="time" dir="ltr" value={form.openingTime} onChange={e => update('openingTime', e.target.value)} className="input-field mt-2 w-full" /></label>
+              <label className="text-sm">موعد الإغلاق<input type="time" dir="ltr" value={form.closingTime} onChange={e => update('closingTime', e.target.value)} className="input-field mt-2 w-full" /></label>
+            </div>
+            <p className="mt-3 text-xs leading-6 text-ink-muted">تظهر هذه المواعيد للعملاء. حالة «مفتوح / مغلق» تُدار يدويًا؛ حفظ الوقت لا يغلق المتجر تلقائيًا.</p>
+          </section>
+          <a href="/settings" className="flex min-h-12 items-center justify-between rounded-xl border border-brand/20 bg-brand-tint px-4 font-bold text-brand">إعدادات التطبيق والإشعارات <span aria-hidden="true">←</span></a>
           {/* Active status */}
           <div className="flex items-center justify-between rounded-xl border border-line bg-canvas px-4 py-3">
             <div>

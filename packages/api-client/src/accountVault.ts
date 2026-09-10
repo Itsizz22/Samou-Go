@@ -255,8 +255,8 @@ export function switchAccount(accountId: string): VaultAccount | null {
 
   // Handing the snapshot over also fires the token-change listeners, so any
   // subscribed UI (favorites, orders) reconciles with the new session.
-  setToken(refreshed.token);
   setRefreshToken(refreshed.refreshToken);
+  setToken(refreshed.token);
   notifyListeners();
   return refreshed;
 }
@@ -283,8 +283,8 @@ export function removeAccount(accountId: string): VaultAccount | null {
         ...remaining.filter((entry) => entry.id !== refreshed.id),
       ]);
       writeActiveId(refreshed.id);
-      setToken(refreshed.token);
       setRefreshToken(refreshed.refreshToken);
+      setToken(refreshed.token);
       notifyListeners();
       return refreshed;
     }
