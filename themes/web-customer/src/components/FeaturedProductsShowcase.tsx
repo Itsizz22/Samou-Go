@@ -21,17 +21,17 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
   const moveTo = (index: number) => {
     const element = track.current;
     if (!element) return;
-    element.scrollTo({ left: index * element.clientWidth, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    element.scrollTo({ left: (dir === 'rtl' ? -1 : 1) * index * element.clientWidth, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   };
   useEffect(() => {
     if (stopped || products.length < 2) return;
     const timer = window.setInterval(() => {
       if (!interacting.current && !document.hidden && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        moveTo((Math.round((track.current?.scrollLeft ?? 0) / (track.current?.clientWidth || 1)) + 1) % products.length);
+        moveTo((Math.round(Math.abs(track.current?.scrollLeft ?? 0) / (track.current?.clientWidth || 1)) + 1) % products.length);
       }
     }, 4500);
     return () => window.clearInterval(timer);
-  }, [stopped, products.length]);
+  }, [stopped, products.length, dir]);
   if (!products.length && !loading) return null;
   return (
     <section
@@ -71,9 +71,9 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
             className="overflow-hidden rounded-3xl border border-line bg-surface shadow-card"
 
           >
-            {/* Track order is physical LTR; content remains RTL. Next moves right-to-left. */}
-            <div ref={track} dir="ltr" className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain scrollbar-none"
-              onScroll={event => setActive(Math.round(event.currentTarget.scrollLeft / (event.currentTarget.clientWidth || 1)))}
+            {/* Native scrolling follows the reading direction, including rightward swipes in Arabic. */}
+            <div ref={track} dir={dir} className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain scrollbar-none"
+              onScroll={event => setActive(Math.round(Math.abs(event.currentTarget.scrollLeft) / (event.currentTarget.clientWidth || 1)))}
               onPointerDown={() => { interacting.current = true; setStopped(true); }}
               onPointerUp={() => { interacting.current = false; }}
               onPointerCancel={() => { interacting.current = false; }}
