@@ -72,9 +72,7 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
             </span>
           </p>
         )}
-        <p className="text-xs text-ink-muted">
-          {t('يحددها السائق عند الاستلام', 'Determined by the driver on delivery')}
-        </p>
+
       </div>
     </Link>
   );
