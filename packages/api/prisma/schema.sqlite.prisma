@@ -758,6 +758,8 @@ model PlatformSettings {
   /// WhatsApp support phone number shown in the floating support button across all apps.
   whatsappSupportNumber String?
   /// When enabled, the app prompts users (customers, store managers) to share their GPS coordinates.
+  discoveryCategoryIdsJson String?
+  featuredCategoryIdsJson String?
   homeBannersJson String?
   gpsCaptureEnabled Boolean @default(false)
   preparationReminderMinutes Int @default(5)

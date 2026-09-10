@@ -112,7 +112,7 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
           </a>
         ))}
       </nav>
-      <section id="new-products" className="scroll-mt-4 pb-5">
+      {(products.loading || products.error || orderedProducts.length > 0) && <section id="new-products" className="scroll-mt-4 pb-5">
         <div className="mb-4 space-y-1"><h2 className="text-lg font-bold">{t('اكتشف طبقك اليوم', 'Discover your next dish')}</h2><p className="text-sm leading-6 text-ink-muted">{t('وجبة، قهوة أو شيء حلو — اختر ما تشتهيه', 'A meal, coffee or a sweet treat — find your craving')}</p></div>
         <LoadState
           loading={products.loading}
@@ -164,7 +164,7 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
           ))}
         </div>
         {orderedProducts.length > visibleCount && <button type="button" onClick={() => setVisibleCount(count => count + 8)} className="mt-4 min-h-11 w-full rounded-xl border border-brand bg-brand-tint px-4 text-sm font-bold text-brand-deep focus-visible:ring-2 focus-visible:ring-brand">{t('اكتشف المزيد من الأطباق', 'Discover more dishes')}</button>}
-      </section>
+      </section>}
       <section id="new-stores" className="scroll-mt-4 pb-5">
         <h2 className="mb-3 text-lg font-bold">{t('متاجر جديدة', 'New stores')}</h2>
         <LoadState

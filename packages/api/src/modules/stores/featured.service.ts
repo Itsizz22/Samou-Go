@@ -1,4 +1,5 @@
-import { dishStoreIds } from './dish-stores';
+import { getNewProducts } from './stores.service';
+import { dishProductIds, isFoodDish } from './dish-stores';
 import { isDishStore } from '@samou-go/shared-types';
 import { prisma } from "../../lib/prisma";
 import { badRequest } from "../../lib/http-error";
@@ -7,7 +8,7 @@ import { toProduct } from "./stores.mapper";
 export async function listFeaturedProducts() {
   const rows = await prisma.product.findMany({
     where: {
-      storeId: { in: await dishStoreIds() },
+      id: { in: await dishProductIds('featured') },
       featuredRank: { not: null },
       isAvailable: true,
       imageUrl: { not: null },
@@ -30,6 +31,8 @@ export async function listFeaturedProducts() {
       },
     },
   });
+  // Keep the showcase useful before an admin selects featured dishes.
+  if (!rows.length) return getNewProducts(12, true, 'featured');
   return rows.map((raw) => {
     const product = toProduct(raw);
     return {
@@ -55,6 +58,8 @@ export async function getFeaturedSelection() {
   });
 }
 export async function saveFeaturedProducts(ids: string[]) {
+  const eligibleIds = new Set(await dishProductIds('featured'));
+  if (ids.some(id => !eligibleIds.has(id))) throw badRequest('اختر أطباقًا من الأقسام المسموحة للأطباق المميزة');
   await prisma.$transaction(async (tx) => {
     const products = await tx.product.findMany({
       where: {
@@ -62,11 +67,11 @@ export async function saveFeaturedProducts(ids: string[]) {
         isAvailable: true,
         store: { isActive: true, isApproved: true },
       },
-      select: { id: true, imageUrl: true, store: { select: { nameAr: true, nameEn: true, storeType: true } } },
+      select: { id: true, nameAr: true, category: { select: { nameAr: true, nameEn: true } }, imageUrl: true, store: { select: { nameAr: true, nameEn: true, storeType: true } } },
     });
     if (
       products.length !== ids.length ||
-      products.some((p) => !p.imageUrl?.trim() || !isDishStore(p.store))
+      products.some((p) => !p.imageUrl?.trim() || !isDishStore(p.store) || !isFoodDish(p))
     )
       throw badRequest("اختر أطباقًا بصور من المطاعم أو المقاهي أو الحلويات والمخابز المعتمدة");
     // Serialize simultaneous admin edits through the singleton settings row.

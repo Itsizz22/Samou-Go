@@ -1,4 +1,4 @@
-import { LedgerEntryType, SettlementMethod, UserRole } from '@samou-go/shared-types';
+import { isDishStore, LedgerEntryType, SettlementMethod, UserRole } from '@samou-go/shared-types';
 import type { JwtPayload } from '@samou-go/shared-types';
 import type { Prisma } from '../../lib/prisma-types';
 import { prisma } from '../../lib/prisma';
@@ -211,6 +211,8 @@ async function getPlatformSettingsRaw() {
     enableDeliveryZones: row.enableDeliveryZones,
     requireOtpForSensitiveActions: row.requireOtpForSensitiveActions,
     whatsappSupportNumber: row.whatsappSupportNumber ?? null,
+    discoveryCategoryIds: row.discoveryCategoryIdsJson ? JSON.parse(row.discoveryCategoryIdsJson) as string[] : null,
+    featuredCategoryIds: row.featuredCategoryIdsJson ? JSON.parse(row.featuredCategoryIdsJson) as string[] : null,
     homeBanners: row.homeBannersJson ? JSON.parse(row.homeBannersJson) as import("@samou-go/shared-types").HomeBanner[] : null,
     gpsCaptureEnabled: row.gpsCaptureEnabled,
     preparationReminderMinutes: row.preparationReminderMinutes,
@@ -229,6 +231,11 @@ export async function getPlatformSettings() {
 
 /** PATCH — admin updates one or more knobs on the singleton row. */
 export async function updatePlatformSettings(body: PlatformSettingsBody) {
+  const categoryIds = [...new Set([...(body.discoveryCategoryIds ?? []), ...(body.featuredCategoryIds ?? [])])];
+  if (categoryIds.length) {
+    const categories = await prisma.category.findMany({ where: { id: { in: categoryIds } }, include: { store: { select: { nameAr: true, nameEn: true, storeType: true } } } });
+    if (categories.length !== categoryIds.length || categories.some(category => !isDishStore(category.store))) throw badRequest('اختر أقسامًا موجودة من المطاعم والمقاهي والحلويات والمخابز');
+  }
   const advertisedStoreIds = [...new Set((body.homeBanners ?? []).filter(banner => banner.kind === 'product').flatMap(banner => banner.storeId ? [banner.storeId] : []))];
   if (advertisedStoreIds.length) {
     const count = await prisma.store.count({ where: { id: { in: advertisedStoreIds } } });
@@ -250,6 +257,8 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
       ...(body.enableDeliveryZones !== undefined ? { enableDeliveryZones: body.enableDeliveryZones } : {}),
       ...(body.requireOtpForSensitiveActions !== undefined ? { requireOtpForSensitiveActions: body.requireOtpForSensitiveActions } : {}),
       ...(body.whatsappSupportNumber !== undefined && body.whatsappSupportNumber !== null ? { whatsappSupportNumber: body.whatsappSupportNumber } : {}),
+      ...(body.discoveryCategoryIds !== undefined ? { discoveryCategoryIdsJson: body.discoveryCategoryIds === null ? null : JSON.stringify(body.discoveryCategoryIds) } : {}),
+      ...(body.featuredCategoryIds !== undefined ? { featuredCategoryIdsJson: body.featuredCategoryIds === null ? null : JSON.stringify(body.featuredCategoryIds) } : {}),
       ...(body.homeBanners !== undefined ? { homeBannersJson: JSON.stringify(body.homeBanners) } : {}),
       ...(body.gpsCaptureEnabled !== undefined ? { gpsCaptureEnabled: body.gpsCaptureEnabled } : {}),
       ...(body.preparationReminderMinutes !== undefined ? { preparationReminderMinutes: body.preparationReminderMinutes } : {}),
@@ -266,6 +275,8 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
       ...(body.enableDeliveryZones !== undefined ? { enableDeliveryZones: body.enableDeliveryZones } : {}),
       ...(body.requireOtpForSensitiveActions !== undefined ? { requireOtpForSensitiveActions: body.requireOtpForSensitiveActions } : {}),
       ...(body.whatsappSupportNumber !== undefined ? { whatsappSupportNumber: body.whatsappSupportNumber ?? undefined } : {}),
+      ...(body.discoveryCategoryIds !== undefined ? { discoveryCategoryIdsJson: body.discoveryCategoryIds === null ? null : JSON.stringify(body.discoveryCategoryIds) } : {}),
+      ...(body.featuredCategoryIds !== undefined ? { featuredCategoryIdsJson: body.featuredCategoryIds === null ? null : JSON.stringify(body.featuredCategoryIds) } : {}),
       ...(body.homeBanners !== undefined ? { homeBannersJson: JSON.stringify(body.homeBanners) } : {}),
       ...(body.gpsCaptureEnabled !== undefined ? { gpsCaptureEnabled: body.gpsCaptureEnabled } : {}),
       ...(body.preparationReminderMinutes !== undefined ? { preparationReminderMinutes: body.preparationReminderMinutes } : {}),
@@ -285,6 +296,8 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
     enableDeliveryZones: row.enableDeliveryZones,
     requireOtpForSensitiveActions: row.requireOtpForSensitiveActions,
     whatsappSupportNumber: row.whatsappSupportNumber ?? null,
+    discoveryCategoryIds: row.discoveryCategoryIdsJson ? JSON.parse(row.discoveryCategoryIdsJson) as string[] : null,
+    featuredCategoryIds: row.featuredCategoryIdsJson ? JSON.parse(row.featuredCategoryIdsJson) as string[] : null,
     homeBanners: row.homeBannersJson ? JSON.parse(row.homeBannersJson) as import("@samou-go/shared-types").HomeBanner[] : null,
     gpsCaptureEnabled: row.gpsCaptureEnabled,
     preparationReminderMinutes: row.preparationReminderMinutes,

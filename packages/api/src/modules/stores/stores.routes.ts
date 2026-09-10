@@ -1,3 +1,4 @@
+import { dishCategoryOptions } from './dish-stores';
 import { z } from 'zod';
 import { parseWith } from '../../lib/validate';
 import { ok } from '../../lib/respond';
@@ -38,6 +39,7 @@ storesRouter.get('/search-products', optionalAuthenticate, asyncHandler(controll
 
 storesRouter.get('/new-products', optionalAuthenticate, asyncHandler(controller.newProductsHandler));
 
+storesRouter.get('/dish-category-options', authenticate, authorize(UserRole.ADMIN), asyncHandler(async (_req, res) => { ok(res, await dishCategoryOptions()); }));
 storesRouter.get('/featured-products', asyncHandler(async (_req, res) => { ok(res, await listFeaturedProducts()); }));
 storesRouter.get('/featured-selection', authenticate, authorize(UserRole.ADMIN), asyncHandler(async (_req, res) => { ok(res, await getFeaturedSelection()); }));
 storesRouter.put('/featured-selection', authenticate, authorize(UserRole.ADMIN), asyncHandler(async (req, res) => {

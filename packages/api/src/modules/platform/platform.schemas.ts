@@ -59,6 +59,8 @@ export const platformSettingsSchema = z.object({
   enableDeliveryZones: z.boolean().optional(),
   requireOtpForSensitiveActions: z.boolean().optional(),
   whatsappSupportNumber: z.string().max(20).nullable().optional(),
+  discoveryCategoryIds: z.array(z.string().min(1)).max(500).refine(ids => new Set(ids).size === ids.length).nullable().optional(),
+  featuredCategoryIds: z.array(z.string().min(1)).max(500).refine(ids => new Set(ids).size === ids.length).nullable().optional(),
   homeBanners: z.array(z.object({
     kind: z.enum(['announcement', 'product']).optional(),
     storeId: z.string().min(1).max(120).optional(),

@@ -163,5 +163,5 @@ export async function newProductsHandler(req: Request, res: Response): Promise<v
 
 export async function searchProductsHandler(req: Request, res: Response): Promise<void> {
   const query = parseWith(productSearchQuerySchema, req.query);
-  ok(res, await storesService.searchProducts(query.search, query.page, query.dishesOnly));
+  ok(res, await storesService.searchProducts(query.search, query.page, query.dishesOnly, query.dishSection));
 }

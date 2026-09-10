@@ -1,3 +1,4 @@
+import { DishCategorySettings } from './DishCategorySettings';
 import { useEffect, useState } from 'react';
 import {
   getFeaturedSelection,
@@ -7,6 +8,7 @@ import {
 } from '@samou-go/api-client';
 import type { PopularProduct } from '@samou-go/shared-types';
 export function FeaturedProductsSettings() {
+  const [categoryRevision, setCategoryRevision] = useState(0);
   const [selected, setSelected] = useState<FeaturedSelectionProduct[]>([]);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PopularProduct[]>([]);
@@ -32,7 +34,7 @@ export function FeaturedProductsSettings() {
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      searchProducts(query, 1, controller.signal, true)
+      searchProducts(query, 1, controller.signal, true, 'featured')
         .then(data => {
           if (!controller.signal.aborted) setResults(data.items);
         })
@@ -44,7 +46,7 @@ export function FeaturedProductsSettings() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [query, categoryRevision]);
   const move = (index: number, delta: number) => {
     const rows = [...selected];
     const other = rows[index + delta];
@@ -68,14 +70,14 @@ export function FeaturedProductsSettings() {
     }
   };
   return (
-    <section
+    <><DishCategorySettings onSaved={() => setCategoryRevision(value => value + 1)} /><section
       className="space-y-4 rounded-2xl border border-line bg-surface p-5"
       aria-label="المنتجات المميزة"
     >
-      <h3 className="font-bold">منتجات الصفحة الرئيسية</h3>
+      <h3 className="font-bold">أطباق مميزة اخترناها لك</h3>
       <p className="text-sm text-ink-muted">
         اختر حتى 12 طبقًا بصورة من المطاعم والمقاهي والحلويات والمخابز، ثم رتب ظهورها. المنتج المغلق أو غير المتاح يختفي من عرض العميل
-        تلقائيًا.
+        تلقائيًا. إذا لم تحدد أطباقًا، تظهر اقتراحات مصوّرة تلقائيًا من المتاجر المؤهلة.
       </p>
       <label className="block text-sm">
         ابحث عن منتج
@@ -157,7 +159,7 @@ export function FeaturedProductsSettings() {
         ))}
       </ol>
       {!selected.length && (
-        <p className="text-sm text-ink-muted">لم تحدد منتجات؛ لن يظهر القسم للعميل حتى تختارها.</p>
+        <p className="text-sm text-ink-muted">لم تحدد أطباقًا يدويًا؛ ستظهر اقتراحات من الأقسام المسموحة أعلاه.</p>
       )}
       <button
         type="button"
@@ -170,6 +172,6 @@ export function FeaturedProductsSettings() {
       <p role="status" className="text-sm">
         {message}
       </p>
-    </section>
+    </section></>
   );
 }

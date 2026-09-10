@@ -749,6 +749,8 @@ model PlatformSettings {
   whatsappSupportNumber String? @db.VarChar(20)
   /// When enabled, the app prompts users (customers, store managers) to share their GPS coordinates.
   /// When disabled (default), all automatic GPS capture prompts are suppressed.
+  discoveryCategoryIdsJson String?
+  featuredCategoryIdsJson String?
   homeBannersJson String?
   gpsCaptureEnabled Boolean @default(false)
   preparationReminderMinutes Int @default(5)

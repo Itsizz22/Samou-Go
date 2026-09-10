@@ -792,3 +792,63 @@ it('limits dish discovery and featured selections to food venues without restric
   expect((await request('PUT', '/stores/featured-selection', 'ADMIN', { productIds: ['dish-product-grocery'] })).status).toBe(400);
   expect((await request('PUT', '/stores/featured-selection', 'ADMIN', { productIds: expected })).status).toBe(200);
 });
+
+it('keeps the empty featured showcase populated with photographed food products only', async () => {
+  await fixture.db.product.updateMany({ data: { featuredRank: null } });
+  await fixture.db.product.create({ data: { id: 'dish-no-photo', storeId: 'dish-restaurant', nameAr: 'مياه بدون صورة', price: 3 } });
+  await fixture.db.product.create({ data: { id: 'dish-empty-photo', storeId: 'dish-restaurant', nameAr: 'صورة فارغة', price: 3, imageUrl: '' } });
+  for (const route of ['/stores/featured-products', '/stores/new-products?limit=24&dishesOnly=true']) {
+    const result = await request<{ id: string; storeId: string; imageUrl: string | null }[]>('GET', route);
+    expect(result.status).toBe(200);
+    expect(result.data.length).toBeGreaterThan(0);
+    expect(result.data.every(p => Boolean(p.imageUrl))).toBe(true);
+    expect(result.data.some(p => p.id === 'dish-product-grocery' || p.id === 'dish-no-photo' || p.id === 'dish-empty-photo')).toBe(false);
+  }
+  expect((await request('PUT', '/stores/featured-selection', 'ADMIN', { productIds: ['dish-product-cafe'] })).status).toBe(200);
+  const curated = await request<{ id: string }[]>('GET', '/stores/featured-products');
+  expect(curated.data.map(p => p.id)).toEqual(['dish-product-cafe']);
+});
+
+it('excludes pictured beverages from food discovery, fallback and admin selection while preserving the store catalogue', async () => {
+  await fixture.db.category.create({ data: { id: 'dish-beverages', storeId: 'dish-restaurant', nameAr: 'مشروبات باردة', nameEn: 'Cold drinks' } });
+  for (const [id, nameAr, categoryId] of [['water', 'ماء معدني', null], ['cola', 'كوكاكولا', null], ['coffee', 'قهوة عربية', null], ['juice', 'باشن فروت', 'dish-beverages']] as const) {
+    await fixture.db.product.create({ data: { id: `pictured-${id}`, nameAr, categoryId, storeId: 'dish-restaurant', price: 5, imageUrl: 'https://example.com/drink.jpg' } });
+  }
+  await fixture.db.product.updateMany({ data: { featuredRank: null } });
+  for (const route of ['/stores/featured-products', '/stores/new-products?limit=24&dishesOnly=true']) {
+    const result = await request<{ id: string }[]>('GET', route);
+    expect(result.status).toBe(200);
+    expect(result.data.length).toBeGreaterThan(0);
+    expect(result.data.some(p => p.id.startsWith('pictured-'))).toBe(false);
+  }
+  expect((await request('PUT', '/stores/featured-selection', 'ADMIN', { productIds: ['pictured-cola'] })).status).toBe(400);
+  const search = await request<{ items: { id: string }[] }>('GET', '/stores/search-products?search=كوكاكولا');
+  expect(search.data.items.some(p => p.id === 'pictured-cola')).toBe(true);
+  const foodSearch = await request<{ items: { id: string }[] }>('GET', '/stores/search-products?search=كوكاكولا&dishesOnly=true');
+  expect(foodSearch.data.items).toHaveLength(0);
+});
+
+it('persists independent admin category selections and enforces them on both public feeds', async () => {
+  for (const [id, storeId] of [['food-main', 'dish-restaurant'], ['food-sweets', 'dish-sweets']] as const) {
+    await fixture.db.category.create({ data: { id, storeId, nameAr: id === 'food-main' ? 'وجبات' : 'حلويات', nameEn: id } });
+  }
+  await fixture.db.product.update({ where: { id: 'dish-product-restaurant' }, data: { categoryId: 'food-main' } });
+  await fixture.db.product.update({ where: { id: 'dish-product-sweets' }, data: { categoryId: 'food-sweets' } });
+  const body = { discoveryCategoryIds: ['food-main'], featuredCategoryIds: ['food-sweets'] };
+  expect((await request('PATCH', '/platform/settings', 'CUSTOMER', body)).status).toBe(403);
+  expect((await request('GET', '/stores/dish-category-options', 'CUSTOMER')).status).toBe(403);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { discoveryCategoryIds: ['missing'] })).status).toBe(400);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', body)).status).toBe(200);
+  const saved = await request<typeof body>('GET', '/platform/settings');
+  expect(saved.data.discoveryCategoryIds).toEqual(body.discoveryCategoryIds);
+  expect(saved.data.featuredCategoryIds).toEqual(body.featuredCategoryIds);
+  const discovery = await request<{ id: string }[]>('GET', '/stores/new-products?dishesOnly=true');
+  expect(discovery.data.map(p => p.id)).toEqual(['dish-product-restaurant']);
+  const featured = await request<{ id: string }[]>('GET', '/stores/featured-products');
+  expect(featured.data.map(p => p.id)).toEqual(['dish-product-sweets']);
+  expect((await request('PUT', '/stores/featured-selection', 'ADMIN', { productIds: ['dish-product-restaurant'] })).status).toBe(400);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { discoveryCategoryIds: [], featuredCategoryIds: [] })).status).toBe(200);
+  expect((await request<unknown[]>('GET', '/stores/featured-products')).data).toEqual([]);
+  expect((await request<unknown[]>('GET', '/stores/new-products?dishesOnly=true')).data).toEqual([]);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { discoveryCategoryIds: null, featuredCategoryIds: null })).status).toBe(200);
+});

@@ -2190,8 +2190,8 @@ export function getNewProducts(limit = 12, signal?: AbortSignal, dishesOnly = fa
   return request("GET", "/stores/new-products", { query: { limit: String(limit), sort: "newest", dishesOnly: String(dishesOnly) }, signal });
 }
 
-export function searchProducts(search = '', page = 1, signal?: AbortSignal, dishesOnly = false): Promise<{ items: import('@samou-go/shared-types').PopularProduct[]; total: number; page: number; pageSize: number }> {
-  return request('GET', '/stores/search-products', { query: { search, page: String(page), dishesOnly: String(dishesOnly) }, signal });
+export function searchProducts(search = '', page = 1, signal?: AbortSignal, dishesOnly = false, dishSection: 'all' | 'discovery' | 'featured' = 'all'): Promise<{ items: import('@samou-go/shared-types').PopularProduct[]; total: number; page: number; pageSize: number }> {
+  return request('GET', '/stores/search-products', { query: { search, page: String(page), dishesOnly: String(dishesOnly), dishSection }, signal });
 }
 
 export function updatePricingSettings(input: Pick<UpdatePlatformSettingsInput, 'autoPricingEnabled' | 'baseDeliveryFee' | 'perKmFee' | 'captainSharePercentage'>): Promise<PlatformSettings> {
@@ -2243,3 +2243,5 @@ export const getOperationsStatus = (signal?: AbortSignal) => request<OperationsS
 
 export const getLiveOrderTracking = (id: string, signal?: AbortSignal) => request<import('@samou-go/shared-types').LiveOrderTracking>('GET', '/platform/orders/' + encodeURIComponent(id) + '/tracking', { auth: true, signal });
 export const sendCaptainPosition = (body: { orderId: string; lat: number; lng: number; heading?: number }) => request<unknown>('PUT', '/platform/captains/me/location', { auth: true, body });
+
+export function getDishCategoryOptions(signal?: AbortSignal): Promise<{ id: string; nameAr: string; store: { id: string; nameAr: string } }[]> { return request('GET', '/stores/dish-category-options', { auth: true, signal }); }

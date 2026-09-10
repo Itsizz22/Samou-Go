@@ -642,6 +642,9 @@ export const DEFAULT_HOME_BANNERS: HomeBanner[] = [
 ];
 
 export interface PlatformSettings {
+  /** null = automatic food categories, [] = hide section. */
+  discoveryCategoryIds?: string[] | null;
+  featuredCategoryIds?: string[] | null;
   homeBanners?: HomeBanner[] | null;
   autoPricingEnabled?: boolean;
   baseDeliveryFee?: number;
@@ -671,6 +674,8 @@ export interface PlatformSettings {
 
 /** PATCH /platform/settings — admin updates one or more knobs. */
 export interface UpdatePlatformSettingsInput {
+  discoveryCategoryIds?: string[] | null;
+  featuredCategoryIds?: string[] | null;
   homeBanners?: HomeBanner[];
   autoPricingEnabled?: boolean;
   baseDeliveryFee?: number;
