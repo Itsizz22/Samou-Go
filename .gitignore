@@ -66,3 +66,6 @@ browser-audit-results.json
 *.jks
 *.keystore
 keystore.properties
+
+# Native routing data downloaded at build time
+packages/api/.routing/

@@ -129,7 +129,7 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
               data-swipe-back="off"
             {...carousel.bindings}
               dir={dir}
-              className="flex flex-wrap items-center justify-center"
+              className="flex items-center justify-center"
               aria-label={t('اختيار المنتج', 'Choose product')}
             >
               {products.map((product, index) => (
@@ -139,7 +139,7 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
                   onClick={() => carousel.setIndex(index)}
                   aria-label={t(`عرض ${product.nameAr}`, `Show ${product.nameAr}`)}
                   aria-pressed={index === carousel.active}
-                  className="flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  className="flex h-11 min-w-0 max-w-11 flex-1 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   <span
                     aria-hidden="true"
