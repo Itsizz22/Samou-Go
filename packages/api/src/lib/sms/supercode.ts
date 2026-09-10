@@ -33,7 +33,7 @@ export function createSupercodeGateway(): SmsGateway {
         throw new Error('Supercode rejected: ' + status);
       }
       if (!response.ok) throw new Error('Supercode HTTP failure (' + response.status + ')');
-      if (status !== 'Message Sent Successfully') {
+      if (status !== 'Message Sent Successfully' && status !== 'Message Sent Successfully!') {
         // Never expose echoed credentials, OTPs, or raw provider responses in logs.
         throw new Error('Supercode rejected message; check credit, sender and IP permissions');
       }

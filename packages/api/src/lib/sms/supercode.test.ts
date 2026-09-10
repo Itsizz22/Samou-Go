@@ -53,3 +53,8 @@ it('accepts prefixed documented success text', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ STATUS: 'H000|Message Sent Successfully' }))));
   await expect(createSupercodeGateway().send({ to: '0599000008', body: '123456' })).resolves.toEqual({accepted:true});
 });
+
+it('accepts the live gateway success response with its exclamation mark and empty MSGID', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ STATUS: 'Message Sent Successfully!', MSGID: [] }))));
+  await expect(createSupercodeGateway().send({ to: '0599000008', body: '123456' })).resolves.toEqual({ accepted: true });
+});
