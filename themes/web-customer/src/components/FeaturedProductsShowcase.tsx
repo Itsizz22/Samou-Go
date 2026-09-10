@@ -56,13 +56,13 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
             style={{ touchAction: 'pan-y' }}
           >
             {/* Track order is physical LTR; content remains RTL. Next moves right-to-left. */}
-            <div dir="ltr" className="flex" style={carousel.trackStyle}>
-              {products.map((product, index) => (
+            <div dir="ltr" className="flex" style={carousel.trackStyle} onTransitionEnd={carousel.onTransitionEnd}>
+              {(products.length > 1 ? [products[products.length - 1]!, ...products, products[0]!] : products).map((product, index) => (
                 <article
-                  key={product.id}
+                  key={`${product.id}-${index}`}
                   dir={dir}
-                  inert={index !== carousel.active}
-                  aria-hidden={index !== carousel.active}
+                  inert={index !== carousel.position}
+                  aria-hidden={index !== carousel.position}
                   className="group relative w-full min-w-0 shrink-0 basis-full"
                 >
                   <Link draggable={false}

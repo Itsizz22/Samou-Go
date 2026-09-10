@@ -22,9 +22,9 @@ export function PromoBannerSlider({ kind = 'announcement' }: { kind?: 'announcem
         className="overflow-hidden rounded-2xl border border-line bg-white shadow-card"
         style={{ touchAction: 'pan-y' }}
       >
-        <div dir="ltr" className="flex" style={carousel.trackStyle}>
-          {slides.map(({ id, title, imageUrl, positionY, storeId }, index) => (
-            <div key={id} dir={dir} aria-hidden={index !== carousel.active} inert={index !== carousel.active} className="relative w-full min-w-0 flex-none">
+        <div dir="ltr" className="flex" style={carousel.trackStyle} onTransitionEnd={carousel.onTransitionEnd}>
+          {(slides.length > 1 ? [slides[slides.length - 1]!, ...slides, slides[0]!] : slides).map(({ id, title, imageUrl, positionY, storeId }, index) => (
+            <div key={`${id}-${index}`} dir={dir} aria-hidden={index !== carousel.position} inert={index !== carousel.position} className="relative w-full min-w-0 flex-none">
               {kind === 'product' && storeId && <Link draggable={false} to={`/stores/${encodeURIComponent(storeId)}`} aria-label={`شاهد ${title} في المتجر`} className="absolute inset-0 z-10 rounded-2xl focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand" />}
               <img
                 src={imageUrl}
@@ -34,7 +34,7 @@ export function PromoBannerSlider({ kind = 'announcement' }: { kind?: 'announcem
                 draggable={false}
                 style={{ objectPosition: `50% ${positionY}%`, objectFit: 'cover' }}
                 className={`block w-full select-none ${kind === 'product' ? 'aspect-video' : 'aspect-[3/2]'}`}
-                loading={index === carousel.active ? "eager" : "lazy"}
+                loading={index === carousel.position ? "eager" : "lazy"}
               />
               <h3 className="px-4 py-3 text-start text-sm font-bold text-ink bg-surface">{title}</h3>
             </div>

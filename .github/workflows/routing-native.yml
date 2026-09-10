@@ -1,0 +1,18 @@
+name: Validate co-located routing
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  routing:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y osmium-tool
+      - run: bash ops/osrm/build-native.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: samou-routing-native
+          path: routing-bundle/
+          retention-days: 7
