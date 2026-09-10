@@ -115,6 +115,7 @@ jobs:
           set -euo pipefail
           echo "Deploying PostgreSQL migrations to Neon..."
           node scripts/recover-dish-category-migration.cjs
+          node scripts/recover-product-discount-migration.cjs
           npx prisma migrate deploy --schema=prisma/schema.prisma
 
       # ============================================================
