@@ -78,6 +78,9 @@ export async function updateStoreHandler(req: Request, res: Response): Promise<v
   if (auth.role !== UserRole.ADMIN && body.isApproved !== undefined) {
     throw forbidden('اعتماد المتجر مسموح للمشرف فقط / Store approval is admin-only');
   }
+  if (auth.role !== UserRole.ADMIN && body.storeType !== undefined) {
+    throw forbidden('نوع المتجر يحدده المشرف فقط / Store type is admin-only');
+  }
   ok(res, await storesService.updateStore(storeId, body));
 }
 

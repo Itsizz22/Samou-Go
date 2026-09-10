@@ -14,7 +14,7 @@ export function StaffAccountTools() {
         <span className="text-sm font-extrabold">{t('إعدادات الحساب والإشعارات', 'Account and notification settings')}</span>
         <span className="text-xs text-ink-muted">{t('الصوت، المظهر، اللغة وأذونات التطبيق', 'Sound, appearance, language and permissions')}</span>
       </Link>
-      <AccountSwitcher auth={auth} compact />
+      <AccountSwitcher auth={auth} />
     </section>
   );
 }

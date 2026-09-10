@@ -1367,7 +1367,6 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
         </button>
       </form>
 
-      <StaffAccountTools />
 
       <button
         type="button"
@@ -1376,6 +1375,7 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
       >
         {t('تسجيل الخروج', 'Sign out')}
       </button>
+      <StaffAccountTools />
     </section>
   );
 }

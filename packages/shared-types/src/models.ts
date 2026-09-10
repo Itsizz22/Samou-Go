@@ -144,6 +144,8 @@ export interface Product {
   description: string | null;
   /** ILS. Decimal(10,2) in PostgreSQL, serialised as a number. */
   price: number;
+  /** Original price before discount; price is the amount charged. */
+  originalPrice?: number | null;
   imageUrl: string | null;
   isAvailable: boolean;
   /** Admin/manager toggle: when false, product option groups are hidden from the customer catalogue. */

@@ -1,10 +1,10 @@
+import { ProductPrice } from '@/components/ProductPrice';
 import { ProductPhotoFallback } from './ProductPhotoFallback';
 import { Link } from 'react-router-dom';
 import { Pause, Play, Plus, SlidersHorizontal, Store } from 'lucide-react';
 import { ImageWithFallback, useLanguage } from '@samou-go/ui';
 import type { PopularProduct } from '@samou-go/shared-types';
 import { useEffect, useRef, useState } from 'react';
-import { formatCurrency } from '@/lib/delivery';
 
 interface Props {
   products: PopularProduct[];
@@ -119,7 +119,7 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
                     </p>}
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span dir="ltr" className="text-lg font-extrabold text-brand">
-                        {formatCurrency(product.price)}
+                        <ProductPrice product={product} />
                       </span>
                       <button
                         type="button"

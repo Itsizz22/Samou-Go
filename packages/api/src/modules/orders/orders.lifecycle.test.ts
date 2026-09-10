@@ -852,3 +852,23 @@ it('persists independent admin category selections and enforces them on both pub
   expect((await request<unknown[]>('GET', '/stores/new-products?dishesOnly=true')).data).toEqual([]);
   expect((await request('PATCH', '/platform/settings', 'ADMIN', { discoveryCategoryIds: null, featuredCategoryIds: null })).status).toBe(200);
 });
+
+
+it('restricts store type to admins and charges product discounts from database prices', async () => {
+  const storeId = 'discount-qa-store';
+  await fixture.db.store.create({ data: { id: storeId, managerId: 'STORE_MANAGER', nameAr: 'Discount test', nameEn: 'Discount test', phone: '0599991077', isApproved: true } });
+  expect((await request('PATCH', `/stores/${storeId}`, 'STORE_MANAGER', { storeType: 'RESTAURANT' })).status).toBe(403);
+  expect((await request('PATCH', `/stores/${storeId}`, 'ADMIN', { storeType: 'RESTAURANT' })).status).toBe(200);
+  const product = await request<import('@samou-go/shared-types').Product>('POST', `/stores/${storeId}/products`, 'STORE_MANAGER', { nameAr: 'Discount meal', price: 20, originalPrice: 25 });
+  expect(product.status).toBe(201);
+  expect(product.data.originalPrice).toBe(25);
+  const invalid = await request('PATCH', `/stores/${storeId}/products/${product.data.id}`, 'STORE_MANAGER', { price: 30 });
+  expect(invalid.status).toBe(400);
+  const order = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', { storeId, items: [{ productId: product.data.id, quantity: 2 }], customerAddressText: 'Discount test delivery address', deliveryZoneId: 'zone' });
+  expect(order.status, JSON.stringify(order.error)).toBe(201);
+  expect(order.data.subtotal).toBe(40);
+  const restored = await request<import('@samou-go/shared-types').Product>('PATCH', `/stores/${storeId}/products/${product.data.id}`, 'STORE_MANAGER', { price: 25, originalPrice: null });
+  expect(restored.status).toBe(200);
+  expect(restored.data.originalPrice).toBeNull();
+  expect(restored.data.price).toBe(25);
+});

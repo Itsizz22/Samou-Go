@@ -1,3 +1,4 @@
+import { validateProductDiscount } from './product-discount';
 import { dishProductIds } from './dish-stores';
 import { deliveryEstimates } from './delivery-estimates';
 import type { Prisma } from '../../lib/prisma-types';
@@ -381,11 +382,13 @@ export async function createProduct(
     }
   }
 
+  validateProductDiscount(body.price, body.originalPrice);
   const product = await prisma.product.create({
     data: {
       nameAr: body.nameAr,
       description: body.description ?? null,
       price: body.price,
+      originalPrice: body.originalPrice ?? null,
       imageUrl: body.imageUrl ?? null,
       isAvailable: body.isAvailable ?? true,
       categoryId: body.categoryId ?? null,
@@ -403,7 +406,7 @@ export async function updateProduct(
 ): Promise<Product> {
   const existing = await prisma.product.findUnique({
     where: { id: productId },
-    select: { storeId: true },
+    select: { storeId: true, price: true, originalPrice: true },
   });
   if (!existing) throw notFound('المنتج غير موجود / Product not found');
   if (existing.storeId !== storeId) {
@@ -420,11 +423,13 @@ export async function updateProduct(
     }
   }
 
+  validateProductDiscount(body.price ?? Number(existing.price), body.originalPrice !== undefined ? body.originalPrice : existing.originalPrice == null ? null : Number(existing.originalPrice));
   const updated = await prisma.product.update({
     where: { id: productId },
     data: {
       ...(body.nameAr !== undefined ? { nameAr: body.nameAr } : {}),
       ...(body.description !== undefined ? { description: body.description } : {}),
+      ...(body.originalPrice !== undefined ? { originalPrice: body.originalPrice } : {}),
       ...(body.price !== undefined ? { price: body.price } : {}),
       ...(body.imageUrl !== undefined ? { imageUrl: body.imageUrl } : {}),
       ...(body.isAvailable !== undefined ? { isAvailable: body.isAvailable } : {}),

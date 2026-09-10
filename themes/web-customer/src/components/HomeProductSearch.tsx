@@ -1,10 +1,10 @@
+import { ProductPrice } from '@/components/ProductPrice';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ImageWithFallback } from '@samou-go/ui';
 import { Image as ImageIcon, Store as StoreIcon, Plus, SlidersHorizontal } from 'lucide-react';
 import { getStores, searchProducts, useResource } from '@/hooks/useApi';
 import type { PopularProduct } from '@samou-go/shared-types';
-import { formatCurrency } from '@/lib/delivery';
 
 export function HomeProductSearch({ query, onAdd, contained = false, dishesOnly = false }: { query: string; onAdd: (product: PopularProduct) => void; contained?: boolean; dishesOnly?: boolean }) {
   const [page, setPage] = useState(1);
@@ -45,7 +45,7 @@ export function HomeProductSearch({ query, onAdd, contained = false, dishesOnly 
                 </Link>
                 <h3 className="text-sm font-bold leading-6"><Link to={href} className="focus-visible:ring-2 focus-visible:ring-brand">{product.nameAr}</Link></h3>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p dir="ltr" className="font-extrabold text-brand">{formatCurrency(product.price)}</p>
+                  <p dir="ltr" className="font-extrabold text-brand"><ProductPrice product={product} /></p>
                   <button type="button" disabled={!product.isAvailable} onClick={() => onAdd(product)} aria-label={`${customize ? 'تخصيص' : 'إضافة'} ${product.nameAr}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-brand px-3 text-xs font-bold text-white hover:bg-brand-dark focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:opacity-50">{customize ? <SlidersHorizontal size={15} /> : <Plus size={15} />}{customize ? 'تخصيص' : 'إضافة'}</button>
                 </div>
               </div>

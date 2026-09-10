@@ -1,3 +1,4 @@
+import { ProductPrice } from '@/components/ProductPrice';
 import { DeliveryEstimate } from '@/components/DeliveryEstimate';
 import { StoreOfferSheet } from '@/components/StoreOfferSheet';
 import type { Offer } from '@samou-go/shared-types';
@@ -427,7 +428,7 @@ export function StoreDetailScreen() {
                           </p>
                         )}
                         <p className="mt-2 text-sm font-bold text-brand-dark" dir="ltr">
-                          {formatCurrency(product.price)}
+                          <ProductPrice product={product} />
                         </p>
                       </div>
 

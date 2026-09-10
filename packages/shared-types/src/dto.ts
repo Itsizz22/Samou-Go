@@ -340,6 +340,7 @@ export interface CreateProductInput {
   nameAr: string;
   description?: string;
   price: number;
+  originalPrice?: number | null;
   imageUrl?: string;
   isAvailable?: boolean;
   categoryId?: string;
@@ -350,6 +351,7 @@ export interface UpdateProductInput {
   nameAr?: string;
   description?: string;
   price?: number;
+  originalPrice?: number | null;
   imageUrl?: string;
   isAvailable?: boolean;
   categoryId?: string;

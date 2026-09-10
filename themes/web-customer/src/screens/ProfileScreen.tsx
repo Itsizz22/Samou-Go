@@ -333,10 +333,10 @@ export function ProfileScreen() {
         </section>
 
         {/* Switch accounts */}
-        <AccountSwitcher auth={auth} compact />
 
         <button type="button" onClick={() => navigate('/settings')} className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl border border-brand/20 bg-brand-tint px-4 text-base font-extrabold text-brand shadow-card transition-transform active:scale-95"><Settings size={16} />{t('إعدادات الحساب', 'Account settings')}</button>
 
+        <AccountSwitcher auth={auth} />
       </div>
 </ScreenShell>
   );

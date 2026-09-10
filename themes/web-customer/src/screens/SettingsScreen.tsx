@@ -72,11 +72,11 @@ function SettingsRow({
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
           <Icon size={18} />
         </span>
-        <div className="flex-1 text-end">
+        <div className="flex-1 text-start">
           <h2 className="text-sm font-extrabold">{t(titleAr, titleEn)}</h2>
         </div>
       </div>
-      {hint && <p className="mt-1 text-end text-micro text-ink-muted">{hint}</p>}
+      {hint && <p className="mt-2 text-start text-micro text-ink-muted">{hint}</p>}
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -147,7 +147,6 @@ export function SettingsScreen() {
         <p className="mt-2 text-sm leading-6 text-ink-muted">خصّص المظهر واللغة والإشعارات من مكان واحد. تُحفظ التفضيلات مباشرة.</p>
       </section>
       <div className="space-y-4">
-        <AccountSwitcher auth={auth} />
 
         <SettingsRow
           icon={Palette}
@@ -275,6 +274,7 @@ export function SettingsScreen() {
             )}
           </p>
         </SettingsRow>
+        <AccountSwitcher auth={auth} />
       </div>
     </ScreenShell>
   );

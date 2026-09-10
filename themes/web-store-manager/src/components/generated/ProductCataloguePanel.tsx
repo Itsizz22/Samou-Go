@@ -55,6 +55,7 @@ interface ProductFormState {
   nameAr: string;
   description: string;
   price: string;
+  discountPrice: string;
   categoryId: string;
   isAvailable: boolean;
 }
@@ -63,6 +64,7 @@ const emptyForm = (): ProductFormState => ({
   nameAr: '',
   description: '',
   price: '',
+  discountPrice: '',
   categoryId: '',
   isAvailable: true,
 });
@@ -71,7 +73,8 @@ function formFromProduct(p: Product): ProductFormState {
   return {
     nameAr: p.nameAr,
     description: p.description ?? '',
-    price: String(p.price),
+    price: String(p.originalPrice ?? p.price),
+    discountPrice: p.originalPrice ? String(p.price) : '',
     categoryId: p.categoryId ?? '',
     isAvailable: p.isAvailable,
   };
@@ -290,6 +293,8 @@ export function ProductCataloguePanel({ storeId }: Props) {
     if (!form.nameAr.trim()) { setFormError(t('اسم المنتج مطلوب', 'Product name required')); return; }
     if (isNaN(priceNum) || priceNum <= 0) { setFormError(t('السعر غير صالح', 'Price must be a positive number')); return; }
 
+    const discountPrice = form.discountPrice.trim() ? Number(form.discountPrice) : null;
+    if (discountPrice !== null && (!Number.isFinite(discountPrice) || discountPrice <= 0 || discountPrice >= priceNum)) { setFormError(t('سعر الخصم يجب أن يكون موجبًا وأقل من السعر الأصلي', 'Discount price must be positive and below original price')); return; }
     setSaving(true);
     setFormError(null);
 
@@ -297,7 +302,8 @@ export function ProductCataloguePanel({ storeId }: Props) {
       const input = {
         nameAr: form.nameAr.trim(),
         description: form.description.trim() || undefined,
-        price: priceNum,
+        price: discountPrice ?? priceNum,
+        originalPrice: discountPrice !== null ? priceNum : null,
         categoryId: form.categoryId || undefined,
         isAvailable: form.isAvailable,
         optionsEnabled,
@@ -694,6 +700,11 @@ export function ProductCataloguePanel({ storeId }: Props) {
                 </div>
               )}
 
+              <label className="block rounded-2xl border border-line bg-brand-tint p-4">
+                <span className="block text-sm font-bold">{t('السعر بعد الخصم (₪)', 'Discounted price (₪)')}</span>
+                <input type="number" min="0.01" step="0.01" dir="ltr" value={form.discountPrice} onChange={e => setForm(f => ({ ...f, discountPrice: e.target.value }))} className="input-field mt-2 w-full" />
+                <span className="mt-2 block text-xs text-ink-muted">{t('اختياري؛ اتركه فارغًا لإلغاء الخصم. يظهر السعر الأصلي مشطوبًا للزبون.', 'Optional. Leave empty to remove the discount. Customers see the original price crossed out.')}</span>
+              </label>
               {/* Price + Category row */}
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">

@@ -1,3 +1,4 @@
+import { ProductPrice } from '@/components/ProductPrice';
 import { Plus, SlidersHorizontal } from 'lucide-react';
 import { StoreHours } from './StoreHours';
 import { ProductPhotoFallback } from './ProductPhotoFallback';
@@ -6,7 +7,6 @@ import { Link } from 'react-router-dom';
 import { ImageWithFallback, useLanguage } from '@samou-go/ui';
 import { getStores, getNewProducts, useResource } from '@/hooks/useApi';
 import type { PopularProduct, Store } from '@samou-go/shared-types';
-import { formatCurrency } from '@/lib/delivery';
 
 /** Native touch scrolling extends the existing home rails with shared snapping. */
 function Reel({ children, label }: { children: ReactNode; label: string }) {
@@ -143,7 +143,7 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
                 <Link to={`/stores/${encodeURIComponent(product.storeId)}`} className="flex min-h-11 items-center gap-1.5 text-xs text-ink-muted focus-visible:ring-2 focus-visible:ring-brand"><ImageWithFallback src={product.storeLogoUrl ?? undefined} alt="" className="size-6 shrink-0 rounded-full object-contain" fallbackText={product.storeNameAr.slice(0, 1)} /><span className="line-clamp-2">{product.storeNameAr}</span></Link>
                 <h3 className="line-clamp-2 min-h-12 text-sm font-bold leading-6"><Link to={`/stores/${encodeURIComponent(product.storeId)}?productId=${encodeURIComponent(product.id)}`} className="focus-visible:ring-2 focus-visible:ring-brand">{product.nameAr}</Link></h3>
                 <p dir="ltr" className="mt-auto text-start text-base font-bold text-brand">
-                  {formatCurrency(product.price)}
+                  <ProductPrice product={product} />
                 </p>
                 <button
                   type="button"

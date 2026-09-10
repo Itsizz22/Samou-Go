@@ -80,6 +80,7 @@ export const updateCategorySchema = z
   });
 
 export const createProductSchema = z.object({
+  originalPrice: z.number().positive().max(99999999.99).multipleOf(0.01).nullable().optional(),
   nameAr: z.string().trim().min(1, 'اسم المنتج مطلوب').max(160),
   description: z.string().trim().max(1000).optional(),
   price: z

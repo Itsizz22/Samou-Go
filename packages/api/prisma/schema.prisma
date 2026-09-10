@@ -293,6 +293,7 @@ model Product {
   nameAr      String   @db.VarChar(160)
   description String?  @db.Text
   price       Decimal  @db.Decimal(10, 2)
+  originalPrice Decimal? @db.Decimal(10, 2)
   imageUrl    String?
   isAvailable Boolean  @default(true)
   /// Admin/manager toggle: when false, product option groups are hidden from the customer catalogue.

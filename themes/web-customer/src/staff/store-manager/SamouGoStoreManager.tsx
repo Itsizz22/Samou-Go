@@ -894,7 +894,6 @@ export function SamouGoStoreManager() {
             <h2 id="profile-tab-title" className="text-lg font-extrabold">{t('إعدادات المتجر', 'Store Profile & Settings')}</h2>
             <p className="mt-2 text-sm text-ink-muted">{t('بيانات متجرك وصوره وتفضيلات حسابك في مكان واحد', 'Your store details, photos and account preferences in one place')}</p>
           </div>
-          <StaffAccountTools />
           {managedStores.loading && !managedStores.data ? (
             <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card" aria-busy="true">
               <Loader2 size={22} className="mx-auto animate-spin text-brand" />
@@ -924,6 +923,7 @@ export function SamouGoStoreManager() {
               </p>
             </div>
           )}
+          <StaffAccountTools />
         </section>
       )}
 

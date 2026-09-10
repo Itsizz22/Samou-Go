@@ -300,6 +300,7 @@ model Product {
   nameAr      String
   description String?
   price       Decimal
+  originalPrice Decimal?
   imageUrl    String?
   isAvailable Boolean  @default(true)
   optionsEnabled Boolean @default(true)

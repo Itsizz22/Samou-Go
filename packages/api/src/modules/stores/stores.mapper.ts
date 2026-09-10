@@ -57,7 +57,7 @@ type ProductWithOptions = PrismaProduct & Partial<Pick<Prisma.ProductGetPayload<
 export function toProduct(product: ProductWithOptions): Product {
   return {
     id: product.id, nameAr: product.nameAr, description: product.description,
-    price: decimalToNumber(product.price), imageUrl: product.imageUrl,
+    price: decimalToNumber(product.price), originalPrice: product.originalPrice == null ? null : decimalToNumber(product.originalPrice), imageUrl: product.imageUrl,
     isAvailable: product.isAvailable, categoryId: product.categoryId, storeId: product.storeId,
     optionsEnabled: product.optionsEnabled,
     ...(product.optionGroups && product.optionsEnabled ? {
