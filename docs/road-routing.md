@@ -8,7 +8,9 @@ The shared map renders a brand-colour road polyline in compact and fullscreen mo
 
 Validation: 38 routing/lifecycle tests passed. One public-demo request using synthetic As-Samou endpoints returned 875.9m / 160.3s / 38 geometry points; browser preview rendered the road polyline with the semantic brand colour. Public demo was used only for this development check; no device/customer location was sent to it.
 
-Production activation remains pending an operator-provided routing endpoint. No subscription or production route-provider change was made.
+Production routing is active on the existing Render instance (revision e680b67), using local OSRM with no external route provider. Set SAMOU_ROUTING_ENABLED=true for the API build and start commands. Build preparation downloads the pinned, SHA256-verified As-Samou bundle; the supervisor binds OSRM to 127.0.0.1:5000 and supplies OSRM_BASE_URL to the API child. Router restarts are bounded; API exit or termination stops supervised children. Set SAMOU_ROUTING_ENABLED=false and redeploy to disable this integration.
+
+The bundle covers bbox 34.98,31.30,35.16,31.48. Outside coverage, missing/stale GPS, or an engine failure yields the existing explicit distance fallback, not an invented road. Keep OpenStreetMap attribution. Times exclude live traffic. Real-device GPS and local road access accuracy still require field verification.
 
 Documentation: https://project-osrm.org/docs/v5.24.0/api/#route-service
 Demo policy: https://github.com/Project-OSRM/osrm-backend/wiki/Demo-server
