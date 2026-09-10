@@ -8,6 +8,7 @@ echo "a77a2cada900ecb0725a776dc6317a0c8312c5e49ec8b20776d06ffb90f356f8  $OUT/bin
 tar xzf "$OUT/binaries.tar.gz" --strip-components=1 -C "$OUT/bin"
 export LD_LIBRARY_PATH="$(realpath "$OUT/bin"):${LD_LIBRARY_PATH:-}"
 curl -fL --retry 3 https://github.com/Project-OSRM/osrm-backend/archive/refs/tags/v5.27.1.tar.gz -o "$OUT/source.tar.gz"
+tar xOf "$OUT/source.tar.gz" osrm-backend-5.27.1/LICENSE.TXT > "$OUT/LICENSE.TXT"
 tar xzf "$OUT/source.tar.gz" --strip-components=2 -C "$OUT/profiles" osrm-backend-5.27.1/profiles
 curl -fL --retry 3 https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf -o "$OUT/source.osm.pbf"
 osmium extract --bbox=34.98,31.30,35.16,31.48 --strategy=complete_ways "$OUT/source.osm.pbf" -o "$OUT/data/samou.osm.pbf"

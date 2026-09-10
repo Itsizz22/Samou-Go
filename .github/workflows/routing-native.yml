@@ -2,7 +2,7 @@ name: Validate co-located routing
 on:
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   routing:
     runs-on: ubuntu-22.04
@@ -11,8 +11,16 @@ jobs:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y osmium-tool
       - run: bash ops/osrm/build-native.sh
+      - name: Package verified routing bundle
+        run: |
+          tar czf samou-routing-linux-x64.tar.gz routing-bundle
+          sha256sum samou-routing-linux-x64.tar.gz > samou-routing-linux-x64.tar.gz.sha256
+      - name: Publish versioned routing data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create routing-samou-20260910-v1 samou-routing-linux-x64.tar.gz samou-routing-linux-x64.tar.gz.sha256 --title "As-Samou routing data 2026-09-10" --notes "OSRM 5.27.1. Synthetic route smoke passed. OpenStreetMap contributors / ODbL; Geofabrik source, bbox 34.98,31.30,35.16,31.48. See bundled NOTICE and LICENSE."
       - uses: actions/upload-artifact@v4
         with:
           name: samou-routing-native
-          path: routing-bundle/
+          path: samou-routing-linux-x64.tar.gz
           retention-days: 7
