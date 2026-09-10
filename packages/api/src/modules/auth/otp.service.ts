@@ -162,7 +162,7 @@ export async function requestOtp(
   const { phone } = body;
   const now = new Date();
 
-  if (body.purpose === 'registration') {
+  if (body.purpose === 'registration' || body.purpose === 'phone-change') {
     const account = await prisma.user.findUnique({ where: { phone } });
     if (account) {
       throw conflict('رقم الهاتف مستخدم بالفعل. سجّل الدخول أو استخدم رقماً آخر / This phone number is already registered. Sign in or use another number');

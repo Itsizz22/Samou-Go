@@ -1089,7 +1089,7 @@ export function requestOtp(
   input: OtpRequestInput,
   signal?: AbortSignal,
 ): Promise<OtpDispatchResult> {
-  return request<OtpDispatchResult>("POST", "/auth/otp/request", { body: input, signal });
+  return request<OtpDispatchResult>("POST", "/auth/otp/request", { body: input, signal, auth: input.purpose === "phone-change" });
 }
 
 /**

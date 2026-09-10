@@ -59,11 +59,11 @@ export const loginSchema = z.object({
 });
 
 /** POST /auth/otp/request — the phoneSchema normalises before the service runs. */
-export const otpRequestSchema = z.object({ phone: z.string(), purpose: z.enum(["password-reset", "registration"]).optional() }).transform(({ phone, purpose }) => ({
+export const otpRequestSchema = z.object({ phone: z.string(), purpose: z.enum(["password-reset", "registration", "phone-change"]).optional() }).transform(({ phone, purpose }) => ({
   purpose,
   phone,
   smsCountryCode: /^(?:\+|00)?972/.test(phone.trim()) ? "+972" as const : undefined,
-})).pipe(z.object({ phone: phoneSchema, purpose: z.enum(["password-reset", "registration"]).optional(), smsCountryCode: z.literal("+972").optional() }));
+})).pipe(z.object({ phone: phoneSchema, purpose: z.enum(["password-reset", "registration", "phone-change"]).optional(), smsCountryCode: z.literal("+972").optional() }));
 
 /** POST /auth/otp/verify — 6-digit code, digits only, case/space tolerant. */
 export const otpVerifySchema = z.object({

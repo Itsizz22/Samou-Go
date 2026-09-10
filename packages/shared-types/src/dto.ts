@@ -103,7 +103,7 @@ export interface AuthResponse {
 
 /** POST /auth/otp/request — ask for a one-time code on a mobile number. */
 export interface OtpRequestInput {
-  purpose?: 'password-reset' | 'registration';
+  purpose?: 'password-reset' | 'registration' | 'phone-change';
   /** `05XXXXXXXX` — Palestinian mobile. */
   phone: string;
 }
@@ -400,6 +400,7 @@ export interface UpdateStoreInput {
  * ------------------------------------------------------------------------- */
 
 export interface UpdateProfileInput {
+  otpCode?: string;
   name?: string;
   phone?: string;
   /** Requires `currentPassword` to be provided when changing password. */

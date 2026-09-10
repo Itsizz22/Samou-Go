@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ImagePlus,
@@ -18,9 +18,11 @@ import {
   useAuth,
   useToast,
   updateProfile,
+  requestOtp,
   useUploadImage,
   removeCurrentImage,
 } from '@/hooks/useApi';
+import { OtpPinInput } from '@/components/OtpPinInput';
 import { ScreenShell } from '@/components/ScreenShell';
 import { isValidPalestinianMobile, normalizePhone } from '@/lib/phone';
 import {
@@ -57,6 +59,14 @@ export function ProfileScreen() {
   const [name, setName] = useState(auth.user?.name ?? '');
   const [phone, setPhone] = useState(auth.user?.phone ?? '');
   const [saving, setSaving] = useState(false);
+  const [otpPhone, setOtpPhone] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [resendIn, setResendIn] = useState(0);
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = window.setTimeout(() => setResendIn(value => value - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendIn]);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [addresses, setAddresses] = useState<SavedAddress[]>(() => readSavedAddresses());
@@ -86,14 +96,18 @@ export function ProfileScreen() {
     setName(user.name);
     setPhone(user.phone);
     setFieldError(null);
+    setOtpPhone('');
+    setOtpCode('');
+    setResendIn(0);
     setEditing(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (resend = false) => {
+    if (saving) return;
     setFieldError(null);
     const nextName = name.trim();
     const nextPhone = normalizePhone(phone);
-    if (!nextName) {
+    if (nextName.length < 2) {
       setFieldError(t('الاسم مطلوب', 'Name is required'));
       return;
     }
@@ -101,11 +115,29 @@ export function ProfileScreen() {
       setFieldError(t('رقم جوال فلسطيني غير صالح', 'Enter a valid 05X mobile'));
       return;
     }
+    const phoneChanged = nextPhone !== normalizePhone(user.phone);
+    if (phoneChanged && otpPhone === nextPhone && !resend && !/^\d{6}$/.test(otpCode)) {
+      setFieldError(t('أدخل رمز التحقق المكوّن من 6 أرقام', 'Enter the 6-digit verification code'));
+      return;
+    }
+    if (resend && resendIn > 0) return;
+    if (!phoneChanged && nextName === user.name) { setEditing(false); return; }
     setSaving(true);
     try {
+      if (phoneChanged && (otpPhone !== nextPhone || resend)) {
+        const result = await requestOtp({ phone: phone.trim(), purpose: 'phone-change' });
+        if (!result.dispatched) {
+          setFieldError(t('تعذر إرسال الرمز، لم يتغير رقمك.', 'Code was not sent. Your phone number has not changed.'));
+          return;
+        }
+        setOtpPhone(nextPhone);
+        setOtpCode('');
+        setResendIn(Math.max(60, result.retryAfterSeconds));
+        return;
+      }
       const updated = await updateProfile({
         ...(nextName !== user.name ? { name: nextName } : {}),
-        ...(nextPhone !== user.phone ? { phone: nextPhone } : {}),
+        ...(phoneChanged ? { phone: nextPhone, otpCode } : {}),
       });
       auth.setUser(updated);
       setEditing(false);
@@ -257,10 +289,17 @@ export function ProfileScreen() {
                   type="tel"
                   dir="ltr"
                   value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
+                  disabled={saving}
+                  onChange={(event) => { setPhone(event.target.value); setOtpPhone(''); setOtpCode(''); setFieldError(null); }}
                   className="input-field mt-1.5"
                 />
               </label>
+              {normalizePhone(phone) !== normalizePhone(user.phone) && <p className="text-sm leading-relaxed text-ink-muted">{t('سنرسل رمز تحقق إلى الرقم الجديد. يبقى رقمك الحالي حتى تأكيد الرمز.', 'We will send a code to the new number. Your current number stays until verification.')}</p>}
+              {otpPhone && <div className="space-y-3 rounded-xl border border-line bg-canvas p-3">
+                <p className="text-sm text-ink-muted">{t('أدخل الرمز المرسل إلى', 'Enter the code sent to')} <span dir="ltr">{otpPhone}</span></p>
+                <OtpPinInput value={otpCode} onChange={setOtpCode} disabled={saving} autoFocus />
+                <button type="button" disabled={saving || resendIn > 0} onClick={() => void handleSave(true)} className="min-h-11 w-full text-sm font-bold text-brand disabled:opacity-50">{resendIn > 0 ? `${t('إعادة الإرسال بعد', 'Resend in')} ${resendIn}` : t('إعادة إرسال الرمز', 'Resend code')}</button>
+              </div>}
               {fieldError && (
                 <p className="rounded-xl bg-danger-tint px-3 py-2 text-[11px] font-semibold text-danger-ink" role="alert">
                   {fieldError}
@@ -282,7 +321,7 @@ export function ProfileScreen() {
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand py-2.5 text-xs font-bold text-white transition hover:bg-brand-dark active:scale-[0.98] disabled:opacity-60"
                 >
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                  {t('حفظ', 'Save')}
+                  {otpPhone ? t('تأكيد وحفظ', 'Verify and save') : normalizePhone(phone) !== normalizePhone(user.phone) ? t('إرسال رمز التحقق', 'Send verification code') : t('حفظ', 'Save')}
                 </button>
               </div>
             </div>

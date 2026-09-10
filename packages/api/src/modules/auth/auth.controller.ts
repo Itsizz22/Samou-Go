@@ -205,7 +205,9 @@ export async function adminDeleteUserHandler(
   ok(res, await authService.adminDeleteUser(userId, auth.sub));
 }
 export async function requestOtpHandler(req: Request, res: Response): Promise<void> {
-  ok(res, await otpService.requestOtp(parseWith(otpRequestSchema, req.body)));
+  const body = parseWith(otpRequestSchema, req.body);
+  if (body.purpose === "phone-change") requireAuth(req);
+  ok(res, await otpService.requestOtp(body));
 }
 
 export async function verifyOtpHandler(req: Request, res: Response): Promise<void> {

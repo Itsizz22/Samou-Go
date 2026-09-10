@@ -441,3 +441,9 @@ describe('rate limiting', () => {
     }
   });
 });
+
+
+it('requires authentication before requesting a phone-change OTP', async () => {
+  const res = await call('/auth/otp/request', { method: 'POST', body: { phone: '0599111111', purpose: 'phone-change' } });
+  expect(res.status).toBe(401);
+});

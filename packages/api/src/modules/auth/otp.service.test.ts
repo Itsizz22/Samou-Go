@@ -473,3 +473,11 @@ describe('registration OTP eligibility', () => {
     expect(h.state.otp?.phone).toBe(PHONE);
   });
 });
+
+
+it('does not send a phone-change code to a registered number', async () => {
+  h.state.user = { id: 'existing', phone: PHONE };
+  await expect(requestOtp({ phone: PHONE, purpose: 'phone-change' })).rejects.toMatchObject({ statusCode: 409 });
+  expect(h.gateway.send).not.toHaveBeenCalled();
+  expect(h.state.otp).toBeNull();
+});

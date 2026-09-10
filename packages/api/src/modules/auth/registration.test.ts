@@ -1,15 +1,15 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { UserRole } from '@samou-go/shared-types';
-const h = vi.hoisted(() => ({ verify: vi.fn(), create: vi.fn(), find: vi.fn(), token: vi.fn() }));
-vi.mock('../../lib/prisma', () => ({ prisma: { user: { findUnique: h.find, create: h.create } }, caseInsensitiveContains: vi.fn() }));
+const h = vi.hoisted(() => ({ verify: vi.fn(), create: vi.fn(), find: vi.fn(), update: vi.fn(), token: vi.fn() }));
+vi.mock('../../lib/prisma', () => ({ prisma: { user: { findUnique: h.find, create: h.create, update: h.update } }, caseInsensitiveContains: vi.fn() }));
 vi.mock('./otp.service', () => ({ verifyAndConsumeOtp: h.verify }));
 vi.mock('../../lib/public-code', () => ({ nextPublicCode: vi.fn(async () => 'CU-10001') }));
 vi.mock('../../lib/password', () => ({ hashPassword: vi.fn(async () => 'hash'), verifyPassword: vi.fn() }));
 vi.mock('../../lib/jwt', () => ({ signAccessToken: h.token }));
 vi.mock('./refresh-token', () => ({ issueRefreshToken: vi.fn(async () => 'refresh'), revokeAllUserRefreshTokens: vi.fn(), rotateRefreshToken: vi.fn() }));
 vi.mock('./auth.mapper', () => ({ toPublicUser: (user: unknown) => user }));
-import { register } from './auth.service';
-import { registerSchema } from './auth.schemas';
+import { register, updateProfile } from './auth.service';
+import { registerSchema, updateProfileSchema } from './auth.schemas';
 const input = { name: 'Test Customer', phone: '0599000008', password: 'test-password' };
 beforeEach(() => { vi.resetAllMocks(); h.find.mockResolvedValue(null); h.verify.mockResolvedValue(undefined); h.create.mockResolvedValue({ id: 'u1', phone: input.phone, role: UserRole.CUSTOMER }); h.token.mockReturnValue({ accessToken: 'token', expiresIn: 900 }); });
 it('rejects public registration without OTP before user creation or token issuance', async () => {
@@ -35,4 +35,28 @@ it('does not trust a requested admin role as an OTP bypass', async () => {
 });
 it('rejects malformed codes at the request boundary', () => {
   expect(registerSchema.safeParse({ ...input, otpCode: 'abc123' }).success).toBe(false);
+});
+
+
+it('requires a phone-change OTP at the request boundary', () => {
+  expect(updateProfileSchema.safeParse({ phone: '0599111111' }).success).toBe(false);
+  expect(updateProfileSchema.safeParse({ name: 'Updated name' }).success).toBe(true);
+});
+it('does not change the account when the new phone code is invalid', async () => {
+  h.find.mockResolvedValueOnce({ id: 'u1', phone: input.phone }).mockResolvedValueOnce(null);
+  h.verify.mockRejectedValue(new Error('Invalid code'));
+  await expect(updateProfile('u1', { phone: '0599111111', otpCode: '000000' })).rejects.toThrow('Invalid code');
+  expect(h.update).not.toHaveBeenCalled();
+});
+it('checks the exact new phone and code before updating the account', async () => {
+  h.find.mockResolvedValueOnce({ id: 'u1', phone: input.phone }).mockResolvedValueOnce(null);
+  h.update.mockResolvedValue({ id: 'u1', phone: '0599111111' });
+  await updateProfile('u1', { phone: '0599111111', otpCode: '123456' });
+  expect(h.verify).toHaveBeenCalledWith('0599111111', '123456');
+  expect(h.verify.mock.invocationCallOrder[0]).toBeLessThan(h.update.mock.invocationCallOrder[0]!);
+});
+it('rejects a phone owned by another account without verifying or updating', async () => {
+  h.find.mockResolvedValueOnce({ id: 'u1', phone: input.phone }).mockResolvedValueOnce({ id: 'other' });
+  await expect(updateProfile('u1', { phone: '0599111111', otpCode: '123456' })).rejects.toMatchObject({ statusCode: 409 });
+  expect(h.verify).not.toHaveBeenCalled(); expect(h.update).not.toHaveBeenCalled();
 });

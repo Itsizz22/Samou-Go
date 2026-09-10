@@ -166,6 +166,7 @@ export function SamouGoStoreManager() {
   const [prepMinutes, setPrepMinutes] = useState(25);
   const [storeTogglePending, setStoreTogglePending] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('home');
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [activeTab]);
   const [menuView, setMenuView] = useState<'products' | 'sections'>('products');
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
