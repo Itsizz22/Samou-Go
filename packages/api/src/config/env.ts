@@ -41,6 +41,7 @@ const envSchema = z.object({
   SMS_ALLOW_INSECURE_TEST_PROVIDERS: z
     .enum(['true', 'false'])
     .default('false'),
+  SMS_SUPERCODE_HTTP_TEST_RECIPIENT: z.string().regex(/^[1-9]\d{7,14}$/).optional(),
   SMS_SUPERCODE_API_ID: z.string().trim().min(1).optional(),
   SMS_SUPERCODE_SENDER: z.string().trim().min(1).optional(),
   SMS_GENERIC_ENDPOINT: z.string().url().optional(),
@@ -198,7 +199,7 @@ export const env = {
   sms: {
     provider: raw.SMS_PROVIDER,
     countryCode: raw.SMS_COUNTRY_CODE,
-    supercode: { apiId: raw.SMS_SUPERCODE_API_ID, sender: raw.SMS_SUPERCODE_SENDER },
+    supercode: { httpTestRecipient: raw.SMS_SUPERCODE_HTTP_TEST_RECIPIENT, apiId: raw.SMS_SUPERCODE_API_ID, sender: raw.SMS_SUPERCODE_SENDER },
     generic: {
       endpoint: raw.SMS_GENERIC_ENDPOINT,
       apiKey: raw.SMS_GENERIC_API_KEY,

@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-vi.mock('../../config/env', () => ({ env: { sms: { countryCode: '+970', supercode: { apiId: 'test-secret', sender: 'SamouQuick' } } } }));
+vi.mock('../../config/env', () => ({ env: { sms: { countryCode: '+970', supercode: { httpTestRecipient: undefined as string | undefined, apiId: 'test-secret', sender: 'SamouQuick' } } } }));
+import { env } from '../../config/env';
 import { createSupercodeGateway } from './supercode';
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); Object.assign(env.sms.supercode, { httpTestRecipient: undefined }); });
 describe('Supercode adapter', () => {
   it('encodes Arabic and sends one international destination in the POST body', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ STATUS: 'Message Sent Successfully' })));
@@ -31,4 +32,14 @@ describe('Supercode adapter', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('test-secret', { status: 500 })));
     await expect(createSupercodeGateway().send({ to: '0599000008', body: '123456' })).rejects.toThrow('Supercode HTTP failure (500)');
   });
+});
+
+it('uses HTTP only for the explicitly configured test recipient', async () => {
+  Object.assign(env.sms.supercode, { httpTestRecipient: '970566010623' });
+  const mock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ STATUS: 'Message Sent Successfully' })));
+  vi.stubGlobal('fetch', mock);
+  await createSupercodeGateway().send({ to: '0566010623', body: 'test' });
+  await createSupercodeGateway().send({ to: '0599000008', body: 'test' });
+  expect(mock.mock.calls[0]?.[0]).toBe('http://sms.supercode.ps/API/SendJSON.aspx');
+  expect(mock.mock.calls[1]?.[0]).toBe('https://sms.supercode.ps/API/SendJSON.aspx');
 });
