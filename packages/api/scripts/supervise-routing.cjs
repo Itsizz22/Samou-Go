@@ -56,7 +56,7 @@ async function main() {
       if (!stopping) onFailure(code);
     };
     child.once('error', error => report(1, error));
-    child.once('exit', code => report(code === null ? 1 : code));
+    child.once('exit', (code, signal) => report(code === null ? 1 : code, signal ? new Error(path.basename(executable) + ' stopped by ' + signal) : undefined));
     child.once('close', () => {
       children.delete(child);
       if (stopping && children.size === 0) clearTimeout(forceTimer);
@@ -68,7 +68,7 @@ async function main() {
     if (stopping) return;
     launch(binary, [
       '--algorithm', 'mld', '--ip', '127.0.0.1', '--port', '5000',
-      '--threads', '1', '--max-viaroute-size', '2', map,
+      '--threads', '1', '--max-viaroute-size', '3', map,
     ], {
       ...process.env,
       LD_LIBRARY_PATH: binDir + (process.env.LD_LIBRARY_PATH ? ':' + process.env.LD_LIBRARY_PATH : ''),

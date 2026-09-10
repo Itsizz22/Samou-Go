@@ -26,4 +26,4 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=4s --start-period=30s --retries=3 \
     CMD curl --fail --silent 'http://127.0.0.1:5000/nearest/v1/driving/35.0661,31.3967?number=1' > /dev/null || exit 1
 ENTRYPOINT ["osrm-routed"]
-CMD ["--algorithm", "mld", "--ip", "0.0.0.0", "--port", "5000", "--threads", "2", "--max-viaroute-size", "2", "/data/samou.osrm"]
+CMD ["--algorithm", "mld", "--ip", "0.0.0.0", "--port", "5000", "--threads", "2", "--max-viaroute-size", "3", "/data/samou.osrm"]

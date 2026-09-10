@@ -18,7 +18,7 @@ osmium extract --bbox=34.98,31.30,35.16,31.48 --strategy=complete_ways "$OUT/sou
 sha256sum "$OUT/source.osm.pbf" > "$OUT/map-source-sha256.txt"
 printf 'OSRM 5.27.1\nOSM data: Geofabrik Israel and Palestine\nBBox:34.98,31.30,35.16,31.48\nData copyright OpenStreetMap contributors, ODbL\n' > "$OUT/NOTICE.txt"
 rm "$OUT/binaries.tar.gz" "$OUT/source.tar.gz" "$OUT/source.osm.pbf" "$OUT/data/samou.osm.pbf"
-"$OUT/bin/osrm-routed" --algorithm mld --ip 127.0.0.1 --port 5000 --threads 1 "$OUT/data/samou.osrm" > "$OUT/smoke.log" 2>&1 &
+"$OUT/bin/osrm-routed" --algorithm mld --ip 127.0.0.1 --port 5000 --threads 1 --max-viaroute-size 3 "$OUT/data/samou.osrm" > "$OUT/smoke.log" 2>&1 &
 ROUTE_PID=$!
 trap 'kill "$ROUTE_PID" 2>/dev/null || true' EXIT
 for i in $(seq 1 30); do
