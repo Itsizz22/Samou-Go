@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Pause, Play, Plus, SlidersHorizontal, Store } from 'lucide-react';
 import { ImageWithFallback, useLanguage } from '@samou-go/ui';
 import type { PopularProduct } from '@samou-go/shared-types';
-import { useShowcaseCarousel } from '@/hooks/useShowcaseCarousel';
+import { useEffect, useRef, useState } from 'react';
 import { formatCurrency } from '@/lib/delivery';
 
 interface Props {
@@ -14,7 +14,24 @@ interface Props {
 
 export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
   const { t, dir } = useLanguage();
-  const carousel = useShowcaseCarousel(products.length);
+  const track = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(0);
+  const [stopped, setStopped] = useState(false);
+  const interacting = useRef(false);
+  const moveTo = (index: number) => {
+    const element = track.current;
+    if (!element) return;
+    element.scrollTo({ left: index * element.clientWidth, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+  };
+  useEffect(() => {
+    if (stopped || products.length < 2) return;
+    const timer = window.setInterval(() => {
+      if (!interacting.current && !document.hidden && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        moveTo((Math.round((track.current?.scrollLeft ?? 0) / (track.current?.clientWidth || 1)) + 1) % products.length);
+      }
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [stopped, products.length]);
   if (!products.length && !loading) return null;
   return (
     <section
@@ -34,14 +51,14 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
         {products.length > 1 && (
           <button
             type="button"
-            onClick={() => carousel.setStopped(!carousel.stopped)}
+            onClick={() => setStopped(!stopped)}
             aria-label={t(
-              carousel.stopped ? 'تشغيل العرض التلقائي' : 'إيقاف العرض التلقائي',
-              carousel.stopped ? 'Start slideshow' : 'Pause slideshow'
+              stopped ? 'تشغيل العرض التلقائي' : 'إيقاف العرض التلقائي',
+              stopped ? 'Start slideshow' : 'Pause slideshow'
             )}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink-muted focus-visible:ring-2 focus-visible:ring-brand"
           >
-            {carousel.stopped ? <Play size={17} /> : <Pause size={17} />}
+            {stopped ? <Play size={17} /> : <Pause size={17} />}
           </button>
         )}
       </div>
@@ -51,19 +68,23 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
         <>
           <div
             data-swipe-back="off"
-            {...carousel.bindings}
             className="overflow-hidden rounded-3xl border border-line bg-surface shadow-card"
-            style={{ touchAction: 'pan-y' }}
+
           >
             {/* Track order is physical LTR; content remains RTL. Next moves right-to-left. */}
-            <div dir="ltr" className="flex" style={carousel.trackStyle} onTransitionEnd={carousel.onTransitionEnd}>
-              {(products.length > 1 ? [products[products.length - 1]!, ...products, products[0]!] : products).map((product, index) => (
+            <div ref={track} dir="ltr" className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain scrollbar-none"
+              onScroll={event => setActive(Math.round(event.currentTarget.scrollLeft / (event.currentTarget.clientWidth || 1)))}
+              onPointerDown={() => { interacting.current = true; setStopped(true); }}
+              onPointerUp={() => { interacting.current = false; }}
+              onPointerCancel={() => { interacting.current = false; }}
+              onMouseEnter={() => { interacting.current = true; }}
+              onMouseLeave={() => { interacting.current = false; }}
+            >
+              {products.map((product, index) => (
                 <article
                   key={`${product.id}-${index}`}
                   dir={dir}
-                  inert={index !== carousel.position}
-                  aria-hidden={index !== carousel.position}
-                  className="group relative w-full min-w-0 shrink-0 basis-full"
+                  className="group relative w-full min-w-0 shrink-0 basis-full snap-center snap-always"
                 >
                   <Link draggable={false}
                     to={`/stores/${encodeURIComponent(product.storeId)}?productId=${encodeURIComponent(product.id)}`}
@@ -127,7 +148,6 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
           {products.length > 1 && (
             <div
               data-swipe-back="off"
-            {...carousel.bindings}
               dir={dir}
               className="flex items-center justify-center"
               aria-label={t('اختيار المنتج', 'Choose product')}
@@ -136,14 +156,14 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
                 <button
                   key={product.id}
                   type="button"
-                  onClick={() => carousel.setIndex(index)}
+                  onClick={() => moveTo(index)}
                   aria-label={t(`عرض ${product.nameAr}`, `Show ${product.nameAr}`)}
-                  aria-pressed={index === carousel.active}
+                  aria-pressed={index === active}
                   className="flex h-11 min-w-0 max-w-11 flex-1 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   <span
                     aria-hidden="true"
-                    className={`h-1.5 rounded-full transition-all duration-300 motion-reduce:transition-none ${index === carousel.active ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`}
+                    className={`h-1.5 rounded-full transition-all duration-300 motion-reduce:transition-none ${index === active ? 'w-6 bg-brand' : 'w-1.5 bg-brand-tint'}`}
                   />
                 </button>
               ))}
