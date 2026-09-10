@@ -43,3 +43,13 @@ it('uses HTTP only when the explicit compatibility flag is enabled', async () =>
   expect(mock.mock.calls[0]?.[0]).toBe('http://sms.supercode.ps/API/SendJSON.aspx');
   expect(mock.mock.calls[1]?.[0]).toBe('http://sms.supercode.ps/API/SendJSON.aspx');
 });
+
+it('recognizes the actual prefixed HTTP 400 error without exposing payloads', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ STATUS: 'H004|IP Not Allowed', MSGID: [] }), { status: 400 })));
+  await expect(createSupercodeGateway().send({ to: '0599000008', body: '123456' })).rejects.toThrow('Supercode rejected: IP Not Allowed');
+});
+
+it('accepts prefixed documented success text', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ STATUS: 'H000|Message Sent Successfully' }))));
+  await expect(createSupercodeGateway().send({ to: '0599000008', body: '123456' })).resolves.toEqual({accepted:true});
+});

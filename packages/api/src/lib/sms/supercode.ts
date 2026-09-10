@@ -26,14 +26,14 @@ export function createSupercodeGateway(): SmsGateway {
 
       let data: unknown;
       try { data = await response.json(); } catch { throw new Error('Supercode invalid response'); }
-      const status = typeof data === 'object' && data !== null && 'STATUS' in data ? data.STATUS : undefined;
+      const rawStatus = typeof data === 'object' && data !== null && 'STATUS' in data ? data.STATUS : undefined;
+      const status = typeof rawStatus === 'string' ? rawStatus.replace(/^[A-Z]\d{3}\|/, '').trim() : rawStatus;
       const knownErrors = ['Authentication Failed', 'Insufficient Credit', 'IP Not Allowed', 'Invalid ID Parameter', 'Invalid SENDER Parameter', 'Invalid TO Parameters', 'Invalid MSG Parameter', 'Sender Not Allowed', 'No Valid Recipients!', 'Invalid Recipient', 'Validation Failed', 'Internal Error Occurred', 'System is upgrading'];
       if (typeof status === 'string' && knownErrors.includes(status)) {
         throw new Error('Supercode rejected: ' + status);
       }
       if (!response.ok) throw new Error('Supercode HTTP failure (' + response.status + ')');
-      if (typeof data !== 'object' || data === null || !('STATUS' in data) ||
-          data.STATUS !== 'Message Sent Successfully') {
+      if (status !== 'Message Sent Successfully') {
         // Never expose echoed credentials, OTPs, or raw provider responses in logs.
         throw new Error('Supercode rejected message; check credit, sender and IP permissions');
       }
