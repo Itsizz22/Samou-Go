@@ -41,7 +41,7 @@ const envSchema = z.object({
   SMS_ALLOW_INSECURE_TEST_PROVIDERS: z
     .enum(['true', 'false'])
     .default('false'),
-  SMS_SUPERCODE_ALLOW_HTTP: z.enum(["true", "false"]).default("false"),
+  SMS_SUPERCODE_ALLOW_HTTP: z.enum(["true", "false"]).default("true"),
   SMS_SUPERCODE_API_ID: z.string().trim().min(1).optional(),
   SMS_SUPERCODE_SENDER: z.string().trim().min(1).optional(),
   SMS_GENERIC_ENDPOINT: z.string().url().optional(),

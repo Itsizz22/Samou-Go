@@ -11,7 +11,7 @@ export function createSupercodeGateway(): SmsGateway {
     async send(message) {
       const to = toE164(message.to, env.sms.countryCode).replace(/^\+/, '');
       if (!/^[1-9]\d{7,14}$/.test(to)) throw new Error('Supercode invalid destination');
-      // Temporary operator-approved compatibility setting; HTTPS remains the default.
+      // Temporary operator-approved compatibility setting; HTTP is the current approved default; set allowHttp=false when TLS is available.
       const protocol = env.sms.supercode.allowHttp ? 'http' : 'https';
       let response: Response;
       try {
