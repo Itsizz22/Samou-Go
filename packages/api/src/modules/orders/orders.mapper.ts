@@ -52,7 +52,7 @@ export type OrderWithRelations = PrismaOrder & {
 export type OrderForSummary = PrismaOrder & {
   customer?: Pick<PrismaUser, 'name' | 'phone'>;
   deliveryZone?: Pick<PrismaDeliveryZone, 'nameAr'> | null;
-  items: (Pick<PrismaOrderItem, 'quantity' | 'note'> & { offerTitle?: string | null } & {
+  items: (Pick<PrismaOrderItem, 'id' | 'totalPrice' | 'selectedOptions' | 'quantity' | 'note'> & { offerTitle?: string | null } & {
     product: Pick<PrismaProduct, 'nameAr'> | null;
   })[];
   store: Pick<PrismaStore, 'nameAr'>;
@@ -190,6 +190,16 @@ export function toOrderDetail(order: OrderWithRelations, viewerRole?: string, vi
   };
 }
 
+function optionNames(value: unknown): string[] {
+  try {
+    const parsed: unknown = typeof value === 'string' ? JSON.parse(value) : value;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((entry: unknown) =>
+      entry && typeof entry === 'object' && 'name' in entry && typeof entry.name === 'string'
+        ? [entry.name] : []);
+  } catch { return []; }
+}
+
 export function toOrderSummary(order: OrderForSummary, viewerRole?: string, viewerId?: string): OrderSummary {
   const restricted = viewerRole === UserRole.CAPTAIN && (!viewerId || order.captainId !== viewerId);
   const staff = viewerRole === UserRole.STORE_MANAGER || (viewerRole === UserRole.CAPTAIN && !restricted) || viewerRole === UserRole.ADMIN;
@@ -202,6 +212,14 @@ export function toOrderSummary(order: OrderForSummary, viewerRole?: string, view
     cartCheckoutId: order.cartCheckoutId ?? null,
     customerContact: staff && order.customer ? { name: order.customer.name, phone: order.customer.phone } : null,
     deliveryDestination: staff || restricted ? { zoneNameAr: order.deliveryZone?.nameAr ?? null, address: restricted ? "يظهر العنوان بعد حجز التوصيل" : order.customerAddressText, landmark: restricted ? null : order.addressNote } : null,
+    ...(canViewCaptainHandoffCode(viewerRole) ? { items: order.items.map(item => ({
+      id: item.id,
+      productNameAr: item.offerTitle ?? item.product?.nameAr ?? 'منتج غير متاح',
+      quantity: item.quantity,
+      totalPrice: decimalToNumber(item.totalPrice),
+      note: item.note,
+      optionNames: optionNames(item.selectedOptions),
+    })) } : {}),
     itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
     totalAmount: decimalToNumber(order.totalAmount),
     deliveryFee: decimalToNumber(order.deliveryFee),

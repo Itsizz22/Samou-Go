@@ -36,3 +36,18 @@ it('hides customer identity and exact destination from captains without the rese
     expect(result.itemNotes).toEqual([]);
   }
 });
+
+it('returns every kitchen line, including offers and options, without requiring notes', () => {
+  const fixture = { ...order, items: [
+    { id: 'plain', quantity: 2, totalPrice: 38, note: null, selectedOptions: null, product: { nameAr: 'Pizza' } },
+    { id: 'offer', quantity: 1, totalPrice: 25, note: 'No onions', offerTitle: 'Burger offer', selectedOptions: JSON.stringify([{ name: 'Cheese' }]), product: null },
+  ] } as unknown as OrderForSummary;
+  const result = toOrderSummary(fixture, UserRole.STORE_MANAGER);
+  expect(result.items).toEqual([
+    { id: 'plain', productNameAr: 'Pizza', quantity: 2, totalPrice: 38, note: null, optionNames: [] },
+    { id: 'offer', productNameAr: 'Burger offer', quantity: 1, totalPrice: 25, note: 'No onions', optionNames: ['Cheese'] },
+  ]);
+  expect(result.itemCount).toBe(3);
+  expect(toOrderSummary(fixture, UserRole.CAPTAIN, 'another-captain').items).toBeUndefined();
+  expect(toOrderSummary(fixture, UserRole.CUSTOMER).items).toBeUndefined();
+});

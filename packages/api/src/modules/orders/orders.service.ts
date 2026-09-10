@@ -82,6 +82,9 @@ export const DETAIL_INCLUDE = {
 export const SUMMARY_INCLUDE = {
   items: {
     select: {
+      id: true,
+      totalPrice: true,
+      selectedOptions: true,
       quantity: true,
       note: true,
       offerTitle: true,

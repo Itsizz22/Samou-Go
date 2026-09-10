@@ -1071,13 +1071,31 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
             ₪{order.totalAmount.toFixed(2)}
           </p>
         </div>
+        {order.items && order.items.length > 0 && (
+          <section className="mt-3 rounded-xl border border-line bg-canvas p-3" aria-label={t('المنتجات المطلوبة', 'Ordered products')}>
+            <h3 className="mb-2 text-sm font-extrabold text-ink">{t('المنتجات المطلوبة', 'Ordered products')}</h3>
+            <ul className="divide-y divide-line-soft">
+              {order.items.map(item => (
+                <li key={item.id} className="py-3 first:pt-0 last:pb-0">
+                  <div className="flex items-start gap-2">
+                    <span dir="ltr" className="shrink-0 rounded-lg bg-brand-tint px-2 py-1 text-sm font-extrabold text-brand-deep">×{item.quantity}</span>
+                    <span className="min-w-0 flex-1 break-words text-sm font-bold text-ink">{item.productNameAr}</span>
+                    <span dir="ltr" className="shrink-0 text-sm font-bold text-ink">₪{item.totalPrice.toFixed(2)}</span>
+                  </div>
+                  {item.optionNames.length > 0 && <p className="mt-1 break-words text-xs text-ink-soft">{item.optionNames.join('، ')}</p>}
+                  {item.note && <p className="mt-1 break-words text-xs font-semibold text-brand-deep">{t('ملاحظة: ', 'Note: ')}{item.note}</p>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {order.estimatedPrepMinutes !== null && order.estimatedPrepMinutes !== undefined && (
           <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-brand-dark">
             <Clock3 size={13} />
             {t(`مدة التحضير المقدّرة: ${order.estimatedPrepMinutes} دقيقة`, `Estimated prep: ${order.estimatedPrepMinutes} min`)}
           </p>
         )}
-        {(order.orderNote || (order.itemNotes?.length ?? 0) > 0) && (
+        {(order.orderNote || (!order.items && (order.itemNotes?.length ?? 0) > 0)) && (
           <div className="mt-3 space-y-1.5 rounded-xl bg-brand-surface px-3 py-2">
             {order.orderNote && (
               <p className="flex items-start gap-1.5 text-[11px] font-semibold text-ink">
@@ -1085,7 +1103,7 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
                 <span>{order.orderNote}</span>
               </p>
             )}
-            {(order.itemNotes ?? []).map((entry) => (
+            {(order.items ? [] : order.itemNotes ?? []).map((entry) => (
               <p
                 key={`${entry.productNameAr}:${entry.quantity}`}
                 className="flex items-start gap-1.5 text-[11px] text-ink-soft"

@@ -378,6 +378,8 @@ export interface OrderDetail extends Order {
 
 /** The condensed row used in list views. */
 export interface OrderSummary {
+  /** Kitchen lines, included for store managers and admins. */
+  items?: { id: string; productNameAr: string; quantity: number; totalPrice: number; note: string | null; optionNames: string[] }[];
   /** Contact and destination, returned only to authorized staff list viewers. */
   customerContact?: { name: string; phone: string } | null;
   deliveryDestination?: { zoneNameAr: string | null; address: string; landmark: string | null } | null;
