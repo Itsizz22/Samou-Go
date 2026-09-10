@@ -180,7 +180,7 @@ export function StoreDetailScreen() {
   return (
     <PageTransition>
       <main className="sq-store-menu min-h-screen bg-canvas pb-28 font-sans text-ink">
-        <header className="safe-top relative isolate min-h-52 overflow-hidden bg-brand-deep px-5 pb-5 pt-4 text-white">
+        <header className="safe-top relative isolate min-h-72 overflow-hidden bg-brand-deep px-5 pb-5 pt-4 text-white">
           {current.coverUrl && <img src={current.coverUrl} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover" />}
           <div className="absolute inset-0 -z-10 bg-linear-to-t from-brand-deep via-brand-deep/70 to-brand-deep/30" />
           <div className="mx-auto grid min-h-40 max-w-md grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-start gap-3">
@@ -192,11 +192,11 @@ export function StoreDetailScreen() {
             >
               <ArrowRight size={22} className="rtl:rotate-180" />
             </button>
-            <div className="order-last col-span-3 min-w-0 self-end text-start">
-              {current.logoUrl && <ImageWithFallback src={current.logoUrl} alt="" className="mb-3 h-16 w-16 rounded-2xl border border-white/30 bg-surface object-contain" />}
+            <div className="order-last col-span-3 min-w-0 self-end text-center">
+              {current.logoUrl && <ImageWithFallback src={current.logoUrl} alt="" className="mx-auto mb-3 h-24 w-24 rounded-3xl border-4 border-white/80 bg-surface p-1 object-contain shadow-card" />}
               <h1 className="text-lg font-extrabold">{t(current.nameAr, current.nameEn)}</h1>
               {current.publicCode && <p className="text-xs text-white/80">رقم المتجر: <span dir="ltr">{current.publicCode}</span></p>}
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs">
                 <span className="rounded-full bg-white/15 px-3 py-2 font-bold">{!storeIsOpen(current) ? t('مغلق حالياً', 'Closed') : current.storeStatus === StoreStatus.BUSY ? t('مشغول — يستقبل الطلبات', 'Busy — accepting orders') : t('مفتوح ويستقبل الطلبات', 'Open for orders')}</span>
                 {current.openingTime && <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-2"><Clock3 size={14} />{t('ساعات العمل', 'Hours')} <span dir="ltr">{current.openingTime}{current.closingTime ? ` – ${current.closingTime}` : ''}</span></span>}
               </div>

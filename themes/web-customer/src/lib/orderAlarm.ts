@@ -6,6 +6,8 @@
  */
 
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { playNewOrderChime } from '@samou-go/ui';
+import { getRingOnOrder } from './ringPreference';
 
 /** Capacitor plugin interface for the native OrderAlarm service. */
 interface OrderAlarmPlugin {
@@ -56,4 +58,15 @@ export async function isOrderAlarmActive(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Android owns push sounds; polling must never play a second alert over it. */
+export function announceOrderOnce(): () => void {
+  let cancelled = false;
+  if (Capacitor.getPlatform() !== 'android') {
+    void getRingOnOrder().then(enabled => {
+      if (!cancelled && enabled && document.visibilityState === 'visible') playNewOrderChime();
+    });
+  }
+  return () => { cancelled = true; };
 }

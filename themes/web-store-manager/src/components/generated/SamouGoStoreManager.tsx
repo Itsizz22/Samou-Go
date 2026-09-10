@@ -60,7 +60,7 @@ import {
   useToast,
   usePlatformSettings,
 } from '@samou-go/api-client';
-import { createLoopingAlert, AccountStatement } from '@samou-go/ui';
+import { playNewOrderChime, AccountStatement } from '@samou-go/ui';
 import { getWalletStatement } from '@samou-go/api-client';
 import { stopOrderAlarm } from '@/lib/orderAlarm';
 import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
@@ -322,7 +322,8 @@ export function SamouGoStoreManager() {
       for (const order of fresh) announcedIds.current.add(order.id);
       // Looping alert (10 s max) + one toast per poll batch, not per order.
       stopAlertRef.current?.();
-      stopAlertRef.current = createLoopingAlert();
+      playNewOrderChime();
+      stopAlertRef.current = null;
       const orderLabel = fresh.length === 1 ? `طلب ${fresh[0].orderNumber}` : `${fresh.length} طلبات جديدة`;
       toast.info(`🔔 ${orderLabel} جديد`, `${fresh.length} new order${fresh.length === 1 ? '' : 's'} arrived`);
     }

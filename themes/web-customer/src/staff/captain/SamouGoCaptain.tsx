@@ -1,3 +1,4 @@
+import { announceOrderOnce } from '@/lib/orderAlarm';
 import { useCaptainTracking, getLiveOrderTracking } from '@samou-go/api-client';
 import { LiveTrackingCard } from '@samou-go/ui/map';
 import { PreparationCountdown, CaptainReservation } from '@samou-go/api-client';
@@ -58,7 +59,7 @@ import {
   LanguageToggle,
   NotificationBell,
   ThemeToggle,
-  createLoopingAlert,
+
   useLanguage,
   type BellNotification,
 } from '@samou-go/ui';
@@ -240,9 +241,9 @@ export function SamouGoCaptain() {
 
     if (fresh.length > 0) {
       for (const order of fresh) announcedAvailableIds.current.add(order.id);
-      // Looping alert (10 s max).
+      // One notification sound.
       stopAlertRef.current?.();
-      stopAlertRef.current = createLoopingAlert();
+      stopAlertRef.current = announceOrderOnce();
       const first = fresh[0];
       toast.info(
         `🛵 طلب جديد جاهز للاستلام من ${first?.storeNameAr ?? ''}`,

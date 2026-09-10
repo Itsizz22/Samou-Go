@@ -50,6 +50,7 @@ public class OrderAlarmReceiver extends BroadcastReceiver {
 
     /** Start the foreground alarm service. */
     private void startAlarmService(Context context, Intent originalIntent) {
+        if (MainActivity.isUserActive(context)) return;
         Intent serviceIntent = new Intent(context, OrderAlarmService.class);
 
         // Copy any extra data from the original intent (orderId, etc.)

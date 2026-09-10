@@ -7,6 +7,7 @@ import { FEATURE_FLAGS } from '@samou-go/api-client';
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   Check,
@@ -62,9 +63,12 @@ export function StoreProfilePanel({ storeId }: Props) {
   const [logoSrc, setLogoSrc] = useState<string | null>(null);
   const [logoBusy, setLogoBusy] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [coverSrc, setCoverSrc] = useState<string | null>(null);
+  const [coverBusy, setCoverBusy] = useState(false);
 
   useEffect(() => {
-    if (storeData) setLogoSrc(storeData.logoUrl);
+    if (storeData) { setLogoSrc(storeData.logoUrl); setCoverSrc(storeData.coverUrl); }
   }, [storeData]);
 
   const [form, setForm] = useState<FormState>({
@@ -207,6 +211,25 @@ export function StoreProfilePanel({ storeId }: Props) {
     }
   };
 
+  const handleCover = async (file?: File, remove = false) => {
+    if ((!file && !remove) || coverBusy || logoBusy) return;
+    setCoverBusy(true);
+    try {
+      if (remove) {
+        await removeCurrentImage('store', storeId, 'cover');
+        setCoverSrc(null);
+      } else if (file) {
+        const result = await upload.run({ kind: 'store', resourceId: storeId, purpose: 'cover', file });
+        if (!result) { toast.error('تعذّر رفع الخلفية، حاول مجددًا', 'Cover upload failed'); return; }
+        setCoverSrc(result.url);
+      }
+      toast.success('تم تحديث خلفية المتجر', 'Store cover updated');
+      void storeResource.reload();
+    } catch (error) {
+      toast.error('تعذّر تحديث الخلفية', error instanceof Error ? error.message : 'Try again');
+    } finally { setCoverBusy(false); }
+  };
+
   if (storeResource.loading) {
     return (
       <div className="space-y-4" aria-hidden="true">
@@ -247,60 +270,6 @@ export function StoreProfilePanel({ storeId }: Props) {
           <span className="text-[11px] font-semibold text-ink-muted" dir="ltr">
             Store ID: {storeId}
           </span>
-        </div>
-
-        {/* Store logo */}
-        <div className="p-5 pb-0">
-          <div className="rounded-xl border border-line bg-canvas p-3">
-            <span className="mb-2 block text-xs font-bold text-ink">
-              {t('شعار المتجر', 'Store logo')}
-            </span>
-            <div className="flex items-center gap-3">
-              {logoSrc ? (
-                <img
-                  src={logoSrc}
-                  alt={form.nameAr || 'Store logo'}
-                  className="h-16 w-16 shrink-0 rounded-xl object-cover"
-                />
-              ) : (
-                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
-                  <Store size={20} />
-                </span>
-              )}
-              <div className="flex flex-1 flex-wrap items-center gap-2">
-                <input
-                  ref={logoInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="sr-only"
-                  aria-label="Choose a store logo"
-                  onChange={e => void handleLogoPicked(e.target.files?.[0])}
-                />
-                <button
-                  type="button"
-                  onClick={() => logoInputRef.current?.click()}
-                  disabled={logoBusy}
-                  className="flex h-8 items-center gap-1.5 rounded-lg bg-brand px-3 text-[11px] font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
-                  aria-label="Change store logo"
-                >
-                  {logoBusy ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
-                  {logoSrc ? t('تغيير', 'Change') : t('إضافة', 'Add')}
-                </button>
-                {logoSrc && (
-                  <button
-                    type="button"
-                    onClick={() => void handleLogoRemove()}
-                    disabled={logoBusy}
-                    className="flex h-8 items-center gap-1 rounded-lg border border-line px-3 text-[11px] font-bold text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink active:scale-95 disabled:opacity-60"
-                    aria-label="Remove store logo"
-                  >
-                    <X size={12} />
-                    {t('إزالة', 'Remove')}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
         </div>
 
         <div className="space-y-5 p-5">
@@ -361,7 +330,76 @@ export function StoreProfilePanel({ storeId }: Props) {
             </div>
             <p className="mt-3 text-xs leading-6 text-ink-muted">تظهر هذه المواعيد للعملاء. حالة «مفتوح / مغلق» تُدار يدويًا؛ حفظ الوقت لا يغلق المتجر تلقائيًا.</p>
           </section>
-          <a href="/settings" className="flex min-h-12 items-center justify-between rounded-xl border border-brand/20 bg-brand-tint px-4 font-bold text-brand">إعدادات التطبيق والإشعارات <span aria-hidden="true">←</span></a>
+        {/* Store logo */}
+        <div className="space-y-3">
+          <div className="rounded-xl border border-line bg-canvas p-3">
+            <span className="mb-2 block text-xs font-bold text-ink">
+              {t('شعار المتجر', 'Store logo')}
+            </span>
+            <div className="flex items-center gap-3">
+              {logoSrc ? (
+                <img
+                  src={logoSrc}
+                  alt={form.nameAr || 'Store logo'}
+                  className="h-16 w-16 shrink-0 rounded-xl object-cover"
+                />
+              ) : (
+                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
+                  <Store size={20} />
+                </span>
+              )}
+              <div className="flex flex-1 flex-wrap items-center gap-2">
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  aria-label="Choose a store logo"
+                  onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; void handleLogoPicked(file); }}
+                />
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={logoBusy || coverBusy}
+                  className="flex min-h-11 items-center gap-1.5 rounded-lg bg-brand px-3 text-[11px] font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
+                  aria-label="Change store logo"
+                >
+                  {logoBusy ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
+                  {logoSrc ? t('تغيير', 'Change') : t('إضافة', 'Add')}
+                </button>
+                {logoSrc && (
+                  <button
+                    type="button"
+                    onClick={() => void handleLogoRemove()}
+                    disabled={logoBusy || coverBusy}
+                    className="flex min-h-11 items-center gap-1 rounded-lg border border-line px-3 text-[11px] font-bold text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink active:scale-95 disabled:opacity-60"
+                    aria-label="Remove store logo"
+                  >
+                    <X size={12} />
+                    {t('إزالة', 'Remove')}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+          <section className="space-y-3 rounded-2xl border border-line bg-canvas p-4">
+            <h3 className="font-bold">{t('خلفية المتجر', 'Store cover')}</h3>
+            <div className="relative aspect-[16/9] overflow-hidden rounded-xl bg-brand-tint">
+              {coverSrc && <img src={coverSrc} alt={t('معاينة خلفية المتجر', 'Store cover preview')} className="h-full w-full object-cover" />}
+              <div className="absolute inset-0 flex items-center justify-center bg-ink/10">
+                {logoSrc ? <img src={logoSrc} alt="" className="h-20 w-20 rounded-2xl border-4 border-surface bg-surface object-contain shadow-card" /> : <Store size={40} className="text-brand" />}
+              </div>
+            </div>
+            <p className="text-xs leading-6 text-ink-muted">{t('صورة أفقية بنسبة 16:9؛ سيظهر الشعار في المنتصف فوقها. يُحفظ تغيير الصور مباشرة.', 'Use a 16:9 landscape image. The logo appears centered over it. Image changes save immediately.')}</p>
+            <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" aria-label={t('اختيار خلفية المتجر', 'Choose store cover')} onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; void handleCover(file); }} />
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={coverBusy || logoBusy} onClick={() => coverInputRef.current?.click()} className="flex min-h-11 items-center gap-2 rounded-xl bg-brand px-4 text-sm font-bold text-white disabled:opacity-50">{coverBusy ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}{t('تعديل الخلفية', 'Change cover')}</button>
+              {coverSrc && <button type="button" disabled={coverBusy || logoBusy} onClick={() => void handleCover(undefined, true)} className="min-h-11 rounded-xl border border-line px-4 text-sm font-bold text-danger-ink disabled:opacity-50">{t('إزالة الخلفية', 'Remove cover')}</button>}
+            </div>
+          </section>
+          <Link to="/settings" className="flex min-h-12 items-center justify-between rounded-xl border border-brand/20 bg-brand-tint px-4 font-bold text-brand">إعدادات التطبيق والإشعارات <span aria-hidden="true">←</span></Link>
           {/* Active status */}
           <div className="flex items-center justify-between rounded-xl border border-line bg-canvas px-4 py-3">
             <div>

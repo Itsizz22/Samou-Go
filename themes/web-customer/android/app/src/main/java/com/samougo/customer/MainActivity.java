@@ -22,6 +22,28 @@ public class MainActivity extends BridgeActivity {
     /** High-priority order alarm — plays a looping ringtone even when the app is killed. */
     private static final String CHANNEL_ORDERS_HIGH = "orders_high_priority";
 
+    private static volatile boolean resumed = false;
+
+    public static boolean isUserActive(android.content.Context context) {
+        android.app.KeyguardManager keyguard = context.getSystemService(android.app.KeyguardManager.class);
+        android.os.PowerManager power = context.getSystemService(android.os.PowerManager.class);
+        return resumed && power != null && power.isInteractive()
+            && keyguard != null && !keyguard.isKeyguardLocked();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        resumed = true;
+        if (isUserActive(this)) OrderAlarmReceiver.stopAlarm(this);
+    }
+
+    @Override
+    public void onPause() {
+        resumed = false;
+        super.onPause();
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         // Register local plugins before Capacitor creates its bridge.

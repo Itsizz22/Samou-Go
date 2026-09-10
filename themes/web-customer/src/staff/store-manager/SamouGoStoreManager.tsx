@@ -1,3 +1,4 @@
+import { announceOrderOnce } from '@/lib/orderAlarm';
 import { getLiveOrderTracking } from '@samou-go/api-client';
 import { OrderTrackingToggle } from '@samou-go/ui/map';
 import { OrderChangePanel } from '@samou-go/api-client';
@@ -58,7 +59,7 @@ import {
   usePlatformSettings,
 } from '@samou-go/api-client';
 import { useAuth } from '@/hooks/useApi';
-import { createLoopingAlert, AccountStatement } from '@samou-go/ui';
+import {  AccountStatement } from '@samou-go/ui';
 import { getWalletStatement } from '@samou-go/api-client';
 import { stopOrderAlarm } from '@/lib/orderAlarm';
 import {
@@ -250,7 +251,7 @@ export function SamouGoStoreManager() {
   // does not re-chime on every poll while it sits in the inbox.
   const announcedIds = useRef<Set<string>>(new Set());
   const hasLoadedOnce = useRef(false);
-  // Looping alert — plays until the user accepts/taps an order or 10 s elapse.
+  // Cancellable one-shot alert; Android sound is owned by native push.
   const stopAlertRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -267,9 +268,9 @@ export function SamouGoStoreManager() {
 
     if (fresh.length > 0) {
       for (const order of fresh) announcedIds.current.add(order.id);
-      // Looping alert (10 s max) + one toast per poll batch, not per order.
+      // One notification sound + one toast per poll batch, not per order.
       stopAlertRef.current?.();
-      stopAlertRef.current = createLoopingAlert();
+      stopAlertRef.current = announceOrderOnce();
       const orderLabel = fresh.length === 1 ? `طلب ${fresh[0].orderNumber}` : `${fresh.length} طلبات جديدة`;
       toast.info(`🔔 ${orderLabel} جديد`, `${fresh.length} new order${fresh.length === 1 ? '' : 's'} arrived`);
     }

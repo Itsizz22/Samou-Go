@@ -161,16 +161,16 @@ function App() {
   );
 }
 
-function ProtectedRoute({ auth, children }: { auth: Auth; children: React.ReactNode }) {
+function ProtectedRoute({ auth, children, allowStaff = false }: { auth: Auth; children: React.ReactNode; allowStaff?: boolean }) {
   // Guard: auth must be resolved before any route renders. The App component
   // already shows BootScreen while auth is loading — returning null here
   // avoids mounting/unmounting BootScreen inside the route tree (which causes
   // remount loops and "Throttling navigation" warnings).
   if (!auth.ready || !auth.user) return <Navigate to="/login" replace />;
-  if (auth.user.role === UserRole.CAPTAIN) {
+  if (!allowStaff && auth.user.role === UserRole.CAPTAIN) {
     return <Navigate to="/captain/dashboard" replace />;
   }
-  if (auth.user.role === UserRole.STORE_MANAGER) {
+  if (!allowStaff && auth.user.role === UserRole.STORE_MANAGER) {
     return <Navigate to="/store-manager/orders" replace />;
   }
   return <>{children}</>;
@@ -220,7 +220,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
         ? <RoleGuard auth={auth} role={auth.user.role}><StaffOrderDetailsScreen /></RoleGuard>
         : <ProtectedRoute auth={auth}><OrderTrackingScreen /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute auth={auth}><ProfileScreen /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute auth={auth}><SettingsScreen /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute auth={auth} allowStaff><SettingsScreen /></ProtectedRoute>} />
       <Route path="/offers" element={<ProtectedRoute auth={auth}><OffersScreen /></ProtectedRoute>} />
       <Route path="/favorites" element={<ProtectedRoute auth={auth}><FavoritesScreen /></ProtectedRoute>} />
       <Route path="/search" element={<SearchScreen />} />

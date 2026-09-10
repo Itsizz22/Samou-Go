@@ -47,6 +47,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
     private static final String TAG = "FirebaseMessaging";
 
     /** Channel for ringing notifications (ringtone + vibration). */
+    public static final String CHANNEL_FOREGROUND = "orders_in_app_v1";
     public static final String CHANNEL_PREPARATION = "preparation_updates_v1";
     public static final String CHANNEL_ALERT = "orders_alert_channel";
     /** Channel for silent notifications (no sound). */
@@ -94,7 +95,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
 
         // Customer updates must also show a banner in foreground.
         if (!isCaptainOrStoreNotification) {
-            showNotification(title, body, orderId, "orders_high_priority", data.get("notificationLogId"));
+            showNotification(title, body, orderId, MainActivity.isUserActive(this) ? CHANNEL_FOREGROUND : "orders_high_priority", data.get("notificationLogId"));
             return;
         }
 
@@ -102,7 +103,8 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
         boolean ringEnabled = getRingPreference();
 
         // Determine which notification channel to use
-        String channelId = ringEnabled ? CHANNEL_ALERT : CHANNEL_SILENT;
+        boolean userActive = MainActivity.isUserActive(this);
+        String channelId = ringEnabled ? (userActive ? CHANNEL_FOREGROUND : CHANNEL_ALERT) : CHANNEL_SILENT;
         Log.i(TAG, "Showing notification on channel: " + channelId +
               " (ring preference: " + ringEnabled + ")");
 
@@ -112,7 +114,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
         // If ringing is enabled, start the OrderAlarmService for continuous alert
         // (the system notification plays the channel sound once, but the foreground
         // service loops it until the user acknowledges).
-        if (ringEnabled && orderId != null) {
+        if (ringEnabled && !userActive && orderId != null) {
             OrderAlarmReceiver.processNotification(this, orderId, title, body, data.get("notificationLogId"));
         }
     }
@@ -173,7 +175,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
             .setContentText(body)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(CHANNEL_PREPARATION.equals(channelId) ? NotificationCompat.CATEGORY_REMINDER : NotificationCompat.CATEGORY_ALARM)
+            .setCategory(CHANNEL_ALERT.equals(channelId) ? NotificationCompat.CATEGORY_ALARM : NotificationCompat.CATEGORY_STATUS)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setDefaults(NotificationCompat.DEFAULT_VIBRATE);
@@ -232,6 +234,16 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return;
+
+        if (nm.getNotificationChannel(CHANNEL_FOREGROUND) == null) {
+            NotificationChannel foreground = new NotificationChannel(CHANNEL_FOREGROUND,
+                "تنبيه أثناء استخدام التطبيق", NotificationManager.IMPORTANCE_HIGH);
+            foreground.setDescription("نغمة واحدة دون رنين متكرر أثناء استخدام التطبيق");
+            foreground.setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI,
+                new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build());
+            foreground.enableVibration(true);
+            nm.createNotificationChannel(foreground);
+        }
 
         if (nm.getNotificationChannel(CHANNEL_PREPARATION) == null) {
             NotificationChannel preparation = new NotificationChannel(CHANNEL_PREPARATION,
