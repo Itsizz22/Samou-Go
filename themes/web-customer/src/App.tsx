@@ -218,10 +218,21 @@ function StaffFallback() {
 }
 
 function StartupRoutes({ auth }: { auth: Auth }) {
+  const navigate = useNavigate();
+  const previousAccount = useRef(auth.user?.id);
+  useEffect(() => {
+    const nextId = auth.user?.id;
+    if (auth.user && nextId && previousAccount.current && nextId !== previousAccount.current) {
+      navigate(roleHomePath(auth.user.role), { replace: true });
+    }
+    previousAccount.current = nextId;
+  }, [auth.user, navigate]);
+  const staffHome = auth.user && (auth.user.role === UserRole.STORE_MANAGER || auth.user.role === UserRole.CAPTAIN)
+    ? roleHomePath(auth.user.role) : null;
   return (
     <Suspense fallback={<BootScreen />}><Routes>
-      <Route path="/" element={<Navigate to="/home" replace />} />
-      <Route path="/home" element={<CustomerOnboarding returningUser={Boolean(auth.user)}><SamouGoHome /></CustomerOnboarding>} />
+      <Route path="/" element={<Navigate to={auth.user ? roleHomePath(auth.user.role) : "/home"} replace />} />
+      <Route path="/home" element={staffHome ? <Navigate to={staffHome} replace /> : <CustomerOnboarding returningUser={Boolean(auth.user)}><SamouGoHome /></CustomerOnboarding>} />
       <Route path="/stores/:storeId" element={<StoreDetailScreen />} />
       <Route path="/cart" element={<CartScreen />} />
       <Route path="/checkout" element={<CheckoutScreen />} />
@@ -229,7 +240,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
       <Route path="/orders/:orderId" element={auth.user?.role === UserRole.CAPTAIN || auth.user?.role === UserRole.STORE_MANAGER
         ? <RoleGuard auth={auth} role={auth.user.role}><StaffOrderDetailsScreen /></RoleGuard>
         : <ProtectedRoute auth={auth}><OrderTrackingScreen /></ProtectedRoute>} />
-      <Route path="/menu" element={<MenuScreen />} />
+      <Route path="/menu" element={staffHome ? <Navigate to={staffHome} replace /> : <MenuScreen />} />
       <Route path="/profile" element={<ProtectedRoute auth={auth}><ProfileScreen /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute auth={auth} allowStaff><SettingsScreen /></ProtectedRoute>} />
       <Route path="/offers" element={<ProtectedRoute auth={auth}><OffersScreen /></ProtectedRoute>} />
