@@ -5,7 +5,7 @@
  *   - auto-advance: typing a digit moves focus to the next box
  *   - paste: a pasted code fills every box from the current index
  *   - backspace retreat: clearing a box steps focus back one
- *   - RTL-aware (boxes render right-to-left, digits read left-to-right)
+ *   - PIN boxes and digits always run left-to-right, including in Arabic
  *   - validation animations: error shake / success pulse via Framer Motion
  *   - `inputmode="numeric"` so Android opens the number pad, not the QWERTY
  */
@@ -44,19 +44,23 @@ export function OtpPinInput({
     input?.select();
   };
 
+  const normalizeDigits = (raw: string) => raw
+    .replace(/[٠-٩]/g, char => String(char.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, char => String(char.charCodeAt(0) - 0x06f0))
+    .replace(/\D/g, '');
+
   const setDigit = (index: number, digit: string) => {
-    const clean = digit.replace(/\D/g, '');
+    const clean = normalizeDigits(digit).slice(0, length - index);
     if (!clean) return;
-    const next = value.slice(0, index) + clean + value.slice(index + 1);
+    const next = value.slice(0, index) + clean + value.slice(index + clean.length);
     const chunk = next.slice(0, length);
     onChange(chunk);
-    if (index < length - 1) focusAt(index + 1);
+    focusAt(index + clean.length);
   };
 
   const handleChange = (index: number, raw: string) => {
-    // A single box may receive several characters on some IMEs — take the last.
-    const digit = raw.slice(-1);
-    setDigit(index, digit);
+    // Mobile SMS autofill may deliver the whole code to the first box.
+    setDigit(index, raw);
   };
 
   const handleKeyDown = (index: number, event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -84,7 +88,7 @@ export function OtpPinInput({
 
   const handlePaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
     event.preventDefault();
-    const digits = event.clipboardData.getData('text').replace(/\D/g, '');
+    const digits = normalizeDigits(event.clipboardData.getData('text'));
     if (!digits) return;
     const merged = value.split('');
     for (let index = 0; index < digits.length && index < length; index += 1) {
@@ -112,6 +116,7 @@ export function OtpPinInput({
         </label>
       )}
       <motion.div
+        dir="ltr"
         className="flex w-full max-w-76 gap-2"
         variants={animationProps}
         initial={animationProps ? 'initial' : false}
@@ -129,9 +134,11 @@ export function OtpPinInput({
                 refs.current[index] = node;
               }}
               type="text"
+              dir="ltr"
+              autoFocus={autoFocus && index === 0}
               inputMode="numeric"
               autoComplete={index === 0 ? 'one-time-code' : 'off'}
-              maxLength={1}
+              maxLength={length}
               value={char}
               disabled={disabled}
               onChange={(event) => handleChange(index, event.target.value)}

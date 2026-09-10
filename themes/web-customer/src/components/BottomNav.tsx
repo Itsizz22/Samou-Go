@@ -1,7 +1,7 @@
 import { useCart } from '@/components/CartProvider';
 import { useEffect, useState } from 'react';
-import { Home, ShoppingCart, Heart, FileText, User, BadgePercent, type LucideIcon } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { Home, ShoppingCart, FileText, Menu, type LucideIcon } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useLanguage } from '@samou-go/ui';
 import { useAuth, useOrders } from '@/hooks/useApi';
 import { OrderStatus } from '@samou-go/shared-types';
@@ -27,11 +27,9 @@ interface TabItem {
 
 const TABS: readonly TabItem[] = [
   { to: '/home', labelAr: 'الرئيسية', labelEn: 'Home', icon: Home },
-  { to: '/offers', labelAr: 'العروض', labelEn: 'Offers', icon: BadgePercent },
   { to: '/orders', labelAr: 'طلباتي', labelEn: 'Orders', icon: FileText },
   { to: '/cart', labelAr: 'السلة', labelEn: 'Cart', icon: ShoppingCart },
-  { to: '/favorites', labelAr: 'المفضلة', labelEn: 'Favorites', icon: Heart },
-  { to: '/profile', labelAr: 'حسابي', labelEn: 'Profile', icon: User },
+  { to: '/menu', labelAr: 'القائمة', labelEn: 'Menu', icon: Menu },
 ];
 
 /** Terminal statuses — orders in these states are no longer "active." */
@@ -52,6 +50,8 @@ function useActiveOrderCount() {
 
 export function BottomNav() {
   const { t } = useLanguage();
+  const { pathname } = useLocation();
+  const menuActive = ['/menu', '/offers', '/favorites', '/profile', '/settings'].some(path => pathname === path || pathname.startsWith(`${path}/`));
   const cart = useCart();
   const { count: activeOrders, error: ordersError, refresh: refreshOrders } = useActiveOrderCount();
   const [cartBounce, setCartBounce] = useState(false);
@@ -86,7 +86,7 @@ export function BottomNav() {
           </button>
         </p>
       )}
-      <div className="mx-auto grid max-w-md grid-cols-6 items-stretch gap-0.5 sm:grid-cols-6">
+      <div className="mx-auto grid max-w-md grid-cols-4 items-stretch gap-0.5 sm:grid-cols-4">
         {TABS.map(({ to, labelAr, labelEn, icon: Icon }) => (
           <NavLink
             key={to}
@@ -94,7 +94,7 @@ export function BottomNav() {
             end={to === '/home'}
             className={({ isActive }) =>
               `relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand ${
-                isActive
+                (isActive || (to === '/menu' && menuActive))
                   ? 'bg-brand-surface text-brand'
                   : 'text-ink-muted hover:bg-canvas'
               }`
@@ -105,14 +105,14 @@ export function BottomNav() {
                 <span className="relative">
                   <Icon
                     size={21}
-                    strokeWidth={isActive ? 2.5 : 1.8}
+                    strokeWidth={isActive || (to === '/menu' && menuActive) ? 2.5 : 1.8}
                     fill="none"
                     className={`${
                       to === '/cart' && cartBounce ? 'cart-bounce' : ''
                     } ${
                       to === '/cart' && cartRipple ? 'animate-[greenRipple_0.6s_ease-out_both]' : ''
                     } ${
-                      isActive ? 'text-brand-deep' : ''
+                      isActive || (to === '/menu' && menuActive) ? 'text-brand-deep' : ''
                     }`}
                   />
                   {to === '/cart' && cart.itemCount > 0 && <span className="absolute -inset-e-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-xs font-bold text-white" dir="ltr">{cart.itemCount > 99 ? "99+" : cart.itemCount}</span>}

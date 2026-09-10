@@ -154,12 +154,15 @@ export function RegisterScreen() {
     setPending(true);
     setError(null);
     try {
-      await requestOtp({ phone: phone.trim() });
+      await requestOtp({ phone: phone.trim(), purpose: 'registration' });
       setCode('');
       setResendSeconds(60);
       setStep('otp');
     } catch (cause) {
-      setError(apiErrorMessage(cause, { ar: 'تعذر إرسال الرمز. حاول مجدداً.', en: 'Could not send code. Try again.' }));
+      const message = cause instanceof Error ? cause.message : '';
+      setError(message.includes('already registered')
+        ? { ar: 'رقم الهاتف مستخدم بالفعل. سجّل الدخول أو استخدم رقماً آخر.', en: 'This phone number is already registered. Sign in or use another number.' }
+        : apiErrorMessage(cause, { ar: 'تعذر إرسال الرمز. حاول مجدداً.', en: 'Could not send code. Try again.' }));
     } finally { setPending(false); }
   };
 

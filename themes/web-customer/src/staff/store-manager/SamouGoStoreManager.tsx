@@ -271,8 +271,8 @@ export function SamouGoStoreManager() {
       // One notification sound + one toast per poll batch, not per order.
       stopAlertRef.current?.();
       stopAlertRef.current = announceOrderOnce();
-      const orderLabel = fresh.length === 1 ? `طلب ${fresh[0].orderNumber}` : `${fresh.length} طلبات جديدة`;
-      toast.info(`🔔 ${orderLabel} جديد`, `${fresh.length} new order${fresh.length === 1 ? '' : 's'} arrived`);
+      const orderLabel = fresh.length === 1 ? `طلب جديد ${fresh[0].orderNumber}` : `${fresh.length} طلبات جديدة`;
+      toast.info(`🔔 ${orderLabel}`, `${fresh.length} new order${fresh.length === 1 ? '' : 's'} arrived`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingItems, incoming.loading, isManager, auth.user]);

@@ -568,7 +568,7 @@ export function SamouGoCaptain() {
                       <Badge tone={ORDER_STATUS_TONES[order.status]} dot>
                         {t(ORDER_STATUS_LABELS[order.status].ar, ORDER_STATUS_LABELS[order.status].en)}
                       </Badge>
-                      <span>{order.itemCount} items</span>
+                      <span><span dir="ltr">{order.itemCount}</span> {t('منتج', 'items')}</span>
                     </div>
                     <OrderCustomerDetails order={order} showDestination />
                     <PreparationCountdown order={order} />

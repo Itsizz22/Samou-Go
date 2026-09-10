@@ -458,3 +458,18 @@ it('sends password reset SMS for a registered active account', async () => {
   expect(h.gateway.send).toHaveBeenCalledOnce();
 });
 
+
+
+describe('registration OTP eligibility', () => {
+  it.each([true, false])('rejects an existing account (active=%s) before creating or sending OTP', async (isActive) => {
+    h.state.user = { id: 'existing', phone: PHONE, isActive };
+    await expect(requestOtp({ phone: PHONE, purpose: 'registration' })).rejects.toMatchObject({ statusCode: 409 });
+    expect(h.gateway.send).not.toHaveBeenCalled();
+    expect(h.state.otp).toBeNull();
+  });
+  it('sends a registration OTP for a new phone', async () => {
+    await expect(requestOtp({ phone: PHONE, purpose: 'registration' })).resolves.toMatchObject({ retryAfterSeconds: 300 });
+    expect(h.gateway.send).toHaveBeenCalledOnce();
+    expect(h.state.otp?.phone).toBe(PHONE);
+  });
+});

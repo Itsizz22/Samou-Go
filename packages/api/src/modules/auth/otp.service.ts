@@ -27,7 +27,7 @@ import type {
 import { UserRole, generateStoreSlug } from "@samou-go/shared-types";
 import { env } from "../../config/env";
 import { prisma } from "../../lib/prisma";
-import { notFound, serviceUnavailable, tooMany, unauthorized, type HttpError } from "../../lib/http-error";
+import { conflict, notFound, serviceUnavailable, tooMany, unauthorized, type HttpError } from "../../lib/http-error";
 import { hashPassword } from "../../lib/password";
 import { signAccessToken } from "../../lib/jwt";
 import { getSmsGateway } from "../../lib/sms/gateway";
@@ -162,6 +162,12 @@ export async function requestOtp(
   const { phone } = body;
   const now = new Date();
 
+  if (body.purpose === 'registration') {
+    const account = await prisma.user.findUnique({ where: { phone } });
+    if (account) {
+      throw conflict('رقم الهاتف مستخدم بالفعل. سجّل الدخول أو استخدم رقماً آخر / This phone number is already registered. Sign in or use another number');
+    }
+  }
   if (body.purpose === 'password-reset') {
     const account = await prisma.user.findUnique({ where: { phone } });
     if (!account || account.isActive === false) {

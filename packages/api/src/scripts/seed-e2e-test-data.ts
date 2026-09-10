@@ -156,12 +156,12 @@ async function seedDeliveryZones(): Promise<void> {
   for (const zone of zones) {
     await prisma.deliveryZone.upsert({
       where: { id: zone.id },
-      update: { fee: zone.fee },
+      update: { deliveryFee: zone.fee },
       create: {
         id: zone.id,
         nameAr: zone.nameAr,
         nameEn: zone.nameEn,
-        fee: zone.fee,
+        deliveryFee: zone.fee,
         sortOrder: zone.sortOrder,
         isActive: true,
       },
