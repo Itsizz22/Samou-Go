@@ -7,7 +7,6 @@ import { FEATURE_FLAGS } from '@samou-go/api-client';
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   Check,
@@ -270,14 +269,14 @@ export function StoreProfilePanel({ storeId }: Props) {
     <div className="mx-auto max-w-lg">
       <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
         {/* Store ID badge */}
-        <div className="border-b border-line-soft bg-canvas px-5 py-3 flex items-center gap-2">
+        <div className="border-b border-line-soft bg-brand-tint px-5 py-4 flex items-center justify-center gap-2">
           <Store size={15} className="text-brand" />
-          <span className="text-[11px] font-semibold text-ink-muted" dir="ltr">
-            Store ID: {storeId}
+          <span className="text-sm font-extrabold text-brand">
+            {t('بيانات متجرك', 'Your store details')}
           </span>
         </div>
 
-        <div className="space-y-5 p-5">
+        <div className="space-y-5 p-4 sm:p-5">
           {/* Arabic name */}
           <label className="block">
             <span className="mb-1.5 block text-xs font-bold text-ink">
@@ -342,6 +341,7 @@ export function StoreProfilePanel({ storeId }: Props) {
             </div>
             <p className="mt-3 text-xs leading-6 text-ink-muted">تظهر هذه المواعيد للعملاء. حالة «مفتوح / مغلق» تُدار يدويًا؛ حفظ الوقت لا يغلق المتجر تلقائيًا.</p>
           </section>
+        <h3 className="border-t border-line pt-5 text-base font-extrabold">{t('هوية المتجر وصوره', 'Store identity and photos')}</h3>
         {/* Store logo */}
         <div className="space-y-3">
           <div className="rounded-xl border border-line bg-canvas p-3">
@@ -411,7 +411,6 @@ export function StoreProfilePanel({ storeId }: Props) {
               {coverSrc && <button type="button" disabled={coverBusy || logoBusy} onClick={() => void handleCover(undefined, true)} className="min-h-11 rounded-xl border border-line px-4 text-sm font-bold text-danger-ink disabled:opacity-50">{t('إزالة الخلفية', 'Remove cover')}</button>}
             </div>
           </section>
-          <Link to="/settings" className="flex min-h-12 items-center justify-between rounded-xl border border-brand/20 bg-brand-tint px-4 font-bold text-brand">إعدادات التطبيق والإشعارات <span aria-hidden="true">←</span></Link>
           {/* Active status */}
           <div className="flex items-center justify-between rounded-xl border border-line bg-canvas px-4 py-3">
             <div>

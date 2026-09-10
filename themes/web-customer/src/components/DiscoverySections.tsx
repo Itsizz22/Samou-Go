@@ -77,7 +77,7 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
     </Link>
   );
   return (
-    <div id="discovery" className="mx-auto max-w-md scroll-mt-4 px-5 pt-6 font-sans">
+    <div id="discovery" className="mx-auto max-w-md scroll-mt-4 px-3 pt-5 sm:px-5 font-sans">
       <nav
         aria-label={t('اكتشف المتاجر والمنتجات', 'Discover stores and products')}
         className="mb-5 flex gap-2 overflow-x-auto pb-2 scrollbar-none"
@@ -118,7 +118,7 @@ export function DiscoverySections({ onAdd }: { onAdd: (product: PopularProduct) 
           empty={!orderedProducts.length}
           retry={products.refresh}
         />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2.5">
           {orderedProducts.slice(0, visibleCount).map(product => (
             <article
               key={product.id}

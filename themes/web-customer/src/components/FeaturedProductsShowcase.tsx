@@ -35,7 +35,7 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
   if (!products.length && !loading) return null;
   return (
     <section
-      className="mx-auto max-w-md px-5 pt-5 font-sans"
+      className="mx-auto max-w-md px-3 pt-4 sm:px-5 font-sans"
       aria-label={t('أطباق مميزة اخترناها لك', 'Featured dishes picked for you')}
       aria-busy={loading}
     >
@@ -112,9 +112,9 @@ export function FeaturedProductsShowcase({ products, loading, onAdd }: Props) {
                       <span className="line-clamp-1 pe-1 font-semibold">{product.storeNameAr}</span>
                     </div>
                   </div>
-                  <div className="space-y-2 p-4">
+                  <div className="space-y-2 p-3">
                     <h3 className="line-clamp-2 min-h-6 text-base font-bold">{product.nameAr}</h3>
-                    {product.description && <p className="line-clamp-2 text-sm leading-6 text-ink-muted">
+                    {product.description && <p className="line-clamp-1 text-sm leading-5 text-ink-muted">
                       {product.description}
                     </p>}
                     <div className="flex flex-wrap items-center justify-between gap-2">

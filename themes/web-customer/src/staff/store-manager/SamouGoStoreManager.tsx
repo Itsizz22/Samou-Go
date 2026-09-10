@@ -1,3 +1,4 @@
+import { StaffAccountTools } from '@/components/StaffAccountTools';
 import { announceOrderOnce } from '@/lib/orderAlarm';
 import { getLiveOrderTracking } from '@samou-go/api-client';
 import { OrderTrackingToggle } from '@samou-go/ui/map';
@@ -890,9 +891,11 @@ export function SamouGoStoreManager() {
 
       {activeTab === 'settings' && (
         <section className="mx-auto max-w-180 px-4 pt-7 pb-8" aria-labelledby="profile-tab-title">
-          <div className="mb-5">
+          <div className="mb-5 text-center">
             <h2 id="profile-tab-title" className="text-lg font-extrabold">{t('إعدادات المتجر', 'Store Profile & Settings')}</h2>
+            <p className="mt-2 text-sm text-ink-muted">{t('بيانات متجرك وصوره وتفضيلات حسابك في مكان واحد', 'Your store details, photos and account preferences in one place')}</p>
           </div>
+          <StaffAccountTools />
           {managedStores.loading && !managedStores.data ? (
             <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card" aria-busy="true">
               <Loader2 size={22} className="mx-auto animate-spin text-brand" />
@@ -914,7 +917,7 @@ export function SamouGoStoreManager() {
               </button>
             </div>
           ) : managedStoreId ? (
-            <StoreProfilePanel storeId={managedStoreId} />
+            <StoreProfilePanel key={managedStoreId} storeId={managedStoreId} />
           ) : (
             <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card">
               <p className="text-sm text-ink-muted">

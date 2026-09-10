@@ -254,7 +254,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
         element={
           <RoleGuard auth={auth} role={UserRole.CAPTAIN}>
             <Suspense fallback={<StaffFallback />}>
-              <CaptainDashboard />
+              <CaptainDashboard key={auth.user?.id} />
             </Suspense>
           </RoleGuard>
         }
@@ -264,7 +264,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
         element={
           <RoleGuard auth={auth} role={UserRole.CAPTAIN}>
             <Suspense fallback={<StaffFallback />}>
-              <CaptainDashboard />
+              <CaptainDashboard key={auth.user?.id} />
             </Suspense>
           </RoleGuard>
         }
@@ -284,7 +284,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
         element={
           <RoleGuard auth={auth} role={UserRole.STORE_MANAGER}>
             <Suspense fallback={<StaffFallback />}>
-              <StoreManagerDashboard />
+              <StoreManagerDashboard key={auth.user?.id} />
             </Suspense>
           </RoleGuard>
         }
@@ -294,7 +294,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
         element={
           <RoleGuard auth={auth} role={UserRole.STORE_MANAGER}>
             <Suspense fallback={<StaffFallback />}>
-              <StoreManagerDashboard />
+              <StoreManagerDashboard key={auth.user?.id} />
             </Suspense>
           </RoleGuard>
         }

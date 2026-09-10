@@ -1,3 +1,4 @@
+import { StaffAccountTools } from '@/components/StaffAccountTools';
 import { announceOrderOnce } from '@/lib/orderAlarm';
 import { useCaptainTracking, getLiveOrderTracking } from '@samou-go/api-client';
 import { LiveTrackingCard } from '@samou-go/ui/map';
@@ -446,7 +447,6 @@ export function SamouGoCaptain() {
     return (
       <main className="min-h-screen bg-canvas pb-24" aria-busy="true">
         <header className="bg-surface px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-ink">
-        <a href="/settings" className="mb-3 flex min-h-11 items-center justify-center rounded-xl border border-brand/20 bg-brand-tint px-4 text-sm font-bold text-brand">إعدادات الحساب والإشعارات</a>
           <div className="mx-auto flex max-w-md items-center justify-between" aria-hidden="true">
             <span className="h-10 w-10 rounded-full bg-surface/15" />
             <span className="h-5 w-32 rounded bg-surface/20" />
@@ -707,7 +707,6 @@ export function SamouGoCaptain() {
         </div>
       </aside>
       <header className="bg-surface px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-ink">
-        <a href="/settings" className="mb-3 flex min-h-11 items-center justify-center rounded-xl border border-brand/20 bg-brand-tint px-4 text-sm font-bold text-brand">إعدادات الحساب والإشعارات</a>
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Captain navigation">
           <button type="button" aria-label="Profile" onClick={() => setActiveTab('account')} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-surface/15 transition hover:bg-surface/25">
             <UserRound size={21} />
@@ -1304,7 +1303,7 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
 
   return (
     <section className="pt-6" aria-labelledby="account-title">
-      <div className="mb-4">
+      <div className="mb-5 text-center">
         <h2 id="account-title" className="text-[17px] font-extrabold">{t('حسابي', 'Account & Profile')}</h2>
       </div>
 
@@ -1336,8 +1335,8 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
           </label>
         </div>
 
-        <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
-          <p className="text-xs font-extrabold text-ink">{t('تغيير كلمة المرور', 'Change password')}</p>
+        <details className="rounded-2xl border border-line bg-surface p-4 shadow-card">
+          <summary className="min-h-11 cursor-pointer content-center text-sm font-extrabold text-ink focus-visible:outline-brand">{t('الأمان وكلمة المرور', 'Security and password')}</summary>
           <label className="mt-3 block">
             <span className="mb-1.5 block text-xs font-bold text-ink">{t('كلمة المرور الحالية', 'Current password')}</span>
             <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className={fieldClass} />
@@ -1350,7 +1349,7 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
             <span className="mb-1.5 block text-xs font-bold text-ink">{t('تأكيد كلمة المرور', 'Confirm password')}</span>
             <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={fieldClass} />
           </label>
-        </div>
+        </details>
 
         {(localError || savingError) && (
           <p className="flex items-start gap-1.5 rounded-xl bg-danger-tint px-3 py-2 text-xs font-semibold text-danger-ink" role="alert">
@@ -1368,6 +1367,8 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
           {saved ? t('تم الحفظ ✓', 'Saved') : t('حفظ التغييرات', 'Save changes')}
         </button>
       </form>
+
+      <StaffAccountTools />
 
       <button
         type="button"

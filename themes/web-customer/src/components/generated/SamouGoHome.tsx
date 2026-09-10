@@ -249,7 +249,6 @@ export function SamouGoHome() {
       {!searchTerm.trim() && <>
       <PromoBannerSlider />
 
-      <PromoBannerSlider kind="product" />
       <CravingShortcuts products={dishProducts} />
 
       <FeaturedProductsShowcase products={dishProducts} loading={popular.loading} onAdd={handlePopularAdd} />
@@ -281,6 +280,7 @@ export function SamouGoHome() {
       </section>
 
       <DiscoverySections onAdd={handlePopularAdd} />
+      <PromoBannerSlider kind="product" />
 
       {/* Store Ads & Offers Feed */}
       <section className="mx-auto max-w-md px-5 pt-7" id="exclusive-offers" aria-labelledby="offers-title">
