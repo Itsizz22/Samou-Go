@@ -1,5 +1,17 @@
 import { z } from 'zod';
+import { env } from '../../config/env';
 import { SettlementMethod } from '@samou-go/shared-types';
+
+function isBannerImageUrl(value: string): boolean {
+  if (/^\/banners\/[a-zA-Z0-9._-]+$/.test(value)) return true; // Existing bundled images.
+  try {
+    const url = new URL(value);
+    if (url.protocol === 'https:') return true;
+    // Local development uploads use the configured API origin, never arbitrary HTTP hosts.
+    return !env.isProduction && url.origin === new URL(env.publicApiOrigin).origin
+      && /^\/uploads\/banner\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9-]+\.webp$/.test(url.pathname);
+  } catch { return false; }
+}
 
 /** `:orderId` route param — every order-scoped platform endpoint uses it. */
 export const orderIdParamsSchema = z.object({
@@ -65,7 +77,7 @@ export const platformSettingsSchema = z.object({
     kind: z.enum(['announcement', 'product']).optional(),
     storeId: z.string().min(1).max(120).optional(),
     id: z.string().min(1).max(80), title: z.string().trim().min(1).max(120),
-    imageUrl: z.string().max(2048).refine(value => /^\/banners\/[a-zA-Z0-9._-]+$/.test(value) || (() => { try { return new URL(value).protocol === 'https:'; } catch { return false; } })(), 'رابط الصورة يجب أن يكون HTTPS'),
+    imageUrl: z.string().max(2048).refine(isBannerImageUrl, 'اختر صورة صالحة للبانر'),
     fit: z.enum(['contain', 'cover']), positionY: z.number().int().min(0).max(100), enabled: z.boolean(),
   }).refine(item => item.kind !== 'product' || Boolean(item.storeId), 'اختر متجر إعلان المنتج')).refine(items => new Set(items.map(item => item.id)).size === items.length, 'معرفات البانرات مكررة').optional(),
   gpsCaptureEnabled: z.boolean().optional(),

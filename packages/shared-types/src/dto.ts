@@ -705,7 +705,7 @@ export interface UpdatePlatformSettingsInput {
  * ------------------------------------------------------------------------- */
 
 /** What a processed image eventually attaches to. */
-export type UploadKind = 'user' | 'product' | 'store' | 'offer' | 'category' | 'audio';
+export type UploadKind = 'user' | 'product' | 'store' | 'offer' | 'category' | 'banner' | 'audio';
 
 /** POST /uploads/presign */
 export interface PresignUploadInput {

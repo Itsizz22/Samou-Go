@@ -12,7 +12,7 @@ import { processImage, sniffImageType } from './image';
 import { storage } from './storage';
 import { ALL_ALLOWED_MIMES, ALLOWED_AUDIO_MIMES, MIME_TO_EXT, MAX_AUDIO_BYTES, uploadConfig } from './uploads.config';
 
-const KEY_PATTERN = /^(user|product|store|offer|category|audio)\/([^/]+)\/([^/]+)\.(jpg|png|webp|webm|m4a|ogg|mp3)$/;
+const KEY_PATTERN = /^(user|product|store|offer|category|banner|audio)\/([^/]+)\/([^/]+)\.(jpg|png|webp|webm|m4a|ogg|mp3)$/;
 
 export interface UploadCaller {
   userId: string;
@@ -137,11 +137,17 @@ async function resolveCategory(
   return category;
 }
 
+function assertBannerKey(key: string, caller: UploadCaller): void {
+  if (caller.role !== UserRole.ADMIN || !key.startsWith(`banner/${caller.userId}/`)) throw forbidden();
+}
+
 export async function presign(
   caller: UploadCaller,
   input: { contentType: string; kind: UploadKind; resourceId?: string; purpose?: 'logo' | 'cover' | 'image' }
 ): Promise<PresignUploadResult> {
-  const isAudio = ALLOWED_AUDIO_MIMES.includes(input.contentType as any);
+  if (input.kind === 'banner' && caller.role !== UserRole.ADMIN) throw forbidden();
+  const isAudio = ALLOWED_AUDIO_MIMES.some(mime => mime === input.contentType);
+  if (input.kind === 'banner' && isAudio) throw badRequest('اختر صورة JPEG أو PNG أو WebP');
   const mime = ALL_ALLOWED_MIMES.find(entry => entry === input.contentType);
   if (!mime) {
     throw badRequest(
@@ -165,7 +171,9 @@ export async function presign(
   const ext = MIME_TO_EXT[mime];
   let key: string;
 
-  if (input.kind === 'user') {
+  if (input.kind === 'banner') {
+    key = `banner/${caller.userId}/${randomUUID()}.${ext}`;
+  } else if (input.kind === 'user') {
     key = `user/${caller.userId}/${randomUUID()}.${ext}`;
   } else if (input.kind === 'product') {
     if (!input.resourceId) {
@@ -220,7 +228,9 @@ export async function storeRaw(key: string, body: Readable, caller: UploadCaller
   const parsed = parseKey(key);
   if (!parsed) throw badRequest('مفتاح رفع غير صالح / Invalid upload key');
 
-  if (parsed.kind === 'user') {
+  if (parsed.kind === 'banner') {
+    assertBannerKey(key, caller);
+  } else if (parsed.kind === 'user') {
     assertUserKey(key, caller);
   } else if (parsed.kind === 'product') {
     await resolveProduct(parsed.ownerId, caller);
@@ -246,6 +256,7 @@ export async function finalizeUpload(
     throw badRequest('مفتاح رفع غير صالح / Invalid upload key');
   }
 
+  if (parsed.kind === 'banner') assertBannerKey(key, caller);
   const product = parsed.kind === 'product' ? await resolveProduct(parsed.ownerId, caller) : null;
   const store = parsed.kind === 'store' ? await resolveStore(parsed.ownerId, caller) : null;
   const offer = parsed.kind === 'offer' ? await resolveOffer(parsed.ownerId, caller) : null;
@@ -264,7 +275,18 @@ export async function finalizeUpload(
   }
 
   const base = baseKeyOf(key);
-  const processed = await processImage({ buffer: raw, kind: kind as any });
+  if (kind === 'audio') throw badRequest('اختر ملف صورة');
+  const processed = await processImage({ buffer: raw, kind });
+
+  // Persist the image first; publishing the banner is a separate settings save.
+  // Fresh immutable keys keep cached clients from showing the previous image.
+  if (parsed.kind === 'banner') {
+    const variant = processed.variants[0]!;
+    const finalKey = `${base}.webp`;
+    await storage.writeFinal(finalKey, variant.buffer);
+    await storage.removeRaw(key).catch(() => undefined);
+    return { url: storage.finalUrl(finalKey), width: variant.width, height: variant.height };
+  }
 
   if (parsed.kind === 'user' || parsed.kind === 'store' || parsed.kind === 'offer' || parsed.kind === 'category') {
     const variant = processed.variants[0]!;
@@ -363,6 +385,7 @@ export async function removeCurrentImage(
   resourceId?: string,
   purpose?: 'logo' | 'cover' | 'image'
 ): Promise<void> {
+  if (kind === 'banner') throw forbidden();
   if (kind === 'user') {
     const user = await prisma.user.findUnique({
       where: { id: caller.userId },
@@ -462,6 +485,9 @@ export async function removeCurrentImage(
 export async function removeUpload(key: string, caller: UploadCaller): Promise<void> {
   const parsed = parseKey(key);
   if (!parsed) throw badRequest('مفتاح رفع غير صالح / Invalid upload key');
+  // Published banner files may be shared by multiple settings entries. Banner
+  // removal is performed through settings, never by deleting the shared asset.
+  if (parsed.kind === 'banner') throw forbidden();
   const base = baseKeyOf(key);
 
   if (parsed.kind === 'user') {

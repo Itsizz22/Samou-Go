@@ -574,3 +574,50 @@ describe('store covers', () => {
     expect(h.state.store?.coverUrl).toBe(coverResult.url);
   });
 });
+describe('admin banner uploads', () => {
+  it('rejects non-admin callers at presign, raw upload and finalize', async () => {
+    for (const caller of [CUSTOMER, MANAGER, { userId: 'u-captain', role: UserRole.CAPTAIN }]) {
+      await expectHttpError(presign(caller, { kind: 'banner', contentType: 'image/png' }), 'FORBIDDEN', 403);
+      const key = `banner/${caller.userId}/test.png`;
+      await expectHttpError(storeRaw(key, ReadableFrom(await makePng()), caller), 'FORBIDDEN', 403);
+      await expectHttpError(finalizeUpload(caller, key, 'banner'), 'FORBIDDEN', 403);
+    }
+    await expectHttpError(storeRaw('banner/another-admin/test.png', ReadableFrom(await makePng()), ADMIN), 'FORBIDDEN', 403);
+    await expectHttpError(finalizeUpload(ADMIN, 'banner/another-admin/test.png', 'banner'), 'FORBIDDEN', 403);
+  });
+
+  it('keeps banner proportions and returns a fresh public image without publishing settings', async () => {
+    const image = await makePng(1200, 800);
+    const first = await presign(ADMIN, { kind: 'banner', contentType: 'image/png' });
+    const second = await presign(ADMIN, { kind: 'banner', contentType: 'image/png' });
+    expect(first.key).not.toBe(second.key);
+    expect(first.key).toMatch(/^banner\/u-admin\/[\w-]+\.png$/);
+    // The raw-size guard is tested separately; large dimensions compress below it here.
+    await storage.streamRaw(first.key, ReadableFrom(await makePng(300, 200)));
+    const result = await finalizeUpload(ADMIN, first.key, 'banner');
+    expect(result).toMatchObject({ width: 300, height: 200 });
+    const key = first.key.replace(/\.png$/, '.webp');
+    const final = await storage.readFinal(key);
+    expect(final).not.toBeNull();
+    expect(await sharp(final!).metadata()).toMatchObject({ format: 'webp', width: 300, height: 200 });
+    expect(h.prisma.store.update).not.toHaveBeenCalled();
+    expect(h.prisma.product.update).not.toHaveBeenCalled();
+    expect(await storage.readRaw(first.key)).toBeNull();
+    const { processImage } = await import('./image');
+    expect((await processImage({ buffer: image, kind: 'banner' })).variants[0]).toMatchObject({ width: 1200, height: 800 });
+    expect((await processImage({ buffer: await makePng(2400, 1350), kind: 'banner' })).variants[0]).toMatchObject({ width: 1600, height: 900 });
+  });
+
+  it('rejects invalid image content and audio disguised as banner uploads', async () => {
+    await expectHttpError(presign(ADMIN, { kind: 'banner', contentType: 'audio/mpeg' }), 'BAD_REQUEST', 400);
+    const prepared = await presign(ADMIN, { kind: 'banner', contentType: 'image/png' });
+    await storeRaw(prepared.key, ReadableFrom(Buffer.from('not a picture')), ADMIN);
+    await expectHttpError(finalizeUpload(ADMIN, prepared.key, 'banner'), 'BAD_REQUEST', 400);
+    expect(await storage.readFinal(prepared.key.replace(/\.png$/, '.webp'))).toBeNull();
+  });
+
+  it('does not delete a banner asset still potentially referenced by settings', async () => {
+    await expectHttpError(removeUpload('banner/u-admin/test.png', ADMIN), 'FORBIDDEN', 403);
+    await expectHttpError(removeCurrentImage(ADMIN, 'banner'), 'FORBIDDEN', 403);
+  });
+});

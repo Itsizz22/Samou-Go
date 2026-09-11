@@ -31,13 +31,13 @@ async function removeTestCache() {
 beforeEach(async () => { h.rows.clear(); vi.clearAllMocks(); await removeTestCache(); });
 afterAll(async () => { await removeTestCache(); await rm(h.root, { recursive: true, force: true }); });
 describe('durable processed media', () => {
-  it('restores byte-identical images and cache after disk loss and a new adapter instance', async () => {
+  it.each(['product/demo/md.webp', 'banner/admin/unique.webp'])('restores %s after disk loss and a new adapter instance', async (key) => {
     const bytes = Buffer.from('processed image fixture');
-    await new PersistentStorageAdapter().writeFinal('product/demo/md.webp', bytes);
+    await new PersistentStorageAdapter().writeFinal(key, bytes);
     await removeTestCache();
-    const restored = await new PersistentStorageAdapter().readFinal('product/demo/md.webp');
+    const restored = await new PersistentStorageAdapter().readFinal(key);
     expect(restored).toEqual(bytes);
-    expect(await readFile(path.join(h.root, 'final/product/demo/md.webp'))).toEqual(bytes);
+    expect(await readFile(path.join(h.root, 'final', key))).toEqual(bytes);
   });
   it('rejects finalization if the durable write fails', async () => {
     h.upsert.mockRejectedValueOnce(new Error('database unavailable'));
