@@ -2245,3 +2245,5 @@ export const getLiveOrderTracking = (id: string, signal?: AbortSignal) => reques
 export const sendCaptainPosition = (body: { orderId: string; lat: number; lng: number; heading?: number }) => request<unknown>('PUT', '/platform/captains/me/location', { auth: true, body });
 
 export function getDishCategoryOptions(signal?: AbortSignal): Promise<{ id: string; nameAr: string; store: { id: string; nameAr: string } }[]> { return request('GET', '/stores/dish-category-options', { auth: true, signal }); }
+
+export function getPrescriptionImage(id: string, audience: 'customer' | 'store', signal?: AbortSignal): Promise<{ image: string }> { return request('GET', '/' + audience + '/custom-requests/' + encodeURIComponent(id) + '/image', { auth: true, signal }); }

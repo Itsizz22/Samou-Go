@@ -1,10 +1,11 @@
 /**
  * Phone normalisation — mirrors the API's Zod `phoneSchema` exactly so the
  * client shows the same canonical `05XXXXXXXX` shape the server stores.
- * Only Palestinian numbers (059/056) are accepted.
+ * Supports local 056/059 and 050–055, 057, 058 (+972).
  */
 export function normalizePhone(input: string): string {
   const international = input.trim().replace(/[\s-()]/g, "").replace(/^00/, "+");
+  if (/^05[0-578]\d{7}$/.test(international)) return `+972${international.slice(1)}`;
   if (/^\+?9725[0-578]\d{7}$/.test(international)) return `+${international.replace(/^\+/, "")}`;
   const digits = input
     .trim()

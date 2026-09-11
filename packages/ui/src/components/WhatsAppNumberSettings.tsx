@@ -3,7 +3,7 @@ import { useLanguage } from '../lib';
 
 function splitNumber(value: string) {
   const digits = value.replace(/[٠-٩]/g, c => String(c.charCodeAt(0) - 1632)).replace(/[۰-۹]/g, c => String(c.charCodeAt(0) - 1776)).replace(/\D/g, '').replace(/^00/, '');
-  const country = digits.startsWith('972') ? '972' : '970';
+  const country = (digits.startsWith('972') || /^05[0-578]\d{7}$/.test(digits)) ? '972' : '970';
   return { country, local: /^(970|972)/.test(digits) ? digits.slice(3) : digits.replace(/^0/, '') };
 }
 

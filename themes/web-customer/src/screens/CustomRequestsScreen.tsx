@@ -1,3 +1,5 @@
+import { PrescriptionImage, compressImage } from '@samou-go/api-client';
+import { useDeliveryZone } from '@/components/ZoneProvider';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, ImagePlus, Loader2, X } from 'lucide-react';
@@ -18,6 +20,7 @@ import { useLanguage, ImageWithFallback } from '@samou-go/ui';
 
 export function CustomRequestsScreen() {
   const toast = useToast();
+  const zone = useDeliveryZone();
   const navigate = useNavigate();
   const { t } = useLanguage();
   const stores = useStores({ pageSize: 100 });
@@ -27,9 +30,11 @@ export function CustomRequestsScreen() {
   );
   const upload = useUploadImage();
 
-  const [storeId, setStoreId] = useState('');
+  const [storeId, setStoreId] = useState(new URLSearchParams(window.location.search).get('storeId') ?? '');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [address, setAddress] = useState('');
+  const pharmacy = stores.data?.items.find(store => store.id === storeId)?.storeType === 'PHARMACY';
   const [imageBusy, setImageBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,13 +46,20 @@ export function CustomRequestsScreen() {
     }
     setImageBusy(true);
     try {
+      if (pharmacy) {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('اختر صورة JPG أو PNG أو WebP');
+        const compressed = await compressImage(file, { maxDimension: 1600, quality: 0.8 });
+        if (compressed.size > 590000) { toast.error('حجم الصورة كبير بعد الضغط، اختر صورة أصغر', 'Please use a smaller photo'); return; }
+        const data = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(compressed); });
+        setImageUrl(data); return;
+      }
       const result = await upload.run({ kind: 'store', purpose: 'image', file });
       if (result) {
         setImageUrl(result.url);
       } else {
         toast.error(upload.error?.message ?? 'تعذّر رفع الصورة', 'Upload failed');
       }
-    } finally {
+    } catch { toast.error('تعذر تجهيز الصورة', 'Image failed'); } finally {
       setImageBusy(false);
     }
   };
@@ -60,10 +72,11 @@ export function CustomRequestsScreen() {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!storeId || !description.trim()) return;
+    if (pharmacy && (!imageUrl || address.trim().length < 5)) { toast.error('أرفق الوصفة واكتب عنوان التوصيل', 'Prescription and address required'); return; }
     const result = await create.run({
       storeId,
       description: description.trim(),
-      ...(imageUrl ? { imageUrl } : {}),
+      ...(pharmacy ? { prescriptionImage: imageUrl ?? undefined, customerAddressText: address, deliveryZoneId: zone.activeZone?.id } : imageUrl ? { imageUrl } : {}),
     });
     if (result) {
       setDescription('');
@@ -78,7 +91,8 @@ export function CustomRequestsScreen() {
 
   const respond = async (id: string, action: 'ACCEPT' | 'REJECT') => {
     try {
-      await respondToCustomRequest(id, { action });
+      const result = await respondToCustomRequest(id, { action });
+      if (result.orderId) { navigate('/orders/' + result.orderId); return; }
       requests.reload();
       toast.success('تم تحديث الطلب', 'Request updated');
     } catch (error) {
@@ -108,7 +122,7 @@ export function CustomRequestsScreen() {
 
           <select
             value={storeId}
-            onChange={(event) => setStoreId(event.target.value)}
+            onChange={(event) => { setStoreId(event.target.value); setImageUrl(null); }}
             className="input-field mt-3"
             required
           >
@@ -128,6 +142,8 @@ export function CustomRequestsScreen() {
             required
           />
 
+          {pharmacy && <label className="mt-3 block text-sm font-bold">عنوان التوصيل (إجباري)<textarea required minLength={5} maxLength={500} value={address} onChange={e => setAddress(e.target.value)} placeholder="الحي، الشارع، علامة مميزة" className="input-field mt-2 w-full" /><span className="mt-2 block font-normal text-ink-muted">أرفق صورة واضحة للوصفة. تراجعها الصيدلية وتعرض السعر قبل تأكيد الطلب.</span></label>}
+          {pharmacy && zone.zones.length > 0 && <label className="mt-3 block text-sm font-bold">منطقة التوصيل<select required className="input-field mt-2 w-full" value={zone.activeZone?.id ?? ''} onChange={e => zone.selectZone(e.target.value)}><option value="">اختر المنطقة</option>{zone.zones.map(item => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</select></label>}
           {/* Photo attachment */}
           <div className="mt-2">
             <input
@@ -193,6 +209,10 @@ export function CustomRequestsScreen() {
                 />
               )}
 
+              {request.hasPrescriptionImage && <PrescriptionImage id={request.id} audience="customer" />}
+              {request.orderId && <button className="min-h-11 text-brand" onClick={() => navigate('/orders/' + request.orderId)}>متابعة الطلب</button>}
+              {request.deliveryFeePending && <p className="my-2 text-sm font-bold">سعر الأدوية فقط؛ رسوم التوصيل يعرضها الكابتن للموافقة عليها لاحقًا.</p>}
+              {!request.deliveryFeePending && request.quotedDeliveryFee != null && request.offeredPrice != null && <p className="my-2 text-sm">التوصيل: ₪{request.quotedDeliveryFee.toFixed(2)} · الإجمالي: ₪{(request.offeredPrice + request.quotedDeliveryFee).toFixed(2)}</p>}
               {request.offeredPrice !== null && (
                 <p dir="ltr" className="mt-2 font-extrabold">
                   ₪{request.offeredPrice.toFixed(2)} {request.offerNote}

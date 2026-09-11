@@ -15,6 +15,9 @@ import { paginationSchema } from '../stores/stores.schemas';
  * `description` is free text; the only hard rule is non-empty + a sane ceiling.
  */
 export const createCustomRequestSchema = z.object({
+  prescriptionImage: z.string().max(800000).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/).optional(),
+  customerAddressText: z.string().trim().min(5).max(500).optional(),
+  deliveryZoneId: z.string().min(1).optional(),
   storeId: z.string().min(1, 'معرّف المتجر مطلوب / storeId is required'),
   description: z
     .string()
@@ -50,7 +53,7 @@ export const offerCustomRequestSchema = z
   .object({
     offeredPrice: z
       .number({ required_error: 'السعر المعروض مطلوب / offered price is required' })
-      .positive('السعر يجب أن يكون أكبر من صفر / Price must be positive')
+      .max(100000).positive('السعر يجب أن يكون أكبر من صفر / Price must be positive')
       .finite('السعر يجب أن يكون رقماً / Price must be a number')
       .multipleOf(0.01),
     offerNote: z.string().trim().max(500).optional(),

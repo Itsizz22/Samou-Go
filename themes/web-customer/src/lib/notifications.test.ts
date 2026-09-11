@@ -80,3 +80,12 @@ it('iOS dismissal never opens an order, and taps open the incoming-order screen'
   expect(incoming.presentIncomingOrder({ data: { type: 'ORDER_STATUS', orderId: 'order' } })).toBe(false);
   expect(incoming.presentIncomingOrder({ data: { type: 'NEW_ORDER_ALERT' } })).toBe(false);
 });
+it('routes pharmacy quote notifications to the correct audience', async () => {
+  const { registerForPushNotifications } = await import('./notifications');
+  await registerForPushNotifications('account-a');
+  const action = mocks.listeners.get('pushNotificationActionPerformed')!;
+  Reflect.apply(action, null, [{ notification: { data: { screen: 'custom-requests', customRequestId: 'rx', audience: 'customer' } } }]);
+  expect(mocks.navigate).toHaveBeenLastCalledWith('/custom-requests');
+  Reflect.apply(action, null, [{ notification: { data: { screen: 'custom-requests', customRequestId: 'rx', audience: 'store', storeId: 'pharmacy' } } }]);
+  expect(mocks.navigate).toHaveBeenLastCalledWith('/store-manager/orders?tab=custom-requests&storeId=pharmacy');
+});

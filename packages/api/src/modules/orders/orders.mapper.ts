@@ -53,7 +53,7 @@ export type OrderForSummary = PrismaOrder & {
   customer?: Pick<PrismaUser, 'name' | 'phone' | 'whatsappNumber'>;
   deliveryZone?: Pick<PrismaDeliveryZone, 'nameAr'> | null;
   items: (Pick<PrismaOrderItem, 'id' | 'totalPrice' | 'selectedOptions' | 'quantity' | 'note'> & { offerTitle?: string | null } & {
-    product: Pick<PrismaProduct, 'nameAr'> | null;
+    product: Pick<PrismaProduct, 'nameAr'> & { imageUrl?: string | null } | null;
   })[];
   store: Pick<PrismaStore, 'nameAr'>;
 };
@@ -216,6 +216,7 @@ export function toOrderSummary(order: OrderForSummary, viewerRole?: string, view
     ...(canViewCaptainHandoffCode(viewerRole) ? { items: order.items.map(item => ({
       id: item.id,
       productNameAr: item.offerTitle ?? item.product?.nameAr ?? 'منتج غير متاح',
+      imageUrl: item.product?.imageUrl ?? null,
       quantity: item.quantity,
       totalPrice: decimalToNumber(item.totalPrice),
       note: item.note,

@@ -340,7 +340,7 @@ export function CheckoutScreen() {
       const finalText = fulfillmentType === 'PICKUP'
         ? 'استلام من المتجر'
         : (useSavedAddress?.addressText ?? addressText).trim();
-      if (fulfillmentType === 'DELIVERY' && !finalText) {
+      if (fulfillmentType === 'DELIVERY' && finalText.length < 5) {
         setFieldError(t('يرجى إدخال عنوان التوصيل', 'Please enter a delivery address'));
         await hapticError();
         return;
@@ -600,11 +600,12 @@ export function CheckoutScreen() {
             <div className="mt-3 space-y-3">
               <label className="block">
                 <span className="text-[11px] font-bold text-ink-muted">
-                  الحي / الشارع / علامة مميزة
+                  أضف عنوانك — الحي / الشارع / علامة مميزة (إجباري)
                 </span>
                 <textarea
-                  value={addressText}
-                  onChange={(event) => setAddressText(event.target.value)}
+                  value={useSavedAddress?.addressText ?? addressText}
+                  required minLength={5} maxLength={500}
+                  onChange={(event) => { setSelectedAddressId(null); setAddressText(event.target.value); }}
                   rows={2}
                   placeholder="مثال: بجانب مسجد عمر، مقابل الملعب"
                   className="input-field mt-1.5 w-full"

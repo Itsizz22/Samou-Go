@@ -1,3 +1,7 @@
+import { requireAuth } from '../../middleware/authenticate';
+import { ok } from '../../lib/respond';
+import { readPrescriptionImage } from './custom-requests.service';
+import { orderLimiter } from '../../middleware/rate-limit';
 import { Router } from 'express';
 import { UserRole } from '@samou-go/shared-types';
 import { asyncHandler } from '../../lib/async-handler';
@@ -12,7 +16,7 @@ export const storeCustomRequestsRouter: Router = Router();
 customerCustomRequestsRouter.use(authenticate, authorize(UserRole.CUSTOMER, UserRole.ADMIN));
 
 customerCustomRequestsRouter.get('/', asyncHandler(controller.listCustomerRequestsHandler));
-customerCustomRequestsRouter.post('/', asyncHandler(controller.createCustomRequestHandler));
+customerCustomRequestsRouter.post('/', orderLimiter, asyncHandler(controller.createCustomRequestHandler));
 customerCustomRequestsRouter.patch(
   '/:id/respond',
   asyncHandler(controller.respondToCustomRequestHandler)
@@ -32,3 +36,7 @@ storeCustomRequestsRouter.use(
 storeCustomRequestsRouter.get('/', asyncHandler(controller.listStoreRequestsHandler));
 storeCustomRequestsRouter.post('/:id/offer', asyncHandler(controller.offerPriceOnCustomRequestHandler));
 storeCustomRequestsRouter.post('/:id/cancel', asyncHandler(controller.cancelStoreRequestHandler));
+for (const router of [customerCustomRequestsRouter, storeCustomRequestsRouter]) router.get('/:id/image', asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  ok(res, await readPrescriptionImage(requireAuth(req), String(req.params.id)));
+}));

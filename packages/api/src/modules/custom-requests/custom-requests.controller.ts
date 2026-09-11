@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { ok } from '../../lib/respond';
 import { parseWith } from '../../lib/validate';
 import { requireAuth } from '../../middleware/authenticate';
-import { sendPushToUser } from '../../lib/push';
+import { sendPushToMany, sendPushToUser } from '../../lib/push';
 import { prisma } from '../../lib/prisma';
 import * as customRequestsService from './custom-requests.service';
 import {
@@ -31,9 +31,9 @@ export async function createCustomRequestHandler(
       });
       if (store) {
         await sendPushToUser(store.managerId, {
-          title: 'طلب مخصص جديد ✨',
-          body: `طلب مخصص جديد من ${auth.sub} إلى ${store.nameAr}`,
-          data: { customRequestId: result.id, screen: 'custom-requests' },
+          title: result.isPrescription ? 'وصفة جديدة للصيدلية' : 'طلب مخصص جديد ✨',
+          body: `طلب جديد إلى ${store.nameAr}، افتح التطبيق لمراجعته`,
+          data: { customRequestId: result.id, screen: 'custom-requests', audience: 'store', storeId: result.storeId },
         });
       }
     } catch {
@@ -62,22 +62,25 @@ export async function respondToCustomRequestHandler(
   const auth = requireAuth(req);
   const { id } = parseWith(customRequestIdParamsSchema, req.params);
   const body = parseWith(respondCustomRequestSchema, req.body);
+  const previous = await prisma.customRequest.findUnique({ where: { id }, select: { orderId: true } });
   const result = await customRequestsService.respondToCustomRequest(auth.sub, id, body);
+  if (previous?.orderId && previous.orderId === result.orderId) { ok(res, result); return; }
 
   // Push: notify the store manager when the customer accepts or rejects.
   void (async () => {
     try {
       const store = await prisma.store.findUnique({
         where: { id: result.storeId },
-        select: { managerId: true },
+        select: { managerId: true, dedicatedCaptains: { select: { id: true } } },
       });
       if (store) {
         const actionText = body.action === 'ACCEPT' ? 'قبل العرض ✅' : 'رفض العرض ❌';
         await sendPushToUser(store.managerId, {
           title: `طلب مخصص — ${actionText}`,
           body: `العميل ${body.action === 'ACCEPT' ? 'قبل' : 'رفض'} عرض السعر على الطلب المخصص`,
-          data: { customRequestId: id, screen: 'custom-requests' },
-        });
+          data: result.orderId ? { orderId: result.orderId, screen: 'order', type: 'NEW_ORDER', storeId: result.storeId } : { customRequestId: id, screen: 'custom-requests', audience: 'store', storeId: result.storeId },
+        }, result.orderId ? { dataOnly: true } : undefined);
+        if (result.orderId && store.dedicatedCaptains.length) await sendPushToMany(store.dedicatedCaptains.map(captain => captain.id), { title: 'طلب توصيل جديد', body: 'طلب جديد من الصيدلية. افتح التطبيق لمراجعته.', data: { orderId: result.orderId, screen: 'order', type: 'NEW_ORDER', storeId: result.storeId } }, { dataOnly: true });
       }
     } catch {
       // Push failure must never break the response flow.
@@ -122,8 +125,8 @@ export async function offerPriceOnCustomRequestHandler(
     try {
       await sendPushToUser(result.customer.id, {
         title: 'عرض سعر جديد 💰',
-        body: `عرض السعر: ₪${body.offeredPrice.toFixed(2)} على طلبك المخصص`,
-        data: { customRequestId: id, screen: 'custom-requests' },
+        body: result.isPrescription ? 'عرض سعر الصيدلية جاهز. افتح التطبيق للاطلاع والقبول أو الرفض.' : `عرض السعر: ₪${body.offeredPrice.toFixed(2)} على طلبك المخصص`,
+        data: { customRequestId: id, screen: 'custom-requests', audience: 'customer' },
       });
     } catch {
       // Push failure must never break the offer flow.

@@ -27,6 +27,7 @@ export function normalizePhoneNumber(phone: string): string {
   if (!phone) return '';
 
   const cleaned = cleanPhone(phone);
+  if (/^05[0-578]\d{7}$/.test(cleaned)) return `+972${cleaned.slice(1)}`;
 
   // Already in international format with +
   if (cleaned.startsWith('+')) {
@@ -61,6 +62,7 @@ export function normalizePhoneNumber(phone: string): string {
  */
 export function toWhatsAppE164(phone: string): string {
   const cleaned = cleanPhone(phone);
+  if (/^05[0-578]\d{7}$/.test(cleaned)) return `+972${cleaned.slice(1)}`;
   const normalized = normalizePhoneNumber(cleaned.startsWith('00') ? `+${cleaned.slice(2)}` : cleaned);
   // Preserve an explicit country code: WhatsApp account identity is not carrier routing.
   return /^\+[1-9]\d{9,14}$/.test(normalized) ? normalized : '';

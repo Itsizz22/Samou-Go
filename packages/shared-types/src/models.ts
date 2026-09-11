@@ -229,6 +229,12 @@ export interface StoreWithCatalogue extends Store {
  * follow-on delivery flow.
  */
 export interface CustomRequest {
+  isPrescription?: boolean;
+  hasPrescriptionImage?: boolean;
+  customerAddressText?: string | null;
+  quotedDeliveryFee?: number | null;
+  deliveryFeePending?: boolean;
+  orderId?: string | null;
   id: string;
   customerId: string;
   storeId: string;
@@ -381,7 +387,7 @@ export interface OrderDetail extends Order {
 /** The condensed row used in list views. */
 export interface OrderSummary {
   /** Kitchen lines, included for store managers and admins. */
-  items?: { id: string; productNameAr: string; quantity: number; totalPrice: number; note: string | null; optionNames: string[] }[];
+  items?: { imageUrl?: string | null; id: string; productNameAr: string; quantity: number; totalPrice: number; note: string | null; optionNames: string[] }[];
   /** Contact and destination, returned only to authorized staff list viewers. */
   customerContact?: { name: string; phone: string; whatsappNumber?: string | null } | null;
   deliveryDestination?: { zoneNameAr: string | null; address: string; landmark: string | null } | null;

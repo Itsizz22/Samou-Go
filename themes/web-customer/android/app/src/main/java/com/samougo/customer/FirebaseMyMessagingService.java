@@ -89,6 +89,10 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
             return;
         }
 
+        if ("custom-requests".equals(data.get("screen"))) {
+            showNotification(title, body, null, MainActivity.isUserActive(this) ? CHANNEL_FOREGROUND : "orders_high_priority", data.get("notificationLogId"), data.get("customRequestId"), data.get("audience"), data.get("storeId"));
+            return;
+        }
         boolean isCaptainOrStoreNotification =
             "NEW_ORDER".equals(type) || "NEW_ORDER_ALERT".equals(type) ||
             "CAPTAIN_ASSIGN".equals(type);
@@ -140,6 +144,9 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
      * concurrent orders produce distinct notifications.
      */
     private void showNotification(String title, String body, String orderId, String channelId, String notificationLogId) {
+        showNotification(title, body, orderId, channelId, notificationLogId, null, null, null);
+    }
+    private void showNotification(String title, String body, String orderId, String channelId, String notificationLogId, String customRequestId, String audience, String storeId) {
         Context context = getApplicationContext();
 
         // Create channels if they don't exist yet (idempotent)
@@ -156,9 +163,17 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
             intent.putExtra("clickAction", "OPEN_ORDER");
         }
 
+        if (customRequestId != null) {
+            intent.putExtra("google.message_id", "custom-" + customRequestId);
+            intent.putExtra("customRequestId", customRequestId);
+            intent.putExtra("screen", "custom-requests");
+            intent.putExtra("audience", audience);
+            intent.putExtra("storeId", storeId);
+            intent.putExtra("notificationLogId", notificationLogId);
+        }
         PendingIntent pendingIntent = PendingIntent.getActivity(
             context,
-            orderId != null ? orderId.hashCode() : 0,
+            orderId != null ? orderId.hashCode() : customRequestId != null ? customRequestId.hashCode() : 0,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );

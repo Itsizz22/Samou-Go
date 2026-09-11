@@ -14,7 +14,7 @@ describe('WhatsApp-specific formatting without country-code reassignment', () =>
     expect(toWhatsAppE164(input)).toBe(expected);
     expect(formatWhatsAppLink(input)).toBe(`https://wa.me/${expected.slice(1)}`);
   });
-  it.each(['+970abcdefghij', '+00000000000', '059123', '0501234567', '+970599123456?text=x'])('rejects ambiguous or malformed %s', input => {
+  it.each(['+970abcdefghij', '+00000000000', '059123', '+970599123456?text=x'])('rejects ambiguous or malformed %s', input => {
     expect(formatWhatsAppLink(input)).toBe('');
   });
   it('preserves both explicitly supplied country codes in general normalization', () => {

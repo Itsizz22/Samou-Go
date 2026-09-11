@@ -182,7 +182,7 @@ export function SamouGoStoreManager() {
   const [storeStatus, setStoreStatus] = useState<StoreStatus>(StoreStatus.OPEN);
   const [prepMinutes, setPrepMinutes] = useState(25);
   const [storeTogglePending, setStoreTogglePending] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>('home');
+  const [activeTab, setActiveTab] = useState<string>(() => new URLSearchParams(window.location.search).get('tab') === 'custom-requests' ? 'custom-requests' : 'home');
   const [showMoreSheet, setShowMoreSheet] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [menuView, setMenuView] = useState<'products' | 'sections'>('products');
@@ -1017,6 +1017,7 @@ export function SamouGoStoreManager() {
           )}
         </section>
       )}
+      {managedStore.data?.storeType === 'PHARMACY' && <section className="mx-auto max-w-md p-4"><button onClick={() => setActiveTab('custom-requests')} className="min-h-12 w-full rounded-2xl bg-brand-tint p-4 font-bold text-brand">طلبات الوصفات الطبية — مراجعة الصور وإرسال الأسعار</button></section>}
       {activeTab === 'custom-requests' && managedStoreId && <CustomRequestsPanel storeId={managedStoreId} />}
 
       {activeTab === 'statement' && (
@@ -1247,12 +1248,12 @@ function OrderRow({ order, customerPhone, customerName, pending, onAccept, onSta
           </p>
         </div>
         {order.items && order.items.length > 0 && (
-          <section className="mt-3 rounded-xl border border-line bg-canvas p-3" aria-label={t('المنتجات المطلوبة', 'Ordered products')}>
-            <h3 className="mb-2 text-sm font-extrabold text-ink">{t('المنتجات المطلوبة', 'Ordered products')}</h3>
+          <details className="mt-3 rounded-xl border border-line bg-canvas p-3" aria-label={t('المنتجات المطلوبة', 'Ordered products')}>
+            <summary className="min-h-11 cursor-pointer text-sm font-extrabold text-ink">رؤية التفاصيل — {t('المنتجات المطلوبة', 'Ordered products')}</summary>
             <ul className="divide-y divide-line-soft">
               {order.items.map(item => (
                 <li key={item.id} className="py-3 first:pt-0 last:pb-0">
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-2">{item.imageUrl && <img src={item.imageUrl} alt={item.productNameAr} className="size-16 shrink-0 rounded-xl object-cover" loading="lazy" />}
                     <span dir="ltr" className="shrink-0 rounded-lg bg-brand-tint px-2 py-1 text-sm font-extrabold text-brand-deep">×{item.quantity}</span>
                     <span className="min-w-0 flex-1 break-words text-sm font-bold text-ink">{item.productNameAr}</span>
                     <span dir="ltr" className="shrink-0 text-sm font-bold text-ink">₪{item.totalPrice.toFixed(2)}</span>
@@ -1262,7 +1263,7 @@ function OrderRow({ order, customerPhone, customerName, pending, onAccept, onSta
                 </li>
               ))}
             </ul>
-          </section>
+          </details>
         )}
         {order.estimatedPrepMinutes !== null && order.estimatedPrepMinutes !== undefined && (
           <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-brand-dark">

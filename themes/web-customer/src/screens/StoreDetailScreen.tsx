@@ -269,6 +269,7 @@ export function StoreDetailScreen() {
               )}
             </div>
         </header>
+        {current.storeType === 'PHARMACY' && <section className="mx-auto my-5 max-w-md rounded-2xl border border-brand bg-brand-tint p-5"><h2 className="font-extrabold">اطلب أدويتك من الصيدلية</h2><p className="my-3 text-sm leading-7">أرفق الوصفة والعنوان، وستراجع الصيدلية الطلب وترسل السعر لتقبله أو ترفضه قبل بدء التوصيل.</p><button className="min-h-11 w-full rounded-xl bg-brand px-4 font-bold text-white" onClick={() => navigate('/custom-requests?storeId=' + current.id)}>إرفاق وصفة وطلب تسعير</button></section>}
 
         {/* Store status banner — shows when store is not OPEN */}
         {(current.storeStatus === StoreStatus.CLOSED || !current.isAcceptingOrders) && (

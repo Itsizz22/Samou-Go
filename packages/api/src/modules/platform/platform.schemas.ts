@@ -73,6 +73,11 @@ export const platformSettingsSchema = z.object({
   whatsappSupportNumber: z.string().max(20).nullable().optional(),
   discoveryCategoryIds: z.array(z.string().min(1)).max(500).refine(ids => new Set(ids).size === ids.length).nullable().optional(),
   featuredCategoryIds: z.array(z.string().min(1)).max(500).refine(ids => new Set(ids).size === ids.length).nullable().optional(),
+  homeCategories: z.array(z.object({
+    key: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/), ar: z.string().trim().min(1).max(80), en: z.string().trim().max(80),
+    imageUrl: z.string().max(2048).refine(isBannerImageUrl, 'اختر صورة صالحة للفئة').optional(),
+    enabled: z.boolean(), storeIds: z.array(z.string().min(1).max(120)).max(500).optional(),
+  })).max(60).refine(items => new Set(items.map(item => item.key)).size === items.length, 'الفئات مكررة').optional(),
   homeBanners: z.array(z.object({
     kind: z.enum(['announcement', 'product']).optional(),
     storeId: z.string().min(1).max(120).optional(),

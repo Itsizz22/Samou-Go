@@ -896,3 +896,67 @@ it('revokes access and refresh immediately on password change and suspension, in
   expect((await request('GET', '/auth/me', 'SESSION_TEST')).status).toBe(401);
   expect((await request('POST', '/auth/refresh', undefined, { refreshToken: second.data.refreshToken })).status).toBe(401);
 });
+it('keeps category artwork independent, supports edits and deletion, and restricts writes to admin', async () => {
+  const homeCategories = [{ key: 'pharmacy', ar: 'صيدليات', en: 'Pharmacies', enabled: true, imageUrl: 'https://example.com/category.png', storeIds: ['store'] }];
+  expect((await request('PATCH', '/platform/settings', 'STORE_MANAGER', { homeCategories })).status).toBe(403);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeCategories })).status).toBe(200);
+  await fixture.db.store.update({ where: { id: 'store' }, data: { logoUrl: 'https://example.com/changed-logo.png' } });
+  expect((await request<{ homeCategories: unknown[] }>('GET', '/platform/settings', 'CUSTOMER')).data.homeCategories).toEqual(homeCategories);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeCategories: [{ ...homeCategories[0], imageUrl: 'javascript:alert(1)' }] })).status).toBe(422);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeCategories: [] })).status).toBe(200);
+  expect(await fixture.db.store.findUnique({ where: { id: 'store' } })).not.toBeNull();
+});
+
+it('prices a private prescription and converts acceptance exactly once into a normal delivery order', async () => {
+  const sharp = (await import('sharp')).default;
+  const prescriptionImage = 'data:image/png;base64,' + (await sharp({ create: { width: 100, height: 100, channels: 3, background: 'white' } }).png().toBuffer()).toString('base64');
+  await fixture.db.store.create({ data: { id: 'pharmacy-test', nameAr: 'صيدلية تجريبية', nameEn: 'Test pharmacy', managerId: 'STORE_MANAGER', phone: '0599991088', storeType: 'PHARMACY', isApproved: true, isActive: true } });
+  const payload = { storeId: 'pharmacy-test', description: 'وصفة تجريبية وليست وصفة حقيقية', prescriptionImage, customerAddressText: 'عنوان تجريبي قرب البلدية', deliveryZoneId: 'zone' };
+  expect((await request('POST', '/customer/custom-requests', 'CUSTOMER', { ...payload, prescriptionImage: undefined })).status).toBe(400);
+  expect((await request('POST', '/customer/custom-requests', 'CUSTOMER', { ...payload, customerAddressText: undefined })).status).toBe(400);
+  const created = await request<{ id: string; hasPrescriptionImage: boolean; prescriptionImage?: string }>('POST', '/customer/custom-requests', 'CUSTOMER', payload);
+  expect(created.status, JSON.stringify(created.error)).toBe(200);
+  expect(created.data.hasPrescriptionImage).toBe(true);
+  expect(created.data.prescriptionImage).toBeUndefined();
+  const id = created.data.id;
+  expect((await request('GET', `/customer/custom-requests/${id}/image`, 'CAPTAIN')).status).toBe(403);
+  expect((await request<{ image: string }>('GET', `/store/custom-requests/${id}/image`, 'STORE_MANAGER')).data.image).toMatch(/^data:image\/webp;base64,/);
+  expect((await request('POST', `/store/custom-requests/${id}/offer`, 'CUSTOMER', { offeredPrice: 40 })).status).toBe(403);
+  const quoted = await request<{ quotedDeliveryFee: number }>('POST', `/store/custom-requests/${id}/offer`, 'STORE_MANAGER', { offeredPrice: 40, offerNote: 'أدوية الوصفة متوفرة' });
+  expect(quoted.status, JSON.stringify(quoted.error)).toBe(200);
+  expect(quoted.data.quotedDeliveryFee).toBe(7);
+  const accepted = await request<{ orderId: string }>('PATCH', `/customer/custom-requests/${id}/respond`, 'CUSTOMER', { action: 'ACCEPT' });
+  expect(accepted.status, JSON.stringify(accepted.error)).toBe(200);
+  expect(accepted.data.orderId).toBeTruthy();
+  const retry = await request<{ orderId: string }>('PATCH', `/customer/custom-requests/${id}/respond`, 'CUSTOMER', { action: 'ACCEPT' });
+  expect(retry.data.orderId).toBe(accepted.data.orderId);
+  const order = await fixture.db.order.findUniqueOrThrow({ where: { id: accepted.data.orderId }, include: { items: true } });
+  expect(Number(order.totalAmount)).toBe(47); expect(order.items).toHaveLength(1); expect(order.customerAddressText).toBe(payload.customerAddressText);
+  expect((await request('PATCH', `/orders/${order.id}/status`, 'STORE_MANAGER', { status: 'ACCEPTED' })).status).toBe(200);
+  const second = await request<{ id: string }>('POST', '/customer/custom-requests', 'CUSTOMER', payload);
+  await request('POST', `/store/custom-requests/${second.data.id}/offer`, 'STORE_MANAGER', { offeredPrice: 50 });
+  const rejected = await request<{ status: string; orderId: string | null }>('PATCH', `/customer/custom-requests/${second.data.id}/respond`, 'CUSTOMER', { action: 'REJECT' });
+  expect(rejected.data.status).toBe('REJECTED'); expect(rejected.data.orderId).toBeNull();
+  expect((await request('PATCH', `/customer/custom-requests/${second.data.id}/respond`, 'CUSTOMER', { action: 'ACCEPT' })).status).toBe(400);
+});
+
+it('does not allow the store request filter to escape manager ownership', async () => {
+ await fixture.db.store.create({ data: { id: 'other-pharmacy', nameAr: 'صيدلية أخرى', nameEn: 'Other', phone: '0599991098', managerId: 'ADMIN', storeType: 'PHARMACY' } });
+ expect((await request('GET', '/store/custom-requests?storeId=other-pharmacy', 'STORE_MANAGER')).status).toBe(403);
+});
+it('keeps prescription delivery fee pending for captain-priced zones and rejects other customers reading the image', async () => {
+  await fixture.db.platformSettings.update({ where: { id: 'platform' }, data: { autoPricingEnabled: false } });
+  await fixture.db.deliveryZone.create({ data: { id: 'rx-dynamic', nameAr: 'منطقة تسعير الكابتن', nameEn: 'Dynamic', deliveryFee: 0, allowCaptainPricing: true } });
+  const sharp = (await import('sharp')).default;
+  const image = 'data:image/png;base64,' + (await sharp({ create: { width: 20, height: 20, channels: 3, background: 'white' } }).png().toBuffer()).toString('base64');
+  const created = await request<{ id: string }>('POST', '/customer/custom-requests', 'CUSTOMER', { storeId: 'pharmacy-test', description: 'اختبار رسوم الكابتن', customerAddressText: 'عنوان واضح للاختبار', prescriptionImage: image, deliveryZoneId: 'rx-dynamic' });
+  expect(created.status).toBe(200);
+  const other = await fixture.db.user.create({ data: { id: 'rx-other-customer', name: 'زبون آخر', phone: '0599991087', passwordHash: 'unused', role: 'CUSTOMER' } });
+  tokens.RX_OTHER = signAccessToken({ userId: other.id, role: 'CUSTOMER', phone: other.phone }).accessToken;
+  expect((await request('GET', `/customer/custom-requests/${created.data.id}/image`, 'RX_OTHER')).status).toBe(403);
+  const quoted = await request<{ deliveryFeePending: boolean; quotedDeliveryFee: number }>('POST', `/store/custom-requests/${created.data.id}/offer`, 'STORE_MANAGER', { offeredPrice: 20 });
+  expect(quoted.data.deliveryFeePending).toBe(true); expect(quoted.data.quotedDeliveryFee).toBe(0);
+  const accepted = await request<{ orderId: string }>('PATCH', `/customer/custom-requests/${created.data.id}/respond`, 'CUSTOMER', { action: 'ACCEPT' });
+  const order = await fixture.db.order.findUniqueOrThrow({ where: { id: accepted.data.orderId } });
+  expect(order.isCaptainPriced).toBe(true); expect(order.feeApprovalStatus).toBe('PENDING_CUSTOMER_ACCEPTANCE');
+});

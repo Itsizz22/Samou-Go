@@ -285,7 +285,7 @@ export function RegisterScreen() {
             />
             {phone.length > 0 && !phoneValid(phone) && (
               <p className="mt-1 text-xs text-danger-ink">
-                يرجى إدخال رقم جوال فلسطيني صالح يبدأ بـ 059 أو 056
+                يرجى إدخال رقم جوال صالح يبدأ بـ 05 أو بالمقدمة 970 أو 972
               </p>
             )}
           </label>
@@ -536,7 +536,7 @@ export function ForgotPasswordScreen() {
             />
             {phone.length > 0 && !phoneValid(phone) && (
               <p className="mt-1 text-xs text-danger-ink">
-                يرجى إدخال رقم جوال فلسطيني صالح يبدأ بـ 059 أو 056
+                يرجى إدخال رقم جوال صالح يبدأ بـ 05 أو بالمقدمة 970 أو 972
               </p>
             )}
           </label>

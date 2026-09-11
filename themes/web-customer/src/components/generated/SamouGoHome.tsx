@@ -1,3 +1,5 @@
+import { usePlatformSettings } from '@samou-go/api-client';
+import type { HomeCategory } from '@samou-go/shared-types';
 import { ActiveOrderStrip } from '@/components/ActiveOrderStrip';
 import { DeliveryEstimate } from '@/components/DeliveryEstimate';
 import { StoreHours, storeIsOpen } from '@/components/StoreHours';
@@ -61,6 +63,7 @@ import {
 
 /** Icon per category chip. The taxonomy itself lives in `lib/store-display.ts`. */
 const CATEGORY_ICONS: Record<StoreCategoryKey, LucideIcon> = {
+  pharmacy: StoreIcon,
   all: LayoutGrid,
   restaurant: Utensils,
   cafe: Coffee,
@@ -90,10 +93,12 @@ const STATUS_BELL_TONE: Record<OrderStatus, NonNullable<BellNotification['tone']
 
 export function SamouGoHome() {
   const navigate = useNavigate();
+  const appearance = usePlatformSettings({ pollMs: 60000 });
+  const categories: HomeCategory[] = appearance.data?.homeCategories ?? STORE_CATEGORIES.map(category => ({ ...category, enabled: true }));
   const { openDrawer } = useDrawer();
   const { t, language } = useLanguage();
   const isArabic = language === 'ar';
-  const [activeCategory, setActiveCategory] = useState<StoreCategoryKey>('all');
+  const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'open' | 'closed'>('all');
@@ -142,11 +147,11 @@ export function SamouGoHome() {
     const filtered =
       activeCategory === 'all'
         ? items
-        : items.filter((store) => classifyStore(store) === activeCategory);
+        : items.filter((store) => { const selected = categories.find(category => category.key === activeCategory); return selected?.storeIds ? selected.storeIds.includes(store.id) : classifyStore(store) === activeCategory; });
     return filtered
       .filter((store) => availabilityFilter === 'all' || (availabilityFilter === 'open' ? storeIsOpen(store) : !storeIsOpen(store)))
       .map(toStoreCardModel);
-  }, [stores.data, activeCategory, availabilityFilter]);
+  }, [stores.data, activeCategory, availabilityFilter, appearance.data]);
 
   // Store-wide active offers feed.
   const offers = useAllOffers();
@@ -399,11 +404,10 @@ export function SamouGoHome() {
           </button>
         </div>
         <div id="category-chips" className="grid grid-cols-4 gap-2">
-          {STORE_CATEGORIES.filter((category, index) => !categoriesCollapsed || index < 4 || category.key === activeCategory).map(category => {
-            const Icon = CATEGORY_ICONS[category.key];
+          {categories.filter(category => category.enabled).filter((category, index) => !categoriesCollapsed || index < 4 || category.key === activeCategory).map(category => {
+            const Icon = CATEGORY_ICONS[category.key as StoreCategoryKey] ?? StoreIcon;
             const active = activeCategory === category.key;
-            const representative = (stores.data?.items ?? []).find(store => classifyStore(store) === category.key && (store.coverUrl || store.logoUrl));
-            const photo = representative?.coverUrl || representative?.logoUrl;
+            const photo = category.imageUrl;
             return <button key={category.key} type="button" aria-pressed={active} onClick={() => { setActiveCategory(category.key); requestAnimationFrame(() => document.getElementById('home-results')?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })); }} className={`flex min-w-0 flex-col items-center gap-2 rounded-2xl border p-1.5 pb-3 text-center transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-brand ${active ? 'border-brand bg-brand-tint text-brand-dark' : 'border-line bg-surface text-ink-soft'}`}>
               <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-brand-surface text-brand">{photo ? <ImageWithFallback src={photo} alt="" className="h-full w-full object-cover" /> : <Icon size={26} />}</span>
               <span className="text-[11px] font-bold leading-relaxed">{t(category.ar, category.en)}</span>

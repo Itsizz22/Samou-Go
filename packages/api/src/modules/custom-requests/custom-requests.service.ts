@@ -1,3 +1,7 @@
+import sharp from 'sharp';
+import { randomInt } from 'node:crypto';
+import { env } from '../../config/env';
+import { formatOrderNumber, startOfDay } from '../../lib/order-number';
 import type { Prisma } from '../../lib/prisma-types';
 import {
   CustomRequestStatus,
@@ -11,7 +15,7 @@ import type {
   Paginated,
 } from '@samou-go/shared-types';
 import { prisma } from '../../lib/prisma';
-import { badState, forbidden, notFound } from '../../lib/http-error';
+import { badRequest, badState, forbidden, notFound } from '../../lib/http-error';
 import { decimalToNumber } from '../../lib/decimal';
 import type {
   CreateCustomRequestBody,
@@ -43,6 +47,12 @@ function paginate<T>(items: T[], total: number, page: number, pageSize: number):
 
 function toCustomerRow(row: CustomerRow): CustomRequestWithStore {
   return {
+    isPrescription: row.isPrescription,
+    hasPrescriptionImage: Boolean(row.prescriptionImage),
+    customerAddressText: row.customerAddressText,
+    quotedDeliveryFee: row.quotedDeliveryFee,
+    deliveryFeePending: row.deliveryFeePending,
+    orderId: row.orderId,
     id: row.id,
     customerId: row.customerId,
     storeId: row.storeId,
@@ -59,6 +69,12 @@ function toCustomerRow(row: CustomerRow): CustomRequestWithStore {
 
 function toStoreRow(row: StoreRow): CustomRequestWithCustomer {
   return {
+    isPrescription: row.isPrescription,
+    hasPrescriptionImage: Boolean(row.prescriptionImage),
+    customerAddressText: row.customerAddressText,
+    quotedDeliveryFee: row.quotedDeliveryFee,
+    deliveryFeePending: row.deliveryFeePending,
+    orderId: row.orderId,
     id: row.id,
     customerId: row.customerId,
     storeId: row.storeId,
@@ -105,18 +121,33 @@ export async function createCustomRequest(
 ): Promise<CustomRequestWithStore> {
   const store = await prisma.store.findUnique({
     where: { id: body.storeId },
-    select: { isActive: true, isApproved: true },
+    select: { isActive: true, isApproved: true, storeType: true },
   });
   if (!store || !store.isActive || !store.isApproved) {
     throw notFound('المتجر غير موجود / Store not found');
   }
 
+  const isPrescription = store.storeType === 'PHARMACY';
+  if (isPrescription && (!body.prescriptionImage || !body.customerAddressText)) throw badRequest('أرفق الوصفة واكتب عنوان التوصيل');
+  if (!isPrescription && body.prescriptionImage) throw badRequest('الوصفات متاحة للصيدليات فقط');
+  if (body.deliveryZoneId && !await prisma.deliveryZone.findFirst({ where: { id: body.deliveryZoneId, isActive: true } })) throw badRequest('منطقة التوصيل غير متاحة');
+  let prescriptionImage: string | null = null;
+  if (body.prescriptionImage) {
+    try {
+      const bytes = Buffer.from(body.prescriptionImage.split(',')[1] ?? '', 'base64');
+      const metadata = await sharp(bytes, { limitInputPixels: 20000000 }).metadata();
+      if (!['jpeg', 'png', 'webp'].includes(metadata.format ?? '')) throw new Error('Unsupported image');
+      const safeImage = await sharp(bytes, { limitInputPixels: 20000000 }).rotate().resize({ width: 1800, height: 1800, fit: 'inside', withoutEnlargement: true }).webp({ quality: 88 }).toBuffer();
+      prescriptionImage = 'data:image/webp;base64,' + safeImage.toString('base64');
+    } catch { throw badRequest('الصورة غير صالحة؛ اختر صورة واضحة للوصفة'); }
+  }
   const request = await prisma.customRequest.create({
     data: {
       customerId,
       storeId: body.storeId,
       description: body.description,
-      imageUrl: body.imageUrl ?? null,
+      imageUrl: isPrescription ? null : body.imageUrl ?? null,
+      isPrescription, prescriptionImage, customerAddressText: body.customerAddressText, deliveryZoneId: body.deliveryZoneId,
       status: CustomRequestStatus.PENDING,
     },
     include: CUSTOMER_INCLUDE,
@@ -160,6 +191,7 @@ export async function respondToCustomRequest(
   if (request.customerId !== customerId) {
     throw forbidden('هذا الطلب ليس لك / This request is not yours');
   }
+  if (request.status === CustomRequestStatus.ACCEPTED && request.orderId && body.action === 'ACCEPT') return toCustomerRow(request);
   if (request.status !== CustomRequestStatus.PRICE_OFFERED) {
     throw badState(
       'REQUEST_NOT_OFFERED',
@@ -173,10 +205,29 @@ export async function respondToCustomRequest(
     throw badState('ILLEGAL_TRANSITION', 'انتقال غير صالح / Illegal transition');
   }
 
-  const updated = await prisma.customRequest.update({
-    where: { id: requestId },
-    data: { status: next },
-    include: CUSTOMER_INCLUDE,
+  const updated = await prisma.$transaction(async tx => {
+    const changed = await tx.customRequest.updateMany({ where: { id: requestId, status: 'PRICE_OFFERED' }, data: { status: next } });
+    if (changed.count !== 1) throw badState('REQUEST_CHANGED', 'تم الرد على الطلب بالفعل');
+    if (request.isPrescription && body.action === 'ACCEPT') {
+      const store = await tx.store.findFirst({ where: { id: request.storeId, isActive: true, isApproved: true, storeType: 'PHARMACY' } });
+      if (!store || !request.customerAddressText || request.offeredPrice === null || request.quotedDeliveryFee === null) throw badRequest('تعذر إتمام الطلب؛ تحقق من الصيدلية والعنوان والسعر');
+      const now = new Date();
+      const sequence = await tx.dailyOrderSequence.upsert({ where: { date: startOfDay(now) }, create: { date: startOfDay(now), sequence: 1 }, update: { sequence: { increment: 1 } } });
+      const subtotal = decimalToNumber(request.offeredPrice);
+      const settings = await tx.platformSettings.findUnique({ where: { id: 'platform' } });
+      const order = await tx.order.create({ data: {
+        orderNumber: formatOrderNumber(now, sequence.sequence), customerId, storeId: request.storeId,
+        customerAddressText: request.customerAddressText, status: 'PENDING',
+        autoPriced: !request.deliveryFeePending && settings?.autoPricingEnabled === true, captainSharePercentage: decimalToNumber(settings?.captainSharePercentage ?? 100),
+        isCaptainPriced: request.deliveryFeePending, feeApprovalStatus: request.deliveryFeePending ? 'PENDING_CUSTOMER_ACCEPTANCE' : 'APPROVED',
+        subtotal, deliveryFee: request.quotedDeliveryFee, totalAmount: Math.round((subtotal + request.quotedDeliveryFee) * 100) / 100,
+        deliveryZoneId: request.deliveryZoneId, deliveryPin: String(randomInt(1000, 10000)),
+        items: { create: { quantity: 1, unitPrice: subtotal, totalPrice: subtotal, offerTitle: 'أدوية حسب عرض الصيدلية', note: request.offerNote } },
+        statusHistory: { create: { status: 'PENDING', changedByUserId: customerId, note: 'قبول عرض سعر الصيدلية' } },
+      } });
+      await tx.customRequest.update({ where: { id: requestId }, data: { orderId: order.id } });
+    }
+    return tx.customRequest.findUniqueOrThrow({ where: { id: requestId }, include: CUSTOMER_INCLUDE });
   });
   return toCustomerRow(updated);
 }
@@ -211,6 +262,7 @@ export async function listStoreRequests(
     return paginate([], 0, query.page, query.pageSize);
   }
 
+  if (query.storeId && managed !== undefined && !managed.includes(query.storeId)) throw forbidden('هذه الصيدلية أو المتجر لا يخصك');
   const where: Prisma.CustomRequestWhereInput = {
     ...(managed !== undefined ? { storeId: { in: managed } } : {}),
     ...(query.storeId ? { storeId: query.storeId } : {}),
@@ -250,9 +302,15 @@ export async function offerPriceOnCustomRequest(
     throw badState('ILLEGAL_TRANSITION', 'انتقال غير صالح / Illegal transition');
   }
 
+  const zone = request.deliveryZoneId ? await prisma.deliveryZone.findFirst({ where: { id: request.deliveryZoneId, isActive: true } }) : null;
+  if (request.deliveryZoneId && !zone) throw badRequest('منطقة التوصيل غير متاحة');
+  const settings = await prisma.platformSettings.findUnique({ where: { id: 'platform' } });
+  const deliveryFee = zone ? decimalToNumber(zone.deliveryFee) : settings?.autoPricingEnabled ? decimalToNumber(settings.baseDeliveryFee) : env.deliveryFeeConfig.baseFee;
   const updated = await prisma.customRequest.update({
-    where: { id: requestId },
+    where: { id: requestId, status: 'PENDING' },
     data: {
+      quotedDeliveryFee: request.isPrescription ? (!settings?.autoPricingEnabled && zone?.allowCaptainPricing ? 0 : deliveryFee) : null,
+      deliveryFeePending: request.isPrescription && !settings?.autoPricingEnabled && zone?.allowCaptainPricing === true,
       status: CustomRequestStatus.PRICE_OFFERED,
       offeredPrice: body.offeredPrice,
       offerNote: body.offerNote ?? null,
@@ -294,7 +352,14 @@ async function moveToCancelled(
     throw badState('ILLEGAL_TRANSITION', 'انتقال غير صالح / Illegal transition');
   }
   await prisma.customRequest.update({
-    where: { id: requestId },
+    where: { id: requestId, status: current },
     data: { status: CustomRequestStatus.CANCELLED },
   });
+}
+/** Private endpoint: never serve prescription images as public uploads. */
+export async function readPrescriptionImage(actor: { sub: string; role: UserRole }, id: string) {
+  const request = await prisma.customRequest.findUnique({ where: { id }, include: { store: { select: { managerId: true } } } });
+  if (!request || !request.prescriptionImage) throw notFound('الصورة غير موجودة');
+  if (actor.role !== 'ADMIN' && request.customerId !== actor.sub && !(actor.role === 'STORE_MANAGER' && request.store.managerId === actor.sub)) throw forbidden('لا تملك صلاحية عرض الوصفة');
+  return { image: request.prescriptionImage };
 }

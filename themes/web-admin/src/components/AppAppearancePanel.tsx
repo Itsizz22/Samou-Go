@@ -1,3 +1,4 @@
+import { CategoryImagesSettings } from './CategoryImagesSettings';
 import { Image, LayoutGrid, ExternalLink } from 'lucide-react';
 import { FeaturedProductsSettings } from './FeaturedProductsSettings';
 import { BannerSettings } from './BannerSettings';
@@ -15,7 +16,7 @@ export function AppAppearancePanel() {
         <a href="#appearance-banners" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-brand-tint px-4 text-sm font-bold text-brand-deep focus-visible:ring-2 focus-visible:ring-brand"><Image size={18} aria-hidden="true" />الصور والإعلانات</a>
       </nav>
     </section>
-    <div id="appearance-dishes" className="scroll-mt-24 space-y-5"><FeaturedProductsSettings /></div>
+    <div id="appearance-dishes" className="scroll-mt-24 space-y-5"><CategoryImagesSettings /><FeaturedProductsSettings /></div>
     <div id="appearance-banners" className="scroll-mt-24"><BannerSettings /></div>
   </div>;
 }

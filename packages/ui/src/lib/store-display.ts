@@ -12,7 +12,7 @@
 
 import type { Store, StoreType } from '@samou-go/shared-types';
 
-export type StoreCategoryKey = 'all' | 'restaurant' | 'cafe' | 'supermarket' | 'shop' | 'bakery_sweets' | 'butchery' | 'vegetables_fruits';
+export type StoreCategoryKey = 'all' | 'pharmacy' | 'restaurant' | 'cafe' | 'supermarket' | 'shop' | 'bakery_sweets' | 'butchery' | 'vegetables_fruits';
 
 export interface StoreCategory {
   key: StoreCategoryKey;
@@ -23,6 +23,7 @@ export interface StoreCategory {
 /** The chip row, in display order. `all` is the default selection. */
 export const STORE_CATEGORIES: readonly StoreCategory[] = [
   { key: 'all', ar: 'الكل', en: 'All' },
+  { key: 'pharmacy', ar: 'صيدليات', en: 'Pharmacies' },
   { key: 'restaurant', ar: 'مطاعم', en: 'Restaurants' },
   { key: 'cafe', ar: 'مقاهي وكافيهات', en: 'Cafés' },
   { key: 'supermarket', ar: 'سوبرماركت وبقالة', en: 'Supermarkets' },
@@ -36,6 +37,7 @@ export const STORE_CATEGORIES: readonly StoreCategory[] = [
  * Maps the Prisma `StoreType` enum to the local `StoreCategoryKey`.
  */
 const STORE_TYPE_TO_CATEGORY: Record<StoreType, StoreCategoryKey> = {
+  PHARMACY: 'pharmacy',
   RESTAURANT: 'restaurant',
   CAFE: 'cafe',
   SUPERMARKET: 'supermarket',
@@ -51,6 +53,7 @@ const STORE_TYPE_TO_CATEGORY: Record<StoreType, StoreCategoryKey> = {
  * `shop` is the fallback and therefore carries no keywords.
  */
 const CATEGORY_KEYWORDS: Record<Exclude<StoreCategoryKey, 'all' | 'shop'>, readonly string[]> = {
+  pharmacy: ['صيدلية', 'صيدليات', 'pharmacy'],
   restaurant: ['مطعم', 'مطاعم', 'شاورما', 'فلافل', 'مشاوي', 'بروست', 'برجر', 'restaurant', 'shawarma', 'grill', 'burger'],
   supermarket: ['سوبرماركت', 'ماركت', 'بقالة', 'تسوق', 'ميني', 'supermarket', 'market', 'grocery', 'mart'],
   cafe: ['مقهى', 'مقاهي', 'كافيه', 'قهوة', 'café', 'cafe', 'coffee'],
@@ -98,6 +101,7 @@ const STOP_WORDS = new Set(['al', 'al-', 'the', 'and', 'of', '&', 'abu', 'أبو
  * `gradient` fills the featured card header; `tint` the small nearby-list tile.
  */
 const CATEGORY_PALETTE: Record<StoreCategoryKey, { gradient: string; tint: string }> = {
+  pharmacy: { gradient: 'from-brand-dark to-brand-soft', tint: 'bg-brand-tint text-brand-deep' },
   all: { gradient: 'from-brand-dark to-brand-soft', tint: 'bg-brand-tint text-brand-deep' },
   restaurant: { gradient: 'from-warning to-warning-tint', tint: 'bg-warning-tint text-warning-ink' },
   cafe: { gradient: 'from-warning-ink to-warning', tint: 'bg-warning-tint text-warning-ink' },

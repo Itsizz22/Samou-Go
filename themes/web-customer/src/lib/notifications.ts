@@ -56,6 +56,9 @@ function ensureListeners(): Promise<void> {
         const auditId: unknown = action.notification.data?.notificationLogId;
         if (typeof auditId === 'string') recordOpen(auditId);
         if (Capacitor.getPlatform() === 'ios' && presentIncomingOrder(action.notification)) return;
+        if (action.notification.data?.screen === 'custom-requests') {
+          globalNavigate(action.notification.data?.audience === 'store' ? '/store-manager/orders?tab=custom-requests&storeId=' + encodeURIComponent(String(action.notification.data?.storeId ?? '')) : '/custom-requests'); return;
+        }
         const orderId: unknown = action.notification.data?.orderId;
         if (typeof orderId === 'string' && orderId.length > 0) {
           globalNavigate(`/orders/${encodeURIComponent(orderId)}`);

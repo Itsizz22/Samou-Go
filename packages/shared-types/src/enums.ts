@@ -110,6 +110,7 @@ export const STORE_STATUS_LABELS: Record<StoreStatus, { ar: string; en: string }
 };
 
 export const StoreType = {
+  PHARMACY: 'PHARMACY',
   RESTAURANT: 'RESTAURANT',
   CAFE: 'CAFE',
   SUPERMARKET: 'SUPERMARKET',
@@ -121,6 +122,7 @@ export const StoreType = {
 export type StoreType = (typeof StoreType)[keyof typeof StoreType];
 
 export const STORE_TYPE_LABELS: Record<StoreType, { ar: string; en: string }> = {
+  [StoreType.PHARMACY]: { ar: 'صيدلية', en: 'Pharmacy' },
   [StoreType.RESTAURANT]: { ar: 'مطاعم', en: 'Restaurants' },
   [StoreType.CAFE]: { ar: 'مقاهي وكافيهات', en: 'Cafés' },
   [StoreType.SUPERMARKET]: { ar: 'سوبرماركت وبقالة', en: 'Supermarkets' },

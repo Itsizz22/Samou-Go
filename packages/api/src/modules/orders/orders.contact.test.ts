@@ -44,8 +44,8 @@ it('returns every kitchen line, including offers and options, without requiring 
   ] } as unknown as OrderForSummary;
   const result = toOrderSummary(fixture, UserRole.STORE_MANAGER);
   expect(result.items).toEqual([
-    { id: 'plain', productNameAr: 'Pizza', quantity: 2, totalPrice: 38, note: null, optionNames: [] },
-    { id: 'offer', productNameAr: 'Burger offer', quantity: 1, totalPrice: 25, note: 'No onions', optionNames: ['Cheese'] },
+    { id: 'plain', imageUrl: null, productNameAr: 'Pizza', quantity: 2, totalPrice: 38, note: null, optionNames: [] },
+    { id: 'offer', imageUrl: null, productNameAr: 'Burger offer', quantity: 1, totalPrice: 25, note: 'No onions', optionNames: ['Cheese'] },
   ]);
   expect(result.itemCount).toBe(3);
   expect(toOrderSummary(fixture, UserRole.CAPTAIN, 'another-captain').items).toBeUndefined();

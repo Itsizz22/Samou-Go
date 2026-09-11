@@ -100,7 +100,7 @@ export function LoginScreen() {
               </div>
               {invalidPhone && (
                 <p id="login-phone-error" className="text-xs leading-5 text-danger-ink">
-                  {t('يرجى إدخال رقم جوال فلسطيني صالح يبدأ بـ 059 أو 056', 'Enter a valid Palestinian mobile number starting with 059 or 056.')}
+                  {t('يرجى إدخال رقم جوال صالح يبدأ بـ 05 أو بالمقدمة 970 أو 972', 'Enter a valid Palestinian mobile number starting with 059 or 056.')}
                 </p>
               )}
             </div>

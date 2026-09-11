@@ -15,3 +15,5 @@ describe('international OTP phone routing', () => {
     expect(otpRequestSchema.safeParse({phone:'invalid'}).success).toBe(false);
   });
 });
+
+it.each(['050','051','052','053','054','055','057','058'])('normalizes local %s for OTP without duplicate identity', prefix => { const phone = prefix + '1234567'; const expected = '+972' + phone.slice(1); expect(phoneSchema.parse(phone)).toBe(expected); expect(phoneSchema.parse(expected)).toBe(expected); expect(otpRequestSchema.parse({ phone }).phone).toBe(expected); });

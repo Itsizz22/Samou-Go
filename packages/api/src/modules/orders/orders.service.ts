@@ -88,7 +88,7 @@ export const SUMMARY_INCLUDE = {
       quantity: true,
       note: true,
       offerTitle: true,
-      product: { select: { nameAr: true } },
+      product: { select: { nameAr: true, imageUrl: true } },
     },
   },
   store: { select: { nameAr: true } },

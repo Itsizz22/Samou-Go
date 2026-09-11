@@ -1,3 +1,4 @@
+import { PrescriptionImage } from '@samou-go/api-client';
 import { useState } from 'react';
 import {
   listStoreCustomRequests,
@@ -21,6 +22,7 @@ export function CustomRequestsPanel({ storeId }: { storeId: string }) {
     (signal) => listStoreCustomRequests({ storeId }, signal),
     { pollMs: 15_000 },
   );
+  const [notes, setNotes] = useState<Record<string, string>>({});
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -31,7 +33,7 @@ export function CustomRequestsPanel({ storeId }: { storeId: string }) {
     }
     setBusy(id);
     try {
-      await offerPriceOnCustomRequest(id, { offeredPrice });
+      await offerPriceOnCustomRequest(id, { offeredPrice, offerNote: notes[id]?.trim() || undefined });
       requests.reload();
       toast.success('تم إرسال السعر', 'Offer sent');
     } catch (e) {
@@ -79,12 +81,15 @@ export function CustomRequestsPanel({ storeId }: { storeId: string }) {
           >
             <div className="flex justify-between">
               <b>{item.customer.name}</b>
-              <span className="text-xs text-ink-muted">{item.status}</span>
+              <span className="text-xs text-ink-muted">{{ PENDING: 'بانتظار التسعير', PRICE_OFFERED: 'بانتظار رد الزبون', ACCEPTED: 'تم القبول', REJECTED: 'تم الرفض', CANCELLED: 'ملغي' }[item.status]}</span>
             </div>
-            <p className="mt-2 text-sm">{item.description}</p>
+            <p className="mt-2 text-sm">{item.isPrescription ? 'طلب وصفة طبية — ' : ''}{item.description}</p>
+            {item.hasPrescriptionImage && <PrescriptionImage id={item.id} audience="store" />}
+            {item.customerAddressText && <p className="text-sm">العنوان: {item.customerAddressText}</p>}
+            {item.orderId && <p className="mt-2 font-bold text-brand">تم قبول السعر، الطلب موجود في قائمة الطلبات العادية.</p>}
 
             {item.status === CustomRequestStatus.PENDING && (
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex flex-wrap gap-2"><label className="w-full text-sm">تفاصيل عرض السعر<textarea value={notes[item.id] ?? ''} onChange={e => setNotes(current => ({ ...current, [item.id]: e.target.value }))} maxLength={500} className="input-field mt-2 w-full" placeholder="الأدوية المتوفرة والكميات وأي توضيحات للزبون" /></label>
                 <input
                   dir="ltr"
                   inputMode="decimal"

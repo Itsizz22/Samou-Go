@@ -596,6 +596,9 @@ export interface UpdateOfferInput {
  * catalogue. Description is free text; the store replies with a price.
  */
 export interface CreateCustomRequestInput {
+  prescriptionImage?: string;
+  customerAddressText?: string;
+  deliveryZoneId?: string;
   storeId: string;
   /** What the customer wants, e.g. "كيلو كبدة طازجة قبل العيد". */
   description: string;
@@ -633,6 +636,16 @@ export interface RespondCustomRequestInput {
  * ------------------------------------------------------------------------- */
 
 /** GET/PATCH /platform/settings — the platform-wide economy knobs. */
+export interface HomeCategory {
+  key: string;
+  ar: string;
+  en: string;
+  imageUrl?: string;
+  enabled: boolean;
+  /** Explicit selections override the default store-type grouping. */
+  storeIds?: string[];
+}
+
 export interface HomeBanner {
   kind?: "announcement" | "product";
   storeId?: string;
@@ -654,6 +667,7 @@ export interface PlatformSettings {
   /** null = automatic food categories, [] = hide section. */
   discoveryCategoryIds?: string[] | null;
   featuredCategoryIds?: string[] | null;
+  homeCategories?: HomeCategory[] | null;
   homeBanners?: HomeBanner[] | null;
   autoPricingEnabled?: boolean;
   baseDeliveryFee?: number;
@@ -685,6 +699,7 @@ export interface PlatformSettings {
 export interface UpdatePlatformSettingsInput {
   discoveryCategoryIds?: string[] | null;
   featuredCategoryIds?: string[] | null;
+  homeCategories?: HomeCategory[] | null;
   homeBanners?: HomeBanner[];
   autoPricingEnabled?: boolean;
   baseDeliveryFee?: number;

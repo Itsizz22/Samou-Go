@@ -104,6 +104,7 @@ enum StoreStatus {
 }
 
 enum StoreType {
+  PHARMACY
   RESTAURANT
   CAFE
   SUPERMARKET
@@ -571,6 +572,13 @@ model OfferProduct {
 /// (`PRICE_OFFERED`), and the customer accepts or rejects. Fulfilment is
 /// manual — there is deliberately no delivery-flow coupling.
 model CustomRequest {
+  isPrescription Boolean @default(false)
+  prescriptionImage String?
+  customerAddressText String?
+  deliveryZoneId String?
+  quotedDeliveryFee Float?
+  deliveryFeePending Boolean @default(false)
+  orderId String? @unique
   id          String   @id @default(cuid())
   customerId  String
   storeId     String
@@ -764,6 +772,7 @@ model PlatformSettings {
   /// When enabled, the app prompts users (customers, store managers) to share their GPS coordinates.
   discoveryCategoryIdsJson String?
   featuredCategoryIdsJson String?
+  homeCategoriesJson String?
   homeBannersJson String?
   gpsCaptureEnabled Boolean @default(false)
   preparationReminderMinutes Int @default(5)

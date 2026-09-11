@@ -6,14 +6,15 @@ import { StoreType, UserRole } from "@samou-go/shared-types";
  * Palestinian mobile, stored canonically as `05XXXXXXXX`.
  * Accepts the shapes people actually type — `+970`, `00970`, `+972`, `00972`,
  * spaces, dashes — and normalises them before validation.
- * Only Palestinian prefixes (059, 056) are accepted.
+ * Local 056/059 retain their identity; other supported 05 prefixes normalize to +972.
  */
 export const phoneSchema = z
   .string()
   .trim()
   .transform((value) => {
     const international = value.replace(/[\s-()]/g, "").replace(/^00/, "+");
-    if (/^\+?9725[0-578]\d{7}$/.test(international)) return `+${international.replace(/^\+/, "")}`;
+    if (/^05[0-578]\d{7}$/.test(international)) return `+972${international.slice(1)}`;
+  if (/^\+?9725[0-578]\d{7}$/.test(international)) return `+${international.replace(/^\+/, "")}`;
     const digits = value.replace(/[\s-()]/g, "").replace(/^\+/, "");
     if (digits.startsWith("00970")) return `0${digits.slice(5)}`;
     if (digits.startsWith("00972")) return `0${digits.slice(5)}`;
@@ -26,7 +27,7 @@ export const phoneSchema = z
       .string()
       .regex(
         /^(?:05[69]\d{7}|\+9725[0-578]\d{7})$/,
-        "يرجى إدخال رقم جوال فلسطيني صالح يبدأ بـ 059 أو 056 / Please enter a valid Palestinian mobile starting with 059 or 056",
+        "يرجى إدخال رقم جوال صالح يبدأ بـ 05 أو بالمقدمة 970 أو 972 / Enter a valid mobile number starting with 05, +970 or +972",
       ),
   );
 
