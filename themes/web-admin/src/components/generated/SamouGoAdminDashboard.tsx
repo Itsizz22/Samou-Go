@@ -2557,7 +2557,7 @@ function ZoneFormModal({
       if (isEdit && initial) {
         await updateDeliveryZone(initial.id, {
           nameAr: nameAr.trim(),
-          nameEn: nameEn.trim() || undefined,
+          nameEn: nameEn.trim() || nameAr.trim(),
           fee: feeNum,
           isActive,
           sortOrder: parseInt(sortOrder, 10) || 0,
@@ -2566,7 +2566,7 @@ function ZoneFormModal({
       } else {
         await createDeliveryZone({
           nameAr: nameAr.trim(),
-          nameEn: nameEn.trim() ?? '',
+          nameEn: nameEn.trim() || nameAr.trim(),
           fee: feeNum,
           isActive,
           sortOrder: parseInt(sortOrder, 10) || 0,

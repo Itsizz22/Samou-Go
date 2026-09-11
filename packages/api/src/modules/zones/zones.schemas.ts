@@ -9,7 +9,7 @@ export const zoneFeeSchema = z
 
 export const createDeliveryZoneSchema = z.object({
   nameAr: z.string().trim().min(1, 'اسم المنطقة بالعربية مطلوب / Arabic name is required').max(160),
-  nameEn: z.string().trim().min(1, 'English name is required').max(160),
+  nameEn: z.string().trim().max(160).optional(),
   deliveryFee: zoneFeeSchema.optional(),
   fee: zoneFeeSchema.optional(),
   allowCaptainPricing: z.boolean().optional(),

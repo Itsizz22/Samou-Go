@@ -25,7 +25,7 @@ export async function createZone(body: CreateDeliveryZoneBody): Promise<Delivery
   const zone = await prisma.deliveryZone.create({
     data: {
       nameAr: body.nameAr,
-      nameEn: body.nameEn,
+      nameEn: body.nameEn?.trim() || body.nameAr,
       deliveryFee: body.deliveryFee ?? body.fee ?? 0,
       allowCaptainPricing: body.allowCaptainPricing ?? false,
       isActive: body.isActive ?? true,
@@ -46,7 +46,7 @@ export async function updateZone(
     where: { id: zoneId },
     data: {
       ...(body.nameAr !== undefined ? { nameAr: body.nameAr } : {}),
-      ...(body.nameEn !== undefined ? { nameEn: body.nameEn } : {}),
+      ...(body.nameEn !== undefined ? { nameEn: body.nameEn.trim() || body.nameAr || existing.nameAr } : {}),
       ...(body.deliveryFee !== undefined || body.fee !== undefined ? { deliveryFee: body.deliveryFee ?? body.fee } : {}),
       ...(body.allowCaptainPricing !== undefined ? { allowCaptainPricing: body.allowCaptainPricing } : {}),
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
