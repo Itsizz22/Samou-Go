@@ -25,6 +25,7 @@ export function toStore(store: PrismaStore): Store {
     coverUrl: store.coverUrl,
     isRecommended: store.isRecommended,
     phone: store.phone,
+    whatsappNumber: store.whatsappNumber ?? null,
     isActive: store.isActive,
     isApproved: store.isApproved,
     isAcceptingOrders: store.isAcceptingOrders,

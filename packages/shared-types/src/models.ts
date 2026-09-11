@@ -20,6 +20,7 @@ export type IsoDateTime = string;
  * it never leaves `packages/api`.
  */
 export interface PublicUser {
+  whatsappNumber?: string | null;
   publicCode?: string | null;
   id: string;
   name: string;
@@ -54,6 +55,7 @@ export interface PublicUser {
  * ------------------------------------------------------------------------- */
 
 export interface Store {
+  whatsappNumber?: string | null;
   /** Recent completed delivery range, not a live route ETA. Null when fewer than five valid samples. */
   deliveryEstimate?: { minMinutes: number; maxMinutes: number; sampleSize: number } | null;
   publicCode?: string | null;
@@ -250,7 +252,7 @@ export interface CustomRequestWithStore extends CustomRequest {
 
 /** Custom request with the requesting customer joined in, for store displays. */
 export interface CustomRequestWithCustomer extends CustomRequest {
-  customer: Pick<PublicUser, 'id' | 'name' | 'phone'>;
+  customer: Pick<PublicUser, 'id' | 'name' | 'phone' | 'whatsappNumber'>;
 }
 
 /* ---------------------------------------------------------------------------
@@ -366,9 +368,9 @@ export interface OrderDetail extends Order {
   unavailableAction?: "CONTACT" | "REMOVE" | "SUGGEST";
   changeProposal?: string | null;
   items: OrderItemWithProduct[];
-  customer: Pick<PublicUser, 'id' | 'name' | 'phone'>;
-  store: Pick<Store, 'id' | 'nameAr' | 'nameEn' | 'phone' | 'latitude' | 'longitude'>;
-  captain: Pick<PublicUser, 'id' | 'name' | 'phone'> | null;
+  customer: Pick<PublicUser, 'id' | 'name' | 'phone' | 'whatsappNumber'>;
+  store: Pick<Store, 'id' | 'nameAr' | 'nameEn' | 'phone' | 'whatsappNumber' | 'latitude' | 'longitude'>;
+  captain: Pick<PublicUser, 'id' | 'name' | 'phone' | 'whatsappNumber'> | null;
   statusHistory: OrderStatusHistoryEntry[];
   /** Resolved voucher identity for the discount — `null` when not applied. */
   voucher: { code: string; labelAr: string; labelEn: string } | null;
@@ -381,7 +383,7 @@ export interface OrderSummary {
   /** Kitchen lines, included for store managers and admins. */
   items?: { id: string; productNameAr: string; quantity: number; totalPrice: number; note: string | null; optionNames: string[] }[];
   /** Contact and destination, returned only to authorized staff list viewers. */
-  customerContact?: { name: string; phone: string } | null;
+  customerContact?: { name: string; phone: string; whatsappNumber?: string | null } | null;
   deliveryDestination?: { zoneNameAr: string | null; address: string; landmark: string | null } | null;
   id: string;
   orderNumber: string;

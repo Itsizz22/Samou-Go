@@ -1,3 +1,4 @@
+import { WhatsAppNumberSettings } from '@samou-go/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -328,6 +329,7 @@ export function ProfileScreen() {
           ) : <p className="mt-2 text-micro text-ink-muted">{t('رقم العميل', 'Customer number')}: <span dir="ltr">{user.publicCode ?? '—'}</span></p>}
         </section>
 
+        <WhatsAppNumberSettings value={user.whatsappNumber} fallbackPhone={user.phone} onSave={async whatsappNumber => { const updated = await updateProfile({ whatsappNumber }); auth.setUser(updated); }} />
         {/* Saved addresses */}
         <section>
           <h2 className="text-sm font-bold">{t('العناوين المحفوظة', 'Saved addresses')}</h2>

@@ -1,14 +1,16 @@
 import type { OrderDetail } from "@samou-go/shared-types";
-import { ORDER_STATUS_LABELS } from "@samou-go/shared-types";
+import { formatWhatsAppLink, ORDER_STATUS_LABELS } from "@samou-go/shared-types";
 export function ZoneLandmarkTrackingView({
   order,
   contactPhone,
+  contactWhatsApp,
 }: {
   order: Pick<
     OrderDetail,
     "status" | "deliveryZone" | "customerAddressText" | "addressNote"
   >;
   contactPhone?: string | null;
+  contactWhatsApp?: string | null;
 }) {
   const steps = ["مستلم", "قيد التحضير", "مع الكابتن", "تم التسليم"];
   const index =
@@ -55,7 +57,7 @@ export function ZoneLandmarkTrackingView({
           </a>
           <a
             className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-brand text-brand"
-            href={`https://wa.me/${phone}`}
+            href={formatWhatsAppLink(contactWhatsApp || contactPhone || "")}
             target="_blank"
             rel="noreferrer"
           >

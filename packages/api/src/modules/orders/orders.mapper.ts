@@ -35,8 +35,8 @@ export function canViewCaptainHandoffCode(viewerRole?: string): boolean {
  * generated client is stale (Windows Defender blocks `prisma generate`).
  * Remove the casts once the client is regenerated.
  */
-function toContact(user: { id: string; name: string; phone: string }) {
-  return { id: user.id, name: user.name, phone: user.phone };
+function toContact(user: { id: string; name: string; phone: string; whatsappNumber?: string | null }) {
+  return { id: user.id, name: user.name, phone: user.phone, whatsappNumber: user.whatsappNumber ?? null };
 }
 
 export type OrderWithRelations = PrismaOrder & {
@@ -50,7 +50,7 @@ export type OrderWithRelations = PrismaOrder & {
 };
 
 export type OrderForSummary = PrismaOrder & {
-  customer?: Pick<PrismaUser, 'name' | 'phone'>;
+  customer?: Pick<PrismaUser, 'name' | 'phone' | 'whatsappNumber'>;
   deliveryZone?: Pick<PrismaDeliveryZone, 'nameAr'> | null;
   items: (Pick<PrismaOrderItem, 'id' | 'totalPrice' | 'selectedOptions' | 'quantity' | 'note'> & { offerTitle?: string | null } & {
     product: Pick<PrismaProduct, 'nameAr'> | null;
@@ -163,6 +163,7 @@ export function toOrderDetail(order: OrderWithRelations, viewerRole?: string, vi
       nameAr: order.store.nameAr,
       nameEn: order.store.nameEn,
       phone: order.store.phone,
+      whatsappNumber: order.store.whatsappNumber ?? null,
       latitude: order.store.latitude,
       longitude: order.store.longitude,
     },
@@ -210,7 +211,7 @@ export function toOrderSummary(order: OrderForSummary, viewerRole?: string, view
     status: order.status,
     captainId: order.captainId,
     cartCheckoutId: order.cartCheckoutId ?? null,
-    customerContact: staff && order.customer ? { name: order.customer.name, phone: order.customer.phone } : null,
+    customerContact: staff && order.customer ? { name: order.customer.name, phone: order.customer.phone, whatsappNumber: order.customer.whatsappNumber ?? null } : null,
     deliveryDestination: staff || restricted ? { zoneNameAr: order.deliveryZone?.nameAr ?? null, address: restricted ? "يظهر العنوان بعد حجز التوصيل" : order.customerAddressText, landmark: restricted ? null : order.addressNote } : null,
     ...(canViewCaptainHandoffCode(viewerRole) ? { items: order.items.map(item => ({
       id: item.id,

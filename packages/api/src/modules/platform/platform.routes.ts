@@ -65,7 +65,7 @@ platformRouter.patch(
 platformRouter.get('/admin/overdue-orders', authorize(UserRole.ADMIN), asyncHandler(async (_req, res) => {
   const where = { OR: [{ status: OrderStatus.PENDING, createdAt: { lte: new Date(Date.now() - 5 * 60_000) } }, { status: { in: [OrderStatus.ACCEPTED, OrderStatus.PREPARING, OrderStatus.READY_FOR_PICKUP] }, captainId: null, fulfillmentType: 'DELIVERY' as const, createdAt: { lte: new Date(Date.now() - 10 * 60_000) } }] };
   const [items, total] = await Promise.all([
-    prisma.order.findMany({ where, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 50, select: { id: true, orderNumber: true, status: true, createdAt: true, store: { select: { nameAr: true, phone: true } } } }),
+    prisma.order.findMany({ where, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 50, select: { id: true, orderNumber: true, status: true, createdAt: true, store: { select: { nameAr: true, phone: true, whatsappNumber: true } } } }),
     prisma.order.count({ where }),
   ]);
   ok(res, { items, total, thresholdMinutes: 5 });

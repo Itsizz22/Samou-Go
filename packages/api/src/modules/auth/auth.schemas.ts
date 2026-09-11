@@ -1,3 +1,4 @@
+import { whatsappNumberSchema } from '../../lib/whatsapp';
 import { z } from "zod";
 import { StoreType, UserRole } from "@samou-go/shared-types";
 
@@ -100,6 +101,7 @@ export const resetPasswordSchema = z.object({
 /** PATCH /auth/me — caller updates their own profile. */
 export const updateProfileSchema = z
   .object({
+    whatsappNumber: whatsappNumberSchema,
     name: z.string().trim().min(2).max(120).optional(),
     phone: phoneSchema.optional(),
     /** Requires currentPassword to be present when provided. */

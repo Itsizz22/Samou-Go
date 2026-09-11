@@ -325,6 +325,7 @@ export async function updateStore(storeId: string, body: UpdateStoreBody): Promi
       ...(body.nameAr !== undefined ? { nameAr: body.nameAr, slug: generateStoreSlug(body.nameAr) } : {}),
       ...(body.nameEn !== undefined ? { nameEn: body.nameEn } : {}),
       ...(body.phone !== undefined ? { phone: body.phone } : {}),
+      ...(body.whatsappNumber !== undefined ? { whatsappNumber: body.whatsappNumber } : {}),
       ...(body.logoUrl !== undefined ? { logoUrl: body.logoUrl } : {}),
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
       ...(body.isApproved !== undefined ? { isApproved: body.isApproved } : {}),

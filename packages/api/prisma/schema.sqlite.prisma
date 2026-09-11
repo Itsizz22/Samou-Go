@@ -120,6 +120,7 @@ enum StoreType {
 /// One account, one role. Phone is the login identifier — Samou' users do not
 /// reliably have email.
 model User {
+  whatsappNumber String?
   publicCode String? @unique
   marketingNotificationsEnabled Boolean @default(true)
   id           String   @id @default(cuid())
@@ -220,6 +221,7 @@ model RefreshToken {
 /// A shop in Samou'. `managerId` is the STORE_MANAGER who runs it; one manager
 /// may run several shops.
 model Store {
+  whatsappNumber String?
   publicCode String? @unique
   id         String   @id @default(cuid())
   /// URL-safe slug derived from store name, used for public-facing URLs.

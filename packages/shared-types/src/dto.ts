@@ -375,6 +375,7 @@ export interface UpdateCategoryInput {
 }
 
 export interface UpdateStoreInput {
+  whatsappNumber?: string | null;
   storeType?: StoreType | null;
   nameAr?: string;
   nameEn?: string;
@@ -400,6 +401,7 @@ export interface UpdateStoreInput {
  * ------------------------------------------------------------------------- */
 
 export interface UpdateProfileInput {
+  whatsappNumber?: string | null;
   otpCode?: string;
   name?: string;
   phone?: string;

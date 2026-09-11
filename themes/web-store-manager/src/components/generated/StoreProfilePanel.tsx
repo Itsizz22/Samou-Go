@@ -1,3 +1,4 @@
+import { WhatsAppNumberSettings } from '@samou-go/ui';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
  * Samou' Go — store profile management panel.
@@ -321,6 +322,7 @@ export function StoreProfilePanel({ storeId }: Props) {
             </p>
           </label>
 
+          <WhatsAppNumberSettings value={storeData?.whatsappNumber} fallbackPhone={storeData?.phone ?? ''} onSave={async whatsappNumber => { await updateStore(storeId, { whatsappNumber }); storeResource.refresh(); }} />
           <section className="rounded-2xl border border-line bg-canvas p-4">
             <h3 className="mb-3 font-bold">مواعيد العمل</h3>
             <div className="grid grid-cols-2 gap-3">

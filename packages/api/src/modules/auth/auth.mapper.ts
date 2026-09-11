@@ -12,6 +12,7 @@ export function toPublicUser(user: User & { assignedStores?: { id: string }[]; b
     publicCode: user.publicCode ?? null,
     name: user.name,
     phone: user.phone,
+    whatsappNumber: user.whatsappNumber ?? null,
     role: user.role,
     isActive: user.isActive,
     isVerified: user.isVerified,

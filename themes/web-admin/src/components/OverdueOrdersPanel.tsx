@@ -41,7 +41,7 @@ export function OverdueOrdersPanel() {
                 </a>
                 <a
                   className="flex min-h-11 items-center text-brand"
-                  href={formatWhatsAppLink(order.store.phone)}
+                  href={formatWhatsAppLink(order.store.whatsappNumber || order.store.phone)}
                   target="_blank"
                   rel="noreferrer"
                 >

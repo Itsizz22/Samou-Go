@@ -223,7 +223,7 @@ export function OrderTrackingScreen() {
                   <p className="text-[10px] text-ink-muted leading-relaxed">{order.data.customerAddressText}</p>
                 </div>
               </section>
-              {!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <ZoneLandmarkTrackingView order={order.data} contactPhone={order.data.captain?.phone ?? order.data.store.phone} />}
+              {!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <ZoneLandmarkTrackingView order={order.data} contactPhone={order.data.captain?.phone ?? order.data.store.phone} contactWhatsApp={order.data.captain ? order.data.captain.whatsappNumber : order.data.store.whatsappNumber} />}
               {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <LiveTrackingCard orderId={order.data.id} load={getLiveOrderTracking} />}
 
               {/* Items */}

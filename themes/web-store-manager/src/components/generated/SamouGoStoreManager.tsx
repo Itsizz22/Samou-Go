@@ -1378,7 +1378,7 @@ function OrderRow({ order, customerPhone, customerName, pending, onAccept, onSta
           {customerPhone && (
             <a
               href={formatWhatsAppLink(
-                customerPhone,
+                order.customerContact?.whatsappNumber || customerPhone,
                 WHATSAPP_MESSAGES.storeManager(order.orderNumber, customerName, order.storeNameAr)
               )}
               target="_blank"

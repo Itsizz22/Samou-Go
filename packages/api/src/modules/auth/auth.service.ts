@@ -170,6 +170,7 @@ export async function updateProfile(
     data: {
       ...(body.name !== undefined ? { name: body.name } : {}),
       ...(body.phone !== undefined ? { phone: body.phone } : {}),
+      ...(body.whatsappNumber !== undefined ? { whatsappNumber: body.whatsappNumber } : {}),
       ...(body.newPassword ? { passwordHash: await hashPassword(body.newPassword) } : {}),
     },
   });

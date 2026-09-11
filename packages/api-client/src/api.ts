@@ -2201,7 +2201,7 @@ export function updatePricingSettings(input: Pick<UpdatePlatformSettingsInput, '
 export interface FeaturedSelectionProduct { id: string; nameAr: string; imageUrl: string | null; isAvailable: boolean; store: { nameAr: string } }
 export const getFeaturedProducts = () => request<import('@samou-go/shared-types').PopularProduct[]>('GET', '/stores/featured-products', { auth: false });
 export const getFeaturedSelection = () => request<FeaturedSelectionProduct[]>('GET', '/stores/featured-selection', { auth: true });
-export const saveFeaturedSelection = (productIds: string[]) => request<FeaturedSelectionProduct[]>('PUT', '/stores/featured-selection', { auth: true, body: { productIds } });export interface OverdueOrders { items: { id: string; orderNumber: string; status: string; createdAt: string; store: { nameAr: string; phone: string | null } }[]; total: number; thresholdMinutes: number }
+export const saveFeaturedSelection = (productIds: string[]) => request<FeaturedSelectionProduct[]>('PUT', '/stores/featured-selection', { auth: true, body: { productIds } });export interface OverdueOrders { items: { id: string; orderNumber: string; status: string; createdAt: string; store: { nameAr: string; phone: string | null; whatsappNumber?: string | null } }[]; total: number; thresholdMinutes: number }
 export const getOverdueOrders = (signal?: AbortSignal) => request<OverdueOrders>('GET', '/platform/admin/overdue-orders', { auth: true, signal });
 export const checkOrderSubmission = (requestId: string) => request<{ completed: boolean }>('GET', `/orders/submissions/${encodeURIComponent(requestId)}`, { auth: true });
 

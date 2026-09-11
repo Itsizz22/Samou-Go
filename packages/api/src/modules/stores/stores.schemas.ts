@@ -1,3 +1,4 @@
+import { whatsappNumberSchema } from '../../lib/whatsapp';
 import { z } from 'zod';
 import { StoreStatus, StoreType } from '@samou-go/shared-types';
 
@@ -101,6 +102,7 @@ export const updateProductSchema = createProductSchema
 
 export const updateStoreSchema = z
   .object({
+    whatsappNumber: whatsappNumberSchema,
     nameAr: z.string().trim().min(1).max(160).optional(),
     nameEn: z.string().trim().min(1).max(160).optional(),
     phone: z.string().trim().min(1).max(30).optional(),

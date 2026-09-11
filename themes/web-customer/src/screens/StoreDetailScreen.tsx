@@ -258,7 +258,7 @@ export function StoreDetailScreen() {
               </p>
               {current.phone && (
                 <a
-                  href={formatWhatsAppLink(current.phone, `مرحباً، أريد الاستفسار عن متجر ${current.nameAr}`)}
+                  href={formatWhatsAppLink(current.whatsappNumber || current.phone, `مرحباً، أريد الاستفسار عن متجر ${current.nameAr}`)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-1 inline-flex items-center gap-1 rounded-full bg-brand-tint px-2 py-0.5 text-micro font-bold text-brand-dark transition hover:bg-brand/10 active:scale-95"

@@ -212,7 +212,7 @@ export const StoreDetailsMenu = () => {
                     )}
                     {store.data.phone && (
                       <a
-                        href={formatWhatsAppLink(store.data.phone, `مرحباً، أريد الاستفسار عن متجر ${store.data.nameAr}`)}
+                        href={formatWhatsAppLink(store.data.whatsappNumber || store.data.phone, `مرحباً، أريد الاستفسار عن متجر ${store.data.nameAr}`)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 font-semibold text-green-600 hover:underline"

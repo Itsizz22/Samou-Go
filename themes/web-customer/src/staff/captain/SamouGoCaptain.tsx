@@ -1,3 +1,4 @@
+import { WhatsAppNumberSettings } from '@samou-go/ui';
 import { StaffAccountTools } from '@/components/StaffAccountTools';
 import { announceOrderOnce } from '@/lib/orderAlarm';
 import { useCaptainTracking, getLiveOrderTracking } from '@samou-go/api-client';
@@ -876,7 +877,7 @@ export function SamouGoCaptain() {
                         {activeOrderDetail.data?.customer?.phone && (
                           <a
                             href={formatWhatsAppLink(
-                              activeOrderDetail.data.customer.phone,
+                              activeOrderDetail.data.customer.whatsappNumber || activeOrderDetail.data.customer.phone,
                               WHATSAPP_MESSAGES.captain(order.orderNumber, activeOrderDetail.data.customer.name)
                             )}
                             target="_blank"
@@ -944,7 +945,7 @@ export function SamouGoCaptain() {
 
             {trackingOrderId && activeOrderDetail.data ? (
               <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
-                {!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <ZoneLandmarkTrackingView order={activeOrderDetail.data} contactPhone={activeOrderDetail.data.customer.phone} />}
+                {!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <ZoneLandmarkTrackingView order={activeOrderDetail.data} contactPhone={activeOrderDetail.data.customer.phone} contactWhatsApp={activeOrderDetail.data.customer.whatsappNumber} />}
                 {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <><p role="status" className="text-sm text-ink-muted">{gpsTracking.message}</p><button type="button" className="rounded-xl border border-line px-3 py-2 text-brand" onClick={gpsTracking.retry}>إعادة تحديد الموقع</button><LiveTrackingCard orderId={activeOrderDetail.data.id} load={getLiveOrderTracking} /></>}
                 <div className="flex items-center justify-between">
                   <span className="rounded-full bg-warning-tint px-2.5 py-1 text-micro font-extrabold text-warning-ink">
@@ -1334,6 +1335,7 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onSignOut }: 
           </label>
         </div>
 
+        <WhatsAppNumberSettings value={user.whatsappNumber} fallbackPhone={user.phone} onSave={async whatsappNumber => { const updated = await onSave({ whatsappNumber }); if (!updated) throw new Error('Save failed'); }} />
         <details className="rounded-2xl border border-line bg-surface p-4 shadow-card">
           <summary className="min-h-11 cursor-pointer content-center text-sm font-extrabold text-ink focus-visible:outline-brand">{t('الأمان وكلمة المرور', 'Security and password')}</summary>
           <label className="mt-3 block">

@@ -4,7 +4,7 @@ import { toOrderSummary, type OrderForSummary } from './orders.mapper';
 // Only fields consumed by the summary mapper are needed in this fixture.
 const order = {
   captainId: 'captain-qa', id: 'order-qa', orderNumber: 'QA-1', status: 'READY_FOR_PICKUP',
-  customer: { name: 'عميل تجريبي', phone: '0599000007' },
+  customer: { name: 'عميل تجريبي', phone: '0599000007', whatsappNumber: '+972599000007' },
   deliveryZone: { nameAr: 'السموع - المركز' },
   customerAddressText: 'شارع المدرسة، المنزل الثاني', addressNote: 'الباب الأخضر',
   store: { nameAr: 'متجر تجريبي' }, items: [],

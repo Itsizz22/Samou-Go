@@ -60,3 +60,18 @@ it('rejects a phone owned by another account without verifying or updating', asy
   await expect(updateProfile('u1', { phone: '0599111111', otpCode: '123456' })).rejects.toMatchObject({ statusCode: 409 });
   expect(h.verify).not.toHaveBeenCalled(); expect(h.update).not.toHaveBeenCalled();
 });
+
+it.each([UserRole.CUSTOMER, UserRole.CAPTAIN, UserRole.STORE_MANAGER])('saves WhatsApp independently of login phone for %s', async role => {
+  const user = { id: 'u1', phone: input.phone, role, whatsappNumber: null };
+  h.find.mockResolvedValue(user); h.update.mockResolvedValue({ ...user, whatsappNumber: '+972599000008' });
+  const body = updateProfileSchema.parse({ whatsappNumber: '+972599000008' });
+  await updateProfile('u1', body);
+  expect(h.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'u1' }, data: { whatsappNumber: '+972599000008' } }));
+  expect(h.verify).not.toHaveBeenCalled();
+});
+it.each(['+970599000008', '+972599000008', null])('accepts explicit WhatsApp country code or removal %s', whatsappNumber => {
+  expect(updateProfileSchema.parse({ whatsappNumber })).toEqual({ whatsappNumber });
+});
+it.each(['0599000008', '+971599000008', '+972abc', '+972599000008?text=x'])('rejects ambiguous or malformed WhatsApp contact %s', whatsappNumber => {
+  expect(updateProfileSchema.safeParse({ whatsappNumber }).success).toBe(false);
+});
