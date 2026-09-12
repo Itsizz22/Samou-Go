@@ -1,3 +1,4 @@
+import { OrderChat } from '@samou-go/api-client';
 import { getLiveOrderTracking } from '@samou-go/api-client';
 import { OrderTrackingToggle } from '@samou-go/ui/map';
 import { OrderChangePanel } from '@samou-go/api-client';
@@ -1309,6 +1310,7 @@ function OrderRow({ order, customerPhone, customerName, pending, onAccept, onSta
       </div>
 
       <OrderCustomerDetails order={order} />
+      <OrderChat orderId={order.id} />
       <PreparationCountdown order={order} />
       <PreparationTimeEditor order={order} />
       {order.status === 'PENDING' && <OrderChangePanel orderId={order.id} manager />}

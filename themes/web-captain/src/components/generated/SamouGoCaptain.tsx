@@ -1,3 +1,5 @@
+import { requestOtp, normalizeLoginPhone } from '@samou-go/api-client';
+import { OrderChat } from '@samou-go/api-client';
 import { WhatsAppNumberSettings } from '@samou-go/ui';
 import { useCaptainTracking, getLiveOrderTracking } from '@samou-go/api-client';
 import { LiveTrackingCard } from '@samou-go/ui/map';
@@ -493,8 +495,13 @@ export function SamouGoCaptain() {
   const handleSaveProfile = async (input: UpdateProfileInput) => {
     const result = await profileMutation.run(input);
     if (result) {
-      auth.setUser(result);
-      toast.success('تم تحديث الملف الشخصي', 'Profile updated');
+      if (input.newPassword) {
+        auth.signOut();
+        toast.success('تم تغيير كلمة المرور. سجّل الدخول مجددًا.', 'Password changed. Please sign in again.');
+      } else {
+        auth.setUser(result);
+        toast.success('تم تحديث الملف الشخصي', 'Profile updated');
+      }
     } else if (profileMutation.error) {
       toast.error('تعذّر تحديث الملف', profileMutation.error.localizedMessage, { duration: 5_000 });
     }
@@ -674,6 +681,7 @@ export function SamouGoCaptain() {
                       </p>
                     )}
                     <OrderCustomerDetails order={order} showDestination />
+                    {order.customerContact && <OrderChat orderId={order.id} />}
                     <PreparationCountdown order={order} />
                     <CaptainReservation order={order} captainId={auth.user?.id} onReserved={() => { void availableOrders.reload(); }} />
                     {order.requiresHandoffCode && (
@@ -937,6 +945,7 @@ export function SamouGoCaptain() {
                           </div>
                         )}
                       <OrderCustomerDetails order={order} showDestination />
+                    {order.customerContact && <OrderChat orderId={order.id} />}
                     <PreparationCountdown order={order} />
                     <CaptainReservation order={order} captainId={auth.user?.id} onReserved={() => { void availableOrders.reload(); }} />
                       {/* Delivery zone picker — only shown when zones are enabled */}
@@ -1390,6 +1399,21 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onAvatarChang
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [otpPhone, setOtpPhone] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [requesting, setRequesting] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
+  useEffect(() => { if (resendIn <= 0) return; const timer = window.setTimeout(() => setResendIn(n => n - 1), 1000); return () => window.clearTimeout(timer); }, [resendIn]);
+  const sendPhoneCode = async () => {
+    if (requesting || resendIn > 0) return;
+    setRequesting(true); setLocalError(null);
+    try {
+      const result = await requestOtp({ phone, purpose: 'phone-change' });
+      if (!result.dispatched) throw new Error(t('تعذر إرسال الرمز؛ لم يتغير الرقم', 'Code was not sent; phone unchanged'));
+      setOtpPhone(normalizeLoginPhone(phone)); setOtpCode(''); setResendIn(Math.max(60, result.retryAfterSeconds));
+    } catch (e) { setLocalError(e instanceof Error ? e.message : 'تعذر إرسال الرمز'); }
+    finally { setRequesting(false); }
+  };
   const [saved, setSaved] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -1408,7 +1432,8 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onAvatarChang
     event.preventDefault();
     setLocalError(null);
 
-    const changed = name.trim() !== user.name || phone.trim() !== user.phone;
+    const phoneChanged = normalizeLoginPhone(phone) !== normalizeLoginPhone(user.phone);
+    const changed = name.trim() !== user.name || phoneChanged;
     if (!changed && !newPassword) {
       setLocalError(t('لم تتغيّر أي بيانات', 'Nothing to update'));
       return;
@@ -1418,9 +1443,12 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onAvatarChang
       return;
     }
 
+    if (requesting || pending) return;
+    if (phoneChanged && otpPhone !== normalizeLoginPhone(phone)) { await sendPhoneCode(); return; }
+    if (phoneChanged && !/^\d{6}$/.test(otpCode)) { setLocalError(t('أدخل رمز التحقق المكوّن من 6 أرقام', 'Enter the six-digit code')); return; }
     const input: UpdateProfileInput = {
       ...(name.trim() !== user.name ? { name: name.trim() } : {}),
-      ...(phone.trim() !== user.phone ? { phone: phone.trim() } : {}),
+      ...(phoneChanged ? { phone: phone.trim(), otpCode } : {}),
       ...(newPassword ? { newPassword, currentPassword } : {}),
     };
 
@@ -1469,10 +1497,14 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onAvatarChang
             <span className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-ink">
               <Phone size={12} className="text-brand" /> {t('رقم الجوال', 'Mobile')}
             </span>
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} dir="ltr" className={fieldClass} />
+            <input type="tel" value={phone} onChange={(e) => { setPhone(e.target.value); setOtpPhone(''); setOtpCode(''); }} dir="ltr" className={fieldClass} />
           </label>
         </div>
 
+        {otpPhone && <div className="rounded-xl border border-line bg-surface p-4">
+          <label className="block text-sm font-bold">{t('رمز التحقق للرقم الجديد', 'Verification code for the new number')}<input aria-label="OTP" dir="ltr" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))} className={fieldClass} /></label>
+          <button type="button" disabled={requesting || resendIn > 0} onClick={() => void sendPhoneCode()} className="min-h-11 text-sm text-brand disabled:opacity-50">{resendIn > 0 ? `${resendIn}s` : t('إعادة إرسال الرمز', 'Resend code')}</button>
+        </div>}
         <WhatsAppNumberSettings value={user.whatsappNumber} fallbackPhone={user.phone} onSave={async whatsappNumber => { const updated = await onSave({ whatsappNumber }); if (!updated) throw new Error('Save failed'); }} />
         <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
           <p className="text-xs font-extrabold text-ink">{t('تغيير كلمة المرور', 'Change password')}</p>
@@ -1499,7 +1531,7 @@ function CaptainAccountPanel({ user, pending, savingError, onSave, onAvatarChang
 
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || requesting}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-3 text-sm font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
         >
           {pending && <Loader2 size={15} className="animate-spin" />}

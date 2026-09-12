@@ -1,3 +1,5 @@
+vi.mock('./modules/platform/order-chat', () => ({ writeChat: vi.fn().mockResolvedValue({ id: 'message' }) }));
+import { writeChat } from './modules/platform/order-chat';
 vi.mock('./lib/live-session', () => ({ verifyLiveAccessToken: async () => ({ sub: 'viewer' }) }));
 vi.mock('./modules/platform/platform.service', () => ({ getPlatformSettings: async () => ({ gpsCaptureEnabled: true }) }));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -224,65 +226,18 @@ describe('handleCaptainLocation — S-2 location write', () => {
   });
 });
 
-describe('handleChatSend — membership + broadcast', () => {
-  const party = {
-    id: 'order-1',
-    customerId: 'customer-1',
-    captainId: null,
-    store: { managerId: 'manager-1' },
-  };
-
-  it('ignores malformed or empty messages', async () => {
-    const io = makeIo() as unknown as Server;
-
-    await handleChatSend(io, CUSTOMER, { orderId: 'order-1', message: '   ' });
-    await handleChatSend(io, CUSTOMER, null);
-    await handleChatSend(io, CUSTOMER, 'not-an-object');
-
-    expect(prisma.chatMessage.create).not.toHaveBeenCalled();
-    expect(io.to).not.toHaveBeenCalled();
+describe('handleChatSend — private service delegation', () => {
+  it('ignores malformed payloads', async () => {
+    const io = makeIo();
+    await handleChatSend(io as unknown as Server, CUSTOMER, null);
+    await handleChatSend(io as unknown as Server, CUSTOMER, { message: 'hello' });
+    expect(writeChat).not.toHaveBeenCalled();
   });
-
-  it('does not persist or broadcast for callers outside the order party', async () => {
-    h.state.order = party;
-    const io = makeIo() as unknown as Server;
-
-    await handleChatSend(io, { sub: 'stranger', role: UserRole.CUSTOMER }, {
-      orderId: 'order-1',
-      message: 'hello',
-    });
-
-    expect(prisma.chatMessage.create).not.toHaveBeenCalled();
-    expect(io.to).not.toHaveBeenCalled();
-  });
-
-  it('persists and broadcasts for an order party member', async () => {
-    h.state.order = party;
-    const io = makeIo() as unknown as Server;
-
-    await handleChatSend(io, MANAGER, { orderId: 'order-1', message: '  مرحبا  ' });
-
-    expect(prisma.chatMessage.create).toHaveBeenCalledWith({
-      data: {
-        orderId: 'order-1',
-        senderId: 'manager-1',
-        senderRole: UserRole.STORE_MANAGER,
-        message: 'مرحبا',
-      },
-    });
-    expect(io.to).toHaveBeenCalledWith('order:order-1');
-    expect(io.emits).toEqual([{ room: 'order:order-1', event: 'chat:message', payload: h.state.chatRow }]);
-  });
-
-  it('admins may post to any order', async () => {
-    h.state.order = party;
-    const io = makeIo() as unknown as Server;
-
-    await handleChatSend(io, { sub: 'admin-1', role: UserRole.ADMIN }, {
-      orderId: 'order-1',
-      message: 'ok',
-    });
-
-    expect(prisma.chatMessage.create).toHaveBeenCalledTimes(1);
+  it('uses the same protected service and never broadcasts private text', async () => {
+    const io = makeIo();
+    const body = { recipientId: 'manager-1', clientMessageId: 'client-id', message: 'hello' };
+    await handleChatSend(io as unknown as Server, CUSTOMER, { orderId: 'order-1', ...body });
+    expect(writeChat).toHaveBeenCalledWith('order-1', CUSTOMER, body);
+    expect(io.emits).toEqual([]);
   });
 });

@@ -60,6 +60,7 @@ export const walletCreditSchema = z.object({
 
 /** PATCH /platform/settings — platform-wide economy knobs (admin only). */
 export const platformSettingsSchema = z.object({
+  freeDeliveryEnabled: z.boolean().optional(),
   autoPricingEnabled: z.boolean().optional(),
   baseDeliveryFee: z.number().min(0).max(10000).optional(),
   perKmFee: z.number().min(0).max(10000).optional(),

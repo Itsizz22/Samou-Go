@@ -26,7 +26,7 @@ export function isValidPalestinianMobile(input: string): boolean {
  * `05XXXXXXXX` → `+9705XXXXXXXX` — the E.164 shape carriers require.
  * The API's SMS dispatch uses the same conversion server-side.
  */
-export function toE164(input: string, countryCode = '+970'): string {
+export function toE164(input: string, _countryCode = '+970'): string {
   const normalized = normalizePhone(input);
-  return normalized.startsWith('05') ? `${countryCode}${normalized.slice(1)}` : normalized.startsWith("+") ? normalized : `+${normalized}`;
+  return normalized.startsWith('05') ? `+970${normalized.slice(1)}` : normalized.startsWith("+") ? normalized : `+${normalized}`;
 }

@@ -6,7 +6,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { MessageCircle } from 'lucide-react';
 import { WhatsAppFAB } from '@samou-go/ui';
 import { useLanguage } from '@samou-go/ui';
-import { formatWhatsAppLink, WHATSAPP_MESSAGES } from '@samou-go/shared-types';
+import { formatWhatsAppLink } from '@samou-go/shared-types';
 import { usePlatformSettings } from '@/hooks/useApi';
 
 
@@ -25,7 +25,7 @@ export function SupportWhatsAppButton() {
       <MessageCircle size={22} />
     </Link>
   );
-  const message = WHATSAPP_MESSAGES.generic(isArabic ? 'الدعم الفني' : 'Support');
+  const message = isArabic ? 'مرحبا اريد الاستفسار عن شيء ما' : 'Hello, I would like to ask about something';
   const href = formatWhatsAppLink(phone, message);
 
   return (

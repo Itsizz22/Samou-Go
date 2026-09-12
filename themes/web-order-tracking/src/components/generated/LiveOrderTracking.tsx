@@ -1,3 +1,5 @@
+import { OrderChat } from '@samou-go/api-client';
+import { OrderContactCard } from '@samou-go/ui';
 import { FEATURE_FLAGS, getLiveOrderTracking } from '@samou-go/api-client';
 import { LiveTrackingCard } from '@samou-go/ui/map';
 import { appUrl, buildSsoUrl } from '@samou-go/api-client';
@@ -536,30 +538,14 @@ export const LiveOrderTracking = () => {
         )}
 
         {detail && (
-          <section aria-labelledby="contact-heading" className="mt-5">
+          <section aria-labelledby="contact-heading" className="mt-5 space-y-3">
+            <OrderChat orderId={detail.id} />
+              <OrderContactCard title="المتجر" contact={{ name: detail.store.nameAr, phone: detail.store.phone, whatsappNumber: detail.store.whatsappNumber }} />
+            {detail.captain && <OrderContactCard title="كابتن التوصيل" contact={detail.captain} />}
             <h2 id="contact-heading" className="mb-3 text-sm font-extrabold leading-relaxed text-ink">
               {t('تحتاج مساعدة؟', 'Need help?')}
             </h2>
-            <div className={`grid gap-3 ${detail.captain ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              <button
-                type="button"
-                onClick={() => handleCall(detail.store.phone)}
-                className="flex h-10 items-center justify-center gap-2 rounded-xl border border-brand-tint bg-brand-surface text-xs font-extrabold text-brand-deep transition hover:bg-brand-tint focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
-              >
-                <Phone className="h-4 w-4" aria-hidden="true" />
-                <span>Call Store</span>
-              </button>
-              {detail.captain && detail.fulfillmentType !== 'PICKUP' && (
-                <button
-                  type="button"
-                  onClick={() => handleCall(detail.captain!.phone)}
-                  className="flex h-10 items-center justify-center gap-2 rounded-xl bg-brand text-xs font-extrabold text-white shadow-card transition hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
-                >
-                  <Phone className="h-4 w-4" aria-hidden="true" />
-                  <span>Call Captain</span>
-                </button>
-              )}
-            </div>
+
           </section>
         )}
 

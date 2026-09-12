@@ -2,7 +2,7 @@ import { CheckoutDeliveryEstimate } from '@/components/DeliveryEstimate';
 import { useCheckoutDraft } from '@/hooks/useCheckoutDraft';
 import { ConnectionNotice } from '@/components/ConnectionNotice';
 import { submitCheckoutAttempt } from '@/lib/checkoutAttempt';
-import { AutomaticPricingPreview } from '@/components/AutomaticPricingPreview';
+
 import { CheckoutAuthGate } from '@/components/CheckoutAuthGate';
 import { useDeliveryZone } from '@/components/ZoneProvider';
 import { celebrateOrder } from '@/lib/sensory';
@@ -108,7 +108,8 @@ export function CheckoutScreen() {
   /** Delivery preset: call on arrival / leave at door */
   const [deliveryPreset, setDeliveryPreset] = useState<string>('');
   /** DELIVERY or PICKUP — per-store choice. Defaults to cart's current value. */
-  const [fulfillmentType, setFulfillmentType] = useState<'DELIVERY' | 'PICKUP'>(() => cart.storeGroups[0]?.fulfillmentType ?? 'DELIVERY');
+  const [selectedFulfillmentType, setFulfillmentType] = useState<'DELIVERY' | 'PICKUP'>(() => cart.storeGroups[0]?.fulfillmentType ?? 'DELIVERY');
+  const fulfillmentType = cart.isMultiStore ? (cart.storeGroups.some(group => group.fulfillmentType === 'DELIVERY') ? 'DELIVERY' : 'PICKUP') : selectedFulfillmentType;
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [quote, setQuote] = useState<{
     autoPricingEnabled?: boolean;
@@ -202,17 +203,18 @@ export function CheckoutScreen() {
     }
     let cancelled = false;
     setQuotePending(true);
+    setQuote(null);
     const controller = new AbortController();
-    quoteOrder(
-      {
-        storeId: cart.storeId,
-        items: cart.isMultiStore ? items.filter(item => cart.storeGroups[0]?.lines.some(line => line.productId === item.productId)) : items,
-        voucherCode: appliedVoucher || undefined,
-        deliveryRegion,
-        deliveryZoneId: zoneId || undefined,
-      },
-      controller.signal
-    )
+    const requests = cart.isMultiStore ? cart.storeGroups.map(group => ({
+      storeId: group.storeId, fulfillmentType: group.fulfillmentType,
+      items: items.filter(item => group.lines.some(line => line.productId === item.productId)),
+      deliveryRegion, deliveryZoneId: zoneId || undefined,
+    })) : [{ storeId: cart.storeId, items, fulfillmentType, voucherCode: appliedVoucher || undefined, deliveryRegion, deliveryZoneId: zoneId || undefined }];
+    Promise.all(requests.map(body => quoteOrder(body, controller.signal)))
+      .then(results => {
+        const first = results[0]; if (!first) throw new Error('السلة فارغة');
+        return { ...first, autoPricingEnabled: results.every((r, i) => r.autoPricingEnabled || requests[i]?.fulfillmentType === 'PICKUP'), subtotal: results.reduce((n, r) => n + r.subtotal, 0), deliveryFee: results.reduce((n, r) => n + r.deliveryFee, 0), discount: results.reduce((n, r) => n + r.discount, 0), totalAmount: results.reduce((n, r) => n + r.totalAmount, 0) };
+      })
       .then((result) => {
         if (cancelled) return;
         setQuote({
@@ -237,7 +239,7 @@ export function CheckoutScreen() {
       cancelled = true;
       controller.abort();
     };
-  }, [cart.storeId, items, appliedVoucher, deliveryRegion, zoneId, auth.user?.id, quoteRevision, pricingSettings.data?.updatedAt]);
+  }, [cart.storeId, cart.storeGroups, fulfillmentType, items, appliedVoucher, deliveryRegion, zoneId, auth.user?.id, quoteRevision, pricingSettings.data?.updatedAt]);
 
   if (!auth.ready) {
     return (
@@ -329,7 +331,7 @@ export function CheckoutScreen() {
     // a try/finally so EVERY exit path — validation short-circuits included —
     // releases it; a leak here would permanently block further orders.
     if (!auth.user) { setAuthGate(true); return; }
-    if (submittingRef.current) return;
+    if (submittingRef.current || quotePending || quoteError || !quote) return;
     submittingRef.current = true;
     void hapticConfirm();
 
@@ -621,7 +623,7 @@ export function CheckoutScreen() {
                   </select>
                 </label>
               )}
-              {zonesEnabled && (
+              {zonesEnabled && zones.length === 0 && (
               <label className="block">
                 <span className="text-[11px] font-bold text-ink-muted">{t('منطقة التوصيل', 'Delivery region')}</span>
                 <select
@@ -903,6 +905,7 @@ export function CheckoutScreen() {
           </section>
           )}
 
+          {pricingSettings.data?.freeDeliveryEnabled && <p role="status" className="rounded-xl bg-brand-tint p-3 text-center font-bold text-brand-dark">التوصيل مجاني حاليًا — تدفع قيمة المنتجات فقط</p>}
           {/* Quote — multi-store: local summary from cart */}
           {cart.isMultiStore ? (
           <section className="rounded-2xl bg-surface p-4 shadow-card">
@@ -924,7 +927,9 @@ export function CheckoutScreen() {
                 </div>
               </div>
             ))}
-            <AutomaticPricingPreview />
+            {quotePending && <p role="status" className="mt-3 text-sm">جارٍ حساب أسعار المتاجر…</p>}
+            {quoteError && <p role="alert" className="mt-3 text-sm text-danger-ink">{quoteError.message}<button type="button" onClick={() => setQuoteRevision(v => v + 1)} className="ms-2 min-h-11 underline">إعادة المحاولة</button></p>}
+            {quote?.autoPricingEnabled && <div className="mt-3 space-y-2 rounded-xl bg-canvas p-3"><p className="flex justify-between"><span>مجموع رسوم التوصيل</span><span dir="ltr">{formatCurrency(quote.deliveryFee)}</span></p><p className="flex justify-between font-bold"><span>الإجمالي</span><span dir="ltr">{formatCurrency(quote.totalAmount)}</span></p></div>}
             {/* Split-delivery notice for multi-store orders */}
             {!quote?.autoPricingEnabled && <>
             <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-center">
@@ -1022,7 +1027,7 @@ export function CheckoutScreen() {
           <Button
             type="button"
             onClick={() => void handleSubmit()}
-            disabled={(cart?.lines ?? []).length === 0 || isOffline}
+            disabled={(cart?.lines ?? []).length === 0 || isOffline || quotePending || !!quoteError || !quote}
             loading={placing || voiceNoteUploading}
             block
             icon={placing ? undefined : <Package size={16} />}

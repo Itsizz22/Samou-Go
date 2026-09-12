@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://samouquick.com/sitemap.xml

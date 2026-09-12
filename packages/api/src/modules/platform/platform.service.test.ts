@@ -1,3 +1,5 @@
+import { writeChat as sendOrderChat } from './order-chat';
+vi.mock('../../lib/push', () => ({ sendPushToUser: vi.fn().mockResolvedValue({ sent: 0, failed: 0 }) }));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LedgerEntryType, SettlementMethod, UserRole } from '@samou-go/shared-types';
 import type { Prisma } from '../../lib/prisma-types';
@@ -8,7 +10,6 @@ import {
   creditDeliveredOrder,
   creditWallet,
   rateOrder,
-  sendOrderChat,
   settleWallet,
 } from './platform.service';
 
@@ -123,7 +124,7 @@ vi.mock('../../lib/prisma', () => ({
   prisma: {
     order: { findUnique: vi.fn(async () => h.state.order) },
     rating: { upsert: vi.fn(async ({ create }: { create: unknown }) => create) },
-    chatMessage: { create: vi.fn(async ({ data }: any) => ({ id: 'm-1', ...data })) },
+    chatMessage: { findUnique: vi.fn(async () => null), count: vi.fn(async () => 0), create: vi.fn(async ({ data }: any) => ({ id: 'm-1', ...data })) },
     wallet: {
       findUnique: vi.fn(async () => h.state.wallet),
       findFirst: vi.fn(),
@@ -321,7 +322,10 @@ describe('sendOrderChat — REST-side membership gating', () => {
     id: 'order-1',
     customerId: 'customer-1',
     captainId: 'captain-1',
-    store: { managerId: 'manager-1' },
+    store: { managerId: 'manager-1', nameAr: 'Store' },
+    customer: { id: 'customer-1', name: 'Customer' },
+    captain: { id: 'captain-1', name: 'Captain' },
+    status: 'ACCEPTED',
   };
 
   it('403 for a caller outside the order party', async () => {
@@ -331,23 +335,22 @@ describe('sendOrderChat — REST-side membership gating', () => {
       sendOrderChat(
         'order-1',
         { sub: 'stranger', role: UserRole.CUSTOMER },
-        { orderId: 'order-1', message: 'hello' }
+        { recipientId: 'customer-1', clientMessageId: '00000000-0000-4000-8000-000000000001', message: 'hello' }
       )
     ).rejects.toMatchObject({ statusCode: 403, code: 'FORBIDDEN' });
     expect(prisma.chatMessage.create).not.toHaveBeenCalled();
   });
 
-  it('allows the customer, the assigned captain, the store manager and admins', async () => {
+  it('allows the customer, the assigned captain, the store manager only', async () => {
     h.state.order = party;
     const actors = [
       { sub: 'customer-1', role: UserRole.CUSTOMER },
       { sub: 'captain-1', role: UserRole.CAPTAIN },
       { sub: 'manager-1', role: UserRole.STORE_MANAGER },
-      { sub: 'admin-1', role: UserRole.ADMIN },
     ];
 
     for (const actor of actors) {
-      await sendOrderChat('order-1', actor, { orderId: 'order-1', message: 'مرحبا' });
+      await sendOrderChat('order-1', actor, { recipientId: actor.sub === 'customer-1' ? 'manager-1' : 'customer-1', clientMessageId: '00000000-0000-4000-8000-000000000001', message: 'مرحبا' });
     }
 
     expect(prisma.chatMessage.create).toHaveBeenCalledTimes(actors.length);
@@ -360,7 +363,7 @@ describe('sendOrderChat — REST-side membership gating', () => {
       sendOrderChat(
         'order-1',
         { sub: 'customer-1', role: UserRole.CUSTOMER },
-        { orderId: 'order-1', message: '   ' }
+        { recipientId: 'customer-1', clientMessageId: '00000000-0000-4000-8000-000000000001', message: '   ' }
       )
     ).rejects.toMatchObject({ statusCode: 422, code: 'VALIDATION_ERROR' });
     expect(prisma.chatMessage.create).not.toHaveBeenCalled();

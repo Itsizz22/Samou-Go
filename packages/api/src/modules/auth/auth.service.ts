@@ -165,21 +165,19 @@ export async function updateProfile(
     await verifyAndConsumeOtp(body.phone, body.otpCode ?? '');
   }
 
-  const updated = await prisma.user.update({ include: assignedStoresInclude,
-    where: { id: userId },
-    data: {
+  const passwordHash = body.newPassword ? await hashPassword(body.newPassword) : undefined;
+  const updated = await prisma.$transaction(async tx => {
+    if (passwordHash) {
+      const changed = await tx.user.updateMany({ where: { id: userId, passwordHash: user.passwordHash }, data: { passwordHash, sessionVersion: { increment: 1 } } });
+      if (changed.count !== 1) throw conflict('تم تغيير كلمة المرور من جلسة أخرى؛ سجّل الدخول مجددًا');
+      await tx.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+    }
+    return tx.user.update({ include: assignedStoresInclude, where: { id: userId }, data: {
       ...(body.name !== undefined ? { name: body.name } : {}),
       ...(body.phone !== undefined ? { phone: body.phone } : {}),
       ...(body.whatsappNumber !== undefined ? { whatsappNumber: body.whatsappNumber } : {}),
-      ...(body.newPassword ? { passwordHash: await hashPassword(body.newPassword) } : {}),
-    },
+    } });
   });
-
-  // A password change invalidates every outstanding session — including the
-  // one the caller is on, so the client re-authenticates with fresh tokens.
-  if (body.newPassword) {
-    await revokeAllUserRefreshTokens(userId);
-  }
 
   return toPublicUser(updated);
 }

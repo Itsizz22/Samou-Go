@@ -93,6 +93,10 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
             showNotification(title, body, null, MainActivity.isUserActive(this) ? CHANNEL_FOREGROUND : "orders_high_priority", data.get("notificationLogId"), data.get("customRequestId"), data.get("audience"), data.get("storeId"));
             return;
         }
+        if ("CHAT_MESSAGE".equals(type)) {
+            showNotification(title, body, orderId, MainActivity.isUserActive(this) ? CHANNEL_FOREGROUND : "orders_high_priority", data.get("notificationLogId"), null, null, null, data.get("senderId"));
+            return;
+        }
         boolean isCaptainOrStoreNotification =
             "NEW_ORDER".equals(type) || "NEW_ORDER_ALERT".equals(type) ||
             "CAPTAIN_ASSIGN".equals(type);
@@ -147,6 +151,9 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
         showNotification(title, body, orderId, channelId, notificationLogId, null, null, null);
     }
     private void showNotification(String title, String body, String orderId, String channelId, String notificationLogId, String customRequestId, String audience, String storeId) {
+        showNotification(title, body, orderId, channelId, notificationLogId, customRequestId, audience, storeId, null);
+    }
+    private void showNotification(String title, String body, String orderId, String channelId, String notificationLogId, String customRequestId, String audience, String storeId, String chatSenderId) {
         Context context = getApplicationContext();
 
         // Create channels if they don't exist yet (idempotent)
@@ -171,16 +178,21 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
             intent.putExtra("storeId", storeId);
             intent.putExtra("notificationLogId", notificationLogId);
         }
+        if (chatSenderId != null && orderId != null) {
+            intent.putExtra("type", "CHAT_MESSAGE");
+            intent.putExtra("senderId", chatSenderId);
+            intent.putExtra("google.message_id", "chat-" + orderId + "-" + chatSenderId);
+        }
         PendingIntent pendingIntent = PendingIntent.getActivity(
             context,
-            orderId != null ? orderId.hashCode() : customRequestId != null ? customRequestId.hashCode() : 0,
+            chatSenderId != null ? ("chat:" + orderId + ":" + chatSenderId).hashCode() : orderId != null ? orderId.hashCode() : customRequestId != null ? customRequestId.hashCode() : 0,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
         // Derive a stable notification ID from the orderId so multiple
         // incoming orders produce distinct notifications.
-        int notificationId = orderId != null
+        int notificationId = chatSenderId != null ? ("chat:" + orderId + ":" + chatSenderId).hashCode() : orderId != null
             ? (CHANNEL_PREPARATION.equals(channelId) ? ("preparation:" + orderId).hashCode() : orderId.hashCode())
             : (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
 

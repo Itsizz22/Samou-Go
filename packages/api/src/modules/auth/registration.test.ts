@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { UserRole } from '@samou-go/shared-types';
 const h = vi.hoisted(() => ({ verify: vi.fn(), create: vi.fn(), find: vi.fn(), update: vi.fn(), token: vi.fn() }));
-vi.mock('../../lib/prisma', () => ({ prisma: { user: { findUnique: h.find, create: h.create, update: h.update } }, caseInsensitiveContains: vi.fn() }));
+vi.mock('../../lib/prisma', () => ({ prisma: { $transaction: (fn: (tx: unknown) => unknown) => fn({ user: { update: h.update } }), user: { findUnique: h.find, create: h.create, update: h.update } }, caseInsensitiveContains: vi.fn() }));
 vi.mock('./otp.service', () => ({ verifyAndConsumeOtp: h.verify }));
 vi.mock('../../lib/public-code', () => ({ nextPublicCode: vi.fn(async () => 'CU-10001') }));
 vi.mock('../../lib/password', () => ({ hashPassword: vi.fn(async () => 'hash'), verifyPassword: vi.fn() }));

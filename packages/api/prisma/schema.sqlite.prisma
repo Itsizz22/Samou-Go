@@ -164,7 +164,8 @@ model User {
   customRequests CustomRequest[]      @relation("CustomRequestCustomer")
   ratingsGiven Rating[] @relation("RatingCustomer")
   ratingsAsCaptain Rating[] @relation("RatingCaptain")
-  chatMessages ChatMessage[]
+  chatMessages ChatMessage[] @relation("ChatSender")
+  receivedChatMessages ChatMessage[] @relation("ChatRecipient")
   supportTickets SupportTicket[]
   wallet Wallet?
   ledgerEntries LedgerEntry[]
@@ -222,6 +223,8 @@ model RefreshToken {
 /// A shop in Samou'. `managerId` is the STORE_MANAGER who runs it; one manager
 /// may run several shops.
 model Store {
+  deliveryZoneId String?
+  deliveryZone DeliveryZone? @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
   whatsappNumber String?
   publicCode String? @unique
   id         String   @id @default(cuid())
@@ -269,6 +272,7 @@ model Store {
   wallet Wallet?
   customRequests CustomRequest[]
 
+  @@index([deliveryZoneId])
   @@index([managerId])
   @@index([isActive])
   @@index([nameAr])
@@ -502,6 +506,9 @@ model Voucher {
 /// The captain picks the zone for an order — the fee is looked up HERE,
 /// never typed or sent by the captain, so "client never sends money" holds.
 model DeliveryZone {
+  stores Store[]
+  outgoingRates DeliveryRouteRate[] @relation("RouteFrom")
+  incomingRates DeliveryRouteRate[] @relation("RouteTo")
   id        String   @id @default(cuid())
   nameAr    String
   nameEn    String
@@ -576,6 +583,7 @@ model CustomRequest {
   prescriptionImage String?
   customerAddressText String?
   deliveryZoneId String?
+  quotedAutoPriced Boolean @default(false)
   quotedDeliveryFee Float?
   deliveryFeePending Boolean @default(false)
   orderId String? @unique
@@ -666,10 +674,16 @@ model ChatMessage {
   orderId String
   senderId String
   senderRole UserRole
+  recipientId String?
+  clientMessageId String?
+  readAt DateTime?
   message String
   createdAt DateTime @default(now())
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  sender User @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  sender User @relation("ChatSender", fields: [senderId], references: [id], onDelete: Restrict)
+  recipient User? @relation("ChatRecipient", fields: [recipientId], references: [id], onDelete: Restrict)
+  @@unique([senderId, clientMessageId])
+  @@index([orderId, recipientId, readAt])
   @@index([orderId, createdAt])
   @@map("chat_messages")
 }
@@ -748,6 +762,7 @@ model Settlement {
 
 /// Singleton row (`id = 'platform'`) holding the platform-wide economy knobs.
 model PlatformSettings {
+  freeDeliveryEnabled Boolean @default(false)
   autoPricingEnabled Boolean @default(false)
   baseDeliveryFee Decimal @default(0)
   perKmFee Decimal @default(0)
@@ -886,4 +901,21 @@ model ReferenceSequence {
   prefix String @id
   value Int
   @@map("reference_sequences")
+}
+
+model DeliveryRouteRate {
+  fromZoneId String
+  toZoneId String
+  fee Float
+  fromZone DeliveryZone @relation("RouteFrom", fields: [fromZoneId], references: [id], onDelete: Cascade)
+  toZone DeliveryZone @relation("RouteTo", fields: [toZoneId], references: [id], onDelete: Cascade)
+  @@id([fromZoneId, toZoneId])
+  @@index([toZoneId])
+  @@map("delivery_route_rates")
+}
+model DeliveryPricingConfig {
+  id String @id @default("routes")
+  enabled Boolean @default(false)
+  revision Int @default(0)
+  @@map("delivery_pricing_config")
 }

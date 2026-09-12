@@ -497,3 +497,10 @@ it('accepts a valid OTP only once under concurrent verification', async () => {
   ]);
   expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
 });
+
+it.each(['050','051','052','053','054','055','056','057','058','059'])('dispatches OTP for %s using the carrier prefix, not WhatsApp', async prefix => {
+  const { otpRequestSchema } = await import('./auth.schemas');
+  const local = prefix + '1234567';
+  await requestOtp(otpRequestSchema.parse({ phone: local, purpose: 'registration' }));
+  expect(h.gateway.send).toHaveBeenCalledWith(expect.objectContaining({ to: (['056','059'].includes(prefix) ? '+970' : '+972') + local.slice(1) }));
+});

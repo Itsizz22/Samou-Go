@@ -1,3 +1,4 @@
+import { chatOverview, readChat, writeChat, markChatRead } from './order-chat';
 import type { Request, Response } from 'express';
 import { created, ok } from '../../lib/respond';
 import { parseWith } from '../../lib/validate';
@@ -30,14 +31,14 @@ export async function rateOrderHandler(req: Request, res: Response): Promise<voi
 export async function listOrderChatHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);
   const { orderId } = parseWith(orderIdParamsSchema, req.params);
-  ok(res, await platformService.listOrderChat(orderId, auth));
+  ok(res, await readChat(orderId, auth, req.query));
 }
 
 /** POST /api/v1/platform/orders/:orderId/chat */
 export async function sendOrderChatHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);
   const { orderId } = parseWith(orderIdParamsSchema, req.params);
-  created(res, await platformService.sendOrderChat(orderId, auth, req.body));
+  created(res, await writeChat(orderId, auth, req.body));
 }
 
 /** POST /api/v1/platform/support/tickets */
@@ -88,3 +89,6 @@ export async function updatePlatformSettingsHandler(req: Request, res: Response)
   const body = parseWith(platformSettingsSchema, req.body);
   ok(res, await platformService.updatePlatformSettings(body));
 }
+
+export async function chatOverviewHandler(req: Request, res: Response) { const { orderId } = parseWith(orderIdParamsSchema, req.params); ok(res, await chatOverview(orderId, requireAuth(req))); }
+export async function chatReadHandler(req: Request, res: Response) { const { orderId } = parseWith(orderIdParamsSchema, req.params); ok(res, await markChatRead(orderId, requireAuth(req), req.body)); }

@@ -94,3 +94,19 @@ export const quoteLimiter = rateLimit({
     },
   } satisfies ApiFailure,
 });
+
+/** Broad API protection before parsing bodies. Allows normal staff polling and
+ * several users behind one NAT; endpoint-specific limits remain stricter.
+ * Memory store is per process: configure an edge/shared limiter before scaling.
+ */
+export const apiLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 1200,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skip: () => env.isTest,
+  message: {
+    success: false,
+    error: { code: 'TOO_MANY_REQUESTS', message: 'طلبات كثيرة، يرجى الانتظار قليلًا / Too many requests, please wait' },
+  } satisfies ApiFailure,
+});

@@ -4,13 +4,16 @@
  * The API stores and validates phones in canonical local form (`05XXXXXXXX`),
  * but every real carrier API (Twilio, Firebase function, aggregator webhooks)
  * wants an international number. This module is the single place that converts
- * the two. The country code is configurable (`SMS_COUNTRY_CODE`, default +970)
- * because both +970 and +972 route to Palestinian mobiles.
+ * the two. Regional mobiles are routed by prefix: 056/059 use +970,
+ * other supported 05 prefixes use +972. WhatsApp identity is independent.
  */
 
 /** `05XXXXXXXX` → `+9705XXXXXXXX` (drop the leading zero, prefix the code). */
 export function toE164(phone: string, countryCode = '+970'): string {
   const digits = phone.replace(/[\s-()]/g, '').replace(/^\+/, '');
+  const regional = digits.replace(/^00/, '').replace(/^(?:970|972)/, '0');
+  if (/^05[69]\d{7}$/.test(regional)) return `+970${regional.slice(1)}`;
+  if (/^05[0-578]\d{7}$/.test(regional)) return `+972${regional.slice(1)}`;
   if (digits.startsWith('00')) return `+${digits.slice(2)}`;
   if (digits.startsWith('05')) return `${countryCode}${digits.slice(1)}`;
   // Already international (e.g. `9705…` / `9725…` after the leading 00/+) —

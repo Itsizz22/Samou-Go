@@ -55,7 +55,7 @@ export type OrderForSummary = PrismaOrder & {
   items: (Pick<PrismaOrderItem, 'id' | 'totalPrice' | 'selectedOptions' | 'quantity' | 'note'> & { offerTitle?: string | null } & {
     product: Pick<PrismaProduct, 'nameAr'> & { imageUrl?: string | null } | null;
   })[];
-  store: Pick<PrismaStore, 'nameAr'>;
+  store: Pick<PrismaStore, 'nameAr'> & Partial<Pick<PrismaStore, 'phone' | 'whatsappNumber'>>;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -211,6 +211,7 @@ export function toOrderSummary(order: OrderForSummary, viewerRole?: string, view
     status: order.status,
     captainId: order.captainId,
     cartCheckoutId: order.cartCheckoutId ?? null,
+    storeContact: { name: order.store.nameAr, phone: order.store.phone ?? '', whatsappNumber: order.store.whatsappNumber ?? null },
     customerContact: staff && order.customer ? { name: order.customer.name, phone: order.customer.phone, whatsappNumber: order.customer.whatsappNumber ?? null } : null,
     deliveryDestination: staff || restricted ? { zoneNameAr: order.deliveryZone?.nameAr ?? null, address: restricted ? "يظهر العنوان بعد حجز التوصيل" : order.customerAddressText, landmark: restricted ? null : order.addressNote } : null,
     ...(canViewCaptainHandoffCode(viewerRole) ? { items: order.items.map(item => ({

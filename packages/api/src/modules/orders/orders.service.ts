@@ -1,3 +1,4 @@
+import { resolveRouteFee } from '../zones/route-pricing';
 import { nextPublicCode } from '../../lib/public-code';
 import { sendPushToUser } from '../../lib/push';
 import { orderProposalSchema } from './orders.schemas';
@@ -91,7 +92,7 @@ export const SUMMARY_INCLUDE = {
       product: { select: { nameAr: true, imageUrl: true } },
     },
   },
-  store: { select: { nameAr: true } },
+  store: { select: { nameAr: true, phone: true, whatsappNumber: true } },
   customer: { select: { name: true, phone: true, whatsappNumber: true } },
   deliveryZone: { select: { nameAr: true } },
 } satisfies Prisma.OrderInclude;
@@ -355,15 +356,16 @@ export async function quoteOrder(body: QuoteOrderBody): Promise<OrderQuote> {
   // Normalize null → undefined so the default 'central' zone kicks in.
   const region = body.deliveryRegion ?? undefined;
   const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, region);
-  const zone = body.deliveryZoneId
+  const zone = body.fulfillmentType !== 'PICKUP' && body.deliveryZoneId
     ? await prisma.deliveryZone.findFirst({ where: { id: body.deliveryZoneId, isActive: true } })
     : null;
-  if (body.deliveryZoneId && !zone) throw unprocessable('ZONE_INACTIVE', 'منطقة التوصيل غير متاحة / Delivery zone is unavailable');
+  if (body.fulfillmentType !== 'PICKUP' && body.deliveryZoneId && !zone) throw unprocessable('ZONE_INACTIVE', 'منطقة التوصيل غير متاحة / Delivery zone is unavailable');
   const settings = await prisma.platformSettings.findUnique({ where: { id: 'platform' } });
-  const pricing = automaticDeliveryPricing({ enabled: settings?.autoPricingEnabled ?? false,
-    zoneFee: zone ? decimalToNumber(zone.deliveryFee) : null, baseFee: decimalToNumber(settings?.baseDeliveryFee ?? 0),
+  const routeFee = await resolveRouteFee(prisma, body.storeId, body.deliveryZoneId, body.fulfillmentType === 'PICKUP');
+  const pricing = automaticDeliveryPricing({ enabled: routeFee !== null || (settings?.autoPricingEnabled ?? false),
+    zoneFee: routeFee ?? (zone ? decimalToNumber(zone.deliveryFee) : null), baseFee: decimalToNumber(settings?.baseDeliveryFee ?? 0),
     legacyFee: zone?.allowCaptainPricing ? 0 : zone ? decimalToNumber(zone.deliveryFee) : totals.deliveryFee,
-    pickup: false, captainSharePercentage: decimalToNumber(settings?.captainSharePercentage ?? 100) });
+    pickup: body.fulfillmentType === 'PICKUP', captainSharePercentage: decimalToNumber(settings?.captainSharePercentage ?? 100) });
   const { deliveryFee } = pricing;
 
   if (totals.subtotal <= 0) {
@@ -417,11 +419,13 @@ export async function createOrder(
       : null;
     if (requestedZoneId && !zone) throw unprocessable('ZONE_INACTIVE', 'منطقة التوصيل غير متاحة / Delivery zone is unavailable');
     const settings = await tx.platformSettings.findUnique({ where: { id: 'platform' } });
-    const captainPricing = body.fulfillmentType !== 'PICKUP' && !settings?.autoPricingEnabled && zone?.allowCaptainPricing === true;
-    const pricing = automaticDeliveryPricing({ enabled: settings?.autoPricingEnabled ?? false,
-      zoneFee: zone ? decimalToNumber(zone.deliveryFee) : null, baseFee: decimalToNumber(settings?.baseDeliveryFee ?? 0),
+    let captainPricing = body.fulfillmentType !== 'PICKUP' && !settings?.autoPricingEnabled && zone?.allowCaptainPricing === true;
+    const routeFee = await resolveRouteFee(tx, body.storeId, requestedZoneId, body.fulfillmentType === 'PICKUP');
+    const pricing = automaticDeliveryPricing({ enabled: routeFee !== null || (settings?.autoPricingEnabled ?? false),
+      zoneFee: routeFee ?? (zone ? decimalToNumber(zone.deliveryFee) : null), baseFee: decimalToNumber(settings?.baseDeliveryFee ?? 0),
       legacyFee: captainPricing ? 0 : zone ? decimalToNumber(zone.deliveryFee) : totals.deliveryFee,
       pickup: body.fulfillmentType === 'PICKUP', captainSharePercentage: decimalToNumber(settings?.captainSharePercentage ?? 100) });
+    if (routeFee !== null) captainPricing = false;
     const { deliveryFee } = pricing;
 
     if (totals.subtotal <= 0) {
@@ -602,11 +606,12 @@ export async function createCheckoutOrders(
       const lines = await priceBasket(tx, storeGroup.storeId, storeGroup.items);
       const checkoutRegion = body.deliveryRegion ?? undefined;
       const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, checkoutRegion);
-      const zone = body.deliveryZoneId ? await tx.deliveryZone.findFirst({ where: { id: body.deliveryZoneId, isActive: true } }) : null;
-      if (body.deliveryZoneId && !zone) throw unprocessable('ZONE_INACTIVE', 'منطقة التوصيل غير متاحة / Delivery zone unavailable');
+      const zone = storeGroup.fulfillmentType !== 'PICKUP' && body.deliveryZoneId ? await tx.deliveryZone.findFirst({ where: { id: body.deliveryZoneId, isActive: true } }) : null;
+      if (storeGroup.fulfillmentType !== 'PICKUP' && body.deliveryZoneId && !zone) throw unprocessable('ZONE_INACTIVE', 'منطقة التوصيل غير متاحة / Delivery zone unavailable');
       const settings = await tx.platformSettings.findUnique({ where: { id: 'platform' } });
-      const pricing = automaticDeliveryPricing({ enabled: settings?.autoPricingEnabled ?? false,
-        zoneFee: zone ? decimalToNumber(zone.deliveryFee) : null, baseFee: decimalToNumber(settings?.baseDeliveryFee ?? 0),
+      const routeFee = await resolveRouteFee(tx, storeGroup.storeId, body.deliveryZoneId, storeGroup.fulfillmentType === 'PICKUP');
+      const pricing = automaticDeliveryPricing({ enabled: routeFee !== null || (settings?.autoPricingEnabled ?? false),
+        zoneFee: routeFee ?? (zone ? decimalToNumber(zone.deliveryFee) : null), baseFee: decimalToNumber(settings?.baseDeliveryFee ?? 0),
         legacyFee: zone?.allowCaptainPricing ? 0 : zone ? decimalToNumber(zone.deliveryFee) : totals.deliveryFee, pickup: storeGroup.fulfillmentType === 'PICKUP',
         captainSharePercentage: decimalToNumber(settings?.captainSharePercentage ?? 100) });
 
@@ -635,8 +640,8 @@ export async function createCheckoutOrders(
           subtotal: totals.subtotal,
           // PICKUP orders have no delivery fee.
           deliveryFee: pricing.deliveryFee,
-          isCaptainPriced: storeGroup.fulfillmentType !== 'PICKUP' && !settings?.autoPricingEnabled && zone?.allowCaptainPricing === true,
-          feeApprovalStatus: storeGroup.fulfillmentType !== 'PICKUP' && !settings?.autoPricingEnabled && zone?.allowCaptainPricing ? 'PENDING_CUSTOMER_ACCEPTANCE' : 'APPROVED',
+          isCaptainPriced: storeGroup.fulfillmentType !== 'PICKUP' && routeFee === null && !settings?.autoPricingEnabled && zone?.allowCaptainPricing === true,
+          feeApprovalStatus: storeGroup.fulfillmentType !== 'PICKUP' && routeFee === null && !settings?.autoPricingEnabled && zone?.allowCaptainPricing ? 'PENDING_CUSTOMER_ACCEPTANCE' : 'APPROVED',
           autoPriced: pricing.autoPriced,
           captainSharePercentage: pricing.captainSharePercentage,
           deliveryZoneId: storeGroup.fulfillmentType === 'PICKUP' ? null : zone?.id ?? null,

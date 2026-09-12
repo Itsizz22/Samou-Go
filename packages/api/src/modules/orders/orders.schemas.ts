@@ -106,6 +106,7 @@ export const quoteOrderSchema = createOrderSchema.pick({
   deliveryRegion: true,
   deliveryZoneId: true,
 }).extend({
+  fulfillmentType: z.enum(['DELIVERY', 'PICKUP']).optional(),
   deliveryRegion: z.enum(['central', 'outer', 'remote']).nullable().optional(),
 });
 

@@ -14,6 +14,7 @@ import { ok } from './lib/respond';
 import { errorHandler } from './middleware/error-handler';
 import { notFoundHandler } from './middleware/not-found';
 import { apiRouter } from './routes';
+import { apiLimiter } from './middleware/rate-limit';
 import { uploadDirs } from './uploads/uploads.config';
 
 export const API_PREFIX = '/api/v1';
@@ -30,6 +31,7 @@ export function createApp(): Application {
   // Origin allow-list, methods and headers live in `config/cors.ts`.
   app.use(cors(corsOptions));
 
+  app.use(API_PREFIX, apiLimiter);
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
 

@@ -1,3 +1,5 @@
+import { OrderChat } from '@samou-go/api-client';
+import { OrderContactCard } from '@samou-go/ui';
 import { getLiveOrderTracking } from '@samou-go/api-client';
 import { LiveTrackingCard } from '@samou-go/ui/map';
 import { OrderChangePanel } from '@samou-go/api-client';
@@ -203,6 +205,9 @@ export function OrderTrackingScreen() {
             </div>
           ) : order.data ? (
             <>
+              <OrderContactCard title="المتجر" contact={{ name: order.data.store.nameAr, phone: order.data.store.phone, whatsappNumber: order.data.store.whatsappNumber }} />
+              {order.data.captain && <OrderContactCard title="كابتن التوصيل" contact={order.data.captain} />}
+              <OrderChat orderId={order.data.id} />
               {/* Timeline */}
               <section className={`rounded-2xl bg-surface p-4 shadow-card ${cancelled ? 'opacity-90' : ''}`}>
                 {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <OrderStatusTimeline status={order.data.status} />}

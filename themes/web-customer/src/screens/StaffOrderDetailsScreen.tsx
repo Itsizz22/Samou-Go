@@ -1,3 +1,4 @@
+import { OrderChat } from '@samou-go/api-client';
 import { CaptainReservation, PreparationCountdown, PreparationTimeEditor } from '@samou-go/api-client';
 import { Link, useParams } from 'react-router-dom';
 import { ORDER_STATUS_LABELS } from '@samou-go/shared-types';
@@ -21,8 +22,9 @@ export function StaffOrderDetailsScreen() {
         <div><h2 dir="ltr" className="text-start text-xl font-extrabold">{data.orderNumber}</h2><p className="mt-2 font-bold">{data.store.nameAr}</p><p className="mt-2 text-sm text-brand">{ORDER_STATUS_LABELS[data.status].ar}</p></div>
         <PreparationCountdown order={data} />
         {auth.user?.role === "CAPTAIN" ? <CaptainReservation order={data} captainId={auth.user.id} onReserved={() => { void order.refresh(); }} /> : <PreparationTimeEditor order={data} />}
-        <OrderCustomerDetails showDestination order={{ customerContact: data.customer.phone ? { name: data.customer.name, phone: data.customer.phone } : null, deliveryDestination: { zoneNameAr: data.deliveryZone?.nameAr ?? null, address: data.customerAddressText || "يظهر العنوان بعد حجز التوصيل", landmark: data.addressNote } }} />
-        {data.store.phone && <a href={`tel:${data.store.phone}`} className="inline-flex min-h-11 items-center font-bold text-brand">الاتصال بالمتجر</a>}
+        <OrderCustomerDetails showDestination order={{ storeContact: { name: data.store.nameAr, phone: data.store.phone, whatsappNumber: data.store.whatsappNumber }, customerContact: data.customer.phone ? { name: data.customer.name, phone: data.customer.phone, whatsappNumber: data.customer.whatsappNumber } : null, deliveryDestination: { zoneNameAr: data.deliveryZone?.nameAr ?? null, address: data.customerAddressText || "يظهر العنوان بعد حجز التوصيل", landmark: data.addressNote } }} />
+
+        {data.customer.phone && <OrderChat orderId={data.id} />}
         <ul className="divide-y divide-line">{data.items.map(item => <li key={item.id} className="space-y-2 py-3"><div className="flex justify-between gap-3">{item.product.imageUrl && <img src={item.product.imageUrl} alt="" className="size-16 rounded-xl object-cover" />}<strong>{item.offerTitle || item.product.nameAr}</strong><span dir="ltr">× {item.quantity}</span></div>{item.selectedOptions?.map(option => <p key={option.id} className="text-sm text-ink-muted">{option.name}</p>)}{item.note && <p className="text-sm text-ink-muted">{item.note}</p>}</li>)}</ul>
         <p className="flex justify-between font-bold"><span>قيمة المنتجات</span><span dir="ltr">{formatCurrency(data.subtotal)}</span></p>
         {data.orderNote && <p className="whitespace-pre-wrap rounded-xl bg-canvas p-3 text-sm">{data.orderNote}</p>}

@@ -61,7 +61,10 @@ function ensureListeners(): Promise<void> {
         }
         const orderId: unknown = action.notification.data?.orderId;
         if (typeof orderId === 'string' && orderId.length > 0) {
-          globalNavigate(`/orders/${encodeURIComponent(orderId)}`);
+          const senderId: unknown = action.notification.data?.senderId;
+          const suffix = action.notification.data?.type === 'CHAT_MESSAGE' && typeof senderId === 'string'
+            ? `?chat=1&peer=${encodeURIComponent(senderId)}` : '';
+          globalNavigate(`/orders/${encodeURIComponent(orderId)}${suffix}`);
         }
       }));
       const { App } = await import('@capacitor/app');

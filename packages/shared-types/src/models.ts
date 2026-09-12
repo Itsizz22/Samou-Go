@@ -55,6 +55,7 @@ export interface PublicUser {
  * ------------------------------------------------------------------------- */
 
 export interface Store {
+  deliveryZoneId?: string | null;
   whatsappNumber?: string | null;
   /** Recent completed delivery range, not a live route ETA. Null when fewer than five valid samples. */
   deliveryEstimate?: { minMinutes: number; maxMinutes: number; sampleSize: number } | null;
@@ -386,6 +387,7 @@ export interface OrderDetail extends Order {
 
 /** The condensed row used in list views. */
 export interface OrderSummary {
+  storeContact?: { name: string; phone: string; whatsappNumber?: string | null } | null;
   /** Kitchen lines, included for store managers and admins. */
   items?: { imageUrl?: string | null; id: string; productNameAr: string; quantity: number; totalPrice: number; note: string | null; optionNames: string[] }[];
   /** Contact and destination, returned only to authorized staff list viewers. */

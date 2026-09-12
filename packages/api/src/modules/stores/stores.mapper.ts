@@ -18,6 +18,7 @@ import { decimalToNumber } from '../../lib/decimal';
 export function toStore(store: PrismaStore): Store {
   return {
     id: store.id,
+    deliveryZoneId: store.deliveryZoneId,
     publicCode: store.publicCode ?? null,
     nameAr: store.nameAr,
     nameEn: store.nameEn,

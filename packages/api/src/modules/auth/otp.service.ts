@@ -166,7 +166,7 @@ async function verifyOtpCode(
 
 /** POST /auth/otp/request — rate-limited dispatch of a one-time code. */
 export async function requestOtp(
-  body: OtpRequestInput & { smsCountryCode?: "+972" },
+  body: OtpRequestInput,
 ): Promise<OtpRequestResult> {
   const { phone } = body;
   const now = new Date();
@@ -298,7 +298,7 @@ export async function requestOtp(
 
   // Carriers require E.164 (`+9705XXXXXXXX`), while the API stores and
   // validates canonical local form (`05XXXXXXXX`) — convert at the edge.
-  const to = toE164(upserted.phone, body.smsCountryCode ?? env.sms.countryCode);
+  const to = toE164(upserted.phone, env.sms.countryCode);
 
   // A delivery outage (carrier down, cloud function erroring, misconfigured
   // provider) is retryable and must NEVER surface as the generic 500. It is a

@@ -33,6 +33,8 @@ platformRouter.post(
   asyncHandler(controller.rateOrderHandler)
 );
 
+platformRouter.get('/orders/:orderId/chat/peers', asyncHandler(controller.chatOverviewHandler));
+platformRouter.post('/orders/:orderId/chat/read', asyncHandler(controller.chatReadHandler));
 platformRouter.get('/orders/:orderId/chat', asyncHandler(controller.listOrderChatHandler));
 
 platformRouter.post('/orders/:orderId/chat', asyncHandler(controller.sendOrderChatHandler));

@@ -89,3 +89,10 @@ it('routes pharmacy quote notifications to the correct audience', async () => {
   Reflect.apply(action, null, [{ notification: { data: { screen: 'custom-requests', customRequestId: 'rx', audience: 'store', storeId: 'pharmacy' } } }]);
   expect(mocks.navigate).toHaveBeenLastCalledWith('/store-manager/orders?tab=custom-requests&storeId=pharmacy');
 });
+
+it('opens the private conversation from a chat notification without trusting arbitrary URLs', async () => {
+  const { registerForPushNotifications } = await import('./notifications');
+  await registerForPushNotifications('account-a');
+  Reflect.apply(mocks.listeners.get('pushNotificationActionPerformed')!, null, [{ notification: { data: { type: 'CHAT_MESSAGE', orderId: 'order/1', senderId: 'store/1', path: 'https://untrusted.example' } } }]);
+  expect(mocks.navigate).toHaveBeenLastCalledWith('/orders/order%2F1?chat=1&peer=store%2F1');
+});

@@ -103,6 +103,7 @@ export const updateProductSchema = createProductSchema
 export const updateStoreSchema = z
   .object({
     whatsappNumber: whatsappNumberSchema,
+    deliveryZoneId: z.string().min(1).max(100).nullable().optional(),
     nameAr: z.string().trim().min(1).max(160).optional(),
     nameEn: z.string().trim().min(1).max(160).optional(),
     phone: z.string().trim().min(1).max(30).optional(),

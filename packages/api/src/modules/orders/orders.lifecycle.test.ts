@@ -260,7 +260,7 @@ it('prices from zones only when enabled and snapshots the captain share', async 
   await fixture.db.store.create({ data: { id: 'pricing-store-two', managerId: 'STORE_MANAGER', nameAr: 'Pricing second store', nameEn: 'Pricing second store', phone: '0599991098', isApproved: true } });
   await fixture.db.product.create({ data: { id: 'pricing-product-two', storeId: 'pricing-store-two', nameAr: 'Second item', price: 10 } });
   for (const fulfillmentType of ['DELIVERY', 'PICKUP']) {
-    const checkout = await request<{ orders: OrderDetail[] }>('POST', '/orders/checkout', 'CUSTOMER', {
+    const checkout = await request<{ orders: { orderId: string; deliveryFee: number }[] }>('POST', '/orders/checkout', 'CUSTOMER', {
       customerAddressText: body.customerAddressText, deliveryZoneId: 'zone',
       stores: [{ storeId: 'store', items: body.items, fulfillmentType }, { storeId: 'pricing-store-two', items: [{ productId: 'pricing-product-two', quantity: 1 }], fulfillmentType }],
     });
@@ -959,4 +959,122 @@ it('keeps prescription delivery fee pending for captain-priced zones and rejects
   const accepted = await request<{ orderId: string }>('PATCH', `/customer/custom-requests/${created.data.id}/respond`, 'CUSTOMER', { action: 'ACCEPT' });
   const order = await fixture.db.order.findUniqueOrThrow({ where: { id: accepted.data.orderId } });
   expect(order.isCaptainPriced).toBe(true); expect(order.feeApprovalStatus).toBe('PENDING_CUSTOMER_ACCEPTANCE');
+});
+
+it('manages symmetric route prices with role gates, atomic revision checks and server checkout', async () => {
+  const db = fixture.db;
+  await db.deliveryZone.create({ data: { id: 'route-b', nameAr: 'منطقة ب', nameEn: 'B', deliveryFee: 91 } });
+  expect((await request('GET', '/delivery-zones/pricing', 'CUSTOMER')).status).toBe(403);
+  const initial = await request<import('@samou-go/shared-types').DeliveryRoutePricing>('GET', '/delivery-zones/pricing', 'ADMIN');
+  expect(initial.data.enabled).toBe(false);
+  const zones = await db.deliveryZone.findMany({ where: { isActive: true } });
+  const rates = zones.flatMap((a, i) => zones.slice(i).map(b => ({ fromZoneId: a.id, toZoneId: b.id, fee: a.id === b.id ? 3 : 11.5 })));
+  expect((await request('PUT', '/delivery-zones/pricing', 'STORE_MANAGER', { ...initial.data, rates })).status).toBe(403);
+  const incomplete = await request('PUT', '/delivery-zones/pricing', 'ADMIN', { ...initial.data, enabled: true, rates: [] });
+  expect(incomplete.status).toBe(422);
+  const duplicate = await request('PUT', '/delivery-zones/pricing', 'ADMIN', { ...initial.data, rates: [{ fromZoneId: 'zone', toZoneId: 'route-b', fee: 3 }, { fromZoneId: 'route-b', toZoneId: 'zone', fee: 4 }] });
+  expect(duplicate.status).toBe(422);
+  expect((await request('PATCH', '/stores/store', 'STORE_MANAGER', { deliveryZoneId: 'missing' })).status).toBe(404);
+  expect((await request('PATCH', '/stores/store', 'STORE_MANAGER', { deliveryZoneId: 'zone' })).status).toBe(200);
+  await db.store.updateMany({ data: { deliveryZoneId: 'zone', isActive: true, isApproved: true, isAcceptingOrders: true, storeStatus: 'OPEN' } });
+  await db.product.update({ where: { id: 'product' }, data: { isAvailable: true } });
+  const enabled = await request<import('@samou-go/shared-types').DeliveryRoutePricing>('PUT', '/delivery-zones/pricing', 'ADMIN', { ...initial.data, rates, enabled: true });
+  expect(enabled.status, JSON.stringify(enabled.error)).toBe(200);
+  try {
+    expect((await request('PUT', '/delivery-zones/pricing', 'ADMIN', { ...initial.data, rates })).status).toBe(422);
+    const basket = { storeId: 'store', items: [{ productId: 'product', quantity: 1 }], customerAddressText: 'عنوان واضح قرب البلدية', deliveryZoneId: 'route-b' };
+    const quote = await request<import('@samou-go/shared-types').OrderQuote>('POST', '/orders/quote', undefined, basket);
+    expect(quote.status, JSON.stringify(quote.error)).toBe(200); expect(quote.data.deliveryFee).toBe(11.5);
+    await db.store.update({ where: { id: 'store' }, data: { deliveryZoneId: 'route-b' } });
+    const reverse = await request<import('@samou-go/shared-types').OrderQuote>('POST', '/orders/quote', undefined, { ...basket, deliveryZoneId: 'zone' });
+    expect(reverse.data.deliveryFee).toBe(11.5);
+    const same = await request<import('@samou-go/shared-types').OrderQuote>('POST', '/orders/quote', undefined, basket); expect(same.data.deliveryFee).toBe(3);
+    const created = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', basket);
+    expect(created.status, JSON.stringify(created.error)).toBe(201); expect(created.data.deliveryFee).toBe(3); expect(created.data.autoPriced).toBe(true);
+    const pickup = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', { ...basket, fulfillmentType: 'PICKUP', deliveryZoneId: undefined }); expect(pickup.status).toBe(201); expect(pickup.data.deliveryFee).toBe(0);
+    const pickupQuote = await request<import('@samou-go/shared-types').OrderQuote>('POST', '/orders/quote', undefined, { ...basket, fulfillmentType: 'PICKUP', deliveryZoneId: undefined }); expect(pickupQuote.status).toBe(200); expect(pickupQuote.data.deliveryFee).toBe(0);
+    await db.category.create({ data: { id: 'route-category', nameAr: 'قسم تجريبي', nameEn: 'Route test', storeId: 'pharmacy-test' } });
+    await db.product.create({ data: { id: 'route-product', storeId: 'pharmacy-test', categoryId: 'route-category', nameAr: 'اختبار مسار', price: 20 } });
+    const multi = await request<{ orders: { orderId: string; deliveryFee: number }[] }>('POST', '/orders/checkout', 'CUSTOMER', { customerAddressText: basket.customerAddressText, deliveryZoneId: 'route-b', stores: [{ storeId: 'store', items: basket.items }, { storeId: 'pharmacy-test', items: [{ productId: 'route-product', quantity: 1 }] }] });
+    expect(multi.status, JSON.stringify(multi.error)).toBe(201); expect(multi.data.orders.map(o => o.deliveryFee)).toEqual([3, 11.5]); const multiOrders = await db.order.findMany({ where: { id: { in: multi.data.orders.map(o => o.orderId) } } }); expect(multiOrders.every(o => o.autoPriced && !o.isCaptainPriced)).toBe(true);
+    const allPickup = await request<{ totalDeliveryFee: number }>('POST', '/orders/checkout', 'CUSTOMER', { customerAddressText: 'استلام من المتاجر', deliveryZoneId: 'missing-zone', stores: [{ storeId: 'store', fulfillmentType: 'PICKUP', items: basket.items }, { storeId: 'pharmacy-test', fulfillmentType: 'PICKUP', items: [{ productId: 'route-product', quantity: 1 }] }] }); expect(allPickup.status).toBe(201); expect(allPickup.data.totalDeliveryFee).toBe(0);
+    const sharp = (await import('sharp')).default;
+    const prescriptionImage = 'data:image/png;base64,' + (await sharp({ create: { width: 20, height: 20, channels: 3, background: 'white' } }).png().toBuffer()).toString('base64');
+    const rx = await request<{ id: string }>('POST', '/customer/custom-requests', 'CUSTOMER', { storeId: 'pharmacy-test', description: 'وصفة اختبار', prescriptionImage, customerAddressText: basket.customerAddressText, deliveryZoneId: 'route-b' }); expect(rx.status).toBe(200);
+    const rxQuote = await request<{ quotedDeliveryFee: number }>('POST', `/store/custom-requests/${rx.data.id}/offer`, 'STORE_MANAGER', { offeredPrice: 30 }); expect(rxQuote.data.quotedDeliveryFee).toBe(11.5);
+    expect((await request('PATCH', '/admin/settings/pricing', 'STORE_MANAGER', { freeDeliveryEnabled: true })).status).toBe(403);
+    expect((await request('PATCH', '/admin/settings/pricing', 'ADMIN', { freeDeliveryEnabled: true })).status).toBe(200);
+    const promotionalQuote = await request<import('@samou-go/shared-types').OrderQuote>('POST', '/orders/quote', undefined, basket); expect(promotionalQuote.data.deliveryFee).toBe(0);
+    const promotionalOrder = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', basket); expect(promotionalOrder.status).toBe(201); expect(promotionalOrder.data.deliveryFee).toBe(0); expect(promotionalOrder.data.autoPriced).toBe(true);
+    expect((await request('PATCH', '/admin/settings/pricing', 'ADMIN', { freeDeliveryEnabled: false })).status).toBe(200);
+    expect((await request<import('@samou-go/shared-types').OrderQuote>('POST', '/orders/quote', undefined, basket)).data.deliveryFee).toBe(3);
+    expect(Number((await db.order.findUniqueOrThrow({ where: { id: promotionalOrder.data.id } })).deliveryFee)).toBe(0);
+    const changed = await request('PUT', '/delivery-zones/pricing', 'ADMIN', { ...enabled.data, rates: enabled.data.rates.map(r => ({ ...r, fee: 0 })) }); expect(changed.status).toBe(200);
+    const rxAccepted = await request<{ orderId: string }>('PATCH', `/customer/custom-requests/${rx.data.id}/respond`, 'CUSTOMER', { action: 'ACCEPT' }); expect(rxAccepted.status).toBe(200);
+    const rxOrder = await db.order.findUniqueOrThrow({ where: { id: rxAccepted.data.orderId } }); expect(Number(rxOrder.deliveryFee)).toBe(11.5); expect(rxOrder.autoPriced).toBe(true);
+    const free = await request<import('@samou-go/shared-types').OrderQuote>('POST', '/orders/quote', undefined, basket); expect(free.data.deliveryFee).toBe(0);
+    expect(Number((await db.order.findUniqueOrThrow({ where: { id: created.data.id } })).deliveryFee)).toBe(3);
+    expect((await request('POST', '/orders/quote', undefined, { ...basket, deliveryZoneId: undefined })).status).toBe(422);
+    await db.deliveryZone.create({ data: { id: 'route-new', nameAr: 'جديدة', nameEn: 'New' } });
+    expect((await request('POST', '/orders/quote', undefined, { ...basket, deliveryZoneId: 'route-new' })).status).toBe(422);
+  } finally { await db.deliveryPricingConfig.update({ where: { id: 'routes' }, data: { enabled: false } }); await db.platformSettings.update({ where: { id: 'platform' }, data: { freeDeliveryEnabled: false } }); }
+});
+
+it('protects all three private conversations, retries, reads, paging and reassignment', async () => {
+  const order = await fixture.db.order.create({ data: { orderNumber: 'CHAT-LOCAL-1', customerAddressText: 'Local chat test address', customerId: 'CUSTOMER', storeId: 'store', captainId: 'CAPTAIN', status: 'ACCEPTED', subtotal: 10, deliveryFee: 5, totalAmount: 15 } });
+  const route = `/platform/orders/${order.id}/chat`;
+  type Message = import('@samou-go/shared-types').OrderChatMessage;
+  type Overview = import('@samou-go/shared-types').OrderChatOverview;
+  type Page = import('@samou-go/shared-types').OrderChatPage;
+  expect((await request('GET', `${route}/peers`)).status).toBe(401);
+  const stranger = await fixture.db.user.create({ data: { id: 'CHAT_OTHER', name: 'Other', phone: '0599991088', passwordHash: 'unusable', role: 'CUSTOMER' } });
+  tokens.CHAT_OTHER = signAccessToken({ userId: stranger.id, phone: stranger.phone, role: UserRole.CUSTOMER, sessionVersion: 0 }).accessToken;
+  expect((await request('GET', `${route}/peers`, 'CHAT_OTHER')).status).toBe(403);
+  expect((await request('GET', `${route}/peers`, 'ADMIN')).status).toBe(403);
+  expect((await request<Overview>('GET', `${route}/peers`, 'CUSTOMER')).data.peers.map(p => p.id).sort()).toEqual(['CAPTAIN', 'STORE_MANAGER']);
+  const body = { recipientId: 'STORE_MANAGER', message: 'مرحبا بخصوص الطلب', clientMessageId: randomUUID() };
+  const first = await request<Message>('POST', route, 'CUSTOMER', body); expect(first.status, JSON.stringify(first.error)).toBe(201);
+  const retry = await request<Message>('POST', route, 'CUSTOMER', body); expect(retry.data.id).toBe(first.data.id);
+  expect((await request('POST', route, 'CUSTOMER', { ...body, message: 'different' })).status).toBe(409);
+  expect((await request('POST', route, 'CUSTOMER', { ...body, recipientId: 'CHAT_OTHER', clientMessageId: randomUUID() })).status).toBe(403);
+  expect((await request('POST', route, 'CUSTOMER', { ...body, message: ' ', clientMessageId: randomUUID() })).status).toBe(422);
+  expect((await request('POST', route, 'CUSTOMER', { ...body, message: 'x'.repeat(2001), clientMessageId: randomUUID() })).status).toBe(422);
+  expect((await request<Page>('GET', `${route}?peerId=CUSTOMER`, 'CAPTAIN')).data.items).toHaveLength(0);
+  expect((await request<Overview>('GET', `${route}/peers`, 'STORE_MANAGER')).data.peers.find(p => p.id === 'CUSTOMER')?.unread).toBe(1);
+  expect((await request('POST', `${route}/read`, 'CAPTAIN', { peerId: 'CUSTOMER', messageId: first.data.id })).status).toBe(400);
+  expect((await request('POST', `${route}/read`, 'STORE_MANAGER', { peerId: 'CUSTOMER', messageId: first.data.id })).status).toBe(200);
+  expect((await request<Overview>('GET', `${route}/peers`, 'STORE_MANAGER')).data.peers.find(p => p.id === 'CUSTOMER')?.unread).toBe(0);
+  expect((await request<Page>('GET', `${route}?peerId=STORE_MANAGER`, 'CUSTOMER')).data.items[0]?.readAt).not.toBeNull();
+  for (const [sender, recipientId] of [['CUSTOMER', 'CAPTAIN'], ['CAPTAIN', 'CUSTOMER'], ['STORE_MANAGER', 'CAPTAIN'], ['CAPTAIN', 'STORE_MANAGER'], ['STORE_MANAGER', 'CUSTOMER']]) {
+    expect((await request('POST', route, sender, { recipientId, message: '<script>text only</script>', clientMessageId: randomUUID() })).status).toBe(201);
+  }
+  await fixture.db.chatMessage.createMany({ data: Array.from({ length: 55 }, (_, i) => ({ orderId: order.id, senderId: 'CUSTOMER', recipientId: 'STORE_MANAGER', senderRole: 'CUSTOMER', message: `History ${i}`, createdAt: new Date(Date.now() - 120000 + i) })) });
+  const page = await request<Page>('GET', `${route}?peerId=STORE_MANAGER`, 'CUSTOMER'); expect(page.data.items).toHaveLength(50); expect(page.data.nextBefore).toBeTruthy();
+  const older = await request<Page>('GET', `${route}?peerId=STORE_MANAGER&before=${page.data.nextBefore}`, 'CUSTOMER'); expect(older.data.items.length).toBeGreaterThan(0); expect(older.data.items.some(m => page.data.items.some(n => n.id === m.id))).toBe(false);
+  await fixture.db.order.update({ where: { id: order.id }, data: { captainId: null } });
+  expect((await request('GET', `${route}?peerId=CUSTOMER`, 'CAPTAIN')).status).toBe(403);
+  await fixture.db.order.update({ where: { id: order.id }, data: { status: 'DELIVERED' } });
+  expect((await request('POST', route, 'CUSTOMER', { ...body, clientMessageId: randomUUID() })).status).toBe(400);
+  expect((await request<Page>('GET', `${route}?peerId=STORE_MANAGER`, 'CUSTOMER')).status).toBe(200);
+});
+
+it('imports the approved 31-area tariff transactionally with corrected names and stable IDs', async () => {
+  const { samouTariff } = await import('../zones/samou-tariff');
+  await fixture.db.deliveryZone.create({ data: { id: 'old-husaini', nameAr: 'لحصيني', nameEn: 'Husaini', deliveryFee: 7 } });
+  await fixture.db.deliveryZone.create({ data: { id: 'excluded-deir', nameAr: 'الدير رافات', nameEn: 'Excluded', deliveryFee: 10 } });
+  const config = await request<import('@samou-go/shared-types').DeliveryRoutePricing>('GET', '/delivery-zones/pricing', 'ADMIN');
+  expect((await request('POST', '/delivery-zones/pricing/import-samou', 'CUSTOMER', { revision: config.data.revision })).status).toBe(403);
+  const imported = await request<import('@samou-go/shared-types').DeliveryRoutePricing>('POST', '/delivery-zones/pricing/import-samou', 'ADMIN', { revision: config.data.revision });
+  expect(imported.status, JSON.stringify(imported.error)).toBe(200); expect(imported.data.enabled).toBe(false);
+  const zones = await fixture.db.deliveryZone.findMany({ where: { nameAr: { in: [...samouTariff.zones] } } }); expect(zones).toHaveLength(31);
+  expect(zones.find(z => z.nameAr === 'الحصيني')?.id).toBe('old-husaini'); expect(zones.some(z => z.nameAr === 'المدورة')).toBe(true);
+  expect((await fixture.db.deliveryZone.findUniqueOrThrow({ where: { id: 'excluded-deir' } })).isActive).toBe(false);
+  const byName = new Map(zones.map(z => [z.nameAr, z.id]));
+  for (const r of samouTariff.rates) {
+    const a = byName.get(r.from), b = byName.get(r.to);
+    const match = imported.data.rates.find(x => (x.fromZoneId === a && x.toZoneId === b) || (x.fromZoneId === b && x.toZoneId === a)); expect(match?.fee).toBe(r.fee);
+  }
+  expect((await request('POST', '/delivery-zones/pricing/import-samou', 'ADMIN', { revision: config.data.revision })).status).toBe(422);
+  const again = await request('POST', '/delivery-zones/pricing/import-samou', 'ADMIN', { revision: imported.data.revision }); expect(again.status).toBe(200);
+  expect(await fixture.db.deliveryZone.count({ where: { nameAr: { in: [...samouTariff.zones] } } })).toBe(31);
 });

@@ -10,15 +10,15 @@ export function AutomaticPricingPreview() {
   const [fee, setFee] = useState<number | null>(null);
   const [error, setError] = useState(false);
   const [revision, setRevision] = useState(0);
-  const enabled = settings.data?.autoPricingEnabled ?? false;
+  const [enabled, setEnabled] = useState(false);
   useEffect(() => {
-    if (!enabled || !cart.lines.length) return;
+    if (!cart.lines.length) return;
     const controller = new AbortController();
     setFee(null);
     setError(false);
     Promise.all(
       cart.storeGroups.map(async group => {
-        if (group.fulfillmentType === 'PICKUP') return 0;
+        if (group.fulfillmentType === 'PICKUP') return { deliveryFee: 0, autoPricingEnabled: true };
         const result = await quoteOrder(
           {
             storeId: group.storeId,
@@ -36,18 +36,17 @@ export function AutomaticPricingPreview() {
           },
           controller.signal
         );
-        return result.deliveryFee;
+        return result;
       })
     )
       .then(fees => {
-        if (!controller.signal.aborted) setFee(fees.reduce((sum, value) => sum + value, 0));
+        if (!controller.signal.aborted) { setEnabled(fees.every(value => value.autoPricingEnabled)); setFee(fees.reduce((sum, value) => sum + value.deliveryFee, 0)); }
       })
       .catch(() => {
         if (!controller.signal.aborted) setError(true);
       });
     return () => controller.abort();
   }, [
-    enabled,
     cart.storeGroups,
     zone.activeZone?.id,
     settings.data?.baseDeliveryFee,

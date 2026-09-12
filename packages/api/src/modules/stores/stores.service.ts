@@ -319,12 +319,14 @@ export async function updateStore(storeId: string, body: UpdateStoreBody): Promi
   const existing = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true } });
   if (!existing) throw notFound('المتجر غير موجود / Store not found');
 
+  if (body.deliveryZoneId && !await prisma.deliveryZone.findFirst({ where: { id: body.deliveryZoneId, isActive: true } })) throw notFound("منطقة المتجر غير متاحة");
   const updated = await prisma.store.update({
     where: { id: storeId },
     data: {
       ...(body.nameAr !== undefined ? { nameAr: body.nameAr, slug: generateStoreSlug(body.nameAr) } : {}),
       ...(body.nameEn !== undefined ? { nameEn: body.nameEn } : {}),
       ...(body.phone !== undefined ? { phone: body.phone } : {}),
+      ...(body.deliveryZoneId !== undefined ? { deliveryZoneId: body.deliveryZoneId } : {}),
       ...(body.whatsappNumber !== undefined ? { whatsappNumber: body.whatsappNumber } : {}),
       ...(body.logoUrl !== undefined ? { logoUrl: body.logoUrl } : {}),
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),

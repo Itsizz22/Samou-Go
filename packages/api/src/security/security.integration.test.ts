@@ -448,3 +448,22 @@ it('requires authentication before requesting a phone-change OTP', async () => {
   const res = await call('/auth/otp/request', { method: 'POST', body: { phone: '0599111111', purpose: 'phone-change' } });
   expect(res.status).toBe(401);
 });
+
+
+it('throttles broad API traffic while leaving liveness available', async () => {
+  const { server: srv, baseUrl: fresh } = await withFreshServer();
+  try {
+    for (let i = 0; i < 1200; i += 1) {
+      const res = await fetch(`${fresh}/meta`);
+      expect(res.status).toBe(200);
+      await res.text();
+    }
+    const blocked = await fetch(`${fresh}/meta`);
+    expect(blocked.status).toBe(429);
+    expect(Number(blocked.headers.get('retry-after'))).toBeGreaterThan(0);
+    expect((await blocked.json()).error.code).toBe('TOO_MANY_REQUESTS');
+    const health = await fetch(fresh.replace('/api/v1', '/health'));
+    expect(health.status).toBe(200);
+    await health.text();
+  } finally { await close(srv); }
+}, 30000);

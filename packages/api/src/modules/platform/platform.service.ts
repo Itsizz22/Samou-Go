@@ -15,7 +15,7 @@ import type {
   TicketBody,
   WalletCreditBody,
 } from './platform.schemas';
-import { chatSchema, ratingSchema, settlementSchema, walletCreditSchema } from './platform.schemas';
+import { ratingSchema, settlementSchema, walletCreditSchema } from './platform.schemas';
 
 /** A settlement row with money already converted to a plain number (DTO shape). */
 export interface SettlementRow {
@@ -72,31 +72,6 @@ export async function rateOrder(orderId: string, customerId: string, rawBody: un
     where: { orderId },
     create: { orderId, customerId, storeId: order.storeId, captainId: order.captainId, ...body },
     update: { ...body },
-  });
-}
-
-export async function listOrderChat(orderId: string, auth: JwtPayload) {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    select: { customerId: true, captainId: true, store: { select: { managerId: true } } },
-  });
-  if (!order || !isOrderPartyMember(auth, order)) throw forbidden();
-  return prisma.chatMessage.findMany({
-    where: { orderId },
-    orderBy: { createdAt: 'asc' },
-    take: 200,
-  });
-}
-
-export async function sendOrderChat(orderId: string, auth: JwtPayload, rawBody: unknown) {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    select: { customerId: true, captainId: true, store: { select: { managerId: true } } },
-  });
-  if (!order || !isOrderPartyMember(auth, order)) throw forbidden();
-  const body = parseWith(chatSchema, rawBody);
-  return prisma.chatMessage.create({
-    data: { orderId, senderId: auth.sub, senderRole: auth.role, message: body.message },
   });
 }
 
@@ -199,6 +174,7 @@ async function getPlatformSettingsRaw() {
       data: { id: 'platform' },
     }));
   return {
+    freeDeliveryEnabled: row.freeDeliveryEnabled,
     autoPricingEnabled: row.autoPricingEnabled,
     baseDeliveryFee: decimalToNumber(row.baseDeliveryFee),
     perKmFee: decimalToNumber(row.perKmFee),
@@ -249,6 +225,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
       id: 'platform',
       ...(body.captainDeliveryRate !== undefined ? { captainDeliveryRate: body.captainDeliveryRate } : {}),
       ...(body.storeCommissionRate !== undefined ? { storeCommissionRate: body.storeCommissionRate } : {}),
+      ...(body.freeDeliveryEnabled !== undefined ? { freeDeliveryEnabled: body.freeDeliveryEnabled } : {}),
       ...(body.autoPricingEnabled !== undefined ? { autoPricingEnabled: body.autoPricingEnabled } : {}),
       ...(body.baseDeliveryFee !== undefined ? { baseDeliveryFee: body.baseDeliveryFee } : {}),
       ...(body.perKmFee !== undefined ? { perKmFee: body.perKmFee } : {}),
@@ -268,6 +245,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
     update: {
       ...(body.captainDeliveryRate !== undefined ? { captainDeliveryRate: body.captainDeliveryRate } : {}),
       ...(body.storeCommissionRate !== undefined ? { storeCommissionRate: body.storeCommissionRate } : {}),
+      ...(body.freeDeliveryEnabled !== undefined ? { freeDeliveryEnabled: body.freeDeliveryEnabled } : {}),
       ...(body.autoPricingEnabled !== undefined ? { autoPricingEnabled: body.autoPricingEnabled } : {}),
       ...(body.baseDeliveryFee !== undefined ? { baseDeliveryFee: body.baseDeliveryFee } : {}),
       ...(body.perKmFee !== undefined ? { perKmFee: body.perKmFee } : {}),
@@ -287,6 +265,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
   });
   invalidatePlatformSettingsCache();
   return {
+    freeDeliveryEnabled: row.freeDeliveryEnabled,
     autoPricingEnabled: row.autoPricingEnabled,
     baseDeliveryFee: decimalToNumber(row.baseDeliveryFee),
     perKmFee: decimalToNumber(row.perKmFee),

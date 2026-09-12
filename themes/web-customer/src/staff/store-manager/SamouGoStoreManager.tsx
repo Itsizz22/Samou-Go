@@ -1,3 +1,4 @@
+import { OrderChat } from '@samou-go/api-client';
 import { useLocation } from 'react-router-dom';
 import { StaffAccountTools } from '@/components/StaffAccountTools';
 import { announceOrderOnce } from '@/lib/orderAlarm';
@@ -1127,6 +1128,7 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
       </div>
 
       <OrderCustomerDetails order={order} />
+      <OrderChat orderId={order.id} />
       <PreparationCountdown order={order} />
       <PreparationTimeEditor order={order} />
       {order.status === 'PENDING' && <OrderChangePanel orderId={order.id} manager />}

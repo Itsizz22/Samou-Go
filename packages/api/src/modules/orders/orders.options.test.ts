@@ -15,6 +15,7 @@ const h = vi.hoisted(() => {
     product: { findMany: vi.fn().mockResolvedValue([{ id: 'product-1', nameAr: 'Meal', price: 15, isAvailable: true }]) },
     productOptionGroup: { findMany: vi.fn().mockResolvedValue([group]) },
     deliveryZone: { findFirst: vi.fn().mockResolvedValue(null) },
+    deliveryPricingConfig: { findUnique: vi.fn().mockResolvedValue(null) },
     platformSettings: { findUnique: vi.fn().mockResolvedValue(null) },
     dailyOrderSequence: { upsert: vi.fn().mockResolvedValue({ sequence: 1 }) },
     order: { create: vi.fn().mockResolvedValue({ id: 'order-1' }) },

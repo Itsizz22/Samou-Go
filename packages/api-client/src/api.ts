@@ -2194,7 +2194,7 @@ export function searchProducts(search = '', page = 1, signal?: AbortSignal, dish
   return request('GET', '/stores/search-products', { query: { search, page: String(page), dishesOnly: String(dishesOnly), dishSection }, signal });
 }
 
-export function updatePricingSettings(input: Pick<UpdatePlatformSettingsInput, 'autoPricingEnabled' | 'baseDeliveryFee' | 'perKmFee' | 'captainSharePercentage'>): Promise<PlatformSettings> {
+export function updatePricingSettings(input: Pick<UpdatePlatformSettingsInput, 'freeDeliveryEnabled' | 'autoPricingEnabled' | 'baseDeliveryFee' | 'perKmFee' | 'captainSharePercentage'>): Promise<PlatformSettings> {
   return request<PlatformSettings>("PATCH", "/admin/settings/pricing", { body: input, auth: true });
 }
 
@@ -2247,3 +2247,24 @@ export const sendCaptainPosition = (body: { orderId: string; lat: number; lng: n
 export function getDishCategoryOptions(signal?: AbortSignal): Promise<{ id: string; nameAr: string; store: { id: string; nameAr: string } }[]> { return request('GET', '/stores/dish-category-options', { auth: true, signal }); }
 
 export function getPrescriptionImage(id: string, audience: 'customer' | 'store', signal?: AbortSignal): Promise<{ image: string }> { return request('GET', '/' + audience + '/custom-requests/' + encodeURIComponent(id) + '/image', { auth: true, signal }); }
+
+export function getDeliveryRoutePricing(signal?: AbortSignal) { return request<import('@samou-go/shared-types').DeliveryRoutePricing>('GET', '/delivery-zones/pricing', { signal, auth: true }); }
+export function saveDeliveryRoutePricing(body: import('@samou-go/shared-types').DeliveryRoutePricing) { return request<import('@samou-go/shared-types').DeliveryRoutePricing>('PUT', '/delivery-zones/pricing', { body, auth: true }); }
+
+export function importSamouTariff(revision: number): Promise<import('@samou-go/shared-types').DeliveryRoutePricing> {
+  return request('POST', '/delivery-zones/pricing/import-samou', { auth: true, body: { revision } });
+}
+
+export function getOrderChatPeers(orderId: string, signal?: AbortSignal): Promise<import('@samou-go/shared-types').OrderChatOverview> {
+  return request('GET', `/platform/orders/${encodeURIComponent(orderId)}/chat/peers`, { auth: true, signal });
+}
+export function getOrderChat(orderId: string, peerId: string, before?: string, signal?: AbortSignal): Promise<import('@samou-go/shared-types').OrderChatPage> {
+  const query = new URLSearchParams({ peerId, ...(before ? { before } : {}) });
+  return request('GET', `/platform/orders/${encodeURIComponent(orderId)}/chat?${query}`, { auth: true, signal });
+}
+export function sendOrderChat(orderId: string, body: { recipientId: string; message: string; clientMessageId: string }, signal?: AbortSignal): Promise<import('@samou-go/shared-types').OrderChatMessage> {
+  return request('POST', `/platform/orders/${encodeURIComponent(orderId)}/chat`, { auth: true, body, signal });
+}
+export function markOrderChatRead(orderId: string, peerId: string, messageId: string, signal?: AbortSignal): Promise<{ read: boolean }> {
+  return request('POST', `/platform/orders/${encodeURIComponent(orderId)}/chat/read`, { auth: true, body: { peerId, messageId }, signal });
+}

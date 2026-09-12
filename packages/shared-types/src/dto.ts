@@ -270,6 +270,7 @@ export interface OrderListQuery extends PaginationQuery {
 
 /** A price quote — lets the checkout screen show the fee before committing. */
 export interface QuoteOrderInput {
+  fulfillmentType?: 'DELIVERY' | 'PICKUP';
   storeId: string;
   items: CreateOrderItemInput[];
   voucherCode?: string;
@@ -375,6 +376,7 @@ export interface UpdateCategoryInput {
 }
 
 export interface UpdateStoreInput {
+  deliveryZoneId?: string | null;
   whatsappNumber?: string | null;
   storeType?: StoreType | null;
   nameAr?: string;
@@ -664,6 +666,7 @@ export const DEFAULT_HOME_BANNERS: HomeBanner[] = [
 ];
 
 export interface PlatformSettings {
+  freeDeliveryEnabled?: boolean;
   /** null = automatic food categories, [] = hide section. */
   discoveryCategoryIds?: string[] | null;
   featuredCategoryIds?: string[] | null;
@@ -697,6 +700,7 @@ export interface PlatformSettings {
 
 /** PATCH /platform/settings — admin updates one or more knobs. */
 export interface UpdatePlatformSettingsInput {
+  freeDeliveryEnabled?: boolean;
   discoveryCategoryIds?: string[] | null;
   featuredCategoryIds?: string[] | null;
   homeCategories?: HomeCategory[] | null;
@@ -768,3 +772,15 @@ export interface FinalizeUploadResult {
   width: number;
   height: number;
 }
+
+export interface DeliveryRouteRate { fromZoneId: string; toZoneId: string; fee: number }
+export interface DeliveryRoutePricing { enabled: boolean; revision: number; rates: DeliveryRouteRate[] }
+
+/** Private conversations between current order participants. */
+export interface OrderChatMessage {
+  id: string; orderId: string; senderId: string; senderRole: string;
+  recipientId: string | null; clientMessageId: string | null;
+  message: string; createdAt: string; readAt: string | null;
+}
+export interface OrderChatOverview { closed: boolean; peers: { id: string; name: string; role: string; unread: number }[] }
+export interface OrderChatPage { items: OrderChatMessage[]; nextBefore: string | null }

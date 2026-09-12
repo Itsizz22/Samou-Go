@@ -3,7 +3,7 @@ import { getPlatformSettings } from './modules/platform/platform.service';
 import type { Server, Socket } from 'socket.io';
 import { UserRole } from '@samou-go/shared-types';
 import { prisma } from './lib/prisma';
-import { isOrderPartyMember } from './lib/order-party';
+import { writeChat } from './modules/platform/order-chat';
 import { assertCanView, loadOrderOrThrow } from './modules/orders/orders.service';
 
 /** How often a captain may write their location at most, in ms. */
@@ -104,24 +104,10 @@ export async function handleCaptainLocation(
  * chat:send — only an order party (customer, assigned captain, store manager)
  * or an admin may post; the message is broadcast to the order's room.
  */
-export async function handleChatSend(io: Server, auth: Auth, payload: unknown): Promise<void> {
+export async function handleChatSend(_io: Server, auth: Auth, payload: unknown): Promise<void> {
   if (typeof payload !== 'object' || payload === null) return;
-  const { orderId, message } = payload as { orderId?: unknown; message?: unknown };
-  if (typeof orderId !== 'string' || orderId.length === 0) return;
-  if (typeof message !== 'string' || !message.trim()) return;
-  try {
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      select: { customerId: true, captainId: true, store: { select: { managerId: true } } },
-    });
-    if (!order || !isOrderPartyMember(auth, order)) {
-      return;
-    }
-    const row = await prisma.chatMessage.create({
-      data: { orderId, senderId: auth.sub, senderRole: auth.role, message: message.trim() },
-    });
-    await emitLiveOrderEvent(io, orderId, 'chat:message', row);
-  } catch {
-    // DB failure — silently drop this chat message rather than crashing the socket handler.
-  }
+  const { orderId, ...body } = payload as Record<string, unknown>;
+  if (typeof orderId !== 'string' || !orderId) return;
+  // Shared validation and permissions; never broadcast private text to an order room.
+  try { await writeChat(orderId, auth, body); } catch { /* REST supplies actionable send errors. */ }
 }

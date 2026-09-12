@@ -1,3 +1,4 @@
+import { listActiveDeliveryZones, useResource } from '@samou-go/api-client';
 import { WhatsAppNumberSettings } from '@samou-go/ui';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
@@ -28,6 +29,7 @@ interface Props {
 }
 
 interface FormState {
+  deliveryZoneId: string;
   nameAr: string;
   nameEn: string;
   phone: string;
@@ -38,6 +40,7 @@ interface FormState {
 
 function formFromStore(s: StoreType): FormState {
   return {
+    deliveryZoneId: s.deliveryZoneId ?? '',
     nameAr: s.nameAr,
     nameEn: s.nameEn,
     phone: s.phone,
@@ -48,6 +51,7 @@ function formFromStore(s: StoreType): FormState {
 }
 
 export function StoreProfilePanel({ storeId }: Props) {
+  const zones = useResource('store-delivery-zones', signal => listActiveDeliveryZones(signal));
   const toast = useToast();
   const upload = useUploadImage();
   const { t, language } = useLanguage();
@@ -72,6 +76,7 @@ export function StoreProfilePanel({ storeId }: Props) {
   }, [storeData]);
 
   const [form, setForm] = useState<FormState>({
+    deliveryZoneId: '',
     nameAr: '',
     nameEn: '',
     phone: '',
@@ -104,6 +109,7 @@ export function StoreProfilePanel({ storeId }: Props) {
     setSaveError(null);
     try {
       await updateStore(storeId, {
+        deliveryZoneId: form.deliveryZoneId || null,
         nameAr: form.nameAr.trim(),
         nameEn: form.nameEn.trim() || undefined,
         // Always send phone when it has a non-empty value so the backend persists it.
@@ -322,6 +328,7 @@ export function StoreProfilePanel({ storeId }: Props) {
             </p>
           </label>
 
+          <section className="space-y-2 rounded-2xl border border-line bg-canvas p-4"><label className="block font-bold">{t('منطقة المتجر', 'Store area')}<select aria-label={t("منطقة المتجر", "Store area")} className="input-field mt-2 w-full" value={form.deliveryZoneId} onChange={e => update('deliveryZoneId', e.target.value)} disabled={zones.loading || !!zones.error}><option value="">{t('اختر منطقة المتجر', 'Select store area')}</option>{form.deliveryZoneId && !zones.data?.some(z => z.id === form.deliveryZoneId) && <option value={form.deliveryZoneId}>المنطقة الحالية غير متاحة — اختر منطقة نشطة</option>}{zones.data?.map(z => <option key={z.id} value={z.id}>{isArabic ? z.nameAr : z.nameEn}</option>)}</select></label><p className="text-xs text-ink-muted">{t('نفس المناطق التي يختار منها الزبون؛ تُستخدم لحساب التوصيل من المتجر إلى عنوانه.', 'These are the same customer areas, used to calculate store-to-customer delivery.')}</p>{zones.error && <button type="button" onClick={() => void zones.reload()} className="min-h-11 text-brand">تعذر تحميل المناطق — إعادة المحاولة</button>}</section>
           <WhatsAppNumberSettings value={storeData?.whatsappNumber} fallbackPhone={storeData?.phone ?? ''} onSave={async whatsappNumber => { await updateStore(storeId, { whatsappNumber }); storeResource.refresh(); }} />
           <section className="rounded-2xl border border-line bg-canvas p-4">
             <h3 className="mb-3 font-bold">مواعيد العمل</h3>

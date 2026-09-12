@@ -40,3 +40,5 @@ export { OrderChangePanel } from './OrderChangePanel';
 export { useCaptainTracking } from './useCaptainTracking';
 
 export { PrescriptionImage } from './PrescriptionImage';
+
+export { OrderChat } from './OrderChat';

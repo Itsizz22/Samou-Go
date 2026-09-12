@@ -1,3 +1,4 @@
+import { resolveRouteFee } from '../zones/route-pricing';
 import sharp from 'sharp';
 import { randomInt } from 'node:crypto';
 import { env } from '../../config/env';
@@ -218,7 +219,7 @@ export async function respondToCustomRequest(
       const order = await tx.order.create({ data: {
         orderNumber: formatOrderNumber(now, sequence.sequence), customerId, storeId: request.storeId,
         customerAddressText: request.customerAddressText, status: 'PENDING',
-        autoPriced: !request.deliveryFeePending && settings?.autoPricingEnabled === true, captainSharePercentage: decimalToNumber(settings?.captainSharePercentage ?? 100),
+        autoPriced: request.quotedAutoPriced, captainSharePercentage: decimalToNumber(settings?.captainSharePercentage ?? 100),
         isCaptainPriced: request.deliveryFeePending, feeApprovalStatus: request.deliveryFeePending ? 'PENDING_CUSTOMER_ACCEPTANCE' : 'APPROVED',
         subtotal, deliveryFee: request.quotedDeliveryFee, totalAmount: Math.round((subtotal + request.quotedDeliveryFee) * 100) / 100,
         deliveryZoneId: request.deliveryZoneId, deliveryPin: String(randomInt(1000, 10000)),
@@ -305,12 +306,14 @@ export async function offerPriceOnCustomRequest(
   const zone = request.deliveryZoneId ? await prisma.deliveryZone.findFirst({ where: { id: request.deliveryZoneId, isActive: true } }) : null;
   if (request.deliveryZoneId && !zone) throw badRequest('منطقة التوصيل غير متاحة');
   const settings = await prisma.platformSettings.findUnique({ where: { id: 'platform' } });
-  const deliveryFee = zone ? decimalToNumber(zone.deliveryFee) : settings?.autoPricingEnabled ? decimalToNumber(settings.baseDeliveryFee) : env.deliveryFeeConfig.baseFee;
+  const routeFee = request.isPrescription ? await resolveRouteFee(prisma, request.storeId, request.deliveryZoneId) : null;
+  const deliveryFee = routeFee ?? (zone ? decimalToNumber(zone.deliveryFee) : settings?.autoPricingEnabled ? decimalToNumber(settings.baseDeliveryFee) : env.deliveryFeeConfig.baseFee);
   const updated = await prisma.customRequest.update({
     where: { id: requestId, status: 'PENDING' },
     data: {
-      quotedDeliveryFee: request.isPrescription ? (!settings?.autoPricingEnabled && zone?.allowCaptainPricing ? 0 : deliveryFee) : null,
-      deliveryFeePending: request.isPrescription && !settings?.autoPricingEnabled && zone?.allowCaptainPricing === true,
+      quotedAutoPriced: request.isPrescription && (routeFee !== null || settings?.autoPricingEnabled === true),
+      quotedDeliveryFee: request.isPrescription ? (routeFee === null && !settings?.autoPricingEnabled && zone?.allowCaptainPricing ? 0 : deliveryFee) : null,
+      deliveryFeePending: request.isPrescription && routeFee === null && !settings?.autoPricingEnabled && zone?.allowCaptainPricing === true,
       status: CustomRequestStatus.PRICE_OFFERED,
       offeredPrice: body.offeredPrice,
       offerNote: body.offerNote ?? null,

@@ -3,7 +3,7 @@
  * Delegates rendering to the shared `WhatsAppFAB` in `@samou-go/ui`.
  */
 import { WhatsAppFAB, useLanguage } from '@samou-go/ui';
-import { formatWhatsAppLink, WHATSAPP_MESSAGES } from '@samou-go/shared-types';
+import { formatWhatsAppLink } from '@samou-go/shared-types';
 import { usePlatformSettings } from '@samou-go/api-client';
 
 const DEFAULT_SUPPORT_PHONE = '0590000000';
@@ -14,7 +14,7 @@ export function SupportWhatsAppButton() {
   const platformSettings = usePlatformSettings();
 
   const phone = platformSettings.data?.whatsappSupportNumber || DEFAULT_SUPPORT_PHONE;
-  const message = WHATSAPP_MESSAGES.generic(isArabic ? 'الدعم الفني' : 'Support');
+  const message = isArabic ? 'مرحبا اريد الاستفسار عن شيء ما' : 'Hello, I would like to ask about something';
   const href = formatWhatsAppLink(phone, message);
 
   return (

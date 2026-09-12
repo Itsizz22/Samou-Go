@@ -1,3 +1,4 @@
+import { DeliveryPricingMatrix } from '../DeliveryPricingMatrix';
 import { STORE_TYPE_LABELS, type StoreType as StoreKind } from '@samou-go/shared-types';
 import { getLiveOrderTracking } from '@samou-go/api-client';
 import { LiveTrackingCard } from '@samou-go/ui/map';
@@ -385,10 +386,15 @@ function AdminSettingsPanel({ auth }: { auth: ReturnType<typeof useAuth> }) {
         name: name.trim(),
         ...(newPassword ? { currentPassword, newPassword } : {}),
       });
-      auth.setUser(user);
+      if (newPassword) {
+        auth.signOut();
+        toast.success('تم تغيير كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.', 'Password changed. Please sign in again.');
+      } else {
+        auth.setUser(user);
+        toast.success('تم تحديث الحساب', 'Account updated');
+      }
       setCurrentPassword('');
       setNewPassword('');
-      toast.success('تم تحديث الحساب', 'Account updated');
     } catch (cause) {
       toast.error('تعذر تحديث الحساب', cause instanceof Error ? cause.message : 'Update failed');
     } finally {
@@ -2729,6 +2735,7 @@ function ZonesPanel() {
         </button>
       }
     >
+      <DeliveryPricingMatrix zones={rows} onImported={() => void zones.reload()} />
       {rows.length === 0 && !zones.loading ? (
         <div className="rounded-xl border border-line bg-brand-surface p-8 text-center shadow-card">
           <MapPin size={28} className="mx-auto mb-3 text-brand" />

@@ -13,3 +13,5 @@ export { bootstrapApp, setAppLanguage, setBrandTheme } from './bootstrap';
 export { useNetworkStatus } from './hooks/useNetworkStatus';
 export type { BootstrapOptions, AppLanguage, BrandTheme } from './bootstrap';
 export { WhatsAppNumberSettings } from './components/WhatsAppNumberSettings';
+
+export { OrderContactCard } from './components/OrderContactCard';
