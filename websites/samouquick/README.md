@@ -18,7 +18,9 @@ Existing artifact: version **1.0.32**, build **33**, package `com.samougo.custom
 
 ## Interaction and security
 
-Native category disclosure controls and screenshot scrolling work without JavaScript. The carousel supports touch, keyboard and manual controls; autoplay is opt-in. Reduced motion is respected; content is never hidden pending JavaScript. `style.css` retains the original design; `refinements.css` contains the focused landing-page improvements.
+Native category disclosure controls and screenshot scrolling work without JavaScript. Repeated carousel content has been consolidated into the screenshots/ordering journey and a compact forthcoming-parcels card. A native FAQ answers coverage, tracking, contact and iPhone questions. Reduced motion is respected; content is never hidden pending JavaScript. `style.css` retains the original design; `refinements.css` contains the focused landing-page improvements.
+
+The homepage has a mobile-only fixed download bar; reserved bottom space and scroll padding keep the footer reachable. Support hours are not invented or advertised as 24/7.
 
 The existing Vercel CSP, HTTPS/security headers and download throttling remain in place. There are no forms, tracking cookies, API connections or third-party runtime scripts. Social, WhatsApp and phone links are explicit. Public legal pages stay on this domain.
 

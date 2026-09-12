@@ -32,7 +32,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="stylesheet" href="/refinements.css" />
   </head>
-  <body>
+  <body class="has-mobile-download">
     <a href="#main" class="skip">انتقل للمحتوى</a>
     <div class="coverage-bar">
       <span class="coverage-dot" aria-hidden="true"></span>نخدم كافة أحياء
@@ -62,7 +62,7 @@
           <h1 id="hero-title">
             اطلب من مطاعم<br />ومتاجر السموع<br /><span>ونوصّله لبابك.</span>
           </h1>
-          <p>مطاعم، حلويات، سوبرماركت وأكثر — كلهم بتطبيق واحد.</p>
+          <p>اطلب من متاجر ومطاعم السموع من تطبيق واحد.</p>
           <div class="hero-actions">
             <div>
               <a
@@ -70,8 +70,7 @@
                 href="/downloads/Samou-Quick.apk"
                 download="Samou-Quick-1.0.32.apk"
                 >تحميل لأندرويد <span aria-hidden="true">↓</span></a
-              ><small>تنزيل مباشر · <b dir="ltr">APK · 1.0.32</b></small
-              ><a class="text-link" href="#how-it-works">شوف كيف تطلب ←</a>
+              ><small>تنزيل مباشر · <b dir="ltr">APK · 1.0.32</b></small>
             </div>
             <a
               class="hero-qr"
@@ -85,9 +84,6 @@
               /><span>افتحه على هاتفك</span></a
             >
           </div>
-          <p class="availability-note">
-            تختلف المتاجر والأصناف المتاحة حسب منطقتك.
-          </p>
         </div>
         <div class="hero-art">
           <div class="phone-halo" aria-hidden="true"></div>
@@ -370,11 +366,12 @@
             لقطات فعلية من واجهة التطبيق بحجم الهاتف، باستخدام متجر ومنتجات
             تجريبية للتوضيح. المتاجر والمنتجات المتاحة تختلف حسب منطقتك.
           </p>
-          <a class="support-link" href="#download"
-            >جرّب التطبيق بنفسك <span aria-hidden="true">↓</span></a
+          <a class="support-link" href="#app-screens"
+            >شوف التطبيق <span aria-hidden="true">↓</span></a
           >
         </div>
         <div
+          id="app-screens"
           class="screenshots"
           tabindex="0"
           role="region"
@@ -402,93 +399,56 @@
           </figure>
         </div>
       </section>
-      <section class="showcase shell reveal" aria-labelledby="discover-title">
-        <div class="section-title">
-          <p>تطبيق واحد. خيارات على ذوقك.</p>
-          <h2 id="discover-title">يومك أسهل،<br />بطريقتك.</h2>
+      <aside class="parcel-notice shell reveal" aria-labelledby="parcel-title">
+        <img
+          src="/assets/parcel-delivery.webp"
+          width="900"
+          height="600"
+          loading="lazy"
+          alt="سموع كويك — توصيل الطرود قريبًا"
+        />
+        <div>
+          <span class="eyebrow">قريبًا، خطوة جديدة</span>
+          <h2 id="parcel-title">توصيل الطرود</h2>
+          <p>نعمل على إضافته إلى خدماتنا. سنعلن هنا عندما يصبح متاحًا.</p>
         </div>
-        <div
-          class="carousel"
-          role="region"
-          aria-roledescription="عارض شرائح"
-          aria-label="اكتشف تجربة التطبيق"
-        >
-          <div class="slides" tabindex="0" aria-label="اسحب لتصفّح المزايا">
-            <article class="slide food-slide" aria-label="1 من 3">
-              <div class="slide-copy">
-                <span class="slide-kicker">خطوة جديدة، قريبًا</span>
-                <h3>مشاوير أقل.<br />وقت أكثر.</h3>
-                <p>
-                  نعمل على إضافة توصيل الطرود إلى خدمات سموع كويك. سنعلن عن
-                  إتاحتها هنا.
-                </p>
-              </div>
-              <img
-                src="/assets/parcel-delivery.webp"
-                width="1536"
-                height="1024"
-                loading="lazy"
-                alt="سموع كويك — قريباً توصيل الطرود"
-              />
-            </article>
-            <article class="slide delivery-slide" aria-label="2 من 3">
-              <div class="slide-copy">
-                <span class="slide-kicker">عنوان واضح، طلب أسهل</span>
-                <h3>من محلّك المفضّل،<br />لحد عندك.</h3>
-                <p>
-                  حدّد منطقتك وعنوانك، وراجع تفاصيل طلبك ورسوم التوصيل قبل
-                  التأكيد.
-                </p>
-              </div>
-              <img
-                src="/assets/samou-delivery.webp"
-                width="1600"
-                height="781"
-                loading="lazy"
-                alt="سموع كويك، كل احتياجاتك أقرب إليك"
-              />
-            </article>
-            <article class="slide connection-slide" aria-label="3 من 3">
-              <div class="slide-copy">
-                <span class="slide-kicker">من أول الطلب لآخره</span>
-                <h3>خليك قريب<br />من طلبك.</h3>
-                <p>
-                  تابع حالة طلبك وتواصل مع المتجر والكابتن مباشرة من التطبيق.
-                </p>
-              </div>
-              <div class="journey" aria-label="خطوات الطلب">
-                <div><span>01</span><strong>اختَر طلبك</strong></div>
-                <div><span>02</span><strong>تابع حالته</strong></div>
-                <div><span>03</span><strong>استلمه واستمتع</strong></div>
-              </div>
-            </article>
-          </div>
-          <div class="slider-controls">
-            <div class="slide-tabs" role="group" aria-label="اختيار الشريحة">
-              <button
-                class="active"
-                aria-label="الشريحة الأولى"
-                aria-pressed="true"
-                data-slide="0"
-              ></button
-              ><button
-                aria-label="الشريحة الثانية"
-                aria-pressed="false"
-                data-slide="1"
-              ></button
-              ><button
-                aria-label="الشريحة الثالثة"
-                aria-pressed="false"
-                data-slide="2"
-              ></button>
-            </div>
-            <div class="arrows">
-              <button class="pause" aria-label="إيقاف العرض التلقائي">
-                إيقاف</button
-              ><button class="previous" aria-label="الشريحة السابقة">→</button
-              ><button class="next" aria-label="الشريحة التالية">←</button>
-            </div>
-          </div>
+      </aside>
+      <section class="faq shell reveal" aria-labelledby="faq-title">
+        <div class="section-title">
+          <span class="eyebrow">قبل ما تبدأ</span>
+          <h2 id="faq-title">عندك سؤال؟</h2>
+          <p>أجوبة سريعة عن تجربة سموع كويك.</p>
+        </div>
+        <div class="faq-list">
+          <details>
+            <summary>وين الخدمة متاحة؟</summary>
+            <p>
+              نخدم أحياء ومناطق بلدة السموع. اختر منطقتك داخل التطبيق لمعرفة
+              المتاجر والأصناف المتاحة.
+            </p>
+          </details>
+          <details>
+            <summary>كيف أتابع طلبي؟</summary>
+            <p>
+              افتح «طلباتي» ثم الطلب المطلوب لمتابعة حالته وتفاصيله. فعّل
+              الإشعارات لتصلك تحديثات الطلب.
+            </p>
+          </details>
+          <details>
+            <summary>كيف أتواصل مع المتجر أو الكابتن؟</summary>
+            <p>
+              افتح تفاصيل الطلب واستخدم خيارات التواصل المتاحة: المحادثة داخل
+              التطبيق أو الهاتف أو واتساب. يظهر التواصل مع الكابتن بعد تعيينه
+              للطلب.
+            </p>
+          </details>
+          <details>
+            <summary>متى بتتوفر نسخة iPhone؟</summary>
+            <p>
+              نسخة iPhone غير متاحة للتنزيل حاليًا، ولم نحدد موعد إطلاق. سنعلن
+              هنا وعلى صفحاتنا عندما تصبح جاهزة.
+            </p>
+          </details>
         </div>
       </section>
       <section id="download" class="download shell reveal">
@@ -500,7 +460,7 @@
             height="96"
           />
           <h2>نزّله اليوم.<br /><span>وخلي الباقي علينا.</span></h2>
-          <p>نسخة أندرويد، مباشرة على جهازك.</p>
+          <p>اختار، اطلب، تابع طلبك من نفس المكان.</p>
           <div class="download-qr">
             <img
               src="/assets/download-qr.svg"
@@ -523,6 +483,10 @@
             <span>الإصدار <b dir="ltr">1.0.32</b></span
             ><span>الحجم <b dir="ltr">13 MB</b></span>
           </div>
+          <p class="official-release">
+            <span aria-hidden="true">✓</span> النسخة الرسمية من
+            <b dir="ltr">Samou Quick</b>
+          </p>
           <a
             class="pill download-button"
             href="/downloads/Samou-Quick.apk"
@@ -604,5 +568,14 @@
         ><span>من البلد، لأهل البلد.</span>
       </div>
     </footer>
+    <nav class="mobile-download" aria-label="تنزيل التطبيق">
+      <span>سموع كويك<small>نسخة أندرويد الرسمية</small></span
+      ><a
+        class="pill"
+        href="/downloads/Samou-Quick.apk"
+        download="Samou-Quick-1.0.32.apk"
+        >حمّل التطبيق <span aria-hidden="true">↓</span></a
+      >
+    </nav>
   </body>
 </html>

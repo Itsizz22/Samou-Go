@@ -33,3 +33,9 @@ Reviewed all four live pages at 390, 768 and 1440 pixels, their source, metadata
 Responsive checks at 320, 390, 768, 1024 and 1440 pixels: first-screen download CTA, category disclosure, carousel, download instructions, images and horizontal overflow. Automated axe WCAG A/AA checks on homepage and all legal pages; manually reviewed desktop/tablet/mobile captures. Strengthened small-label and footer-link contrast based on the scan. Hidden, lazy-loaded desktop QR images are excluded from missing-image assertions on phones.
 
 QR decoded to `https://samouquick.com/#download`. Existing APK stays byte-for-byte unchanged. Security configuration remains unchanged. Automated accessibility checks supplement, but do not replace, human assistive-technology testing.
+
+## Follow-up: shorter narrative and download confidence
+
+Consolidated the repeated carousel into existing screenshots/ordering steps and a compact parcels announcement. Added a clear hero explanation, native FAQ, official APK label and mobile fixed download control with reserved footer space. Renamed the screenshot CTA and anchored it to the screenshots. The phone visual now starts earlier on mobile. Support hours remain unspecified pending confirmed operating hours.
+
+Rechecked all five viewport sizes and all legal pages: no overflow, missing visible images, JavaScript errors or automated WCAG A/AA findings. Tested FAQ/disclosure controls and confirmed that the footer ends above the mobile bar when fully scrolled. Full-page development resource transfer is now approximately 0.28 MB excluding APK.
