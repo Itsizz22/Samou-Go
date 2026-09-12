@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { ok } from '../../lib/respond';
 import { parseWith } from '../../lib/validate';
 import { requireAuth } from '../../middleware/authenticate';
-import { sendPushToMany, sendPushToUser } from '../../lib/push';
+import { sendPushToUser } from '../../lib/push';
 import { prisma } from '../../lib/prisma';
 import * as customRequestsService from './custom-requests.service';
 import {
@@ -80,7 +80,7 @@ export async function respondToCustomRequestHandler(
           body: `العميل ${body.action === 'ACCEPT' ? 'قبل' : 'رفض'} عرض السعر على الطلب المخصص`,
           data: result.orderId ? { orderId: result.orderId, screen: 'order', type: 'NEW_ORDER', storeId: result.storeId } : { customRequestId: id, screen: 'custom-requests', audience: 'store', storeId: result.storeId },
         }, result.orderId ? { dataOnly: true } : undefined);
-        if (result.orderId && store.dedicatedCaptains.length) await sendPushToMany(store.dedicatedCaptains.map(captain => captain.id), { title: 'طلب توصيل جديد', body: 'طلب جديد من الصيدلية. افتح التطبيق لمراجعته.', data: { orderId: result.orderId, screen: 'order', type: 'NEW_ORDER', storeId: result.storeId } }, { dataOnly: true });
+        // The converted order is PENDING; captain notification follows store acceptance.
       }
     } catch {
       // Push failure must never break the response flow.

@@ -142,18 +142,7 @@ export async function createOrderHandler(req: Request, res: Response): Promise<v
           body: `لديك طلب جديد في ${store.nameAr}\nرقم الطلب: ${result.orderNumber}\nافتح الطلب لمراجعة التفاصيل وتأكيد القبول.`,
           data: { orderId: result.id, type: 'NEW_ORDER', storeId: result.storeId, screen: 'order' },
         }, { dataOnly: true });
-        // Notify dedicated captains (DELIVERY orders only)
-        if (result.fulfillmentType === 'DELIVERY' && store.dedicatedCaptains.length > 0) {
-          await sendPushToMany(
-            store.dedicatedCaptains.map(c => c.id),
-            {
-              title: 'طلب جديد 🚨',
-              body: `لديك طلب توصيل جديد #${result.orderNumber} من ${store.nameAr}`,
-              data: { orderId: result.id, type: 'NEW_ORDER', storeId: result.storeId, screen: 'order' },
-            },
-            { dataOnly: true }
-          );
-        }
+        // Captains are notified after store acceptance, when pool access is granted.
       }
     } catch {
       // Push failure must never break the order flow.
@@ -190,18 +179,7 @@ export async function checkoutHandler(req: Request, res: Response): Promise<void
             body: `لديك طلب جديد في ${store.nameAr}\nرقم الطلب: ${sub.orderNumber}\nافتح الطلب لمراجعة التفاصيل وتأكيد القبول.`,
             data: { orderId: sub.orderId, type: 'NEW_ORDER', storeId: sub.storeId, screen: 'order' },
           }, { dataOnly: true });
-          // Notify dedicated captains for DELIVERY sub-orders
-          if (store.dedicatedCaptains.length > 0) {
-            await sendPushToMany(
-              store.dedicatedCaptains.map(c => c.id),
-              {
-                title: 'طلب جديد 🚨',
-                body: `لديك طلب توصيل جديد #${sub.orderNumber} من ${store.nameAr}`,
-                data: { orderId: sub.orderId, type: 'NEW_ORDER', storeId: sub.storeId, screen: 'order' },
-              },
-              { dataOnly: true }
-            );
-          }
+          // Captains are notified on ACCEPTED, not while this order is PENDING.
         }
         emitPlatformEvent('order:created', { orderId: sub.orderId, storeId: sub.storeId, status: 'PENDING' as OrderStatus });
       }

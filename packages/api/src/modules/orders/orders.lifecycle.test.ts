@@ -89,6 +89,21 @@ afterAll(async () => {
   rmSync(fixture.directory, { recursive: true, force: true });
 });
 
+it('notifies captains only after acceptance makes notification details accessible', async () => {
+  await fixture.db.store.update({ where: { id: 'store' }, data: { dedicatedCaptains: { connect: { id: 'CAPTAIN' } } } });
+  const pushes = vi.mocked(sendPushToMany); pushes.mockClear();
+  const created = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', { storeId: 'store', items: [{ productId: 'product', quantity: 1 }], customerAddressText: 'عنوان اختبار تنبيه الكابتن', deliveryZoneId: 'zone' });
+  expect(created.status).toBe(201);
+  const route = '/orders/' + created.data.id;
+  expect((await request('GET', route, 'CAPTAIN')).status).toBe(403);
+  expect(pushes).not.toHaveBeenCalled();
+  expect((await request('PATCH', route + '/status', 'STORE_MANAGER', { status: 'ACCEPTED', estimatedPrepMinutes: 10 })).status).toBe(200);
+  await vi.waitFor(() => expect(pushes).toHaveBeenCalledWith(['CAPTAIN'], expect.objectContaining({ data: expect.objectContaining({ type: 'PREPARATION_AVAILABLE', orderId: created.data.id }) }), { dataOnly: true }));
+  expect((await request('GET', route, 'CAPTAIN')).status).toBe(200);
+  await fixture.db.order.delete({ where: { id: created.data.id } });
+  await fixture.db.store.update({ where: { id: 'store' }, data: { dedicatedCaptains: { disconnect: { id: 'CAPTAIN' } } } });
+});
+
 it('delivers an order with server pricing, role gates, handoff codes, PIN and exactly-once settlement', async () => {
   const created = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', {
     storeId: 'store', items: [{ productId: 'product', quantity: 2 }], deliveryZoneId: 'zone',

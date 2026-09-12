@@ -28,6 +28,7 @@ import {
   Plus,
   RefreshCw,
   ShoppingBag,
+  Truck,
   ShoppingCart,
   Star,
   Store as StoreIcon,
@@ -44,7 +45,7 @@ import { DeliveryFee } from '@samou-go/ui';
 import { FeaturedProductsShowcase } from '@/components/FeaturedProductsShowcase';
 import { CravingShortcuts } from '@/components/CravingShortcuts';
 import { PromoBannerSlider } from '@/components/PromoBannerSlider';
-import { useApiMeta, useOrders, useStores, useAuth, useAllOffers, useFeaturedProducts, type PopularProduct } from '@/hooks/useApi';
+import { useOrders, useStores, useAuth, useAllOffers, useFeaturedProducts, type PopularProduct } from '@/hooks/useApi';
 import { useFavorites } from '@/components/FavoritesProvider';
 import { useCart } from '@/components/CartProvider';
 import { ProductOptionsSheet } from '@/components/ProductOptionsSheet';
@@ -119,10 +120,7 @@ export function SamouGoHome() {
 
   });
 
-  // GET /api/v1/meta — the tariff the server is actually charging, so the
-  // Delivery fee is determined by the driver upon pickup.
-  const meta = useApiMeta();
-  const baseFee = meta.data?.deliveryFee.baseFee ?? DEFAULT_DELIVERY_FEE_CONFIG.baseFee;
+  const freeDeliveryEnabled = appearance.data?.freeDeliveryEnabled === true;
 
   // Signed-in customers see their live orders in the header bell; anonymous
   // visitors keep a quiet bell with no badge. The home itself stays public.
@@ -293,7 +291,7 @@ export function SamouGoHome() {
                     <Star size={28} className="text-brand/30" />
                   </div>
                 )}
-                <div className="p-3 text-start">
+                <div className="p-4 text-start">
                   <div className="flex items-center justify-between gap-2">
                     <p className="truncate text-sm font-extrabold">{t(offer.titleAr, offer.titleEn)}</p>
                     {offer.price != null && offer.price > 0 && (
@@ -342,10 +340,10 @@ export function SamouGoHome() {
           {stores.loading
             ? [0, 1, 2].map(index => <div key={index} className="skeleton min-w-49 overflow-hidden rounded-2xl shadow-card" aria-hidden="true"><div className="h-24 bg-line-soft" /><div className="space-y-2 p-3"><div className="ms-auto h-3 w-2/3 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-1/2 rounded bg-line-soft" /><div className="h-5 w-20 rounded-full bg-line-soft" /></div></div>)
             : featured.map(({ store, category, initials, gradient }) => (
-                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="min-w-49 overflow-hidden rounded-2xl bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-raised focus:outline-none focus:ring-2 focus:ring-brand/40" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
+                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="w-60 shrink-0 overflow-hidden rounded-2xl border border-line-soft bg-surface transition duration-200 hover:shadow-card focus-visible:ring-2 focus-visible:ring-brand" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
                   <article>
-                    <div className={`relative flex h-24 items-center justify-center bg-linear-to-br ${gradient}`}>
-                      {store.logoUrl ? <ImageWithFallback src={store.logoUrl} alt="" className="h-full w-full object-cover" fallbackText={initials} /> : <span className="text-3xl font-black text-white/40">{initials}</span>}
+                    <div className={`relative flex h-32 items-center justify-center bg-linear-to-br ${gradient}`}>
+                      {store.logoUrl ? <ImageWithFallback src={store.logoUrl} alt="" className="h-full w-full object-contain p-4" fallbackText={initials} /> : <span className="text-3xl font-black text-white/40">{initials}</span>}
                       {store.isRecommended && <span className="absolute inset-s-2 top-2 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-1 text-micro font-bold text-white shadow-card" title={t('ينصح به لدينا', 'Recommended by us')}><Star size={10} fill="currentColor" />{t('موصى به', 'Recommended')}</span>}
                       {store.badges?.includes('badge_popular') && <span className="absolute inset-e-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('الأكثر طلباً', 'Most popular')}><Flame size={9} />{t('الأكثر طلباً', 'Popular')}</span>}
                       {store.badges?.includes('badge_fast') && <span className="absolute inset-e-2 top-10 inline-flex items-center gap-0.5 rounded-full bg-blue-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('سريع التجهيز', 'Fast prep')}><Zap size={9} />{t('سريع', 'Fast')}</span>}
@@ -354,9 +352,9 @@ export function SamouGoHome() {
                       <button type="button" aria-label={t(`إضافة ${store.nameAr} إلى المفضلة`, `Favorite ${store.nameEn}`)} aria-pressed={favorites.isFavorite(store.id)} onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggleLike(store.id); }} disabled={favorites.pending.includes(store.id)} className="absolute inset-e-2 top-2 rounded-full bg-surface/85 p-2 text-brand"><Heart size={15} fill={favorites.isFavorite(store.id) ? 'currentColor' : 'none'} /></button>
                     </div>
                     <div className="p-3 text-start">
-                      <h3 className="truncate text-sm font-extrabold">{t(store.nameAr, store.nameEn)}</h3>
-                      <p className="mt-2 text-micro text-ink-muted">{t(category.ar, category.en)}</p><DeliveryEstimate store={store} />
-                      <div className="mt-2 flex items-center justify-between gap-2"><span className="flex items-center gap-1"><DeliveryFee amount={baseFee} variant="badge" showIcon /></span></div>
+                      <h3 className="line-clamp-2 min-h-10 text-sm font-extrabold leading-5">{t(store.nameAr, store.nameEn)}</h3>
+                      <p className="mt-1 text-xs text-ink-muted">{t(category.ar, category.en)}</p><DeliveryEstimate store={store} compact />
+                      {freeDeliveryEnabled && <span className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-brand-tint px-2.5 py-1.5 text-xs font-bold text-brand-dark"><Truck size={14} aria-hidden="true" />{t("التوصيل مجاني", "Free delivery")}</span>}
                     </div>
                   </article>
                 </Link>
@@ -427,14 +425,15 @@ export function SamouGoHome() {
           {stores.loading
             ? [0, 1, 2].map(index => <div key={index} className="skeleton flex items-center gap-3 rounded-2xl p-3 shadow-card" aria-hidden="true"><div className="h-12 w-12 shrink-0 rounded-xl bg-line-soft" /><div className="flex-1 space-y-2"><div className="ms-auto h-3 w-1/2 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-2/3 rounded bg-line-soft" /></div><div className="h-6 w-12 shrink-0 rounded-full bg-line-soft" /></div>)
             : cards.map(({ store, category, initials, tint }) => (
-                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="home-store-card block overflow-hidden rounded-2xl bg-surface transition active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-brand" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
+                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="home-store-card block overflow-hidden rounded-2xl border border-line-soft bg-surface transition active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-brand" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
                   <div className="relative aspect-[5/2] overflow-hidden bg-brand-surface">
-                    <ImageWithFallback src={store.coverUrl || store.logoUrl || undefined} alt="" className="h-full w-full object-cover" fallbackText={initials} />
+                    <ImageWithFallback src={store.coverUrl || store.logoUrl || undefined} alt="" className={`h-full w-full ${store.coverUrl ? "object-cover" : "object-contain p-5"}`} fallbackText={initials} />
                     <span className={`absolute end-3 top-3 rounded-full px-3 py-1 text-xs font-bold ${storeIsOpen(store) ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{storeIsOpen(store) ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
                   </div>
                   <div className="p-4">
-                    <div className="flex items-center gap-3"><ImageWithFallback src={store.logoUrl ?? undefined} alt="" fallbackText={initials} className={`size-12 shrink-0 rounded-xl object-contain ${tint}`} /><div className="min-w-0"><h3 className="truncate text-base font-extrabold">{t(store.nameAr, store.nameEn)}</h3><p className="mt-1 text-xs text-ink-muted">{t(category.ar, category.en)}</p></div></div>
-                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-muted"><DeliveryFee amount={baseFee} variant="inline" /><DeliveryEstimate store={store} /></div>
+                    <div className="flex items-center gap-3"><ImageWithFallback src={store.logoUrl ?? undefined} alt="" fallbackText={initials} className={`size-12 shrink-0 rounded-xl object-contain ${tint}`} /><div className="min-w-0"><h3 className="line-clamp-2 text-base font-extrabold leading-6">{t(store.nameAr, store.nameEn)}</h3><p className="mt-1 text-xs text-ink-muted">{t(category.ar, category.en)}</p></div></div>
+                    <DeliveryEstimate store={store} compact />
+                    {freeDeliveryEnabled && <span className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-brand-tint px-2.5 py-1.5 text-xs font-bold text-brand-dark"><Truck size={14} aria-hidden="true" />{t("التوصيل مجاني", "Free delivery")}</span>}
                     <div className="mt-2"><StoreHours store={store} /></div>
                     {dishProducts.some(product => product.storeId === store.id && product.imageUrl) && <div className="mt-3 flex gap-2" aria-hidden="true">{dishProducts.filter(product => product.storeId === store.id && product.imageUrl).slice(0, 3).map(product => <ImageWithFallback key={product.id} src={product.imageUrl!} alt="" className="aspect-[4/3] min-w-0 flex-1 rounded-lg object-cover" />)}</div>}
                   </div>
