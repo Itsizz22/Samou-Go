@@ -19,7 +19,7 @@ const slides = [...document.querySelectorAll(".slide")];
 const dots = [...document.querySelectorAll("[data-slide]")];
 const pause = document.querySelector(".pause");
 let active = 0,
-  stopped = reduced.matches,
+  stopped = true,
   hovered = false,
   timer;
 function display(index) {
@@ -31,10 +31,11 @@ function display(index) {
 }
 function go(index) {
   const next = (index + slides.length) % slides.length;
-  slides[next].scrollIntoView({
+  track.scrollBy({
     behavior: reduced.matches ? "instant" : "smooth",
-    block: "nearest",
-    inline: "center",
+    left:
+      slides[next].getBoundingClientRect().left -
+      track.getBoundingClientRect().left,
   });
   display(next);
 }

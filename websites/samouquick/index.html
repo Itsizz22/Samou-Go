@@ -4,64 +4,272 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#f1faf6" />
-    <title>حمّل سموع كويك | Samou Quick</title>
+    <title>سموع كويك | اطلب من مطاعم ومتاجر السموع</title>
     <meta
       name="description"
-      content="حمّل تطبيق سموع كويك لأندرويد. مطاعم ومتاجر السموع، طلباتك وتوصيلك في تطبيق واحد."
+      content="اطلب من مطاعم ومتاجر السموع عبر سموع كويك. تعرّف على الخدمة وحمّل تطبيق أندرويد وتواصل مع الدعم المحلي."
     />
     <link rel="canonical" href="https://samouquick.com/" />
-    <meta property="og:title" content="سموع كويك. كل اللي بدك إياه، أقرب." />
+    <meta
+      property="og:title"
+      content="سموع كويك | اطلب من مطاعم ومتاجر السموع"
+    />
     <meta
       property="og:image"
-      content="https://samouquick.com/assets/hero.webp"
+      content="https://samouquick.com/assets/samou-delivery.webp"
     />
-    <link rel="icon" href="/assets/logo.png" />
+    <link rel="icon" href="/assets/brand-mark.webp" />
     <link rel="stylesheet" href="/fonts.css" />
     <link rel="stylesheet" href="/style.css" />
     <script src="/site.js" defer></script>
+    <meta
+      property="og:description"
+      content="اطلب من مطاعم ومتاجر السموع عبر سموع كويك. تعرّف على الخدمة وحمّل تطبيق أندرويد وتواصل مع الدعم المحلي."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ar_PS" />
+    <meta property="og:url" content="https://samouquick.com/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="/refinements.css" />
   </head>
   <body>
     <a href="#main" class="skip">انتقل للمحتوى</a>
-    <header class="shell">
-      <a href="#main" class="brand" aria-label="سموع كويك"
-        ><img src="/assets/logo.png" width="52" height="52" alt="" /><span
-          >سموع كويك<small dir="ltr">SAMOU QUICK</small></span
-        ></a
-      ><a class="pill compact" href="#download"
-        >تحميل التطبيق <span aria-hidden="true">↓</span></a
+    <div class="coverage-bar">
+      <span class="coverage-dot" aria-hidden="true"></span>نخدم كافة أحياء
+      ومناطق بلدة السموع
+    </div>
+    <header class="shell site-header">
+      <a href="#main" class="brand" aria-label="سموع كويك، الرئيسية"
+        ><img
+          src="/assets/brand-mark.webp"
+          width="54"
+          height="54"
+          alt=""
+        /><span>سموع كويك<small dir="ltr">SAMOU QUICK</small></span></a
+      >
+      <nav class="header-nav" aria-label="التنقل الرئيسي">
+        <a href="#discover">شو بتقدر تطلب؟</a
+        ><a href="#how-it-works">كيف تطلب؟</a><a href="#about">عن سموع كويك</a>
+      </nav>
+      <a class="pill compact" href="#download"
+        >حمّل التطبيق <span aria-hidden="true">↓</span></a
       >
     </header>
     <main id="main">
-      <section class="hero shell">
+      <section class="hero shell" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <span class="eyebrow">تطبيقك من قلب السموع</span>
-          <h1>كل اللي بدّك إياه.<br /><span>صار أقرب.</span></h1>
-          <p>من أول لقمة لآخر طلبية،<br />متاجر بلدك صارت بين إيديك.</p>
-          <a
-            class="pill"
-            href="/downloads/Samou-Quick.apk"
-            download="Samou-Quick-1.0.32.apk"
-            >حمّل سموع كويك <span aria-hidden="true">↓</span></a
-          >
+          <span class="eyebrow">من البلد، لأهل البلد</span>
+          <h1 id="hero-title">
+            اطلب من مطاعم<br />ومتاجر السموع<br /><span>ونوصّله لبابك.</span>
+          </h1>
+          <p>مطاعم، حلويات، سوبرماركت وأكثر — كلهم بتطبيق واحد.</p>
+          <div class="hero-actions">
+            <div>
+              <a
+                class="pill"
+                href="/downloads/Samou-Quick.apk"
+                download="Samou-Quick-1.0.32.apk"
+                >تحميل لأندرويد <span aria-hidden="true">↓</span></a
+              ><small>تنزيل مباشر · <b dir="ltr">APK · 1.0.32</b></small
+              ><a class="text-link" href="#how-it-works">شوف كيف تطلب ←</a>
+            </div>
+            <a
+              class="hero-qr"
+              href="#download"
+              aria-label="رمز QR لفتح صفحة التنزيل على الهاتف"
+              ><img
+                src="/assets/download-qr.svg"
+                width="96"
+                height="96"
+                alt="امسح الرمز لفتح صفحة تنزيل سموع كويك"
+              /><span>افتحه على هاتفك</span></a
+            >
+          </div>
+          <p class="availability-note">
+            تختلف المتاجر والأصناف المتاحة حسب منطقتك.
+          </p>
         </div>
         <div class="hero-art">
-          <div class="orbit" aria-hidden="true"></div>
-          <img
-            class="food"
-            src="/assets/hero.webp"
-            width="1536"
-            height="1024"
-            alt="وجبة طازجة ومشتريات يومية"
-            fetchpriority="high"
-          />
-          <div class="floating-label">
-            <span class="label-icon" aria-hidden="true">✓</span>
-            <div>طلبك، على ذوقك.<small>من متاجر السموع لبابك</small></div>
-          </div>
-          <div class="seal" aria-hidden="true">
-            من البلد<br /><strong>لأهل البلد</strong>
+          <div class="phone-halo" aria-hidden="true"></div>
+          <figure class="hero-phone">
+            <img
+              src="/assets/app-home.webp"
+              width="390"
+              height="844"
+              alt="واجهة سموع كويك لاختيار منطقتك: اصفي، الولي، واد جحيش ومناطق السموع"
+              fetchpriority="high"
+            />
+            <figcaption>تبدأ التجربة من منطقتك</figcaption>
+          </figure>
+          <div class="local-label">
+            <span>بلدك أقرب</span
+            ><strong>من اصفي للحصيني<br />ومن السيميا للدير</strong>
           </div>
         </div>
+      </section>
+      <section
+        id="discover"
+        class="discovery shell reveal"
+        aria-labelledby="discovery-title"
+      >
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">على ذوقك، ومن بلدك</span>
+            <h2 id="discovery-title">شو بتقدر تطلب اليوم؟</h2>
+          </div>
+          <p>اضغط على الفئة لتعرف أكثر، وتصفّح المتاجر المتاحة داخل التطبيق.</p>
+        </div>
+        <div class="category-grid">
+          <!-- CATEGORIES:START -->
+          <details class="category-card" id="category-restaurants">
+            <summary>
+              <span class="category-icon" aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M5 3v7m3-7v7M3 7h7v3a3 3 0 0 1-6 0V3m3 10v8m10-18v18m0-18c-5 3-5 10 0 10"
+                  /></svg></span
+              ><strong>مطاعم</strong><span>وجبة الغدا أو العشا</span
+              ><span class="category-plus" aria-hidden="true">+</span>
+            </summary>
+            <div class="category-body">
+              <p>قوائم وأسعار واضحة، واختيار الكمية قبل إتمام الطلب.</p>
+              <a class="text-link" href="#download"
+                >استكشف المتاجر في التطبيق ←</a
+              >
+            </div>
+          </details>
+          <details class="category-card" id="category-cafes">
+            <summary>
+              <span class="category-icon" aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M4 7h12v8a6 6 0 0 1-12 0V7Zm12 1h2a3 3 0 0 1 0 6h-2M6 2v2m4-2v2m4-2v2"
+                  /></svg></span
+              ><strong>كافيهات</strong><span>استراحة على ذوقك</span
+              ><span class="category-plus" aria-hidden="true">+</span>
+            </summary>
+            <div class="category-body">
+              <p>اكتشف خيارات الكافيهات المتاحة في منطقتك داخل التطبيق.</p>
+              <a class="text-link" href="#download"
+                >استكشف المتاجر في التطبيق ←</a
+              >
+            </div>
+          </details>
+          <details class="category-card" id="category-sweets">
+            <summary>
+              <span class="category-icon" aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M3 13h18v8H3v-8Zm0 4c3-3 3 3 6 0s3 3 6 0 3 3 6 0M6 13V9h12v4M9 9V6m6 3V6m-3 3V4"
+                  /></svg></span
+              ><strong>حلويات</strong><span>شي حلو لليوم</span
+              ><span class="category-plus" aria-hidden="true">+</span>
+            </summary>
+            <div class="category-body">
+              <p>تصفّح الأصناف والصور، وراجع التفاصيل مع المتجر قبل الطلب.</p>
+              <a class="text-link" href="#download"
+                >استكشف المتاجر في التطبيق ←</a
+              >
+            </div>
+          </details>
+          <details class="category-card" id="category-grocery">
+            <summary>
+              <span class="category-icon" aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M4 7h16l1 14H3L4 7Zm4 0V5a4 4 0 0 1 8 0v2m-8 4a4 4 0 0 0 8 0"
+                  /></svg></span
+              ><strong>سوبرماركت</strong><span>احتياجات البيت</span
+              ><span class="category-plus" aria-hidden="true">+</span>
+            </summary>
+            <div class="category-body">
+              <p>اجمع مشترياتك اليومية في سلة واحدة من المتجر الذي تختاره.</p>
+              <a class="text-link" href="#download"
+                >استكشف المتاجر في التطبيق ←</a
+              >
+            </div>
+          </details>
+          <details class="category-card" id="category-drinks">
+            <summary>
+              <span class="category-icon" aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M6 7h12l-2 14H8L6 7Zm0 4h12M12 7l2-5h5"
+                  /></svg></span
+              ><strong>مشروبات</strong><span>بارد أو منعش</span
+              ><span class="category-plus" aria-hidden="true">+</span>
+            </summary>
+            <div class="category-body">
+              <p>ابحث عن المشروب الذي تفضله ضمن قوائم المتاجر المتاحة.</p>
+              <a class="text-link" href="#download"
+                >استكشف المتاجر في التطبيق ←</a
+              >
+            </div>
+          </details>
+          <details class="category-card" id="category-fast-food">
+            <summary>
+              <span class="category-icon" aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M3 10a9 9 0 0 1 18 0H3Zm0 4h18M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1ZM9 6h.01M14 5h.01"
+                  /></svg></span
+              ><strong>وجبات سريعة</strong><span>لما تكون مشتهي</span
+              ><span class="category-plus" aria-hidden="true">+</span>
+            </summary>
+            <div class="category-body">
+              <p>شاورما أو برغر وغيرها من الخيارات بحسب قائمة كل متجر.</p>
+              <a class="text-link" href="#download"
+                >استكشف المتاجر في التطبيق ←</a
+              >
+            </div>
+          </details>
+          <!-- CATEGORIES:END -->
+        </div>
+        <p class="section-note">
+          القوائم والإتاحة يحددها كل متجر. راجع التفاصيل داخل التطبيق قبل الطلب.
+        </p>
       </section>
       <section id="about" class="why shell reveal" aria-labelledby="why-title">
         <div class="section-title">
@@ -110,6 +318,46 @@
           </article>
         </div>
       </section>
+      <section
+        id="how-it-works"
+        class="how-it-works shell reveal"
+        aria-labelledby="how-title"
+      >
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">من أول اختيار لحد الباب</span>
+            <h2 id="how-title">طلبك بخمس خطوات.</h2>
+          </div>
+          <a class="text-link" href="#download">ابدأ من التطبيق ←</a>
+        </div>
+        <ol class="steps">
+          <li>
+            <span dir="ltr">01</span>
+            <h3>اختَر المتجر</h3>
+            <p>تصفّح الخيارات في منطقتك.</p>
+          </li>
+          <li>
+            <span dir="ltr">02</span>
+            <h3>اختَر طلبك</h3>
+            <p>أضف الأصناف والكميات للسلة.</p>
+          </li>
+          <li>
+            <span dir="ltr">03</span>
+            <h3>حدّد عنوانك</h3>
+            <p>اكتب عنوانًا واضحًا وراجع الرسوم.</p>
+          </li>
+          <li>
+            <span dir="ltr">04</span>
+            <h3>تابع طلبك</h3>
+            <p>تابع حالته وتواصل عند الحاجة.</p>
+          </li>
+          <li>
+            <span dir="ltr">05</span>
+            <h3>استلمه</h3>
+            <p>يصل طلبك للعنوان الذي حددته.</p>
+          </li>
+        </ol>
+      </section>
       <section class="app-preview shell reveal" aria-labelledby="preview-title">
         <div class="preview-copy">
           <span class="eyebrow">شوف التجربة قبل التنزيل</span>
@@ -134,7 +382,7 @@
         >
           <figure>
             <img
-              src="/assets/app-products.png"
+              src="/assets/app-products.webp"
               width="390"
               height="844"
               loading="lazy"
@@ -144,7 +392,7 @@
           </figure>
           <figure>
             <img
-              src="/assets/app-home.png"
+              src="/assets/app-home.webp"
               width="390"
               height="844"
               loading="lazy"
@@ -176,7 +424,7 @@
                 </p>
               </div>
               <img
-                src="/assets/parcel-delivery.jpeg"
+                src="/assets/parcel-delivery.webp"
                 width="1536"
                 height="1024"
                 loading="lazy"
@@ -193,7 +441,7 @@
                 </p>
               </div>
               <img
-                src="/assets/samou-delivery.jpeg"
+                src="/assets/samou-delivery.webp"
                 width="1600"
                 height="781"
                 loading="lazy"
@@ -246,13 +494,26 @@
       <section id="download" class="download shell reveal">
         <div class="download-heading">
           <img
-            src="/assets/logo.png"
+            src="/assets/brand-mark.webp"
             alt="شعار سموع كويك"
             width="96"
             height="96"
           />
           <h2>نزّله اليوم.<br /><span>وخلي الباقي علينا.</span></h2>
           <p>نسخة أندرويد، مباشرة على جهازك.</p>
+          <div class="download-qr">
+            <img
+              src="/assets/download-qr.svg"
+              width="120"
+              height="120"
+              loading="lazy"
+              alt="QR لفتح صفحة تنزيل التطبيق على هاتفك"
+            />
+            <div>
+              <strong>تتصفح من الكمبيوتر؟</strong>
+              <p>امسح الرمز بكاميرا هاتفك،<br />ثم اضغط تنزيل التطبيق.</p>
+            </div>
+          </div>
         </div>
         <div class="download-card">
           <div class="release-heading">
@@ -266,11 +527,11 @@
             class="pill download-button"
             href="/downloads/Samou-Quick.apk"
             download="Samou-Quick-1.0.32.apk"
-            >تنزيل التطبيق <span aria-hidden="true">↓</span></a
+            >تنزيل APK لأندرويد <span aria-hidden="true">↓</span></a
           >
-          <p class="ios-note">نسخة iPhone ستُعلن لاحقًا.</p>
+          <p class="ios-note">نسخة iPhone غير متاحة للتنزيل حاليًا.</p>
           <details>
-            <summary>كيف أثبّت التطبيق؟</summary>
+            <summary>كيف أثبّت ملف APK؟</summary>
             <p>
               نزّل الملف ثم افتحه على هاتف أندرويد واتبع تعليمات التثبيت. إذا
               كانت نسخة Google Play مثبتة وظهر تعارض في التوقيع، تواصل مع الدعم
@@ -292,7 +553,7 @@
         <div class="footer-brand">
           <a class="brand" href="/#main"
             ><img
-              src="/assets/logo.png"
+              src="/assets/brand-mark.webp"
               width="72"
               height="72"
               alt="شعار سموع كويك"

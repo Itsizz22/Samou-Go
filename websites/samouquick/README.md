@@ -1,20 +1,31 @@
-# Samou Quick download page
+# Samou Quick public website
 
-Static download-only landing page. Vercel project: samou-go/samouquick-download. Git root directory: websites/samouquick; framework Other; empty build/install commands; output directory `.`. Production preview: https://samouquick-download.vercel.app. No links to staff/admin/customer web frontends. The only external action is company WhatsApp support.
+Static, Arabic RTL download landing page at https://samouquick.com. This directory is independent of the mobile app, API, database and staff dashboards. Vercel project: `samou-go/samouquick-download`; project root directory: `websites/samouquick`; no install/build command; output `.`.
 
-Tajawal is self-hosted under the SIL Open Font License (assets/Tajawal-OFL.txt). Images and scripts are served locally. The responsive slider supports touch, keyboard, manual selection, pause, visibility handling, and reduced motion. Section reveal content remains visible without JavaScript.
+## Content and maintenance
 
-## Android artifact
-`downloads/Samou-Quick.apk`: version 1.0.30, versionCode 31, package com.samougo.customer. SHA256 F83309E77EE32822AEC525FD4DAA20296F7A28856365CE40FDCA9063527EC79A. Signed with the existing upload certificate. Replace this file and the page version/size together for future releases. APK may conflict with a Google Play app-signing installation; support guidance is included in the page.
+- `index.html`: coverage, hero, category discovery, benefits, five ordering steps, genuine UI screenshots (clearly labeled demo catalogue), existing supplied banners, Android download and footer.
+- `content/categories.json`: category names/descriptions and optional verified store names. `stores` is deliberately empty: do not invent partners or publish test businesses as real stores. Add only approved public store names as `{ "name": "..." }`.
+- Run `node websites/samouquick/scripts/render-categories.mjs` from the repo root after updating categories, then format the HTML. This produces static accessible disclosure cards; visitors make no API requests.
+- `privacy.html`, `terms.html`, `delete-account.html`: existing policy content, clearer navigation and page-specific metadata. Update policy text only after checking the applicable product behavior and approved wording.
+- `assets/app-home.webp` and `app-products.webp`: actual UI captures. Product screenshot uses demo data, disclosed next to the images. Replace with approved genuine merchant screenshots when available.
+- `assets/download-qr.svg`: standard QR for `https://samouquick.com/#download`. Keeps working when the APK changes. Desktop users scan it; mobile users get a direct download CTA.
+- Fonts are self-hosted Tajawal WOFF2, converted from the existing licensed TTF files. License: `assets/Tajawal-OFL.txt`.
 
-Apply backend migrations before promoting this APK: 20260912000300_route_pricing and 20260912000400_order_conversations. Git upload alone does not verify production deployment.
+## Android download
 
-QR is deliberately NOT on the website. Separate chat deliverable targets https://samouquick.com/#download; domain connection is still pending verification.
+Existing artifact: version **1.0.32**, build **33**, package `com.samougo.customer`, approximately **13 MB**. Website-only edits do not rebuild or modify it. Replace the APK, version labels and filename together for future releases. iPhone is explicitly marked unavailable; no fake store badges or download links.
 
-## Security
-vercel.json supplies CSP with no inline scripts, no frames/forms/API connections, HSTS, nosniff, referrer and permissions policies. Verify response headers after deployment. No forms, cookies, credentials or API requests are introduced here. Local Python preview does not apply Vercel headers.
+## Interaction and security
 
-API has 1200 requests/IP/minute before body parsing and tighter auth/OTP/order limits. In-memory counters are per process; shared/edge rate limiting is required for multiple instances. Vercel firewall rule Download request limit targets /downloads/ by IP, 30 requests per 60 seconds. Publishing and HTTP verification are recorded in the release work log. Automatic system DDoS mitigations are active.
+Native category disclosure controls and screenshot scrolling work without JavaScript. The carousel supports touch, keyboard and manual controls; autoplay is opt-in. Reduced motion is respected; content is never hidden pending JavaScript. `style.css` retains the original design; `refinements.css` contains the focused landing-page improvements.
 
-## Validation
-Local UI at 320, 390, 1365 pixels: loaded fonts/images, no horizontal overflow or JavaScript errors; slider next, indicators, FAQ and actual APK HTTP download checked. API security tests include 429, Retry-After and unthrottled liveness.
+The existing Vercel CSP, HTTPS/security headers and download throttling remain in place. There are no forms, tracking cookies, API connections or third-party runtime scripts. Social, WhatsApp and phone links are explicit. Public legal pages stay on this domain.
+
+## Deployment
+
+Git deployment uses the repository root and the configured project root above. For CLI staging, copy public files into a staging root containing `websites/samouquick/`, and deploy that root with the existing Vercel project IDs. Do not deploy this folder as if it were the repository root, and do not upload unrelated repository files or secrets.
+
+## Verification
+
+See `AUDIT.md` for the review and local validation scope. Production verification must cover apex/www, legal links, optimized assets, QR and the unchanged APK download.
