@@ -683,3 +683,10 @@ footer {
     letter-spacing: 2px;
   }
 }
+
+/* Preserve the complete supplied banner, including its brand and text. */
+.delivery-slide > img {
+  object-fit: contain;
+  mix-blend-mode: normal;
+  background: #f4f7f0;
+}
