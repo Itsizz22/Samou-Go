@@ -31,3 +31,6 @@ Git deployment uses the repository root and the configured project root above. F
 ## Verification
 
 See `AUDIT.md` for the review and local validation scope. Production verification must cover apex/www, legal links, optimized assets, QR and the unchanged APK download.
+
+## Launch countdown (current public state)
+The public download box is temporarily a coming-soon countdown. Launch instant: `2026-09-26T13:13:17Z`, fixed at fourteen days from the owner's request. All public APK CTA links now go to `/#download`; the existing APK artifact remains unchanged. The timer derives remaining time from the absolute timestamp on every tick, clamps at zero, and does not automatically publish a release. To change the date, edit `data-launch-at` and the visible date together in index.html. Countdown rendering has no external dependencies or backend calls.

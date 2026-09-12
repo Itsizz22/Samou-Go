@@ -831,3 +831,57 @@ main > .download.shell {
   line-height: 1.7;
   margin: 0 0 18px;
 }
+.launch-card {
+  text-align: center;
+}
+.launch-card h3 {
+  font-size: clamp(27px, 3vw, 36px);
+  margin-block: 12px;
+  letter-spacing: 0;
+}
+.launch-date,
+.launch-status {
+  color: var(--muted);
+  font-size: 16px;
+}
+.countdown {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-block: 28px;
+}
+.countdown > div {
+  background: var(--mint);
+  border-radius: 14px;
+  padding: 16px 6px;
+}
+.countdown b {
+  display: block;
+  font-size: clamp(24px, 3vw, 38px);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.countdown span {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.launch-follow {
+  width: 100%;
+  white-space: normal;
+  font-size: 17px;
+  padding-inline: 18px;
+}
+@media (max-width: 380px) {
+  .countdown {
+    gap: 6px;
+  }
+  .countdown > div {
+    padding-inline: 4px;
+  }
+  .countdown span {
+    font-size: 12px;
+  }
+}
