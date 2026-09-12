@@ -690,3 +690,33 @@ footer {
   mix-blend-mode: normal;
   background: #f4f7f0;
 }
+
+/* Keep the complete logo and wordmark clear of rounded-image clipping. */
+.brand img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+  border-radius: 0;
+  flex-shrink: 0;
+}
+.download-heading > img {
+  width: 120px;
+  height: 120px;
+  padding: 10px;
+  object-fit: contain;
+  border-radius: 0;
+  background: transparent;
+  margin-bottom: 28px;
+}
+@media (max-width: 800px) {
+  .brand img {
+    width: 46px;
+    height: 46px;
+  }
+  .download-heading > img {
+    width: 104px;
+    height: 104px;
+    padding: 8px;
+    margin-bottom: 24px;
+  }
+}
