@@ -825,3 +825,9 @@ main > .download.shell {
     font-size: 16px;
   }
 }
+.support-hours {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0 0 18px;
+}

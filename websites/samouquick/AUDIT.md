@@ -36,6 +36,6 @@ QR decoded to `https://samouquick.com/#download`. Existing APK stays byte-for-by
 
 ## Follow-up: shorter narrative and download confidence
 
-Consolidated the repeated carousel into existing screenshots/ordering steps and a compact parcels announcement. Added a clear hero explanation, native FAQ, official APK label and mobile fixed download control with reserved footer space. Renamed the screenshot CTA and anchored it to the screenshots. The phone visual now starts earlier on mobile. Support hours remain unspecified pending confirmed operating hours.
+Consolidated the repeated carousel into existing screenshots/ordering steps and a compact parcels announcement. Added a clear hero explanation, native FAQ, official APK label and mobile fixed download control with reserved footer space. Renamed the screenshot CTA and anchored it to the screenshots. The phone visual now starts earlier on mobile. Support hours confirmed by the owner: 10 AM to midnight; shown consistently in all public footers.
 
 Rechecked all five viewport sizes and all legal pages: no overflow, missing visible images, JavaScript errors or automated WCAG A/AA findings. Tested FAQ/disclosure controls and confirmed that the footer ends above the mobile bar when fully scrolled. Full-page development resource transfer is now approximately 0.28 MB excluding APK.
