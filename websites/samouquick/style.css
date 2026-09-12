@@ -720,3 +720,30 @@ footer {
     margin-bottom: 24px;
   }
 }
+.food-slide > img {
+  object-fit: contain;
+  height: auto;
+  background: #fff;
+}
+.social-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.social-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 18px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  text-decoration: none;
+}
+.social-links a:hover {
+  background: #e4f0e7;
+}
+footer.shell {
+  flex-wrap: wrap;
+  gap: 20px;
+}
