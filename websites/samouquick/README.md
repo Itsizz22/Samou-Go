@@ -1,6 +1,6 @@
 # Samou Quick download page
 
-Static download-only landing page. Deploy this directory as a Vercel project, with no build command and output directory `.`. No links to staff/admin/customer web frontends. The only external action is company WhatsApp support.
+Static download-only landing page. Vercel project: samou-go/samouquick-download. Git root directory: websites/samouquick; framework Other; empty build/install commands; output directory `.`. Production preview: https://samouquick-download.vercel.app. No links to staff/admin/customer web frontends. The only external action is company WhatsApp support.
 
 Tajawal is self-hosted under the SIL Open Font License (assets/Tajawal-OFL.txt). Images and scripts are served locally. The responsive slider supports touch, keyboard, manual selection, pause, visibility handling, and reduced motion. Section reveal content remains visible without JavaScript.
 
@@ -14,7 +14,7 @@ QR is deliberately NOT on the website. Separate chat deliverable targets https:/
 ## Security
 vercel.json supplies CSP with no inline scripts, no frames/forms/API connections, HSTS, nosniff, referrer and permissions policies. Verify response headers after deployment. No forms, cookies, credentials or API requests are introduced here. Local Python preview does not apply Vercel headers.
 
-API has 1200 requests/IP/minute before body parsing and tighter auth/OTP/order limits. In-memory counters are per process; shared/edge rate limiting is required for multiple instances. CDN/WAF protection of static APK bandwidth requires hosting configuration and has not yet been activated.
+API has 1200 requests/IP/minute before body parsing and tighter auth/OTP/order limits. In-memory counters are per process; shared/edge rate limiting is required for multiple instances. Vercel firewall rule Download request limit targets /downloads/ by IP, 30 requests per 60 seconds. Publishing and HTTP verification are recorded in the release work log. Automatic system DDoS mitigations are active.
 
 ## Validation
 Local UI at 320, 390, 1365 pixels: loaded fonts/images, no horizontal overflow or JavaScript errors; slider next, indicators, FAQ and actual APK HTTP download checked. API security tests include 429, Retry-After and unthrottled liveness.
