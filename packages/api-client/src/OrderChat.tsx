@@ -14,6 +14,15 @@ function Conversation({ orderId }: { orderId: string }) {
   const [visible, setVisible] = useState(false);
   const root = useRef<HTMLElement>(null);
   useEffect(() => {
+    const openConversation = (event: Event) => {
+      const detail: unknown = event instanceof CustomEvent ? event.detail : null;
+      if (!detail || typeof detail !== 'object' || !('orderId' in detail) || detail.orderId !== orderId || !('peerId' in detail) || typeof detail.peerId !== 'string') return;
+      setPeer(detail.peerId); setOpen(true); root.current?.scrollIntoView({block:'nearest'});
+    };
+    window.addEventListener('samou:open-order-chat',openConversation);
+    return () => window.removeEventListener('samou:open-order-chat',openConversation);
+  },[orderId]);
+  useEffect(() => {
     const observer = new IntersectionObserver(entries => setVisible(entries.some(e => e.isIntersecting)));
     if (root.current) observer.observe(root.current);
     return () => observer.disconnect();

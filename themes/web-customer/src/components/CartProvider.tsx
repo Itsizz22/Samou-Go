@@ -33,7 +33,7 @@ export interface CartLine {
 }
 
 export function cartLineKey(line: CartLine): string {
-  return JSON.stringify([line.productId, line.offerId ?? '', normalizeSelectedOptions(line.selectedOptions).map(o => [o.groupId,o.id]).sort()]);
+  return JSON.stringify([line.productId, line.offerId ?? '', normalizeSelectedOptions(line.selectedOptions).map(o => [o.groupId,o.id,o.excluded??false]).sort()]);
 }
 function matchesLine(line: CartLine, key: string): boolean { return cartLineKey(line) === key || line.productId === key; }
 
@@ -170,9 +170,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setLines(current => {
       // When options are present, always create a new line (different option combo = different line).
       if (selectedOptions && selectedOptions.length > 0) {
-        const optKey = JSON.stringify(normalizeSelectedOptions(selectedOptions).map(o => [o.groupId, o.id]).sort());
+        const optKey = JSON.stringify(normalizeSelectedOptions(selectedOptions).map(o => [o.groupId, o.id, o.excluded??false]).sort());
         const existing = current.find(
-          line => line.productId === product.id && JSON.stringify(normalizeSelectedOptions(line.selectedOptions).map(o => [o.groupId, o.id]).sort()) === optKey,
+          line => line.productId === product.id && JSON.stringify(normalizeSelectedOptions(line.selectedOptions).map(o => [o.groupId, o.id, o.excluded??false]).sort()) === optKey,
         );
         if (existing) {
           return current.map(line =>

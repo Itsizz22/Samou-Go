@@ -1,3 +1,4 @@
+import { sizeOptionPriceDelta } from '@samou-go/shared-types';
 import { resolveRouteFee } from '../zones/route-pricing';
 import { nextPublicCode } from '../../lib/public-code';
 import { sendPushToUser } from '../../lib/push';
@@ -116,7 +117,7 @@ interface PricedLine {
   quantity: number;
   unitPrice: number;
   /** Resolved selected options with server-verified prices. */
-  selectedOptions?: { id: string; groupId: string; name: string; priceDelta: number }[];
+  selectedOptions?: { id: string; groupId: string; name: string; priceDelta: number; excluded?: boolean }[];
 }
 
 /** A voucher validated for use on a specific basket, with its discount computed. */
@@ -233,7 +234,7 @@ async function priceBasket(
 
   const products = await db.product.findMany({
     where: { id: { in: [...new Set(items.map(item => item.productId))] }, storeId },
-    select: { id: true, nameAr: true, price: true, isAvailable: true },
+    select: { id: true, nameAr: true, price: true, originalPrice: true, optionsEnabled: true, isAvailable: true },
   });
 
   const byId = new Map(products.map(product => [product.id, product]));
@@ -288,14 +289,16 @@ async function priceBasket(
 
     // Validate and price selected options from the DB.
     if (optionGroupByProduct.has(productId) || offerItem?.selectedOptions?.length) {
-      const groups = optionGroupByProduct.get(productId) ?? [];
+      const groups = product.optionsEnabled === false ? [] : optionGroupByProduct.get(productId) ?? [];
       const groupIds = new Set(groups.map(g => g.id));
 
       resolvedOptions = [];
       let optionsTotal = 0;
 
       const selectedIds = new Set<string>();
-      for (const sel of offerItem?.selectedOptions ?? []) {
+      const requested = [...(offerItem?.selectedOptions ?? [])];
+      for (const group of groups.filter(g => g.kind === 'FIXED')) for (const item of group.items) if (!requested.some(s => s.optionId === item.id)) requested.push({groupId:group.id,optionId:item.id});
+      for (const sel of requested) {
         if (selectedIds.has(sel.optionId)) {
           throw unprocessable('DUPLICATE_OPTION', 'Cannot select the same option more than once');
         }
@@ -315,8 +318,10 @@ async function priceBasket(
             `الخيار غير صالح / Invalid option: ${sel.optionId}`
           );
         }
-        optionsTotal += item.price;
-        resolvedOptions.push({ id: item.id, groupId: sel.groupId, name: item.name, priceDelta: item.price });
+        const group = groups.find(g => g.id === sel.groupId)!;
+        const delta = group.kind === 'SIZE' ? sizeOptionPriceDelta(item.price, Number(product.price), product.originalPrice == null ? null : Number(product.originalPrice)) : item.price;
+        optionsTotal += delta;
+        resolvedOptions.push({ id: item.id, groupId: sel.groupId, name: item.name, priceDelta: delta });
       }
 
       // Validate min/max constraints per group.
@@ -338,7 +343,8 @@ async function priceBasket(
         }
       }
 
-      basePrice += optionsTotal;
+      for (const group of groups.filter(g => g.kind === 'INGREDIENT')) for (const item of group.items) if (item.isDefault && !selectedIds.has(item.id)) resolvedOptions.push({id:item.id,groupId:group.id,name:'بدون ' + item.name,priceDelta:0,excluded:true});
+      basePrice = Math.round((basePrice + optionsTotal) * 100) / 100;
     }
 
     lines.push({ productId, quantity, sourceIndex, nameAr: product.nameAr, unitPrice: basePrice, ...(resolvedOptions ? { selectedOptions: resolvedOptions } : {}) });
@@ -852,10 +858,10 @@ export async function reorderOrder(
     let raw: unknown = item.selectedOptions;
     if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch { raw = []; } }
     const previous = normalizeSelectedOptions(raw);
-    const selectedOptions = resolveSelectedOptions(dto.optionGroups, previous.map(option => ({ groupId: option.groupId, optionId: option.id })));
-    const invalidSelection = selectedOptions.length !== previous.length || normalizeOptionGroups(dto.optionGroups).some(group => {
-      const count = selectedOptions.filter(option => option.groupId === group.id).length;
-      return count < Math.max(group.minSelect, group.required ? 1 : 0) || count > group.maxSelect;
+    const selectedOptions = resolveSelectedOptions(dto.optionGroups, previous.filter(option => !option.excluded).map(option => ({ groupId: option.groupId, optionId: option.id })));
+    const invalidSelection = selectedOptions.filter(o=>!o.excluded).length !== previous.filter(o=>!o.excluded).length || normalizeOptionGroups(dto.optionGroups).some(group => {
+      const count = selectedOptions.filter(option => !option.excluded && option.groupId === group.id).length;
+      return (!group.required && count === 0) ? false : count < Math.max(group.minSelect, group.required ? 1 : 0) || count > group.maxSelect;
     });
     if (invalidSelection) { skipped += 1; continue; }
     items.push({ product: dto, quantity: item.quantity, selectedOptions, ...(item.note ? { note: item.note } : {}) });

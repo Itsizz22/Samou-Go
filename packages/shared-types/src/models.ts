@@ -109,6 +109,8 @@ export interface Category {
 
 /** An individual selectable option within a group (e.g. "جبنة مضاعفة +5 ₪"). */
 export interface ProductOptionItem {
+  imageUrl?: string | null;
+  isDefault?: boolean;
   id: string;
   groupId: string;
   name: string;
@@ -120,6 +122,7 @@ export interface ProductOptionItem {
 
 /** A product option group (e.g. "الإضافات", "الحجم", "الصلصات"). */
 export interface ProductOptionGroup {
+  kind?: 'ADDON' | 'SIZE' | 'INGREDIENT' | 'FIXED';
   id: string;
   productId: string;
   name: string;
@@ -135,6 +138,8 @@ export interface ProductOptionGroup {
 
 /** A customer's selected option, captured at order time. */
 export interface SelectedOption {
+  /** Snapshot of a removed included ingredient; never sent as a selected ID. */
+  excluded?: boolean;
   id: string;
   groupId: string;
   name: string;

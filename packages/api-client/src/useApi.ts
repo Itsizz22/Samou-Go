@@ -1,3 +1,4 @@
+import { startForegroundPolling } from './foreground-polling';
 /**
  * Samou' Go — data-fetching hooks over `./api.ts`.
  *
@@ -192,8 +193,7 @@ export function useResource<T>(
   useEffect(() => {
     if (!enabled || !pollMs || loading || refreshing || error?.status === 401 || error?.status === 403) return;
     if (stopWhenRef.current?.(data)) return;
-    const timer = setInterval(reload, pollMs);
-    return () => clearInterval(timer);
+    return startForegroundPolling(reload, pollMs);
   }, [enabled, pollMs, reload, data, error, loading, refreshing]);
 
   return { data, loading, refreshing, error, reload, refresh: reload };

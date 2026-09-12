@@ -1,3 +1,4 @@
+import { StoreCaptainContact } from '@samou-go/api-client';
 import { OrderChat } from '@samou-go/api-client';
 import { CaptainReservation, PreparationCountdown, PreparationTimeEditor } from '@samou-go/api-client';
 import { Link, useParams } from 'react-router-dom';
@@ -24,6 +25,7 @@ export function StaffOrderDetailsScreen() {
         {auth.user?.role === "CAPTAIN" ? <CaptainReservation order={data} captainId={auth.user.id} onReserved={() => { void order.refresh(); }} /> : <PreparationTimeEditor order={data} />}
         <OrderCustomerDetails showDestination order={{ storeContact: { name: data.store.nameAr, phone: data.store.phone, whatsappNumber: data.store.whatsappNumber }, customerContact: data.customer.phone ? { name: data.customer.name, phone: data.customer.phone, whatsappNumber: data.customer.whatsappNumber } : null, deliveryDestination: { zoneNameAr: data.deliveryZone?.nameAr ?? null, address: data.customerAddressText || "يظهر العنوان بعد حجز التوصيل", landmark: data.addressNote } }} />
 
+        {auth.user?.role === "STORE_MANAGER" && data.fulfillmentType !== "PICKUP" && <StoreCaptainContact key={data.captainId} orderId={data.id} captainId={data.captainId} />}
         {data.customer.phone && <OrderChat orderId={data.id} />}
         <ul className="divide-y divide-line">{data.items.map(item => <li key={item.id} className="space-y-2 py-3"><div className="flex justify-between gap-3">{item.product.imageUrl && <img src={item.product.imageUrl} alt="" className="size-16 rounded-xl object-cover" />}<strong>{item.offerTitle || item.product.nameAr}</strong><span dir="ltr">× {item.quantity}</span></div>{item.selectedOptions?.map(option => <p key={option.id} className="text-sm text-ink-muted">{option.name}</p>)}{item.note && <p className="text-sm text-ink-muted">{item.note}</p>}</li>)}</ul>
         <p className="flex justify-between font-bold"><span>قيمة المنتجات</span><span dir="ltr">{formatCurrency(data.subtotal)}</span></p>

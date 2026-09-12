@@ -1,3 +1,4 @@
+import { StoreCaptainContact } from '@samou-go/api-client';
 import { OrderChat } from '@samou-go/api-client';
 import { getLiveOrderTracking } from '@samou-go/api-client';
 import { OrderTrackingToggle } from '@samou-go/ui/map';
@@ -1310,6 +1311,7 @@ function OrderRow({ order, customerPhone, customerName, pending, onAccept, onSta
       </div>
 
       <OrderCustomerDetails order={order} />
+      {order.fulfillmentType !== "PICKUP" && <StoreCaptainContact key={order.captainId} orderId={order.id} captainId={order.captainId} />}
       <OrderChat orderId={order.id} />
       <PreparationCountdown order={order} />
       <PreparationTimeEditor order={order} />

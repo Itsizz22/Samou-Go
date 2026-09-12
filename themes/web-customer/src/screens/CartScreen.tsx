@@ -97,7 +97,7 @@ export function CartScreen() {
                             key={type}
                             type="button"
                             onClick={() => cart.setFulfillmentType(group.storeId, type)}
-                            className={`flex-1 rounded-lg px-2 py-1.5 text-[11px] font-bold transition ${
+                            className={`min-h-11 flex-1 rounded-lg px-2 py-1.5 text-[11px] font-bold transition ${
                               group.fulfillmentType === type
                                 ? 'bg-brand text-white shadow-sm'
                                 : 'text-ink-muted'
@@ -109,30 +109,27 @@ export function CartScreen() {
                       </div>
                       <div className="space-y-2">
                         {group.lines.map((line) => (
-                          <div key={cartLineKey(line)} className="flex items-center gap-3 py-2">
+                          <div key={cartLineKey(line)} className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-start gap-3 py-3">
                             {line.product.imageUrl ? (
-                              <ImageWithFallback src={line.product.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" fallbackText={line.product.nameAr?.charAt(0)} />
+                              <ImageWithFallback src={line.product.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" fallbackText={line.product.nameAr?.charAt(0)} />
                             ) : (
-                              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-sm font-black text-brand-dark">{line.product.nameAr.slice(0, 2)}</span>
+                              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-sm font-black text-brand-dark">{line.product.nameAr.slice(0, 2)}</span>
                             )}
-                            <div className="min-w-0 flex-1 text-end">
-                              <h3 className="truncate text-sm font-extrabold">{line.product.nameAr}</h3>
+                            <div className="col-span-2 min-w-0 text-start">
+                              <h3 className="line-clamp-2 break-words text-sm font-extrabold">{line.product.nameAr}</h3>
                               {line.selectedOptions && line.selectedOptions.length > 0 && (
                                 <p className="mt-0.5 text-[11px] text-ink-muted">
                                   {normalizeSelectedOptions(line.selectedOptions).map(o => o.name).join(' + ')}
-                                  {normalizeSelectedOptions(line.selectedOptions).some(o => o.priceDelta > 0) && (
-                                    <span className="text-brand-dark"> (+{formatCurrency(normalizeSelectedOptions(line.selectedOptions).reduce((s, o) => s + o.priceDelta, 0))})</span>
-                                  )}
                                 </p>
                               )}
                               <p className="mt-0.5 text-xs font-bold text-brand-dark" dir="ltr">{formatCurrency(line.product.price + normalizeSelectedOptions(line.selectedOptions).reduce((sum,o)=>sum+o.priceDelta,0))}</p>
                             </div>
-                            <div className="flex shrink-0 items-center gap-2 rounded-full bg-brand px-1.5 py-1 text-white">
-                              <button type="button" aria-label={t('إنقاص', 'Decrease')} onClick={() => { cart.setQuantity(cartLineKey(line), line.quantity - 1); void hapticTap(); }} className="rounded-full p-2 transition active:scale-90"><Minus size={14} /></button>
+                            <div className="col-span-2 flex w-fit items-center gap-2 rounded-full bg-brand px-1 text-white">
+                              <button type="button" aria-label={t('إنقاص', 'Decrease')} onClick={() => { cart.setQuantity(cartLineKey(line), line.quantity - 1); void hapticTap(); }} className="flex min-h-11 min-w-11 items-center justify-center rounded-full transition hover:bg-white/15 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2"><Minus size={14} /></button>
                               <span className="min-w-4.5 text-center text-xs font-bold">{line.quantity}</span>
-                              <button type="button" aria-label={t('زيادة', 'Increase')} onClick={() => { cart.setQuantity(cartLineKey(line), line.quantity + 1); void hapticTap(); }} className="rounded-full p-2 transition active:scale-90"><Plus size={14} /></button>
+                              <button type="button" aria-label={t('زيادة', 'Increase')} onClick={() => { cart.setQuantity(cartLineKey(line), line.quantity + 1); void hapticTap(); }} className="flex min-h-11 min-w-11 items-center justify-center rounded-full transition hover:bg-white/15 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2"><Plus size={14} /></button>
                             </div>
-                            <button type="button" aria-label={t('حذف', 'Remove')} onClick={() => cart.removeItem(cartLineKey(line))} className="shrink-0 rounded-full p-2 text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink"><Trash2 size={16} /></button>
+                            <button type="button" aria-label={t('حذف', 'Remove')} onClick={() => cart.removeItem(cartLineKey(line))} className="flex min-h-11 min-w-11 items-center justify-center justify-self-end rounded-full text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink active:scale-95"><Trash2 size={16} /></button>
                           </div>
                         ))}
                       </div>
@@ -144,31 +141,28 @@ export function CartScreen() {
                 <div className="space-y-3">
                   <AnimatePresence>
                     {(cart?.lines ?? []).map((line) => (
-                      <motion.article key={cartLineKey(line)} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -40 }} className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-card">
+                      <motion.article key={cartLineKey(line)} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -40 }} className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-start gap-3 rounded-2xl bg-surface p-3 shadow-card">
                         {line.product.imageUrl ? (
-                          <ImageWithFallback src={line.product.imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" fallbackText={line.product.nameAr?.charAt(0)} />
+                          <ImageWithFallback src={line.product.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" fallbackText={line.product.nameAr?.charAt(0)} />
                         ) : (
-                          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-sm font-black text-brand-dark">{line.product.nameAr.slice(0, 2)}</span>
+                          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-sm font-black text-brand-dark">{line.product.nameAr.slice(0, 2)}</span>
                         )}
-                        <div className="min-w-0 flex-1 text-end">
-                          <h3 className="truncate text-sm font-extrabold">{line.product.nameAr}</h3>
+                        <div className="col-span-2 min-w-0 text-start">
+                          <h3 className="line-clamp-2 break-words text-sm font-extrabold">{line.product.nameAr}</h3>
                           {line.selectedOptions && line.selectedOptions.length > 0 && (
                             <p className="mt-0.5 text-[11px] text-ink-muted">
                               {normalizeSelectedOptions(line.selectedOptions).map(o => o.name).join(' + ')}
-                              {normalizeSelectedOptions(line.selectedOptions).some(o => o.priceDelta > 0) && (
-                                <span className="text-brand-dark"> (+{formatCurrency(normalizeSelectedOptions(line.selectedOptions).reduce((s, o) => s + o.priceDelta, 0))})</span>
-                              )}
                             </p>
                           )}
                           <p className="mt-0.5 text-xs font-bold text-brand-dark" dir="ltr">{formatCurrency(line.product.price + normalizeSelectedOptions(line.selectedOptions).reduce((sum,o)=>sum+o.priceDelta,0))}</p>
-                          <input value={line.note} onChange={(event) => cart.setNote(cartLineKey(line), event.target.value.slice(0, 500))} placeholder={t('ملاحظة للصنف', 'Item note')} aria-label={`ملاحظة للصنف ${line.product.nameAr}`} className="mt-2 w-full rounded-lg border border-line bg-canvas px-2 py-1.5 text-micro text-ink outline-none focus:border-brand" />
+                          <input value={line.note} onChange={(event) => cart.setNote(cartLineKey(line), event.target.value.slice(0, 500))} placeholder={t('ملاحظة للصنف', 'Item note')} aria-label={`ملاحظة للصنف ${line.product.nameAr}`} className="mt-2 min-h-11 w-full rounded-lg border border-line bg-canvas px-2 py-1.5 text-micro text-ink outline-none focus:border-brand" />
                         </div>
-                        <div className="flex shrink-0 items-center gap-2 rounded-full bg-brand px-1.5 py-1 text-white">
-                          <button type="button" aria-label={t('إنقاص', 'Decrease')} onClick={() => { cart.setQuantity(cartLineKey(line), line.quantity - 1); void hapticTap(); }} className="rounded-full p-2 transition active:scale-90"><Minus size={14} /></button>
+                        <div className="col-span-2 flex w-fit items-center gap-2 rounded-full bg-brand px-1 text-white">
+                          <button type="button" aria-label={t('إنقاص', 'Decrease')} onClick={() => { cart.setQuantity(cartLineKey(line), line.quantity - 1); void hapticTap(); }} className="flex min-h-11 min-w-11 items-center justify-center rounded-full transition hover:bg-white/15 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2"><Minus size={14} /></button>
                           <span className="min-w-4.5 text-center text-xs font-bold">{line.quantity}</span>
-                          <button type="button" aria-label={t('زيادة', 'Increase')} onClick={() => { cart.setQuantity(cartLineKey(line), line.quantity + 1); void hapticTap(); }} className="rounded-full p-2 transition active:scale-90"><Plus size={14} /></button>
+                          <button type="button" aria-label={t('زيادة', 'Increase')} onClick={() => { cart.setQuantity(cartLineKey(line), line.quantity + 1); void hapticTap(); }} className="flex min-h-11 min-w-11 items-center justify-center rounded-full transition hover:bg-white/15 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2"><Plus size={14} /></button>
                         </div>
-                        <button type="button" aria-label={t('حذف', 'Remove')} onClick={() => cart.removeItem(cartLineKey(line))} className="shrink-0 rounded-full p-2 text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink"><Trash2 size={16} /></button>
+                        <button type="button" aria-label={t('حذف', 'Remove')} onClick={() => cart.removeItem(cartLineKey(line))} className="flex min-h-11 min-w-11 items-center justify-center justify-self-end rounded-full text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink active:scale-95"><Trash2 size={16} /></button>
                       </motion.article>
                     ))}
                   </AnimatePresence>

@@ -1,3 +1,4 @@
+import { StoreHomeCategoryPicker, saveStoreHomeCategories } from './StoreHomeCategories';
 import { StoreChoices } from './StoreAssignmentPicker';
 /**
  * Samou' Go — Admin creation dialogs.
@@ -200,6 +201,8 @@ export function CreateStoreDialog({
   const [nameEn, setNameEn] = useState('');
   const [phone, setPhone] = useState('');
   const [storeType, setStoreType] = useState<StoreType | ''>('');
+  const [categoryKeys, setCategoryKeys] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
   const [managerName, setManagerName] = useState('');
   const [password, setPassword] = useState('');
   const [isActive, setIsActive] = useState(true);
@@ -207,7 +210,7 @@ export function CreateStoreDialog({
 
   if (!open) return null;
 
-  const submit = async () => {
+  const submitStore = async () => {
     if (!nameAr.trim() || !nameEn.trim() || !phone.trim()) {
       toast.error('أكمل الحقول المطلوبة', 'Please complete all required fields');
       return;
@@ -227,6 +230,8 @@ export function CreateStoreDialog({
     };
     const result = await create.run(input);
     if (result) {
+      try { await saveStoreHomeCategories(result.store.id, categoryKeys); }
+      catch { toast.error('تم إنشاء المتجر، لكن تعذر حفظ فئاته. افتح تصنيف المتجر لإعادة المحاولة.', 'Store created; category assignment failed. Edit its categories to retry.'); }
       toast.success(
         `تم إنشاء المتجر «${result.store.nameAr}»`,
         `Store "${result.store.nameEn}" created`
@@ -235,6 +240,8 @@ export function CreateStoreDialog({
       setNameAr('');
       setNameEn('');
       setPhone('');
+      setStoreType('');
+      setCategoryKeys([]);
       setManagerName('');
       setPassword('');
       setIsActive(true);
@@ -245,6 +252,12 @@ export function CreateStoreDialog({
         duration: 5_000,
       });
     }
+  };
+
+  const submit = async () => {
+    if (saving || create.pending) return;
+    setSaving(true);
+    try { await submitStore(); } finally { setSaving(false); }
   };
 
   return (
@@ -296,6 +309,7 @@ export function CreateStoreDialog({
             ))}
           </select>
         </FieldLabel>
+        <StoreHomeCategoryPicker value={categoryKeys} onChange={setCategoryKeys} disabled={saving} />
         <FieldLabel hint="Manager display name (optional)">
           <input
             className={inputClass}
@@ -335,7 +349,7 @@ export function CreateStoreDialog({
         </button>
         <button
           type="button"
-          disabled={create.pending}
+          disabled={create.pending || saving}
           onClick={() => void submit()}
           className={buttonClass}
         >

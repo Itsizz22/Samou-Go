@@ -21,3 +21,17 @@ describe('runtime option normalization', () => {
     expect(normalizeSelectedOptions({})).toEqual([]);
   });
 });
+
+it('records removed default ingredients explicitly without charging them', () => {
+ const groups = [{...group,kind:'INGREDIENT',items:[{id:'a',name:'بصل',priceDelta:0,isActive:true,isDefault:true}]}];
+ const result=resolveSelectedOptions(groups,[]);
+ expect(result).toEqual([{id:'a',groupId:'g',name:'بدون بصل',priceDelta:0,excluded:true}]);
+ expect(normalizeSelectedOptions(result)[0]?.excluded).toBe(true);
+});
+
+import { sizeOptionPriceDelta } from '../options';
+it('prices full sizes with the same product discount and handles smaller sizes', () => {
+ expect(sizeOptionPriceDelta(40,15,20)).toBe(15);
+ expect(sizeOptionPriceDelta(10,15,20)).toBe(-7.5);
+ expect(sizeOptionPriceDelta(40,20)).toBe(20);
+});

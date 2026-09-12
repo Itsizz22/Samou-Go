@@ -1,3 +1,4 @@
+import { StoreHomeCategoryEditor } from '../StoreHomeCategories';
 import { DeliveryPricingMatrix } from '../DeliveryPricingMatrix';
 import { STORE_TYPE_LABELS, type StoreType as StoreKind } from '@samou-go/shared-types';
 import { getLiveOrderTracking } from '@samou-go/api-client';
@@ -1907,7 +1908,7 @@ function StoresPanel() {
                                 store.nameAr.slice(0, 2)
                               )}
                             </span>
-                            <span>
+                            <div className="min-w-0">
                               <strong className="block font-bold text-ink">
                                 {store.nameAr}
                                 {store.isRecommended && (
@@ -1926,7 +1927,8 @@ function StoresPanel() {
                                   {Object.entries(STORE_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{t(label.ar, label.en)}</option>)}
                                 </select>
                               </label>
-                            </span>
+                              <StoreHomeCategoryEditor storeId={store.id} />
+                            </div>
                           </div>
                         </td>
                         <td className="px-3 py-3">

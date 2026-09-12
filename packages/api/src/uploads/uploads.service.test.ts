@@ -621,3 +621,17 @@ describe('admin banner uploads', () => {
     await expectHttpError(removeCurrentImage(ADMIN, 'banner'), 'FORBIDDEN', 403);
   });
 });
+
+describe('option photos', () => {
+ it('uploads an option image without replacing the product image', async () => {
+   const {key}=await presign(MANAGER,{contentType:'image/png',kind:'option',resourceId:'p1'});
+   await storeRaw(key,ReadableFrom(await makePng()),MANAGER);
+   const result=await finalizeUpload(MANAGER,key,'option');
+   expect(result.url).toContain('/option/p1/');
+   expect(h.state.product.imageUrl).toBeNull();
+ });
+ it('rejects another manager during upload', async()=>{
+   const {key}=await presign(MANAGER,{contentType:'image/png',kind:'option',resourceId:'p1'});
+   await expectHttpError(storeRaw(key,ReadableFrom(await makePng()),OTHER_MANAGER),'FORBIDDEN',403);
+ });
+});

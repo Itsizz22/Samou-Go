@@ -1,3 +1,4 @@
+import { sizeOptionPriceDelta } from '@samou-go/shared-types';
 import type {
   Prisma,
   Category as PrismaCategory,
@@ -52,6 +53,7 @@ export function toCategory(category: PrismaCategory): Category {
   };
 }
 
+type ProductOptionGroup = import('@samou-go/shared-types').ProductOptionGroup;
 type ProductWithOptions = PrismaProduct & Partial<Pick<Prisma.ProductGetPayload<{
   include: { optionGroups: { include: { items: true } } };
 }>, 'optionGroups'>>;
@@ -65,10 +67,10 @@ export function toProduct(product: ProductWithOptions): Product {
     ...(product.optionGroups && product.optionsEnabled ? {
       optionGroups: product.optionGroups.map(group => ({
         id: group.id, productId: group.productId, name: group.name,
-        required: group.required, minSelect: group.minSelect, maxSelect: group.maxSelect,
+        kind: group.kind as ProductOptionGroup["kind"], required: group.required, minSelect: group.minSelect, maxSelect: group.maxSelect,
         sortOrder: group.sortOrder,
         items: group.items.map(item => ({ id: item.id, groupId: group.id, name: item.name,
-          priceDelta: item.price, sortOrder: item.sortOrder, isActive: item.isActive })),
+          imageUrl: item.imageUrl, isDefault: item.isDefault, priceDelta: group.kind === "SIZE" ? sizeOptionPriceDelta(item.price, Number(product.price), product.originalPrice == null ? null : Number(product.originalPrice)) : item.price, sortOrder: item.sortOrder, isActive: item.isActive })),
       })),
     } : {}),
   };

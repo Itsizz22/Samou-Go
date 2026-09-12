@@ -1405,16 +1405,19 @@ export function deleteProduct(
 
 /* ---- Product option groups --------------------------------------------- */
 
-interface OptionGroupInput {
+export interface OptionGroupInput {
+  kind?: 'ADDON' | 'SIZE' | 'INGREDIENT' | 'FIXED';
   name: string;
   required?: boolean;
   minSelect?: number;
   maxSelect?: number;
   sortOrder?: number;
-  items?: { id?: string; name: string; price?: number; sortOrder?: number; isActive?: boolean }[];
+  items?: { id?: string; name: string; price?: number; sortOrder?: number; isActive?: boolean; imageUrl?: string | null; isDefault?: boolean }[];
 }
 
 interface OptionItemDto {
+  imageUrl?: string | null;
+  isDefault?: boolean;
   id: string;
   groupId: string;
   name: string;
@@ -1424,6 +1427,7 @@ interface OptionItemDto {
 }
 
 export interface OptionGroupDto {
+  kind?: 'ADDON' | 'SIZE' | 'INGREDIENT' | 'FIXED';
   id: string;
   productId: string;
   name: string;

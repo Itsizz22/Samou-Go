@@ -45,7 +45,7 @@ export function OrderChangePanel({
           productId: i.productId,
           quantity: i.quantity,
           note: i.note ?? "",
-          selectedOptions: normalizeSelectedOptions(i.selectedOptions).map(
+          selectedOptions: normalizeSelectedOptions(i.selectedOptions).filter(o => !o.excluded).map(
             (o) => ({ groupId: o.groupId, optionId: o.id }),
           ),
           isOfferItem: i.isOfferItem,

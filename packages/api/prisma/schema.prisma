@@ -792,6 +792,7 @@ model PlatformSettings {
 /// A product option group (e.g. "الإضافات", "الحجم", "الصلصات").
 /// Each group contains selectable items with optional extra price.
 model ProductOptionGroup {
+  kind String @default("ADDON")
   id        String  @id @default(cuid())
   productId String
   name      String  @db.VarChar(120)
@@ -814,6 +815,8 @@ model ProductOptionGroup {
 
 /// An individual option within a group (e.g. "جبنة مضاعفة +5 ₪").
 model ProductOptionItem {
+  imageUrl String?
+  isDefault Boolean @default(false)
   id      String  @id @default(cuid())
   groupId String
   name    String  @db.VarChar(120)

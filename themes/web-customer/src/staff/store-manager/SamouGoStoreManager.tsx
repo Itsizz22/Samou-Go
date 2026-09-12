@@ -1,3 +1,4 @@
+import { StoreCaptainContact } from '@samou-go/api-client';
 import { OrderChat } from '@samou-go/api-client';
 import { useLocation } from 'react-router-dom';
 import { StaffAccountTools } from '@/components/StaffAccountTools';
@@ -1128,6 +1129,7 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
       </div>
 
       <OrderCustomerDetails order={order} />
+      {order.fulfillmentType !== "PICKUP" && <StoreCaptainContact key={order.captainId} orderId={order.id} captainId={order.captainId} />}
       <OrderChat orderId={order.id} />
       <PreparationCountdown order={order} />
       <PreparationTimeEditor order={order} />

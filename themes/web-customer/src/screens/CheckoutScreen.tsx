@@ -1,3 +1,4 @@
+import { normalizeSelectedOptions } from '@samou-go/shared-types';
 import { CheckoutDeliveryEstimate } from '@/components/DeliveryEstimate';
 import { useCheckoutDraft } from '@/hooks/useCheckoutDraft';
 import { ConnectionNotice } from '@/components/ConnectionNotice';
@@ -37,7 +38,7 @@ import {
 import type { ApiError } from '@samou-go/api-client';
 import { createOrder, checkoutOrders, quoteOrder, usePlatformSettings } from '@/hooks/useApi';
 import { OrderSuccess, Button, useLanguage, VoiceRecorder, useNetworkStatus } from '@samou-go/ui';
-import { useCart } from '@/components/CartProvider';
+import { useCart, cartLineKey } from '@/components/CartProvider';
 import { MapPicker } from '@/components/MapPicker';
 import { useAuth, ENABLE_LOCATION } from '@/hooks/useApi';
 import { formatCurrency, DRIVER_FEE_LABEL, DRIVER_FEE_NOTICE, deliveryFeeLabel } from '@/lib/delivery';
@@ -157,7 +158,7 @@ export function CheckoutScreen() {
       // Pass DB-backed selected options to the server for validation.
       ...(line.selectedOptions && line.selectedOptions.length > 0
         ? {
-            selectedOptions: line.selectedOptions.map(o => ({
+            selectedOptions: line.selectedOptions.filter(o => !o.excluded).map(o => ({
               groupId: o.groupId,
               optionId: o.id,
             })),
@@ -411,7 +412,7 @@ export function CheckoutScreen() {
             quantity: line.quantity,
             ...((line.note ?? '').trim() ? { note: (line.note ?? '').trim() } : {}),
             ...(line.selectedOptions && line.selectedOptions.length > 0
-              ? { selectedOptions: line.selectedOptions.map(o => ({ groupId: o.groupId, optionId: o.id })) }
+              ? { selectedOptions: line.selectedOptions.filter(o => !o.excluded).map(o => ({ groupId: o.groupId, optionId: o.id })) }
               : {}),
           })),
           fulfillmentType: group.fulfillmentType,
@@ -915,9 +916,9 @@ export function CheckoutScreen() {
                 <h3 className="text-xs font-bold text-ink-muted">{group.storeNameAr || t('المتجر', 'Store')}</h3>
                 <div className="mt-1.5 space-y-1 text-xs">
                   {group.lines.map(line => (
-                    <div key={line.productId} className="flex justify-between">
-                      <span className="text-ink-muted">{line.product.nameAr} × {line.quantity}</span>
-                      <span dir="ltr" className="font-semibold text-ink">{formatCurrency(line.quantity * line.product.price)}</span>
+                    <div key={cartLineKey(line)} className="flex justify-between gap-2">
+                      <span className="text-ink-muted">{line.product.nameAr} × {line.quantity}<small className="block">{normalizeSelectedOptions(line.selectedOptions).map(o=>o.name).join("، ")}</small></span>
+                      <span dir="ltr" className="font-semibold text-ink">{formatCurrency(line.quantity * (line.product.price + normalizeSelectedOptions(line.selectedOptions).reduce((sum,o)=>sum+o.priceDelta,0)))}</span>
                     </div>
                   ))}
                 </div>

@@ -28,7 +28,7 @@ export function AutomaticPricingPreview() {
               isOfferItem: line.isOfferItem,
               offerId: line.offerId,
               quantity: line.quantity,
-              selectedOptions: line.selectedOptions?.map(option => ({
+              selectedOptions: line.selectedOptions?.filter(o => !o.excluded).map(option => ({
                 groupId: option.groupId,
                 optionId: option.id,
               })),

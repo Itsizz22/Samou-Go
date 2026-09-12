@@ -12,7 +12,7 @@ import { processImage, sniffImageType } from './image';
 import { storage } from './storage';
 import { ALL_ALLOWED_MIMES, ALLOWED_AUDIO_MIMES, MIME_TO_EXT, MAX_AUDIO_BYTES, uploadConfig } from './uploads.config';
 
-const KEY_PATTERN = /^(user|product|store|offer|category|banner|audio)\/([^/]+)\/([^/]+)\.(jpg|png|webp|webm|m4a|ogg|mp3)$/;
+const KEY_PATTERN = /^(user|product|store|offer|category|banner|option|audio)\/([^/]+)\/([^/]+)\.(jpg|png|webp|webm|m4a|ogg|mp3)$/;
 
 export interface UploadCaller {
   userId: string;
@@ -175,6 +175,10 @@ export async function presign(
     key = `banner/${caller.userId}/${randomUUID()}.${ext}`;
   } else if (input.kind === 'user') {
     key = `user/${caller.userId}/${randomUUID()}.${ext}`;
+  } else if (input.kind === 'option') {
+    if (!input.resourceId) throw badRequest('المنتج مطلوب');
+    await resolveProduct(input.resourceId, caller);
+    key = `option/${input.resourceId}/${randomUUID()}.${ext}`;
   } else if (input.kind === 'product') {
     if (!input.resourceId) {
       throw badRequest(
@@ -232,7 +236,7 @@ export async function storeRaw(key: string, body: Readable, caller: UploadCaller
     assertBannerKey(key, caller);
   } else if (parsed.kind === 'user') {
     assertUserKey(key, caller);
-  } else if (parsed.kind === 'product') {
+  } else if (parsed.kind === 'product' || parsed.kind === 'option') {
     await resolveProduct(parsed.ownerId, caller);
   } else if (parsed.kind === 'offer') {
     await resolveOffer(parsed.ownerId, caller);
@@ -263,6 +267,7 @@ export async function finalizeUpload(
   const category = parsed.kind === 'category' ? await resolveCategory(parsed.ownerId, caller) : null;
   if (parsed.kind === 'user') assertUserKey(key, caller);
 
+  if (parsed.kind === 'option') await resolveProduct(parsed.ownerId, caller);
   const raw = await storage.readRaw(key);
   if (!raw) {
     throw badState(
@@ -276,11 +281,11 @@ export async function finalizeUpload(
 
   const base = baseKeyOf(key);
   if (kind === 'audio') throw badRequest('اختر ملف صورة');
-  const processed = await processImage({ buffer: raw, kind });
+  const processed = await processImage({ buffer: raw, kind: kind === 'option' ? 'category' : kind });
 
   // Persist the image first; publishing the banner is a separate settings save.
   // Fresh immutable keys keep cached clients from showing the previous image.
-  if (parsed.kind === 'banner') {
+  if (parsed.kind === 'banner' || parsed.kind === 'option') {
     const variant = processed.variants[0]!;
     const finalKey = `${base}.webp`;
     await storage.writeFinal(finalKey, variant.buffer);

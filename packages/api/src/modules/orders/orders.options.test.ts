@@ -104,3 +104,15 @@ describe('pickup with a saved delivery zone', () => {
     expect(h.db.order.create).not.toHaveBeenCalled();
   });
 });
+
+ describe('size pricing and ingredients',()=>{
+ it('discounts the size but not paid extras, for every unit',async()=>{
+ h.db.product.findMany.mockResolvedValueOnce([{id:'product-1',nameAr:'Meal',price:15,isAvailable:true,originalPrice:20}] as never);
+ h.db.productOptionGroup.findMany.mockResolvedValueOnce([{...h.group,id:'size',kind:'SIZE',minSelect:1,maxSelect:1,items:[{id:'large',name:'Large',price:40}]},h.group] as never);
+ const quote=await quoteOrder({...body,items:[{productId:'product-1',quantity:2,selectedOptions:[{groupId:'size',optionId:'large'},selection]}]});expect(quote.subtotal).toBe(64);
+ });
+ it('includes fixed ingredients even when omitted by the client',async()=>{
+ h.db.productOptionGroup.findMany.mockResolvedValueOnce([{...h.group,kind:'FIXED',minSelect:2,maxSelect:2,items:h.group.items.map(i=>({...i,price:0}))}] as never);
+ const quote=await quoteOrder({...body,items:[{productId:'product-1',quantity:1}]});expect(quote.subtotal).toBe(15);
+ });
+ });

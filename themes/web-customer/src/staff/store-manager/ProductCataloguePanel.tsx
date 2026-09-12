@@ -1,3 +1,4 @@
+import { ProductCustomizationEditor } from '@samou-go/api-client';
 /**
  * Samou' Go — store manager catalogue management.
  *
@@ -678,6 +679,8 @@ export function ProductCataloguePanel({ storeId }: Props) {
                 </button>
               </label>
 
+              {modal === 'edit' && editTarget && <ProductCustomizationEditor storeId={storeId} productId={editTarget.id} initialEnabled={editTarget.optionsEnabled !== false} />}
+              {modal === 'create' && <p className="text-sm text-ink-muted">بعد حفظ المنتج، افتح تعديله لإضافة الأحجام والمكونات والصلصات.</p>}
               {/* Error */}
               {formError && (
                 <p className="flex items-center gap-1.5 rounded-xl bg-danger-tint px-3 py-2 text-xs font-semibold text-danger-ink">
