@@ -1177,3 +1177,37 @@ img.broken-image-fallback {
     .liquid-glass, .glass-panel { background: var(--color-surface); backdrop-filter: none; -webkit-backdrop-filter: none; border-color: var(--color-ink-muted); }
   }
 }
+/* Short, one-shot feedback inspired by fade/zoom patterns in Animate.css.
+   No external animation runtime; never animate list layout or large blur filters. */
+@keyframes sq-choice-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sq-choice-confirm {
+  0% { opacity: .5; transform: scale(.65); }
+  65% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes sq-tab-settle {
+  0% { transform: translateY(2px) scale(.94); }
+  65% { transform: translateY(-2px) scale(1.05); }
+  100% { transform: translateY(0) scale(1); }
+}
+@layer components {
+  .sq-choice-enter { animation: sq-choice-enter 260ms cubic-bezier(.22,1,.36,1) backwards; }
+  .sq-choice-enter:nth-child(n+7) { animation: none; }
+  .sq-choice-enter:nth-child(2) { animation-delay: 35ms; }
+  .sq-choice-enter:nth-child(3) { animation-delay: 70ms; }
+  .sq-choice-enter:nth-child(n+4) { animation-delay: 105ms; }
+  .sq-choice-confirm { animation: sq-choice-confirm 220ms cubic-bezier(.22,1,.36,1); transform-origin: center; }
+  .sq-tab-active { animation: sq-tab-settle 240ms cubic-bezier(.22,1,.36,1); }
+  .sq-cart-feedback { animation: sq-cart-feedback 300ms cubic-bezier(.22,1,.36,1); }
+  @media (prefers-reduced-motion: reduce) {
+    .sq-choice-enter, .sq-choice-confirm, .sq-tab-active, .sq-cart-feedback { animation: none; transform: none; }
+  }
+}
+
+@keyframes sq-cart-feedback {
+  0%,100% { transform: scale(1); }
+  45% { transform: scale(1.16); }
+}

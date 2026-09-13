@@ -54,23 +54,14 @@ export function BottomNav() {
   const menuActive = ['/menu', '/offers', '/favorites', '/profile', '/settings'].some(path => pathname === path || pathname.startsWith(`${path}/`));
   const cart = useCart();
   const { count: activeOrders, error: ordersError, refresh: refreshOrders } = useActiveOrderCount();
-  const [cartBounce, setCartBounce] = useState(false);
-  const [cartRipple, setCartRipple] = useState(false);
+  const [cartFeedback, setCartFeedback] = useState(0);
 
-  // Listen for cart:item-added events and trigger bounce + ripple animation.
+  // A keyed SVG restarts one compositor-only animation on each addition.
+  // No timers, layout reads, shadow animation, or background feedback work.
   useEffect(() => {
-    let bounceTimeout: ReturnType<typeof setTimeout>;
-    let rippleTimeout: ReturnType<typeof setTimeout>;
-    const handler = () => {
-      setCartBounce(true);
-      setCartRipple(true);
-      clearTimeout(bounceTimeout); clearTimeout(rippleTimeout);
-      bounceTimeout = setTimeout(() => setCartBounce(false), 500);
-      rippleTimeout = setTimeout(() => setCartRipple(false), 700);
-
-    };
+    const handler = () => { if (!document.hidden) setCartFeedback(value => value + 1); };
     window.addEventListener('cart:item-added', handler);
-    return () => { window.removeEventListener('cart:item-added', handler); clearTimeout(bounceTimeout); clearTimeout(rippleTimeout); };
+    return () => window.removeEventListener('cart:item-added', handler);
   }, []);
 
   return (
@@ -102,15 +93,14 @@ export function BottomNav() {
           >
             {({ isActive }) => (
               <>
-                <span className="relative">
+                <span className={`relative ${isActive || (to === '/menu' && menuActive) ? 'sq-tab-active' : ''}`}>
                   <Icon
+                    key={to === '/cart' ? cartFeedback : to}
                     size={21}
                     strokeWidth={isActive || (to === '/menu' && menuActive) ? 2.5 : 1.8}
                     fill="none"
                     className={`${
-                      to === '/cart' && cartBounce ? 'cart-bounce' : ''
-                    } ${
-                      to === '/cart' && cartRipple ? 'animate-[greenRipple_0.6s_ease-out_both]' : ''
+                      to === '/cart' && cartFeedback > 0 ? 'sq-cart-feedback' : ''
                     } ${
                       isActive || (to === '/menu' && menuActive) ? 'text-brand-deep' : ''
                     }`}

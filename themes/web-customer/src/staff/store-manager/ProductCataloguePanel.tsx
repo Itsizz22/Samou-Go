@@ -34,7 +34,7 @@ import {
 } from '@samou-go/api-client';
 import type { Product } from '@samou-go/shared-types';
 import { formatCurrency } from '@/lib/delivery';
-import { useLanguage } from '@samou-go/ui';
+import { useLanguage, ImageWithFallback } from '@samou-go/ui';
 
 interface Props {
   /** The UUID of the store this manager owns. */
@@ -409,10 +409,23 @@ export function ProductCataloguePanel({ storeId }: Props) {
               {visibleProducts.map(p => (
                 <tr key={p.id} className={`transition hover:bg-canvas ${!p.isAvailable ? 'opacity-55' : ''}`}>
                   <td className="px-4 py-3">
-                    <span className="block font-bold text-ink">{p.nameAr}</span>
-                    {p.description && (
-                      <span className="block max-w-55 truncate text-[11px] text-ink-muted">{p.description}</span>
-                    )}
+                    <div className="flex items-center gap-3">
+                      <ImageWithFallback
+                        src={p.imageUrl ?? undefined}
+                        alt={p.nameAr}
+                        width={72}
+                        height={72}
+                        decoding="async"
+                        className="h-18 w-18 shrink-0 rounded-xl border border-line bg-white object-contain p-1"
+                        fallback={<span className="flex h-full w-full items-center justify-center text-ink-muted"><Package size={24} /></span>}
+                      />
+                      <div className="min-w-0">
+                        <span className="block break-words font-bold text-ink">{p.nameAr}</span>
+                        {p.description && (
+                          <span className="line-clamp-2 max-w-55 text-[11px] text-ink-muted">{p.description}</span>
+                        )}
+                      </div>
+                    </div>
                   </td>
                   <td className="px-3 py-3 text-center text-[11px] text-ink-muted">{p.categoryName}</td>
                   <td className="px-3 py-3 text-center font-bold text-brand-deep" dir="ltr">

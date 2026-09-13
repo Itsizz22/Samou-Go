@@ -29,7 +29,8 @@ export function VoiceRecorder({
   disabled = false,
 }: VoiceRecorderProps) {
   const [recording, setRecording] = useState(false);
-  const [paused, setPaused] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -42,8 +43,16 @@ export function VoiceRecorder({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
+  const mountedRef = useRef(true);
+  const requestingRef = useRef(false);
 
   const cleanup = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    if (recorder) {
+      recorder.onstop = null;
+      recorder.ondataavailable = null;
+      if (recorder.state !== 'inactive') recorder.stop();
+    }
     if (timerRef.current) clearInterval(timerRef.current);
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     if (audioContextRef.current) {
@@ -58,12 +67,24 @@ export function VoiceRecorder({
     analyserRef.current = null;
   }, []);
 
-  useEffect(() => () => cleanup(), [cleanup]);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; cleanup(); };
+  }, [cleanup]);
+  useEffect(() => () => { if (audioUrl) URL.revokeObjectURL(audioUrl); }, [audioUrl]);
 
   const startRecording = useCallback(async () => {
-    if (disabled || uploading) return;
+    if (disabled || uploading || requestingRef.current) return;
+    requestingRef.current = true;
+    setRequesting(true);
+    setError(null);
     try {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+        setError('التسجيل غير مدعوم هنا. افتح التطبيق أو متصفحًا يدعم تسجيل الصوت.');
+        return;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mountedRef.current) { stream.getTracks().forEach(track => track.stop()); return; }
       streamRef.current = stream;
 
       // Set up analyser for waveform visualization
@@ -75,11 +96,9 @@ export function VoiceRecorder({
       source.connect(analyser);
       analyserRef.current = analyser;
 
-      const recorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-          ? 'audio/webm;codecs=opus'
-          : 'audio/webm',
-      });
+      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
+        .find(type => MediaRecorder.isTypeSupported(type));
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
 
@@ -88,6 +107,8 @@ export function VoiceRecorder({
       };
 
       recorder.onstop = () => {
+        setRecording(false);
+        setAnalyserData([]);
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
         setBlob(blob);
         const url = URL.createObjectURL(blob);
@@ -97,7 +118,6 @@ export function VoiceRecorder({
 
       recorder.start(100); // collect data every 100ms for waveform
       setRecording(true);
-      setPaused(false);
       setDuration(0);
       setBlob(null);
       setAudioUrl(null);
@@ -114,18 +134,29 @@ export function VoiceRecorder({
       }, 1000);
 
       // Waveform animation loop
-      const drawWaveform = () => {
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      let lastPaint = 0;
+      const drawWaveform = (now = 0) => {
         if (!analyserRef.current) return;
-        const data = new Uint8Array(analyserRef.current.frequencyBinCount);
-        analyserRef.current.getByteFrequencyData(data);
-        // Take 8 bars for a compact visualization
-        const bars = Array.from(data.slice(0, 8)).map(v => v / 255);
-        setAnalyserData(bars);
+        if (now - lastPaint >= 80 && !document.hidden) {
+          lastPaint = now;
+          analyserRef.current.getByteFrequencyData(data);
+          setAnalyserData(Array.from(data.subarray(0, 8), v => v / 255));
+        }
         animFrameRef.current = requestAnimationFrame(drawWaveform);
       };
       drawWaveform();
-    } catch {
-      // Microphone permission denied or unavailable — fail silently
+    } catch (cause) {
+      cleanup();
+      if (mountedRef.current) {
+        setRecording(false);
+        setError(cause instanceof DOMException && cause.name === 'NotAllowedError'
+          ? 'لم يُسمح بالميكروفون. فعّل إذنه من إعدادات التطبيق أو المتصفح، ثم اضغط للتسجيل مجددًا.'
+          : 'تعذّر تشغيل الميكروفون. تأكد أنه متاح ولا يستخدمه تطبيق آخر، ثم حاول مجددًا.');
+      }
+    } finally {
+      requestingRef.current = false;
+      if (mountedRef.current) setRequesting(false);
     }
   }, [disabled, uploading, maxSeconds, cleanup]);
 
@@ -164,15 +195,17 @@ export function VoiceRecorder({
         <button
           type="button"
           onClick={startRecording}
-          disabled={disabled || uploading}
+          disabled={disabled || uploading || requesting}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-white transition active:scale-95 disabled:opacity-50"
-          aria-label="Record voice note"
+          aria-label="السماح بالميكروفون وتسجيل ملاحظة صوتية"
         >
-          <Mic size={18} />
+          {requesting ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
         </button>
         <div className="flex-1">
           <p className="text-[11px] font-bold text-ink-muted">ملاحظة صوتية</p>
           <p className="text-[10px] text-ink-muted">اضغط للتسجيل — حتى {maxSeconds} ثانية</p>
+          <p className="mt-1 text-xs text-ink-muted">سنطلب إذن الميكروفون عند الحاجة. لا يُرسل الصوت حتى تؤكده.</p>
+          {error && <p role="alert" className="mt-2 text-xs text-danger-ink">{error}</p>}
         </div>
       </div>
     );

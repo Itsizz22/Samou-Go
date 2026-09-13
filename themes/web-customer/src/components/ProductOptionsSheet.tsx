@@ -244,7 +244,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
                 key={group.id}
                 data-option-group={group.id}
                 tabIndex={-1}
-                className="scroll-mt-4 outline-none"
+                className="sq-choice-enter scroll-mt-4 outline-none"
               >
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <h3 className="text-sm font-bold text-ink">{group.name}</h3>
@@ -318,7 +318,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
                               aria-hidden="true"
                               className={`flex h-6 w-6 shrink-0 items-center justify-center border-2 ${group.maxSelect === 1 ? 'rounded-full' : 'rounded-md'} ${selected ? 'border-brand bg-brand text-white' : 'border-line'}`}
                             >
-                              {selected && <Check size={16} />}
+                              {selected && <Check size={16} className="sq-choice-confirm" />}
                             </span>
                           )}
                         </button>

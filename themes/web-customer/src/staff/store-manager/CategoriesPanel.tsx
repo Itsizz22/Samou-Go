@@ -33,7 +33,7 @@ import {
   useToast,
 } from '@samou-go/api-client';
 import type { Category } from '@samou-go/shared-types';
-import { useLanguage } from '@samou-go/ui';
+import { useLanguage, ImageWithFallback } from '@samou-go/ui';
 
 interface Props {
   /** The UUID of the store this manager owns. */
@@ -333,18 +333,15 @@ export function CategoriesPanel({ storeId }: Props) {
                 <tr key={c.id} className="transition hover:bg-canvas">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      {c.imageUrl ? (
-                        <img
-                          src={c.imageUrl}
-                          alt={c.nameAr}
-                          className="h-10 w-10 shrink-0 rounded-xl object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-surface text-brand">
-                          <ImageIcon size={16} />
-                        </span>
-                      )}
+                      <ImageWithFallback
+                        src={c.imageUrl ?? undefined}
+                        alt={c.nameAr}
+                        width={64}
+                        height={64}
+                        decoding="async"
+                        className="h-16 w-16 shrink-0 rounded-xl border border-line bg-white object-contain p-1"
+                        fallback={<span className="flex h-full w-full items-center justify-center text-ink-muted"><ImageIcon size={22} /></span>}
+                      />
                       <div>
                         <span className="block font-bold text-ink">{c.nameAr}</span>
                       </div>
