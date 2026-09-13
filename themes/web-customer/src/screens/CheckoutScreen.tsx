@@ -395,7 +395,8 @@ export function CheckoutScreen() {
           finalVoiceNoteUrl = result.url;
           setVoiceNoteUrl(result.url);
         } catch {
-          // Voice note upload failed — continue with the order without it.
+          setFieldError(t('تعذّر رفع الملاحظة الصوتية. حاول مجددًا أو احذف التسجيل للمتابعة دون صوت.', 'Could not upload your voice note. Retry or remove the recording to continue without it.'));
+          return;
         } finally {
           setVoiceNoteUploading(false);
         }

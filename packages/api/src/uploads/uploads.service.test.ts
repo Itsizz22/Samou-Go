@@ -635,3 +635,34 @@ describe('option photos', () => {
    await expectHttpError(storeRaw(key,ReadableFrom(await makePng()),OTHER_MANAGER),'FORBIDDEN',403);
  });
 });
+
+describe('voice note uploads', () => {
+  const audio = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.from('webm-OpusHead-audio-fixture')]);
+  it('normalizes recorder MIME parameters and persists owned audio bytes without image conversion', async () => {
+    const prepared = await presign(CUSTOMER, { kind: 'audio', contentType: 'audio/webm;codecs=opus' });
+    expect(prepared.contentType).toBe('audio/webm');
+    expect(decodeURIComponent(prepared.uploadUrl)).toContain(prepared.key);
+    await storeRaw(prepared.key, ReadableFrom(audio), CUSTOMER);
+    const result = await finalizeUpload(CUSTOMER, prepared.key, 'audio');
+    expect(result.url).toBe(storage.finalUrl(prepared.key));
+    expect(await storage.readFinal(prepared.key)).toEqual(audio);
+    expect(await storage.readRaw(prepared.key)).toBeNull();
+    await expect(removeUpload(prepared.key, OTHER_MANAGER)).rejects.toMatchObject({ statusCode: 403 });
+    await removeUpload(prepared.key, CUSTOMER);
+    expect(await storage.readFinal(prepared.key)).toBeNull();
+  });
+  it('rejects mismatched kinds, forged recordings, and another user at both upload stages', async () => {
+    await expect(presign(CUSTOMER, { kind: 'audio', contentType: 'image/png' })).rejects.toBeInstanceOf(HttpError);
+    await expect(presign(CUSTOMER, { kind: 'user', contentType: 'audio/webm' })).rejects.toBeInstanceOf(HttpError);
+    const prepared = await presign(CUSTOMER, { kind: 'audio', contentType: 'audio/webm' });
+    await expect(storeRaw(prepared.key, ReadableFrom(audio), OTHER_MANAGER)).rejects.toMatchObject({ statusCode: 403 });
+    await storeRaw(prepared.key, ReadableFrom(Buffer.from('<html>not a recording</html>')), CUSTOMER);
+    await expect(finalizeUpload(OTHER_MANAGER, prepared.key, 'audio')).rejects.toMatchObject({ statusCode: 403 });
+    await expect(finalizeUpload(CUSTOMER, prepared.key, 'audio')).rejects.toBeInstanceOf(HttpError);
+  });
+  it('rejects oversized audio while streaming and removes incomplete bytes', async () => {
+    const prepared = await presign(CUSTOMER, { kind: 'audio', contentType: 'audio/webm' });
+    await expect(storeRaw(prepared.key, ReadableFrom(Buffer.alloc(4 * 1024 * 1024 + 1)), CUSTOMER)).rejects.toBeInstanceOf(HttpError);
+    expect(await storage.readRaw(prepared.key)).toBeNull();
+  });
+});

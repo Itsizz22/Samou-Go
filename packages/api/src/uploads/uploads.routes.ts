@@ -15,14 +15,14 @@ function callerOf(req: Request): UploadCaller {
 
 const presignSchema = z.object({
   contentType: z.string().min(1),
-  kind: z.enum(['user', 'product', 'store', 'offer', 'category', 'banner', 'option']),
+  kind: z.enum(['user', 'product', 'store', 'offer', 'category', 'banner', 'option', 'audio']),
   resourceId: z.string().optional(),
   purpose: z.enum(['logo', 'cover', 'image']).optional(),
 });
 
 const finalizeSchema = z.object({
   key: z.string().min(1),
-  kind: z.enum(['user', 'product', 'store', 'offer', 'category', 'banner', 'option']),
+  kind: z.enum(['user', 'product', 'store', 'offer', 'category', 'banner', 'option', 'audio']),
 });
 
 const removeCurrentSchema = z.object({

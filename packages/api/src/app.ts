@@ -64,7 +64,7 @@ export function createApp(): Application {
   app.use('/uploads', asyncHandler(async (req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') { next(); return; }
     const key = req.path.slice(1);
-    if (!/^[a-zA-Z0-9_/-]+\.(webp|png|jpe?g|avif|gif|webm|mp4|m4a|ogg)$/i.test(key)) { next(); return; }
+    if (!/^[a-zA-Z0-9_/-]+\.(webp|png|jpe?g|avif|gif|webm|mp4|m4a|ogg|mp3)$/i.test(key)) { next(); return; }
     const data = await storage.readFinal(key);
     if (!data) { next(); return; }
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');

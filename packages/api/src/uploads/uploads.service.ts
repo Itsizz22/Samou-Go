@@ -146,7 +146,9 @@ export async function presign(
   input: { contentType: string; kind: UploadKind; resourceId?: string; purpose?: 'logo' | 'cover' | 'image' }
 ): Promise<PresignUploadResult> {
   if (input.kind === 'banner' && caller.role !== UserRole.ADMIN) throw forbidden();
+  input = { ...input, contentType: input.contentType.split(';')[0]!.trim().toLowerCase() };
   const isAudio = ALLOWED_AUDIO_MIMES.some(mime => mime === input.contentType);
+  if ((input.kind === 'audio') !== isAudio) throw badRequest('نوع الملف لا يطابق المرفق / File type does not match upload kind');
   if (input.kind === 'banner' && isAudio) throw badRequest('اختر صورة JPEG أو PNG أو WebP');
   const mime = ALL_ALLOWED_MIMES.find(entry => entry === input.contentType);
   if (!mime) {
@@ -158,11 +160,12 @@ export async function presign(
   // Audio uploads: enforce size limit at presign time.
   if (isAudio) {
     const maxBytes = MAX_AUDIO_BYTES;
+    const key = `audio/${caller.userId}/${randomUUID()}.${MIME_TO_EXT[mime]}`;
     // Size check is advisory — the real enforcement is at PUT time,
     // but we return the limit in the presign response so the client can warn early.
     return {
-      uploadUrl: '',
-      key: `audio/${caller.userId}/${randomUUID()}.${MIME_TO_EXT[mime]}`,
+      uploadUrl: storage.rawUploadUrl(key),
+      key,
       contentType: mime,
       maxBytes,
     } as PresignUploadResult & { key: string };
@@ -232,7 +235,9 @@ export async function storeRaw(key: string, body: Readable, caller: UploadCaller
   const parsed = parseKey(key);
   if (!parsed) throw badRequest('مفتاح رفع غير صالح / Invalid upload key');
 
-  if (parsed.kind === 'banner') {
+  if (parsed.kind === 'audio') {
+    if (parsed.ownerId !== caller.userId) throw forbidden();
+  } else if (parsed.kind === 'banner') {
     assertBannerKey(key, caller);
   } else if (parsed.kind === 'user') {
     assertUserKey(key, caller);
@@ -261,6 +266,7 @@ export async function finalizeUpload(
   }
 
   if (parsed.kind === 'banner') assertBannerKey(key, caller);
+  if (parsed.kind === 'audio' && parsed.ownerId !== caller.userId) throw forbidden();
   const product = parsed.kind === 'product' ? await resolveProduct(parsed.ownerId, caller) : null;
   const store = parsed.kind === 'store' ? await resolveStore(parsed.ownerId, caller) : null;
   const offer = parsed.kind === 'offer' ? await resolveOffer(parsed.ownerId, caller) : null;
@@ -275,12 +281,25 @@ export async function finalizeUpload(
       'لم تُرفع الملفات بعد، أعد المحاولة / File has not been uploaded yet'
     );
   }
+  if (kind === 'audio') {
+    if (raw.length > MAX_AUDIO_BYTES) throw badRequest('التسجيل أكبر من الحد المسموح / Recording exceeds size limit');
+    const ext = key.split('.').pop();
+    const valid = raw.length > 16 && (
+      (ext === 'webm' && raw.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])) && raw.includes(Buffer.from('OpusHead'))) ||
+      (ext === 'm4a' && raw.toString('ascii', 4, 8) === 'ftyp' && raw.includes(Buffer.from('mp4a'))) ||
+      (ext === 'ogg' && raw.toString('ascii', 0, 4) === 'OggS' && (raw.includes(Buffer.from('OpusHead')) || raw.includes(Buffer.from('vorbis')))) ||
+      (ext === 'mp3' && (raw.toString('ascii', 0, 3) === 'ID3' || (raw[0] === 0xff && (raw[1]! & 0xe0) === 0xe0)))
+    );
+    if (!valid) throw badRequest('الملف ليس تسجيلًا صوتيًا صالحًا / Invalid audio recording');
+    await storage.writeFinal(key, raw);
+    await storage.removeRaw(key);
+    return { url: storage.finalUrl(key), width: 0, height: 0 };
+  }
   if (!sniffImageType(raw)) {
     throw badRequest('الملف ليس صورة صالحة / File is not a valid image');
   }
 
   const base = baseKeyOf(key);
-  if (kind === 'audio') throw badRequest('اختر ملف صورة');
   const processed = await processImage({ buffer: raw, kind: kind === 'option' ? 'category' : kind });
 
   // Persist the image first; publishing the banner is a separate settings save.
@@ -490,6 +509,12 @@ export async function removeCurrentImage(
 export async function removeUpload(key: string, caller: UploadCaller): Promise<void> {
   const parsed = parseKey(key);
   if (!parsed) throw badRequest('مفتاح رفع غير صالح / Invalid upload key');
+  if (parsed.kind === 'audio') {
+    if (parsed.ownerId !== caller.userId) throw forbidden();
+    await storage.removeRaw(key);
+    await storage.removeFinal(key);
+    return;
+  }
   // Published banner files may be shared by multiple settings entries. Banner
   // removal is performed through settings, never by deleting the shared asset.
   if (parsed.kind === 'banner') throw forbidden();
