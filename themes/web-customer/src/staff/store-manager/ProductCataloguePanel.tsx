@@ -491,7 +491,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
           aria-labelledby="product-modal-title"
           onClick={e => { if (e.target === e.currentTarget) closeModal(); }}
         >
-          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-raised">
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl bg-surface p-6 shadow-raised">
             <div className="mb-5 flex items-center justify-between">
               <h2 id="product-modal-title" className="text-base font-extrabold text-ink">
                 {t(modal === 'create' ? 'إضافة منتج جديد' : 'تعديل المنتج', modal === 'create' ? 'New Product' : 'Edit Product')}
