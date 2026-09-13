@@ -349,7 +349,7 @@ export function StoreProfilePanel({ storeId }: Props) {
                 <img
                   src={logoSrc}
                   alt={form.nameAr || 'Store logo'}
-                  className="h-16 w-16 shrink-0 rounded-xl object-cover"
+                  className="sq-store-logo-image h-16 w-16 shrink-0 rounded-xl"
                 />
               ) : (
                 <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
@@ -394,10 +394,10 @@ export function StoreProfilePanel({ storeId }: Props) {
 
           <section className="space-y-3 rounded-2xl border border-line bg-canvas p-4">
             <h3 className="font-bold">{t('خلفية المتجر', 'Store cover')}</h3>
-            <div className="relative aspect-[16/9] overflow-hidden rounded-xl bg-brand-tint">
-              {coverSrc && <img src={coverSrc} alt={t('معاينة خلفية المتجر', 'Store cover preview')} className="h-full w-full object-cover" />}
-              <div className="absolute inset-0 flex items-center justify-center bg-ink/10">
-                {logoSrc ? <img src={logoSrc} alt="" className="h-20 w-20 rounded-2xl border-4 border-surface bg-surface object-contain shadow-card" /> : <Store size={40} className="text-brand" />}
+            <div className="relative mb-10 aspect-video bg-brand-tint">
+              {coverSrc && <img src={coverSrc} alt={t('معاينة خلفية المتجر', 'Store cover preview')} className="sq-store-cover-image" />}
+              <div className="absolute inset-x-0 -bottom-8 flex items-center justify-center">
+                {logoSrc ? <img src={logoSrc} alt="" className="sq-store-logo-image h-24 w-24 rounded-2xl" /> : <Store size={40} className="text-brand" />}
               </div>
             </div>
             <p className="text-xs leading-6 text-ink-muted">{t('صورة أفقية بنسبة 16:9؛ سيظهر الشعار في المنتصف فوقها. يُحفظ تغيير الصور مباشرة.', 'Use a 16:9 landscape image. The logo appears centered over it. Image changes save immediately.')}</p>

@@ -187,8 +187,8 @@ export function StoreDetailScreen() {
       <main className="sq-store-menu min-h-screen bg-canvas pb-28 font-sans text-ink">
         <header className="bg-surface">
           <div className="safe-top relative bg-brand-tint">
-            <div className="h-36 overflow-hidden sm:h-44" data-swipe-back="off">
-              {current.coverUrl && <ImageWithFallback src={current.coverUrl} alt="" className="h-full w-full object-cover" />}
+            <div className="relative aspect-video max-h-72 overflow-hidden" data-swipe-back="off">
+              {current.coverUrl && <ImageWithFallback src={current.coverUrl} alt="" className="sq-store-cover-image" />}
             </div>
             <div className="absolute inset-x-0 top-3 mx-auto flex max-w-md items-center justify-between px-5 safe-top">
             <button
@@ -234,8 +234,8 @@ export function StoreDetailScreen() {
             </button>
             </div>
             <div className="absolute inset-x-0 -bottom-10 flex justify-center">
-              <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl border-4 border-surface bg-surface p-1 shadow-card">
-                {current.logoUrl ? <ImageWithFallback src={current.logoUrl} alt={t('شعار المتجر', 'Store logo')} className="h-full w-full object-contain" /> : <Store size={36} className="text-brand" />}
+              <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl">
+                {current.logoUrl ? <ImageWithFallback src={current.logoUrl} alt={t('شعار المتجر', 'Store logo')} className="sq-store-logo-image h-full w-full" /> : <Store size={36} className="text-brand" />}
               </div>
             </div>
           </div>
@@ -320,7 +320,7 @@ export function StoreDetailScreen() {
         <div className="sticky top-0 z-20 border-b border-line bg-surface safe-top">
           <div className="mx-auto flex max-w-md items-center gap-3 px-5 pt-2">
             <button type="button" onClick={() => navigate(-1)} aria-label={t('العودة من المتجر', 'Leave store')} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-canvas focus-visible:ring-2 focus-visible:ring-brand"><ArrowRight size={20} className="rtl:rotate-180" /></button>
-            {current.logoUrl && <ImageWithFallback src={current.logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-xl object-contain" />}
+            {current.logoUrl && <ImageWithFallback src={current.logoUrl} alt="" className="sq-store-logo-image h-10 w-10 shrink-0 rounded-xl" />}
             <span className="min-w-0 flex-1 truncate text-sm font-extrabold">{current.nameAr}</span>
           </div>
         <HorizontalScrollGallery

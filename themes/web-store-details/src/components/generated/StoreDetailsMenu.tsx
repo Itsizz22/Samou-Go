@@ -149,7 +149,7 @@ export const StoreDetailsMenu = () => {
           ) : store.data?.coverUrl || store.data?.logoUrl ? (
             <figure className="relative h-48 w-full overflow-hidden sm:h-56">
               <img
-                className="h-full w-full object-cover"
+                className={store.data.coverUrl ? "sq-store-cover-image" : "sq-store-logo-image sq-store-logo-image--whole h-full w-full"}
                 src={store.data.coverUrl ?? store.data.logoUrl ?? ''}
                 alt={store.data.nameEn}
               />

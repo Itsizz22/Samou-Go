@@ -343,7 +343,7 @@ export function SamouGoHome() {
                 <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="w-60 shrink-0 overflow-hidden rounded-2xl border border-line-soft bg-surface transition duration-200 hover:shadow-card focus-visible:ring-2 focus-visible:ring-brand" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
                   <article>
                     <div className={`relative flex h-32 items-center justify-center bg-linear-to-br ${gradient}`}>
-                      {store.logoUrl ? <ImageWithFallback src={store.logoUrl} alt="" className="h-full w-full object-contain p-4" fallbackText={initials} /> : <span className="text-3xl font-black text-white/40">{initials}</span>}
+                      {store.logoUrl ? <ImageWithFallback src={store.logoUrl} alt="" className="sq-store-logo-image sq-store-logo-image--whole h-full w-full" fallbackText={initials} /> : <span className="text-3xl font-black text-white/40">{initials}</span>}
                       {store.isRecommended && <span className="absolute inset-s-2 top-2 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-1 text-micro font-bold text-white shadow-card" title={t('ينصح به لدينا', 'Recommended by us')}><Star size={10} fill="currentColor" />{t('موصى به', 'Recommended')}</span>}
                       {store.badges?.includes('badge_popular') && <span className="absolute inset-e-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('الأكثر طلباً', 'Most popular')}><Flame size={9} />{t('الأكثر طلباً', 'Popular')}</span>}
                       {store.badges?.includes('badge_fast') && <span className="absolute inset-e-2 top-10 inline-flex items-center gap-0.5 rounded-full bg-blue-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('سريع التجهيز', 'Fast prep')}><Zap size={9} />{t('سريع', 'Fast')}</span>}
@@ -424,14 +424,14 @@ export function SamouGoHome() {
         <div className="space-y-3">
           {stores.loading
             ? [0, 1, 2].map(index => <div key={index} className="skeleton flex items-center gap-3 rounded-2xl p-3 shadow-card" aria-hidden="true"><div className="h-12 w-12 shrink-0 rounded-xl bg-line-soft" /><div className="flex-1 space-y-2"><div className="ms-auto h-3 w-1/2 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-2/3 rounded bg-line-soft" /></div><div className="h-6 w-12 shrink-0 rounded-full bg-line-soft" /></div>)
-            : cards.map(({ store, category, initials, tint }) => (
+            : cards.map(({ store, category, initials }) => (
                 <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="home-store-card block overflow-hidden rounded-2xl border border-line-soft bg-surface transition active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-brand" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
                   <div className="relative aspect-[5/2] overflow-hidden bg-brand-surface">
-                    <ImageWithFallback src={store.coverUrl || store.logoUrl || undefined} alt="" className={`h-full w-full ${store.coverUrl ? "object-cover" : "object-contain p-5"}`} fallbackText={initials} />
+                    <ImageWithFallback src={store.coverUrl || store.logoUrl || undefined} alt="" className={store.coverUrl ? "sq-store-cover-image" : "sq-store-logo-image sq-store-logo-image--whole h-full w-full"} fallbackText={initials} />
                     <span className={`absolute end-3 top-3 rounded-full px-3 py-1 text-xs font-bold ${storeIsOpen(store) ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{storeIsOpen(store) ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
                   </div>
                   <div className="p-4">
-                    <div className="flex items-center gap-3"><ImageWithFallback src={store.logoUrl ?? undefined} alt="" fallbackText={initials} className={`size-12 shrink-0 rounded-xl object-contain ${tint}`} /><div className="min-w-0"><h3 className="line-clamp-2 text-base font-extrabold leading-6">{t(store.nameAr, store.nameEn)}</h3><p className="mt-1 text-xs text-ink-muted">{t(category.ar, category.en)}</p></div></div>
+                    <div className="flex items-center gap-3"><ImageWithFallback src={store.logoUrl ?? undefined} alt="" fallbackText={initials} className="sq-store-logo-image size-12 shrink-0 rounded-xl" /><div className="min-w-0"><h3 className="line-clamp-2 text-base font-extrabold leading-6">{t(store.nameAr, store.nameEn)}</h3><p className="mt-1 text-xs text-ink-muted">{t(category.ar, category.en)}</p></div></div>
                     <DeliveryEstimate store={store} compact />
                     {freeDeliveryEnabled && <span className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-brand-tint px-2.5 py-1.5 text-xs font-bold text-brand-dark"><Truck size={14} aria-hidden="true" />{t("التوصيل مجاني", "Free delivery")}</span>}
                     <div className="mt-2"><StoreHours store={store} /></div>
