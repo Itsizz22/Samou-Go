@@ -424,18 +424,18 @@ export function SamouGoHome() {
         <div className="space-y-3">
           {stores.loading
             ? [0, 1, 2].map(index => <div key={index} className="skeleton flex items-center gap-3 rounded-2xl p-3 shadow-card" aria-hidden="true"><div className="h-12 w-12 shrink-0 rounded-xl bg-line-soft" /><div className="flex-1 space-y-2"><div className="ms-auto h-3 w-1/2 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-2/3 rounded bg-line-soft" /></div><div className="h-6 w-12 shrink-0 rounded-full bg-line-soft" /></div>)
-            : cards.map(({ store, category, initials }) => (
+            : cards.map(({ store, category }) => (
                 <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="home-store-card block overflow-hidden rounded-2xl border border-line-soft bg-surface transition active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-brand" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
-                  <div className="relative aspect-[5/2] overflow-hidden bg-brand-surface">
-                    <ImageWithFallback src={store.coverUrl || store.logoUrl || undefined} alt="" className={store.coverUrl ? "sq-store-cover-image" : "sq-store-logo-image sq-store-logo-image--whole h-full w-full"} fallbackText={initials} />
-                    <span className={`absolute end-3 top-3 rounded-full px-3 py-1 text-xs font-bold ${storeIsOpen(store) ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{storeIsOpen(store) ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-3"><ImageWithFallback src={store.logoUrl ?? undefined} alt="" fallbackText={initials} className="sq-store-logo-image size-12 shrink-0 rounded-xl" /><div className="min-w-0"><h3 className="line-clamp-2 text-base font-extrabold leading-6">{t(store.nameAr, store.nameEn)}</h3><p className="mt-1 text-xs text-ink-muted">{t(category.ar, category.en)}</p></div></div>
+                  <div className="home-store-body">
+                    <div className="flex items-center gap-3">
+                      <ImageWithFallback src={store.logoUrl ?? undefined} alt="" fallback={<StoreIcon size={26} aria-hidden="true" />} className="home-store-avatar" />
+                      <div className="min-w-0 flex-1"><h3 className="text-base font-extrabold leading-6">{t(store.nameAr, store.nameEn)}</h3><p className="mt-1 text-xs text-ink-muted">{t(category.ar, category.en)}</p></div>
+                      <ChevronLeft size={18} className="shrink-0 text-ink-muted ltr:rotate-180" aria-hidden="true" />
+                    </div>
+                    <div className="home-store-status"><span className={storeIsOpen(store) ? 'text-brand-dark' : 'text-ink-muted'}><span aria-hidden="true">● </span>{storeIsOpen(store) ? t('مفتوح الآن', 'Open now') : t('مغلق الآن', 'Closed now')}</span></div>
                     <DeliveryEstimate store={store} compact />
                     {freeDeliveryEnabled && <span className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-brand-tint px-2.5 py-1.5 text-xs font-bold text-brand-dark"><Truck size={14} aria-hidden="true" />{t("التوصيل مجاني", "Free delivery")}</span>}
                     <div className="mt-2"><StoreHours store={store} /></div>
-                    {dishProducts.some(product => product.storeId === store.id && product.imageUrl) && <div className="mt-3 flex gap-2" aria-hidden="true">{dishProducts.filter(product => product.storeId === store.id && product.imageUrl).slice(0, 3).map(product => <ImageWithFallback key={product.id} src={product.imageUrl!} alt="" className="aspect-[4/3] min-w-0 flex-1 rounded-lg object-cover" />)}</div>}
                   </div>
                 </Link>
               ))}

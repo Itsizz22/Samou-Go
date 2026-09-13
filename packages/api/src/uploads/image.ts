@@ -48,7 +48,16 @@ export interface ProcessedImage {
 export async function processImage(input: {
   buffer: Buffer;
   kind: 'user' | 'product' | 'store' | 'offer' | 'category' | 'banner';
+  purpose?: 'logo' | 'cover' | 'image';
 }): Promise<ProcessedImage> {
+  if (input.kind === 'store' && input.purpose === 'cover') {
+    try {
+      const { data, info } = await sharp(input.buffer, { limitInputPixels: 40_000_000 })
+        .rotate().resize(2560, 2560, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 95, effort: 6 }).toBuffer({ resolveWithObject: true });
+      return { variants: [{ name: 'banner', buffer: data, width: info.width, height: info.height }] };
+    } catch { throw badRequest('ملف صورة غير صالح / Invalid image file'); }
+  }
   if (input.kind === 'banner') {
     try {
       // Preserve the original ratio so the admin can adjust the visual crop.

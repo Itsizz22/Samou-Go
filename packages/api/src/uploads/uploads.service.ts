@@ -300,7 +300,7 @@ export async function finalizeUpload(
   }
 
   const base = baseKeyOf(key);
-  const processed = await processImage({ buffer: raw, kind: kind === 'option' ? 'category' : kind });
+  const processed = await processImage({ buffer: raw, kind: kind === 'option' ? 'category' : kind, purpose: parsed.kind === 'store' ? parsed.purpose : undefined });
 
   // Persist the image first; publishing the banner is a separate settings save.
   // Fresh immutable keys keep cached clients from showing the previous image.
