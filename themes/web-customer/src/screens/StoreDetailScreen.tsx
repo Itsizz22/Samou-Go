@@ -343,7 +343,7 @@ export function StoreDetailScreen() {
                 void hapticTap();
               }}
               aria-pressed={category.id === active}
-              className={`flex shrink-0 items-center gap-1.5 min-h-11 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+              className={`flex shrink-0 items-center gap-2 min-h-14 rounded-2xl ps-1.5 pe-3 py-1.5 text-sm font-bold transition ${
                 category.id === active ? 'bg-brand text-white' : 'bg-canvas text-ink-muted'
               }`}
             >
@@ -351,10 +351,10 @@ export function StoreDetailScreen() {
                 <ImageWithFallback
                   src={category.imageUrl}
                   alt=""
-                  className="h-5 w-5 shrink-0 rounded-md object-cover"
+                  className="h-11 w-11 shrink-0 rounded-xl object-contain"
                 />
               ) : (
-                <FolderOpen size={14} className="shrink-0" />
+                <FolderOpen size={24} className="m-2.5 shrink-0" />
               )}
               {t(category.nameAr, category.nameEn)}
             </button>
