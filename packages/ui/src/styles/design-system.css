@@ -1221,4 +1221,11 @@ img.broken-image-fallback {
  .mobile-product-list td:first-child { grid-column: 1 / -1; }
  .mobile-product-list td:last-child { grid-column: 1 / -1; }
  .mobile-product-list td button { min-height: 44px; min-width: 44px; }
+ .product-catalogue-list { border: 0; background: transparent; box-shadow: none; overflow: visible; }
+ .product-catalogue-list tbody { display: grid; gap: .75rem; }
+ .product-catalogue-list tr { border: 1px solid var(--color-line); border-radius: 1rem; background: var(--color-surface); padding: .875rem; gap: .625rem; }
+ .product-catalogue-list td { padding: 0; }
+ .product-catalogue-list td:nth-child(2), .product-catalogue-list td:nth-child(3) { display: none; }
+ .product-catalogue-list td:nth-child(4) { grid-column: 1; display: flex; align-items: center; }
+ .product-catalogue-list td:last-child { grid-column: 2; }
 }

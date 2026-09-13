@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { NotificationPreferences } from '@/components/NotificationPreferences';
-import { MediaPermissions } from '@/components/MediaPermissions';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
  * Samou' Go — `/settings`.
@@ -246,7 +245,6 @@ export function SettingsScreen() {
         )}
 
         <NotificationPreferences />
-        <MediaPermissions />
 
         <SettingsRow
           icon={Phone}

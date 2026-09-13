@@ -394,7 +394,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
 
       {/* Product table */}
       {!catalogue.loading && visibleProducts.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-card mobile-product-list">
+        <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-card mobile-product-list product-catalogue-list">
           <table className="w-full text-sm">
             <thead className="bg-canvas text-micro font-bold uppercase tracking-wide text-ink-muted">
               <tr>
@@ -413,16 +413,18 @@ export function ProductCataloguePanel({ storeId }: Props) {
                       <ImageWithFallback
                         src={p.imageUrl ?? undefined}
                         alt={p.nameAr}
-                        width={72}
-                        height={72}
+                        width={80}
+                        height={80}
                         decoding="async"
-                        className="h-18 w-18 shrink-0 rounded-xl border border-line bg-white object-contain p-1"
+                        className="h-20 w-20 shrink-0 rounded-xl border border-line bg-white object-contain p-1"
                         fallback={<span className="flex h-full w-full items-center justify-center text-ink-muted"><Package size={24} /></span>}
                       />
                       <div className="min-w-0">
-                        <span className="block break-words font-bold text-ink">{p.nameAr}</span>
+                        <span className="block break-words font-bold leading-snug text-ink">{p.nameAr}</span>
+                        <span className="mt-1 block text-xs text-ink-muted sm:hidden">{p.categoryName}</span>
+                        <span className="mt-1 block text-base font-extrabold text-brand-deep sm:hidden"><bdi dir="ltr">{formatCurrency(p.price, { unit: 'symbol' })}</bdi></span>
                         {p.description && (
-                          <span className="line-clamp-2 max-w-55 text-[11px] text-ink-muted">{p.description}</span>
+                          <span className="hidden max-w-55 text-[11px] sm:line-clamp-2 text-ink-muted">{p.description}</span>
                         )}
                       </div>
                     </div>
