@@ -28,7 +28,7 @@ export function ScreenShell({ title, subtitle, children }: ScreenShellProps) {
 
   return (
     <main className="sq-customer-screen min-h-svh bg-canvas pb-28 font-sans text-ink">
-      <header className="sq-page-header bg-surface px-5 text-ink">
+      <header className="sq-page-header liquid-glass px-5 text-ink">
         <div className="mx-auto flex max-w-md items-center justify-between gap-2">
           <button
             type="button"

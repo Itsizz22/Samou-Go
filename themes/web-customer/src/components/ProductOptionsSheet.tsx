@@ -198,7 +198,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
           <span className="h-1 w-10 rounded-full bg-line" />
         </button>
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface px-5 py-4">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line liquid-glass px-5 py-4">
           <div className="min-w-0 flex-1">
             <h2 id="product-options-title" className="text-base font-extrabold text-ink">
               {product.nameAr}
@@ -352,7 +352,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
             )}
           </p>
         )}
-        <div className="shrink-0 border-t border-line bg-surface px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="shrink-0 border-t border-line liquid-glass px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="flex flex-col-reverse items-stretch justify-between gap-2 min-[360px]:flex-row min-[360px]:items-center">
             {/* Quantity stepper */}
             <div className="flex items-center justify-center gap-1 rounded-full bg-canvas px-1 py-1">

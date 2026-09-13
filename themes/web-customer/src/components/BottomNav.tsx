@@ -75,7 +75,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="sq-bottom-nav fixed bottom-0 inset-x-0 z-20 border-t border-line bg-surface px-4"
+      className="sq-bottom-nav liquid-glass fixed bottom-0 inset-x-0 z-20 border-t border-line px-4"
       aria-label={t('التنقل السفلي', 'Bottom navigation')}
     >
       {ordersError && (

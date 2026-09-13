@@ -187,7 +187,7 @@
 /* Customer storefront: restrained surfaces and a consistent mobile rhythm. */
 @layer components {
   .customer-home .home-header {
-    background: linear-gradient(180deg, var(--color-surface), var(--color-canvas));
+    border-block-start: 0; border-radius: 0 0 1.5rem 1.5rem;
   }
   .customer-home h2 { letter-spacing: 0; text-wrap: balance; }
   .customer-home .home-store-card { border: 1px solid var(--color-line); box-shadow: 0 3px 14px color-mix(in srgb, var(--color-brand) 5%, transparent); }
@@ -205,4 +205,8 @@
   .customer-home .dish-card { box-shadow: 0 3px 14px color-mix(in srgb, var(--color-ink) 6%, transparent); }
   .customer-home section { scroll-margin-block-start: 1rem; }
   .customer-home h2 { line-height: 1.55; }
+}
+
+@layer components {
+ .customer-home .home-store-card { background: linear-gradient(145deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 96%, var(--color-brand))); box-shadow: inset 0 1px 0 var(--color-surface), 0 8px 24px color-mix(in srgb, var(--color-brand) 7%, transparent); }
 }

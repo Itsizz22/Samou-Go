@@ -389,7 +389,7 @@ export function SamouGoStoreManager() {
   if (!auth.ready) {
     return (
       <main className="min-h-screen bg-canvas pb-24" aria-busy="true">
-        <header className={`px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] ${activeTab === 'home' ? 'bg-brand text-white' : 'border-b border-line bg-surface text-ink'}`}>
+        <header className={`px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] ${activeTab === 'home' ? 'bg-brand text-white' : 'liquid-glass border-b border-line text-ink'}`}>
           <div className="mx-auto flex max-w-md items-center justify-between" aria-hidden="true">
             <span className="h-10 w-10 rounded-xl bg-surface/15" />
             <span className="h-5 w-40 rounded bg-surface/20" />

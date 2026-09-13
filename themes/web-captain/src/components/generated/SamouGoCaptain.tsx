@@ -530,7 +530,7 @@ export function SamouGoCaptain() {
   if (!auth.ready) {
     return (
       <main className="min-h-screen bg-canvas pb-24" aria-busy="true">
-        <header className="bg-surface px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-ink">
+        <header className="liquid-glass px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-ink">
           <div className="mx-auto flex max-w-md items-center justify-between" aria-hidden="true">
             <span className="h-10 w-10 rounded-full bg-surface/15" />
             <span className="h-5 w-32 rounded bg-surface/20" />
@@ -818,7 +818,7 @@ export function SamouGoCaptain() {
         </div>
         <button type="button" onClick={() => setSidebarOpen(false)} aria-label={t('إغلاق القائمة', 'Close navigation')} className="absolute end-3 top-3 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-ink-muted hover:bg-canvas md:hidden"><X size={18} /></button>
       </aside>
-      <header className="bg-surface px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-ink">
+      <header className="liquid-glass px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-ink">
         <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Captain navigation">
           <button type="button" onClick={() => setSidebarOpen(value => !value)} aria-expanded={sidebarOpen} aria-label={t('فتح القائمة', 'Open navigation')} className="rounded-lg p-2 text-white transition hover:bg-white/10 active:scale-95"><Menu size={21} /></button>
           <button type="button" aria-label="Profile" onClick={() => setActiveTab('account')} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-surface/15 transition hover:bg-surface/25">

@@ -200,7 +200,7 @@ export function SamouGoHome() {
 
   return <main dir={isArabic ? "rtl" : "ltr"} className="customer-home sq-customer-screen min-h-screen bg-canvas pb-28 font-sans text-ink">
       <a href="#home-results" className="sr-only focus:not-sr-only focus:block focus:p-3">تجاوز إلى المتاجر</a>
-      <header className="home-header px-5 pb-4 pt-3">
+      <header className="home-header liquid-glass px-5 pb-4 pt-3">
         <nav className="mx-auto flex max-w-md items-center justify-between gap-2" aria-label="Main navigation">
           <button
             type="button"
