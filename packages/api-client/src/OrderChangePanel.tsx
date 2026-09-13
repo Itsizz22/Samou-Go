@@ -1,3 +1,4 @@
+import { AppSelect } from '@samou-go/ui';
 import { useState } from "react";
 import {
   getOrder,
@@ -252,7 +253,7 @@ export function OrderChangePanel({
                         key={index}
                         className="space-y-2 border-b border-line pb-3"
                       >
-                        <select
+                        <AppSelect
                           aria-label="الصنف البديل"
                           className={field}
                           value={item.productId}
@@ -276,7 +277,7 @@ export function OrderChangePanel({
                               {p.nameAr}
                             </option>
                           ))}
-                        </select>
+                        </AppSelect>
                         <input
                           aria-label="الكمية"
                           className={field}

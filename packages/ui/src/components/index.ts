@@ -14,6 +14,7 @@ export { LanguageToggle, type LanguageToggleProps } from './LanguageToggle';
 
 /* Design-system primitives — the shared vocabulary for all seven apps. */
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button';
+export { AppSelect } from './AppSelect';
 export { Card, SectionHeader, type CardProps, type SectionHeaderProps } from './Card';
 export { Input, Textarea, type InputProps, type TextareaProps } from './Input';
 export { Badge, type BadgeProps, type BadgeTone } from './Badge';
@@ -39,3 +40,4 @@ export { ImageWithFallback } from './ImageWithFallback';
 export { ZoneLandmarkTrackingView } from './ZoneLandmarkTrackingView';
 
 export { OrderCustomerDetails } from './OrderCustomerDetails';
+export { CatalogueProductList } from './CatalogueProductList';

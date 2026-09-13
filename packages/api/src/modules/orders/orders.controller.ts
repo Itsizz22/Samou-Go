@@ -1,6 +1,5 @@
 import { verifyLiveAccessToken } from '../../lib/live-session';
 import { preparationTimeSchema, releaseReservationSchema } from './orders.schemas';
-import { eligibleCaptainIds } from './captain-pool';
 import { isReplayedSubmission } from '../../lib/order-submission';
 import type { Request, Response } from 'express';
 import { ORDER_STATUS_LABELS, OrderStatus, UserRole } from '@samou-go/shared-types';
@@ -27,15 +26,6 @@ import { sendPushToUser, sendPushToMany } from '../../lib/push';
 import { prisma } from '../../lib/prisma';
 import type { OrderDetail } from '@samou-go/shared-types';
 
-/** SSE event type emitted to connected clients. */
-type OrderEvent = {
-  id: string;
-  status: string;
-  ar: string;
-  en: string;
-  timestamp: string;
-};
-
 /**
  * GET /api/v1/orders/events/:orderId — Server-Sent Events stream.
  * Keeps the HTTP connection alive and fires `data: {id,status,ar,en}` whenever
@@ -61,7 +51,7 @@ export async function orderEventSSEHandler(req: Request, res: Response): Promise
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  let lastId = req.headers['last-event-id'] as string | undefined;
+  let reading = false;
 
   // Send initial connection event.
   res.write('event: connected\ndata: {"status":"connected"}\n\n');
@@ -69,10 +59,13 @@ export async function orderEventSSEHandler(req: Request, res: Response): Promise
   // Subscribe to status changes via a short-lived Promise that resolves when
   // the order is next updated. We re-query Prisma every 3 seconds.
   const intervalId = setInterval(async () => {
+    if (reading || res.writableEnded) return;
+    reading = true;
     try {
       if (req.auth) await verifyLiveAccessToken(req.headers.authorization?.split(' ')[1] ?? '');
       const order = await ordersService.loadOrderOrThrow(orderId);
-      const status = ORDER_STATUS_LABELS[order.status];
+      if (req.auth) await ordersService.assertCanView(order, req.auth);
+      if (res.writableEnded) return;
       const event = {
         id: order.id,
         status: order.status,
@@ -85,7 +78,7 @@ export async function orderEventSSEHandler(req: Request, res: Response): Promise
       // Order may have been deleted; close the stream.
       clearInterval(intervalId);
       res.end();
-    }
+    } finally { reading = false; }
   }, 3_000);
 
   // Clean up when the client disconnects.
@@ -330,12 +323,6 @@ async function notifyStatusChange(
           body: `متجر ${order.store.nameAr} قبول طلبك #${order.orderNumber}`,
           data: { orderId, screen: 'tracking' },
         });
-        if (order.fulfillmentType !== 'PICKUP' && !order.captainId) {
-          await sendPushToMany(await eligibleCaptainIds(order.storeId), {
-            title: 'طلب جديد متاح للحجز 📦', body: `طلب #${order.orderNumber} من ${order.store.nameAr} قيد التحضير — احجز التوصيل الآن`,
-            data: { type: 'PREPARATION_AVAILABLE', orderId, storeId: order.storeId, screen: 'order' },
-          }, { dataOnly: true });
-        }
         break;
       }
       case OrderStatus.PREPARING: {
@@ -354,10 +341,10 @@ async function notifyStatusChange(
           body: `طلبك #${order.orderNumber} جاهز — في انتظار الكابتن`,
           data: { orderId, screen: 'tracking' },
         });
-        // Notify available captains that there's a new order to claim.
+        // Notify the assigned captain; unassigned orders use the exclusive dispatcher.
         // Uses data-only payloads so Android can route to the correct
         // notification channel based on the captain's ring preference.
-        const availableCaptains = order.fulfillmentType === 'PICKUP' ? [] : order.captainId ? [order.captainId] : await eligibleCaptainIds(order.storeId);
+        const availableCaptains = order.fulfillmentType === 'PICKUP' ? [] : order.captainId ? [order.captainId] : [];
         if (availableCaptains.length > 0) {
           await sendPushToMany(
             availableCaptains,
@@ -455,10 +442,7 @@ export async function releaseReservationHandler(req: Request, res: Response): Pr
       title: 'اعتذر الكابتن عن التوصيل', body: `الطلب #${result.orderNumber} متاح الآن لكابتن آخر`,
       data: { type: 'RESERVATION_RELEASED', orderId, storeId: result.storeId, screen: 'order' },
     }, { dataOnly: true }).catch(() => console.error('[reservation-release] Store notification failed'));
-    await sendPushToMany((await eligibleCaptainIds(result.storeId)).filter(id => id !== actor.sub), {
-      title: 'طلب متاح للتوصيل مجدداً', body: `طلب #${result.orderNumber} من ${result.store.nameAr} متاح للحجز`,
-      data: { type: result.status === OrderStatus.READY_FOR_PICKUP ? 'NEW_ORDER' : 'PREPARATION_AVAILABLE', orderId, storeId: result.storeId, screen: 'order' },
-    }, { dataOnly: true });
+
   })().catch(error => console.error('[reservation-release] Notification dispatch failed', error instanceof Error ? error.message : 'unknown'));
   ok(res, { released: true, orderId, status: result.status });
 }

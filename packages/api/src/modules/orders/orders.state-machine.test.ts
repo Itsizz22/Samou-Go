@@ -60,7 +60,9 @@ const h = vi.hoisted(() => {
   };
 
   const tx = {
+    user: { updateMany: vi.fn(async () => ({count:1})) },
     order: {
+      count: vi.fn(async () => 0),
       update: vi.fn(async ({ data }: any) => {
         const updated = buildOrder({
           ...state.order,
@@ -77,6 +79,7 @@ const h = vi.hoisted(() => {
 });
 
 vi.mock('../../lib/prisma', () => ({
+  isPostgresProvider: true,
   prisma: {
     order: {
       findUnique: vi.fn(async () => h.state.order),
@@ -90,7 +93,7 @@ vi.mock('../../lib/prisma', () => ({
     store: { findMany: vi.fn(async () => h.state.storeIds.map(id => ({ id }))) },
     product: { findMany: vi.fn(async () => h.state.products ?? []) },
     productOptionGroup: { findMany: vi.fn(async () => []) },
-    user: { findUnique: vi.fn(async () => ({ ...h.state.captainProfile, role: "CAPTAIN" })) },
+    user: { findUnique: vi.fn(async () => ({ ...h.state.captainProfile, role: "CAPTAIN", captainOrders: [] })) },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(h.tx),
   },
 }));

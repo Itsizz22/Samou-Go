@@ -114,6 +114,7 @@ const h = vi.hoisted(() => {
   };
 
 const tx = {
+    user: { updateMany: vi.fn(async () => ({count:1})) },
     deliveryPricingConfig: { findUnique: vi.fn().mockResolvedValue(null) },
     platformSettings: { findUnique: vi.fn().mockResolvedValue(null) },
     store: { findUnique: vi.fn(async () => state.store) },
@@ -126,6 +127,7 @@ const tx = {
       }),
     },
     order: {
+      count: vi.fn(async () => 0),
       create: vi.fn(async ({ data }: any) => {
         state.orderCreateCalls += 1;
         return buildFakeOrder(data);
@@ -180,6 +182,7 @@ const tx = {
 });
 
 vi.mock('../../lib/prisma', () => ({
+  isPostgresProvider: true,
   prisma: {
     order: {
       findUnique: vi.fn(async () => h.state.order),
@@ -196,7 +199,7 @@ vi.mock('../../lib/prisma', () => ({
     },
     product: { findMany: h.tx.product.findMany },
     productOptionGroup: { findMany: vi.fn(async () => []) },
-    user: { findUnique: vi.fn(async () => ({ ...h.state.captainProfile, role: "CAPTAIN" })) },
+    user: { findUnique: vi.fn(async () => ({ ...h.state.captainProfile, role: "CAPTAIN", captainOrders: [] })) },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(h.tx),
   },
 }));

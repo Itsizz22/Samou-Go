@@ -1,3 +1,4 @@
+import { AppSelect } from '@samou-go/ui';
 import { StoreCaptainContact } from '@samou-go/api-client';
 import { OrderChat } from '@samou-go/api-client';
 import { getLiveOrderTracking } from '@samou-go/api-client';
@@ -513,11 +514,11 @@ export function SamouGoStoreManager() {
             <h1 className="text-[15px] font-extrabold">{t(BOTTOM_TABS.find(tab => tab.id === activeTab)?.ar ?? 'لوحة المتجر', BOTTOM_TABS.find(tab => tab.id === activeTab)?.en ?? 'Store Manager')}</h1>
             <p className="mt-1 text-xs opacity-80">{managedStore.data ? t(managedStore.data.nameAr, managedStore.data.nameEn) : auth.user?.name}</p>
             {(managedStores.data?.length ?? 0) > 1 && (
-              <select aria-label={t('المتجر الحالي', 'Current store')} value={managedStoreId ?? ''}
+              <AppSelect aria-label={t('المتجر الحالي', 'Current store')} value={managedStoreId ?? ''}
                 onChange={event => setSelectedStoreId(event.target.value)}
                 className="mt-2 min-h-11 max-w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink">
                 {managedStores.data?.map(store => <option key={store.id} value={store.id}>{t(store.nameAr, store.nameEn)}</option>)}
-              </select>
+              </AppSelect>
             )}
           </div>
           <div className="flex items-center gap-2" dir="ltr">
@@ -739,9 +740,9 @@ export function SamouGoStoreManager() {
 
         <label className="mb-3 flex items-center justify-between rounded-xl bg-brand-surface px-3 py-2 text-xs font-bold text-brand-deep">
           <span>{t('وقت التحضير عند القبول', 'Prep time')}</span>
-          <select value={prepMinutes} onChange={(event) => setPrepMinutes(Number(event.target.value))} className="rounded-lg border border-brand bg-surface px-2 py-1 text-xs text-ink outline-none">
+          <AppSelect value={prepMinutes} onChange={(event) => setPrepMinutes(Number(event.target.value))} className="rounded-lg border border-brand bg-surface px-2 py-1 text-xs text-ink outline-none">
             {[15, 20, 25, 30, 40, 50, 60].map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
-          </select>
+          </AppSelect>
         </label>
         <div className="space-y-3">
           {loading && inbox.length === 0

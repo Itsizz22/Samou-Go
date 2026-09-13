@@ -1,3 +1,4 @@
+import { AppSelect, CatalogueProductList } from '@samou-go/ui';
 import { ProductCustomizationEditor } from '@samou-go/api-client';
 /**
  * Samou' Go — store manager catalogue management.
@@ -11,16 +12,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Check,
-  ChevronDown,
+  Search,
   GripVertical,
   ImagePlus,
   ListPlus,
   Loader2,
   Package,
-  Pencil,
   Plus,
   RefreshCw,
-  Trash2,
   X,
 } from 'lucide-react';
 import {
@@ -36,7 +35,7 @@ import {
 } from '@samou-go/api-client';
 import type { Product } from '@samou-go/shared-types';
 import { formatCurrency } from '@/lib/delivery';
-import { useLanguage, ImageWithFallback } from '@samou-go/ui';
+import { useLanguage } from '@samou-go/ui';
 
 interface Props {
   /** The UUID of the store this manager owns. */
@@ -111,7 +110,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
   const visibleProducts = useMemo(() => {
     return allProducts.filter(p => {
       if (filterCategoryId && p.categoryId !== filterCategoryId) return false;
-      if (searchTerm && !p.nameAr.includes(searchTerm)) return false;
+      if (searchTerm.trim() && !p.nameAr.toLocaleLowerCase().includes(searchTerm.trim().toLocaleLowerCase())) return false;
       return true;
     });
   }, [allProducts, filterCategoryId, searchTerm]);
@@ -310,47 +309,20 @@ export function ProductCataloguePanel({ storeId }: Props) {
 
   return (
     <div className="min-h-[60vh]">
-      {/* Toolbar */}
-      <div className="mb-5 flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          placeholder={t('بحث', 'Search…')}
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="h-11 min-w-0 basis-full rounded-xl sm:basis-auto sm:flex-1 border border-line bg-canvas px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-          aria-label="Search products"
-        />
-        <div className="relative">
-          <select
-            value={filterCategoryId}
-            onChange={e => setFilterCategoryId(e.target.value)}
-            className="h-11 appearance-none rounded-xl border border-line bg-canvas pe-8 ps-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-            aria-label="Filter by category"
-          >
-            <option value="">{t('كل الأقسام', 'All')}</option>
-            {categories.map(c => (
-              <option key={c.id} value={c.id}>{c.nameAr}</option>
-            ))}
-          </select>
-          <ChevronDown size={14} className="pointer-events-none absolute inset-e-2.5 top-2.5 text-ink-muted" />
+      <div className="sq-catalogue-toolbar">
+        <div className="sq-catalogue-title">
+          <div><h2>{t('منتجات متجرك', 'Your products')}</h2><p>{t('رتّب منتجاتك وحدّث تفاصيلها بسهولة', 'Keep your catalogue up to date')}</p></div>
+          <button type="button" onClick={openCreate} className="sq-catalogue-add"><Plus size={18}/>{t('إضافة منتج', 'Add product')}</button>
         </div>
-        <button
-          type="button"
-          onClick={reload}
-          disabled={catalogue.refreshing}
-          className="flex h-9 items-center gap-1.5 rounded-xl border border-line bg-canvas px-3 text-xs font-bold text-ink-soft transition hover:bg-brand-surface disabled:opacity-60"
-          aria-label="Refresh"
-        >
-          <RefreshCw size={14} className={catalogue.refreshing ? 'animate-spin' : ''} />
-        </button>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="flex h-9 items-center gap-1.5 rounded-xl bg-brand px-4 text-xs font-bold text-white transition hover:bg-brand-dark"
-        >
-          <Plus size={15} />
-          {t('منتج جديد', 'New Product')}
-        </button>
+        <label className="sq-catalogue-search"><Search size={18} aria-hidden="true"/><input type="search" placeholder={t('ابحث باسم المنتج…', 'Search products…')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} aria-label={t('البحث في المنتجات', 'Search products')}/></label>
+        <div className="sq-catalogue-filters">
+          <AppSelect value={filterCategoryId} onChange={e => setFilterCategoryId(e.target.value)} className="sq-catalogue-filter" aria-label={t('تصفية حسب القسم', 'Filter by category')}>
+            <option value="">{t('كل الأقسام', 'All categories')}</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
+          </AppSelect>
+          <span className="sq-catalogue-count"><bdi>{visibleProducts.length}</bdi> {t('منتج', 'products')}</span>
+          <button type="button" onClick={reload} disabled={catalogue.refreshing} className="sq-catalogue-refresh" aria-label={t('تحديث المنتجات', 'Refresh products')}><RefreshCw size={17} className={catalogue.refreshing ? 'animate-spin' : ''}/></button>
+        </div>
       </div>
 
       {/* Error */}
@@ -397,99 +369,10 @@ export function ProductCataloguePanel({ storeId }: Props) {
         </div>
       )}
 
-      {/* Product table */}
       {!catalogue.loading && visibleProducts.length > 0 && (
-        <div className="mobile-product-list product-catalogue-list overflow-hidden rounded-xl border border-line bg-surface shadow-card" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin' }}>
-          <table className="w-full text-sm">
-            <thead className="bg-canvas text-micro font-bold uppercase tracking-wide text-ink-muted">
-              <tr>
-                <th className="px-4 py-3 text-start">{t('المنتج', 'Product')}</th>
-                <th className="px-3 py-3">{t('القسم', 'Category')}</th>
-                <th className="px-3 py-3">{t('السعر', 'Price')}</th>
-                <th className="px-3 py-3">{t('الحالة', 'Status')}</th>
-                <th className="px-4 py-3 text-end">{t('إجراءات', 'Actions')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line-soft">
-              {visibleProducts.map(p => (
-                <tr key={p.id} className={`transition hover:bg-canvas ${!p.isAvailable ? 'opacity-55' : ''}`}>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <ImageWithFallback
-                        src={p.imageUrl ?? undefined}
-                        alt={p.nameAr}
-                        width={80}
-                        height={80}
-                        decoding="async"
-                        className="h-20 w-20 shrink-0 rounded-xl border border-line bg-white object-contain p-1"
-                        fallback={<span className="flex h-full w-full items-center justify-center text-ink-muted"><Package size={24} /></span>}
-                      />
-                      <div className="min-w-0">
-                        <span className="block break-words font-bold leading-snug text-ink">{p.nameAr}</span>
-                        <span className="mt-1 block text-xs text-ink-muted sm:hidden">{p.categoryName}</span>
-                        <span className="mt-1 block text-base font-extrabold text-brand-deep sm:hidden"><bdi dir="ltr">{formatCurrency(p.price, { unit: 'symbol' })}</bdi></span>
-                        {p.description && (
-                          <span className="hidden max-w-55 text-[11px] sm:line-clamp-2 text-ink-muted">{p.description}</span>
-                        )}
-                      </div>
-                    </div>
-                    {(p.optionGroups ?? []).length > 0 && (
-                      <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-brand-tint px-2 py-0.5 text-[10px] font-bold text-brand-deep">
-                        <ListPlus size={9} /> {(p.optionGroups ?? []).length} {t('خيارات', 'options')}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-3 text-center text-[11px] text-ink-muted">{p.categoryName}</td>
-                  <td className="px-3 py-3 text-center font-bold text-brand-deep" dir="ltr">
-                    {formatCurrency(p.price, { unit: 'symbol' })}
-                  </td>
-                  <td className="px-3 py-3 text-center">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleAvailability(p)}
-                      disabled={togglingId === p.id}
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-micro font-bold transition ${
-                        p.isAvailable
-                          ? 'bg-brand-tint text-brand-dark hover:bg-brand-soft'
-                          : 'bg-canvas text-ink-muted hover:bg-line-soft'
-                      } disabled:opacity-60`}
-                      aria-label={p.isAvailable ? 'Mark unavailable' : 'Mark available'}
-                    >
-                      {togglingId === p.id
-                        ? <Loader2 size={10} className="animate-spin" />
-                        : p.isAvailable
-                          ? <><Check size={10} /> متاح</>
-                          : 'غير متاح'}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(p)}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-ink-muted transition hover:border-brand hover:text-brand"
-                        aria-label={`Edit ${p.nameAr}`}
-                      >
-                        <Pencil size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeactivate(p)}
-                        disabled={deactivatingId === p.id}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-danger-tint bg-surface text-danger transition hover:bg-danger-tint disabled:opacity-60"
-                        aria-label={`Deactivate ${p.nameAr}`}
-                      >
-                        {deactivatingId === p.id
-                          ? <Loader2 size={13} className="animate-spin" />
-                          : <Trash2 size={13} />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <CatalogueProductList products={visibleProducts} togglingId={togglingId} deactivatingId={deactivatingId}
+          onEdit={openEdit} onToggle={handleToggleAvailability} onDeactivate={handleDeactivate}
+          formatPrice={price => formatCurrency(price, { unit: 'symbol' })} />
       )}
 
       {/* Create / Edit modal */}
@@ -636,7 +519,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                     </button>
                   </span>
                   <div className="relative">
-                    <select
+                    <AppSelect
                       value={form.categoryId}
                       onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
                       className="w-full appearance-none rounded-xl border border-line bg-canvas pe-7 ps-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
@@ -645,8 +528,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
                       {categories.map(c => (
                         <option key={c.id} value={c.id}>{c.nameAr}</option>
                       ))}
-                    </select>
-                    <ChevronDown size={13} className="pointer-events-none absolute inset-e-2.5 top-3 text-ink-muted" />
+                    </AppSelect>
                   </div>
                 </label>
               </div>

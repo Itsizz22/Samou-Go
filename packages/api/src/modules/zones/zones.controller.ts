@@ -9,12 +9,12 @@ import {
 import * as zonesService from './zones.service';
 
 /** GET /api/v1/delivery-zones — public, active zones only. */
-export async function listActiveZonesHandler(req: Request, res: Response): Promise<void> {
+export async function listActiveZonesHandler(_req: Request, res: Response): Promise<void> {
   ok(res, await zonesService.listActiveZones());
 }
 
 /** GET /api/v1/delivery-zones/manage — admin, includes inactive zones. */
-export async function listAllZonesHandler(req: Request, res: Response): Promise<void> {
+export async function listAllZonesHandler(_req: Request, res: Response): Promise<void> {
   ok(res, await zonesService.listAllZones());
 }
 

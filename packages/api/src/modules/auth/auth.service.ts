@@ -13,7 +13,6 @@ import { prisma, caseInsensitiveContains } from '../../lib/prisma';
 import { conflict, forbidden, notFound, unauthorized, unprocessable } from '../../lib/http-error';
 import { signAccessToken } from '../../lib/jwt';
 import { hashPassword, verifyPassword } from '../../lib/password';
-import { fromE164, toE164 } from '../../lib/sms/phone';
 import { toPublicUser } from './auth.mapper';
 import { verifyAndConsumeOtp } from './otp.service';
 import { issueRefreshToken, revokeAllUserRefreshTokens, rotateRefreshToken } from './refresh-token';

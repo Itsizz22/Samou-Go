@@ -45,8 +45,7 @@ import {
   type PopularProduct,
   type SupportTicket,
   type TicketMessage,
-  listSupportTickets, createSupportTicket, getSupportTicket, addSupportMessage, updateSupportTicketStatus,
-  type CreateTicketInput, type CreateMessageInput, type UpdateTicketStatusInput,
+  listSupportTickets, getSupportTicket,
 } from './api';
 import type {
   AdminCreateCaptainInput,
@@ -624,41 +623,12 @@ export function useSupportTickets(
   return useResource(key, (signal) => listSupportTickets(query, signal), options);
 }
 
-export function useCreateTicket(
-  input: CreateTicketInput,
-  options?: { onSuccess?: (ticket: SupportTicket) => void }
-): Mutation<CreateTicketInput, SupportTicket> {
-  return useMutation<CreateTicketInput, SupportTicket>(
-    (input, signal) => createSupportTicket(input, signal)
-  );
-}
-
 export function useTicketMessages(
   ticketId: string,
   options?: ResourceOptions<TicketMessage[]>
 ): Resource<TicketMessage[]> {
   const key = `ticket-messages:${ticketId}`;
   return useResource(key, async (signal) => (await getSupportTicket(ticketId, signal)).messages ?? [], options);
-}
-
-export function useAddMessage(
-  ticketId: string,
-  input: CreateMessageInput,
-  options?: { onSuccess?: (message: TicketMessage) => void }
-): Mutation<CreateMessageInput, TicketMessage> {
-  return useMutation<CreateMessageInput, TicketMessage>(
-    (input, signal) => addSupportMessage(ticketId, input, signal)
-  );
-}
-
-export function useUpdateTicketStatus(
-  ticketId: string,
-  input: UpdateTicketStatusInput,
-  options?: { onSuccess?: (ticket: SupportTicket) => void }
-): Mutation<UpdateTicketStatusInput, SupportTicket> {
-  return useMutation<UpdateTicketStatusInput, SupportTicket>(
-    (input, signal) => updateSupportTicketStatus(ticketId, input, signal)
-  );
 }
 
 export function useFeaturedProducts(): Resource<PopularProduct[]> { return useResource('featured-products', () => getFeaturedProducts()); }

@@ -4,11 +4,9 @@
  * entries with type badges and credit/debit styling.
  */
 
-import { useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, Clock, CreditCard, Banknote, TrendingUp, TrendingDown } from 'lucide-react';
+import { Clock, CreditCard, Banknote, TrendingUp, TrendingDown } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageProvider';
 import { Button } from './Button';
-import { Skeleton } from './Skeleton';
 
 export interface AccountStatementEntry {
   id: string;
@@ -35,12 +33,6 @@ const TYPE_CONFIG: Record<string, { ar: string; en: string; color: string; icon:
   COMMISSION: { ar: 'عمولة', en: 'Commission', color: 'bg-red-100 text-red-700', icon: TrendingDown },
   SETTLEMENT: { ar: 'تسوية', en: 'Settlement', color: 'bg-blue-100 text-blue-700', icon: Banknote },
   ADJUSTMENT: { ar: 'تعديل', en: 'Adjustment', color: 'bg-amber-100 text-amber-700', icon: CreditCard },
-};
-
-const SETTLEMENT_COLORS: Record<string, string> = {
-  CASH: 'bg-green-100 text-green-700',
-  BANK_TRANSFER: 'bg-purple-100 text-purple-700',
-  MOBILE_WALLET: 'bg-sky-100 text-sky-700',
 };
 
 export function AccountStatement({

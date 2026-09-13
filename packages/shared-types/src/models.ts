@@ -333,6 +333,9 @@ export interface Order {
   /** Kitchen estimate selected when the store accepts the order. */
   estimatedPrepMinutes: number | null;
   estimatedReadyAt?: string | null;
+  dispatchExpiresAt?: string | null;
+  preparationStartedAt?: string | null;
+  preparedAt?: string | null;
   /** 4-digit PIN the customer shares with the captain on delivery. */
   deliveryPin: string | null;
   /**
@@ -421,6 +424,9 @@ export interface OrderSummary {
   /** Kitchen estimate chosen when the store accepted the order. */
   estimatedPrepMinutes: number | null;
   estimatedReadyAt?: string | null;
+  dispatchExpiresAt?: string | null;
+  preparationStartedAt?: string | null;
+  preparedAt?: string | null;
   /**
    * Only the lines carrying a per-item instruction ("no onions"), so list
    * views can surface the kitchen-critical notes without shipping a full detail.

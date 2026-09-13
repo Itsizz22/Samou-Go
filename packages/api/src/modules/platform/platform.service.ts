@@ -10,7 +10,6 @@ import { isOrderPartyMember } from '../../lib/order-party';
 import type {
   LocationBody,
   PlatformSettingsBody,
-  RatingBody,
   SettlementBody,
   TicketBody,
   WalletCreditBody,

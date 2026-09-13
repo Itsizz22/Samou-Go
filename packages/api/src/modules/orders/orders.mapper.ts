@@ -15,7 +15,7 @@ import type {
   OrderStatusHistoryEntry,
   OrderSummary,
 } from '@samou-go/shared-types';
-import { UserRole } from '@samou-go/shared-types';
+import { UserRole, normalizeSelectedOptions } from '@samou-go/shared-types';
 import { decimalToNumber } from '../../lib/decimal';
 
 /**
@@ -30,10 +30,6 @@ export function canViewCaptainHandoffCode(viewerRole?: string): boolean {
 /**
  * The `include` shape every detail query must use for `toOrderDetail` to typecheck.
  *
- * NOTE: `any` casts on `fulfillmentType`, `voiceNoteUrl`, `voiceNoteDuration`,
- * `isOfferItem`, `offerTitle`, `offerId` are required because the Prisma
- * generated client is stale (Windows Defender blocks `prisma generate`).
- * Remove the casts once the client is regenerated.
  */
 function toContact(user: { id: string; name: string; phone: string; whatsappNumber?: string | null }) {
   return { id: user.id, name: user.name, phone: user.phone, whatsappNumber: user.whatsappNumber ?? null };
@@ -58,13 +54,7 @@ export type OrderForSummary = PrismaOrder & {
   store: Pick<PrismaStore, 'nameAr'> & Partial<Pick<PrismaStore, 'phone' | 'whatsappNumber'>>;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function staleField<T>(obj: any, key: string, fallback: T): T {
-  return key in obj ? obj[key] as T : fallback;
-}
-
 export function toOrder(order: PrismaOrder): Order {
-  const raw = order as any;
   return {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -73,7 +63,7 @@ export function toOrder(order: PrismaOrder): Order {
     captainId: order.captainId,
     cartCheckoutId: order.cartCheckoutId ?? null,
     status: order.status,
-    fulfillmentType: raw.fulfillmentType ?? 'DELIVERY',
+    fulfillmentType: order.fulfillmentType ?? 'DELIVERY',
     customerAddressText: order.customerAddressText,
     addressNote: order.addressNote,
     orderNote: order.orderNote,
@@ -82,20 +72,23 @@ export function toOrder(order: PrismaOrder): Order {
     longitude: order.longitude,
     estimatedPrepMinutes: order.estimatedPrepMinutes,
     estimatedReadyAt: order.estimatedReadyAt?.toISOString() ?? null,
+    dispatchExpiresAt: order.captainId ? null : order.dispatchExpiresAt?.toISOString() ?? null,
+    preparationStartedAt: order.preparationStartedAt?.toISOString() ?? null,
+    preparedAt: order.preparedAt?.toISOString() ?? null,
     deliveryPin: order.deliveryPin ?? null,
     captainHandoffCode: order.captainHandoffCode ?? null,
     requiresHandoffCode: order.captainHandoffCode !== null,
-    voiceNoteUrl: raw.voiceNoteUrl ?? null,
-    voiceNoteDuration: raw.voiceNoteDuration ?? null,
+    voiceNoteUrl: order.voiceNoteUrl ?? null,
+    voiceNoteDuration: order.voiceNoteDuration ?? null,
     subtotal: decimalToNumber(order.subtotal),
     deliveryFee: decimalToNumber(order.deliveryFee),
     autoPriced: order.autoPriced,
     discount: decimalToNumber(order.discount),
     voucherId: order.voucherId,
     deliveryZoneId: order.deliveryZoneId,
-    isCaptainPriced: raw.isCaptainPriced ?? false,
-    driverQuotedFee: raw.driverQuotedFee ?? null,
-    feeApprovalStatus: raw.feeApprovalStatus ?? 'APPROVED',
+    isCaptainPriced: order.isCaptainPriced ?? false,
+    driverQuotedFee: order.driverQuotedFee === null ? null : decimalToNumber(order.driverQuotedFee),
+    feeApprovalStatus: order.feeApprovalStatus === 'PENDING_CUSTOMER_ACCEPTANCE' ? 'PENDING_CUSTOMER_ACCEPTANCE' : 'APPROVED',
     totalAmount: decimalToNumber(order.totalAmount),
     paymentMethod: order.paymentMethod,
     createdAt: order.createdAt.toISOString(),
@@ -104,16 +97,11 @@ export function toOrder(order: PrismaOrder): Order {
 }
 
 function toOrderItem(item: PrismaOrderItem & { product: PrismaProduct | null }): OrderItemWithProduct {
-  const raw = item as any;
-  // Parse selectedOptions JSON if present.
-  let selectedOptions: any[] | null = null;
-  if (raw.selectedOptions) {
-    try {
-      selectedOptions = typeof raw.selectedOptions === 'string'
-        ? JSON.parse(raw.selectedOptions)
-        : raw.selectedOptions;
-    } catch { /* malformed JSON — return null */ }
-  }
+  let selectedOptions = null;
+  try {
+    const value: unknown = typeof item.selectedOptions === 'string' ? JSON.parse(item.selectedOptions) : item.selectedOptions;
+    selectedOptions = value === null ? null : normalizeSelectedOptions(value);
+  } catch { /* Legacy malformed JSON has no usable selections. */ }
   return {
     id: item.id,
     orderId: item.orderId,
@@ -122,16 +110,16 @@ function toOrderItem(item: PrismaOrderItem & { product: PrismaProduct | null }):
     unitPrice: decimalToNumber(item.unitPrice),
     totalPrice: decimalToNumber(item.totalPrice),
     note: item.note,
-    isOfferItem: raw.isOfferItem ?? false,
-    offerTitle: raw.offerTitle ?? null,
-    offerId: raw.offerId ?? null,
+    isOfferItem: item.isOfferItem ?? false,
+    offerTitle: item.offerTitle ?? null,
+    offerId: item.offerId ?? null,
     selectedOptions,
     product: {
       id: item.productId ?? `offer:${item.offerId ?? item.id}`,
       nameAr: item.offerTitle ?? item.product?.nameAr ?? 'عرض غير متاح',
       imageUrl: item.product?.imageUrl ?? null,
     },
-  } as any;
+  };
 }
 
 function toStatusHistoryEntry(entry: PrismaStatusHistory): OrderStatusHistoryEntry {
@@ -204,7 +192,6 @@ function optionNames(value: unknown): string[] {
 export function toOrderSummary(order: OrderForSummary, viewerRole?: string, viewerId?: string): OrderSummary {
   const restricted = viewerRole === UserRole.CAPTAIN && (!viewerId || order.captainId !== viewerId);
   const staff = viewerRole === UserRole.STORE_MANAGER || (viewerRole === UserRole.CAPTAIN && !restricted) || viewerRole === UserRole.ADMIN;
-  const raw = order as any;
   return {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -232,9 +219,12 @@ export function toOrderSummary(order: OrderForSummary, viewerRole?: string, view
     createdAt: order.createdAt.toISOString(),
     orderNote: restricted ? null : order.orderNote,
     deliveryPreset: order.deliveryPreset,
-    fulfillmentType: raw.fulfillmentType ?? 'DELIVERY',
+    fulfillmentType: order.fulfillmentType ?? 'DELIVERY',
     estimatedPrepMinutes: order.estimatedPrepMinutes,
     estimatedReadyAt: order.estimatedReadyAt?.toISOString() ?? null,
+    dispatchExpiresAt: order.captainId ? null : order.dispatchExpiresAt?.toISOString() ?? null,
+    preparationStartedAt: order.preparationStartedAt?.toISOString() ?? null,
+    preparedAt: order.preparedAt?.toISOString() ?? null,
     captainHandoffCode: canViewCaptainHandoffCode(viewerRole)
       ? (order.captainHandoffCode ?? null)
       : null,

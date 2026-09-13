@@ -1,3 +1,4 @@
+import { AppSelect } from '@samou-go/ui';
 import { requestOtp, normalizeLoginPhone } from '@samou-go/api-client';
 import { OrderChat } from '@samou-go/api-client';
 import { WhatsAppNumberSettings } from '@samou-go/ui';
@@ -1220,7 +1221,7 @@ function OrderZonePicker({ zones, orderId, currentZoneId, onSet }: OrderZonePick
         </p>
       )}
       <div className="flex gap-2">
-        <select
+        <AppSelect
           value={value}
           onChange={event => {
             setValue(event.target.value);
@@ -1235,7 +1236,7 @@ function OrderZonePicker({ zones, orderId, currentZoneId, onSet }: OrderZonePick
               {t(zone.nameAr, zone.nameEn)} — {zone.fee} ₪
             </option>
           ))}
-        </select>
+        </AppSelect>
         <button
           type="button"
           disabled={!value || unchanged || busy}

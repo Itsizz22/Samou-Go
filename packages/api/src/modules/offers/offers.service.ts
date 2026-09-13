@@ -2,7 +2,7 @@ import type { Offer, Paginated, UserRole } from '@samou-go/shared-types';
 import { UserRole as UserRoleEnum } from '@samou-go/shared-types';
 import { prisma } from '../../lib/prisma';
 import { forbidden, notFound } from '../../lib/http-error';
-import { toOffer, activeOfferWhere, type OfferRow } from './offers.mapper';
+import { toOffer, activeOfferWhere } from './offers.mapper';
 import type { CreateOfferBody, UpdateOfferBody } from './offers.schemas';
 
 const INCLUDE_WITH_PRODUCTS = { products: true, store: { select: { nameAr: true, logoUrl: true, coverUrl: true } } } as const;

@@ -574,8 +574,8 @@ interface OrderSpec {
 }
 
 async function seedOrders(
-  store1: ResolvedStore,
-  store2: ResolvedStore,
+  _store1: ResolvedStore,
+  _store2: ResolvedStore,
   captainA: ResolvedUser,
   customer1: ResolvedUser,
   customer2: ResolvedUser,

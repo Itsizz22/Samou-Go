@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import { created, ok } from '../../lib/respond';
 import { parseWith } from '../../lib/validate';
 import { requireAuth } from '../../middleware/authenticate';
-import { chatSchema, locationSchema, orderIdParamsSchema, platformSettingsSchema, ticketSchema, walletIdParamsSchema } from './platform.schemas';
+import { locationSchema, orderIdParamsSchema, platformSettingsSchema, ticketSchema, walletIdParamsSchema } from './platform.schemas';
 import * as platformService from './platform.service';
 
 /** PUT /api/v1/platform/captains/me/location */

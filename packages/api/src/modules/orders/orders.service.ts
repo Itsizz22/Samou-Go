@@ -1,10 +1,11 @@
+import { deliveryTransaction } from './delivery-transaction';
 import { sizeOptionPriceDelta } from '@samou-go/shared-types';
 import { resolveRouteFee } from '../zones/route-pricing';
 import { nextPublicCode } from '../../lib/public-code';
 import { sendPushToUser } from '../../lib/push';
 import { orderProposalSchema } from './orders.schemas';
 import { captainStoreIds, assignedStoresInclude } from '../auth/captain-stores';
-import { captainPoolScope, PREPARATION_POOL_STATUSES } from './captain-pool';
+import { captainPoolScope, PREPARATION_POOL_STATUSES, lockCaptainCapacity, eligibleCaptainIds } from './captain-pool';
 import { withOrderSubmission } from '../../lib/order-submission';
 import { automaticDeliveryPricing } from './pricing';
 import { normalizeSelectedOptions, resolveSelectedOptions, normalizeOptionGroups } from '@samou-go/shared-types';
@@ -41,8 +42,6 @@ import type {
   CreateOrderBody,
   OrderListQuery,
   QuoteOrderBody,
-  SetDeliveryFeeBody,
-  SetReviewBody,
   UpdateOrderStatusBody,
   CheckoutResult,
   CheckoutStoreResult,
@@ -508,8 +507,8 @@ export async function createOrder(
         voucherId: voucher?.id ?? null,
         paymentMethod: PaymentMethod.COD,
         deliveryPin: body.fulfillmentType === 'PICKUP' ? null : generateDeliveryPin(),
-        voiceNoteUrl: (body as any).voiceNoteUrl ?? null,
-        voiceNoteDuration: (body as any).voiceNoteDuration ?? null,
+        voiceNoteUrl: body.voiceNoteUrl ?? null,
+        voiceNoteDuration: body.voiceNoteDuration ?? null,
         items: {
           create: lines.map(line => {
             const itemSource = body.items[line.sourceIndex ?? 0];
@@ -540,10 +539,10 @@ export async function createOrder(
             note: 'تم إنشاء الطلب / Order created',
           },
         },
-      } as any,
+      },
       include: DETAIL_INCLUDE,
     });
-    return toOrderDetail(order as any, 'CUSTOMER');
+    return toOrderDetail(order, 'CUSTOMER');
   });
 }
 
@@ -1088,7 +1087,8 @@ export async function updateOrderStatus(
 
   let updated;
   try {
-    updated = await prisma.$transaction(async tx => {
+    updated = await deliveryTransaction(async tx => {
+      if (assignCaptainOnClaim) await lockCaptainCapacity(tx, actor.sub, orderId);
       const result = await tx.order.update({
         where: {
           id: orderId,
@@ -1106,9 +1106,12 @@ export async function updateOrderStatus(
           // throw P2025 (record not found for the filter) and we surface a
           // 409 instead of silently overwriting the first captain's assignment.
           ...(actor.role === UserRole.CAPTAIN ? { captainId: assignCaptainOnClaim ? null : actor.sub } : {}),
+          ...(assignCaptainOnClaim ? { OR: [{ dispatchCaptainId: null }, { dispatchCaptainId: actor.sub, dispatchExpiresAt: { gt: new Date() } }] } : {}),
         },
         data: {
           status: next,
+          ...(next === OrderStatus.ACCEPTED ? { preparationStartedAt: new Date(), estimatedPrepMinutes: body.estimatedPrepMinutes ?? 20, estimatedReadyAt: new Date(Date.now()+(body.estimatedPrepMinutes ?? 20)*60_000) } : {}),
+          ...(next === OrderStatus.READY_FOR_PICKUP ? { preparedAt: new Date() } : {}),
           ...(body.estimatedPrepMinutes !== undefined ? {
             estimatedPrepMinutes: body.estimatedPrepMinutes,
             estimatedReadyAt: new Date(Date.now() + body.estimatedPrepMinutes * 60_000),
@@ -1213,20 +1216,15 @@ export async function assignCaptain(
     throw unprocessable('CAPTAIN_STORE_MISMATCH', 'الكابتن مخصص لمتجر آخر / Captain is dedicated to another store');
   }
 
-  const updated = await prisma.order.update({
-    where: { id: orderId },
-    data: {
-      captainId: captain.id,
-      prepReminderSentAt: null, prepReminderLeaseUntil: null,
-      statusHistory: {
-        create: {
-          status: order.status,
-          changedByUserId: actor.sub,
-          note: `تم إسناد الطلب للكابتن / Assigned to captain ${captain.id}`,
-        },
-      },
-    },
-    include: DETAIL_INCLUDE,
+  if (order.captainId === captain.id) return toOrderDetail(order, actor.role, actor.sub);
+  if (!PREPARATION_POOL_STATUSES.some(status => status === order.status) || order.fulfillmentType !== 'DELIVERY' || order.changeProposal) throw conflict('اعتمد الفاتورة قبل إسناد التوصيل / Approve the final order before assigning delivery');
+  const updated = await deliveryTransaction(async tx => {
+    await lockCaptainCapacity(tx, captain.id, orderId);
+    if (!(await eligibleCaptainIds(order.storeId, tx)).includes(captain.id)) throw forbidden('الكابتن غير مؤهل لهذا المتجر / Captain is not eligible for this store');
+    const changed = await tx.order.updateMany({ where: { id: orderId, captainId: order.captainId, status: order.status, updatedAt: order.updatedAt, changeProposal: null }, data: { captainId: captain.id, dispatchCaptainId: null, dispatchExpiresAt: null, prepReminderSentAt: null, prepReminderLeaseUntil: null } });
+    if (!changed.count) throw conflict('تغير الطلب؛ حدّث الصفحة / Order changed');
+    await tx.orderStatusHistory.create({ data: { orderId, status: order.status, changedByUserId: actor.sub, note: `تم إسناد الطلب للكابتن ${captain.id}` } });
+    return tx.order.findUniqueOrThrow({ where: { id: orderId }, include: DETAIL_INCLUDE });
   });
 
   return toOrderDetail(updated, actor.role, actor.sub);
@@ -1533,14 +1531,18 @@ export async function setOrderDeliveryFee(
 /** Reservation keeps preparation status unchanged. A conditional database write selects one winner. */
 export async function reserveOrder(actor: { sub: string; role: UserRole }, orderId: string): Promise<OrderDetail> {
   if (actor.role !== UserRole.CAPTAIN) throw forbidden();
+  const existing = await loadOrderOrThrow(orderId);
+  if (existing.captainId === actor.sub) return getOrder(actor, orderId);
+  if (existing.fulfillmentType !== 'DELIVERY' || !(await eligibleCaptainIds(existing.storeId, prisma, true)).includes(actor.sub)) throw forbidden('الطلب غير متاح لك / Order unavailable');
   const scope = await captainPoolScope(actor.sub);
-  const eligible = await prisma.order.findFirst({ where: { AND: [{ id: orderId }, scope] }, select: { id: true, captainId: true } });
-  if (!eligible) throw forbidden('الطلب غير متاح لك / Order is not available to you');
-  if (eligible.captainId === actor.sub) return getOrder(actor, orderId);
-  const claimed = await prisma.order.updateMany({ where: { AND: [{ id: orderId, captainId: null }, scope] }, data: { captainId: actor.sub, prepReminderSentAt: null, prepReminderLeaseUntil: null } });
-  if (claimed.count !== 1) throw conflict('سبقك كابتن آخر لحجز الطلب / Another captain reserved this order');
-  const store = await prisma.store.findUnique({ where: { id: (await getOrder(actor, orderId)).storeId }, select: { managerId: true } });
-  if (store) await sendPushToUser(store.managerId, { title: 'تم حجز التوصيل', body: 'حجز كابتن هذا الطلب وستصله تحديثات الجاهزية', data: { type: 'CAPTAIN_RESERVED', orderId } }).catch(() => undefined);
+  await deliveryTransaction(async tx => {
+    await lockCaptainCapacity(tx, actor.sub, orderId);
+    if (!(await eligibleCaptainIds(existing.storeId, tx)).includes(actor.sub)) throw forbidden('الطلب غير متاح لك / Order is not available to you');
+    const claimed = await tx.order.updateMany({ where: { AND: [{ id: orderId, captainId: null }, scope, { OR: [{ dispatchCaptainId: null }, { dispatchCaptainId: actor.sub, dispatchExpiresAt: { gt: new Date() } }] }] }, data: { captainId: actor.sub, dispatchCaptainId: null, dispatchExpiresAt: null, prepReminderSentAt: null, prepReminderLeaseUntil: null } });
+    if (claimed.count !== 1) throw conflict('انتهى العرض أو حجز كابتن آخر الطلب / Offer expired or another captain reserved the order');
+    await tx.orderStatusHistory.create({data:{orderId,status:existing.status,changedByUserId:actor.sub,note:'تم حجز التوصيل / Delivery reserved'}});
+  });
+  await Promise.all([existing.store.managerId, existing.customerId].map(id => sendPushToUser(id, { title: 'تم حجز التوصيل', body: `حجز كابتن توصيل الطلب #${existing.orderNumber}`, data: { type: 'CAPTAIN_RESERVED', orderId, screen: 'order' } }).catch(() => undefined)));
   return getOrder(actor, orderId);
 }
 
@@ -1566,7 +1568,7 @@ export async function releaseReservation(actor: { sub: string; role: UserRole },
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { store: { select: { managerId: true, nameAr: true } } } });
   if (!order || order.captainId !== actor.sub) throw forbidden('الطلب غير محجوز لك / This reservation is not yours');
   if (!PREPARATION_POOL_STATUSES.some(status => status === order.status)) throw conflict('لا يمكن الاعتذار بعد الاستلام / Cannot withdraw after pickup');
-  return prisma.$transaction(async tx => {
+  return deliveryTransaction(async tx => {
     const released = await tx.order.updateMany({ where: { id: orderId, captainId: actor.sub, status: order.status }, data: { captainId: null, prepReminderSentAt: null, prepReminderLeaseUntil: null } });
     if (!released.count) throw conflict('تغير الطلب، حدّث الصفحة / Order changed; refresh');
     await tx.orderStatusHistory.create({ data: { orderId, status: order.status, changedByUserId: actor.sub, note: `اعتذار الكابتن عن التوصيل: ${reason}` } });
@@ -1576,7 +1578,7 @@ export async function releaseReservation(actor: { sub: string; role: UserRole },
 
 /** Customer edits only the existing frozen-price basket before store acceptance. */
 export async function editPendingOrder(customerId: string, orderId: string, body: import('zod').infer<typeof import('./orders.schemas').editPendingOrderSchema>): Promise<OrderDetail> {
-  const result = await prisma.$transaction(async tx => {
+  const result = await deliveryTransaction(async tx => {
     // Write-first CAS serializes against acceptance and prevents stale client edits.
     const locked = await tx.order.updateMany({ where: { id: orderId, customerId, status: OrderStatus.PENDING, changeProposal: null, updatedAt: new Date(body.updatedAt) }, data: { updatedAt: new Date() } });
     if (!locked.count) throw conflict('تغير الطلب أو قبله المتجر؛ حدّث الصفحة / Order changed or was accepted');
@@ -1608,7 +1610,7 @@ export async function editPendingOrder(customerId: string, orderId: string, body
 export async function proposeOrderChange(actor: { sub: string; role: UserRole }, orderId: string, body: import('zod').infer<typeof orderProposalSchema>): Promise<OrderDetail> {
   const existing = await loadOrderOrThrow(orderId);
   if (actor.role !== UserRole.ADMIN && existing.store.managerId !== actor.sub) throw forbidden();
-  const updated = await prisma.$transaction(async tx => {
+  const updated = await deliveryTransaction(async tx => {
     const lock = await tx.order.updateMany({ where: { id: orderId, status: OrderStatus.PENDING, updatedAt: new Date(body.updatedAt) }, data: { updatedAt: new Date() } });
     if (!lock.count) throw conflict('تغير الطلب؛ حدّث الصفحة / Order changed');
     const lines = await priceBasket(tx, existing.storeId, body.items);
@@ -1623,10 +1625,11 @@ export async function proposeOrderChange(actor: { sub: string; role: UserRole },
   return toOrderDetail(updated, actor.role, actor.sub);
 }
 export async function decideOrderChange(customerId: string, orderId: string, updatedAt: string, accept: boolean): Promise<OrderDetail> {
-  return prisma.$transaction(async tx => {
+  const result = await deliveryTransaction(async tx => {
     const locked = await tx.order.updateMany({ where: { id: orderId, customerId, status: OrderStatus.PENDING, updatedAt: new Date(updatedAt), changeProposal: { not: null } }, data: { updatedAt: new Date() } });
     if (!locked.count) throw conflict('تغير المقترح؛ حدّث الطلب / Proposal changed');
     const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, include: DETAIL_INCLUDE });
+    await tx.orderStatusHistory.create({data:{orderId,status:OrderStatus.PENDING,changedByUserId:customerId,note:accept ? 'وافق العميل على تعديل الفاتورة' : 'رفض العميل تعديل الفاتورة'}});
     if (!accept) return toOrderDetail(await tx.order.update({ where: { id: orderId }, data: { changeProposal: null }, include: DETAIL_INCLUDE }), UserRole.CUSTOMER);
     const raw: unknown = JSON.parse(order.changeProposal!);
     if (!raw || typeof raw !== 'object' || !('input' in raw) || !('lines' in raw)) throw badRequest('مقترح غير صالح / Invalid proposal');
@@ -1643,4 +1646,11 @@ export async function decideOrderChange(customerId: string, orderId: string, upd
       items: { create: lines.map((line,index) => ({ productId: line.productId, quantity: line.quantity, unitPrice: line.unitPrice, totalPrice: lineTotal(line.unitPrice,line.quantity), note: parsed.items[line.sourceIndex ?? index]?.note, selectedOptions: line.selectedOptions ?? [], isOfferItem: Boolean(line.offerId), offerId: line.offerId, offerTitle: line.offerTitle })) },
     }, include: DETAIL_INCLUDE }), UserRole.CUSTOMER);
   });
+  try {
+    const manager = await prisma.store.findUnique({where:{id:result.storeId},select:{managerId:true}});
+    if (manager) await sendPushToUser(manager.managerId, { title: accept ? 'وافق العميل على التعديل' : 'رفض العميل التعديل', body: `راجع الطلب #${result.orderNumber} واعتمد الفاتورة النهائية`, data: { type: 'ORDER_CHANGE_DECIDED', orderId, screen: 'order' } }).catch(() => undefined);
+  } catch {
+    // Notification lookup failures must not undo an already committed customer decision.
+  }
+  return result;
 }

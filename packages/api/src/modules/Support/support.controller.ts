@@ -9,7 +9,6 @@ import {
   updateTicketStatusSchema,
 } from './support.schemas';
 import * as supportService from './support.service';
-import type { JwtPayload } from '@samou-go/shared-types';
 
 export async function createSupportTicketHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);

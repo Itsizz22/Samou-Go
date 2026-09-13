@@ -1,3 +1,4 @@
+import { AppSelect } from '@samou-go/ui';
 import { StoreHomeCategoryEditor } from '../StoreHomeCategories';
 import { DeliveryPricingMatrix } from '../DeliveryPricingMatrix';
 import { STORE_TYPE_LABELS, type StoreType as StoreKind } from '@samou-go/shared-types';
@@ -1068,7 +1069,7 @@ function OrdersPanel() {
               aria-label="Search orders"
             />
           </label>
-          <select
+          <AppSelect
             value={statusFilter}
             onChange={event => setStatusFilter(event.target.value as 'ALL' | OrderStatus)}
             className="h-9 rounded-xl border border-line bg-canvas px-2 text-xs font-semibold text-ink outline-none focus:border-brand"
@@ -1080,7 +1081,7 @@ function OrdersPanel() {
                 {ORDER_STATUS_LABELS[status].en}
               </option>
             ))}
-          </select>
+          </AppSelect>
           <button
             type="button"
             onClick={() => setSortBy(value => (value === 'newest' ? 'amount' : 'newest'))}
@@ -1134,7 +1135,7 @@ function OrdersPanel() {
                         {legal.length === 0 ? (
                           <span className="text-micro text-ink-muted">—</span>
                         ) : (
-                          <select
+                          <AppSelect
                             value=""
                             disabled={busy}
                             onChange={e => {
@@ -1152,7 +1153,7 @@ function OrdersPanel() {
                                 {t(ORDER_STATUS_LABELS[status].ar, ORDER_STATUS_LABELS[status].en)}
                               </option>
                             ))}
-                          </select>
+                          </AppSelect>
                         )}
                       </td>
                       <td className="px-5 py-3 text-end font-extrabold text-brand-deep" dir="ltr">
@@ -1343,7 +1344,7 @@ function UsersPanel() {
               aria-label="Search users"
             />
           </label>
-          <select
+          <AppSelect
             value={roleFilter}
             onChange={e => setRoleFilter(e.target.value as 'ALL' | UserRole)}
             className="h-9 rounded-xl border border-line bg-canvas px-2 text-xs font-semibold text-ink outline-none focus:border-brand"
@@ -1355,7 +1356,7 @@ function UsersPanel() {
                 {t(USER_ROLE_LABELS[role].ar, USER_ROLE_LABELS[role].en)}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </div>
       }
     >
@@ -1452,7 +1453,7 @@ function UsersPanel() {
                         {user.phone}
                       </td>
                       <td className="px-3 py-3">
-                        <select
+                        <AppSelect
                           value={user.role}
                           disabled={busy || user.role === UserRole.ADMIN}
                           onChange={e => changeRole(user, e.target.value as UserRole)}
@@ -1464,7 +1465,7 @@ function UsersPanel() {
                               {USER_ROLE_LABELS[role].ar}
                             </option>
                           ))}
-                        </select>
+                        </AppSelect>
                       </td>
                       <td className="px-3 py-3">
                         {user.role === UserRole.CAPTAIN ? (
@@ -1922,10 +1923,10 @@ function StoresPanel() {
                                 {store.publicCode ? `${store.publicCode} · ` : ""}{store.nameEn}
                               </span>
                               <label className="mt-2 block text-xs text-ink-muted">{t('نوع المتجر', 'Store type')}
-                                <select value={store.storeType ?? ''} disabled={pendingId !== null} onChange={event => void changeStoreType(store.id, event.target.value ? event.target.value as StoreKind : null)} className="ms-2 rounded-lg border border-line bg-surface px-2 py-1 text-ink">
+                                <AppSelect value={store.storeType ?? ''} disabled={pendingId !== null} onChange={event => void changeStoreType(store.id, event.target.value ? event.target.value as StoreKind : null)} className="ms-2 rounded-lg border border-line bg-surface px-2 py-1 text-ink">
                                   <option value="">{t('غير محدد', 'Not specified')}</option>
                                   {Object.entries(STORE_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{t(label.ar, label.en)}</option>)}
-                                </select>
+                                </AppSelect>
                               </label>
                               <StoreHomeCategoryEditor storeId={store.id} />
                             </div>
@@ -2053,7 +2054,7 @@ function StoresPanel() {
                             </button>
                             <label className="flex items-center gap-1 rounded-lg border border-line bg-surface px-2 py-1 text-[11px] font-bold text-ink-soft">
                               <span className="hidden sm:inline">إسناد سائق</span>
-                              <select
+                              <AppSelect
                                 defaultValue=""
                                 disabled={busy || assignCaptainMutation.pending}
                                 onChange={event => {
@@ -2075,7 +2076,7 @@ function StoresPanel() {
                                       {captain.name}
                                     </option>
                                   ))}
-                              </select>
+                              </AppSelect>
                             </label>
                             {store.logoUrl ? (
                               <>
@@ -2371,7 +2372,7 @@ function CaptainsPanel() {
               aria-label="Search captains"
             />
           </label>
-          <select
+          <AppSelect
             value={availability}
             onChange={event => setAvailability(event.target.value as 'ALL' | 'ONLINE' | 'OFFLINE')}
             className="h-9 rounded-xl border border-line bg-canvas px-2 text-xs font-semibold text-ink outline-none focus:border-brand"
@@ -2380,7 +2381,7 @@ function CaptainsPanel() {
             <option value="ALL">All availability</option>
             <option value="ONLINE">Online</option>
             <option value="OFFLINE">Offline</option>
-          </select>
+          </AppSelect>
         </div>
       }
     >

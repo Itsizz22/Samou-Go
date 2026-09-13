@@ -1,3 +1,4 @@
+import { AppSelect } from '@samou-go/ui';
 import { useEffect, useState } from "react";
 import {
   createOptionGroup,
@@ -249,7 +250,7 @@ export function ProductCustomizationEditor({
           </label>
           <label className="block text-sm">
             نوع الخيارات
-            <select
+            <AppSelect
               className={field}
               value={draft.kind}
               onChange={(e) => {
@@ -271,7 +272,7 @@ export function ProductCustomizationEditor({
                   {name}
                 </option>
               ))}
-            </select>
+            </AppSelect>
           </label>
           {draft.kind === "SIZE" && (
             <p className="text-sm leading-6 text-ink-muted">

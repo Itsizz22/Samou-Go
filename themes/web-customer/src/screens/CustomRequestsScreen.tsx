@@ -1,3 +1,4 @@
+import { AppSelect } from '@samou-go/ui';
 import { PrescriptionImage, compressImage } from '@samou-go/api-client';
 import { useDeliveryZone } from '@/components/ZoneProvider';
 import { useRef, useState } from 'react';
@@ -120,7 +121,7 @@ export function CustomRequestsScreen() {
         <form onSubmit={(event) => void submit(event)} className="rounded-2xl border border-line bg-surface p-4 shadow-card">
           <h2 className="text-sm font-extrabold">اطلب شيئاً غير موجود في القائمة</h2>
 
-          <select
+          <AppSelect
             value={storeId}
             onChange={(event) => { setStoreId(event.target.value); setImageUrl(null); }}
             className="input-field mt-3"
@@ -132,7 +133,7 @@ export function CustomRequestsScreen() {
                 {store.nameAr}
               </option>
             ))}
-          </select>
+          </AppSelect>
 
           <textarea
             value={description}
@@ -143,7 +144,7 @@ export function CustomRequestsScreen() {
           />
 
           {pharmacy && <label className="mt-3 block text-sm font-bold">عنوان التوصيل (إجباري)<textarea required minLength={5} maxLength={500} value={address} onChange={e => setAddress(e.target.value)} placeholder="الحي، الشارع، علامة مميزة" className="input-field mt-2 w-full" /><span className="mt-2 block font-normal text-ink-muted">أرفق صورة واضحة للوصفة. تراجعها الصيدلية وتعرض السعر قبل تأكيد الطلب.</span></label>}
-          {pharmacy && zone.zones.length > 0 && <label className="mt-3 block text-sm font-bold">منطقة التوصيل<select required className="input-field mt-2 w-full" value={zone.activeZone?.id ?? ''} onChange={e => zone.selectZone(e.target.value)}><option value="">اختر المنطقة</option>{zone.zones.map(item => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</select></label>}
+          {pharmacy && zone.zones.length > 0 && <label className="mt-3 block text-sm font-bold">منطقة التوصيل<AppSelect required className="input-field mt-2 w-full" value={zone.activeZone?.id ?? ''} onChange={e => zone.selectZone(e.target.value)}><option value="">اختر المنطقة</option>{zone.zones.map(item => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</AppSelect></label>}
           {/* Photo attachment */}
           <div className="mt-2">
             <input

@@ -86,6 +86,7 @@ function useAndroidBackButton() {
         const { App } = await import('@capacitor/app');
         const handler = await App.addListener('backButton', ({ canGoBack }) => {
           if (!active) return;
+          if (!document.dispatchEvent(new Event('samou:select-back', { cancelable: true }))) return;
           // Back first dismisses the focused editor/keyboard, preserving form data.
           const editor = document.activeElement;
           if (editor instanceof HTMLInputElement || editor instanceof HTMLTextAreaElement || (editor instanceof HTMLElement && editor.isContentEditable)) {

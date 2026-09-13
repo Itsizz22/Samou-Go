@@ -42,7 +42,7 @@ type Auth = { sub: string; role: UserRole };
  * layer uses; a rejection just means the room is never joined.
  */
 export async function handleOrderJoin(
-  io: Server,
+  _io: Server,
   socket: Socket,
   auth: Auth,
   orderId: unknown

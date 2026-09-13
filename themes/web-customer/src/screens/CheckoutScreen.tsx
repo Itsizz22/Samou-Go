@@ -1,3 +1,4 @@
+import { AppSelect } from '@samou-go/ui';
 import { normalizeSelectedOptions } from '@samou-go/shared-types';
 import { CheckoutDeliveryEstimate } from '@/components/DeliveryEstimate';
 import { useCheckoutDraft } from '@/hooks/useCheckoutDraft';
@@ -619,16 +620,16 @@ export function CheckoutScreen() {
               {fulfillmentType === 'DELIVERY' && zones.length > 0 && (
                 <label className="block">
                   <span className="text-[11px] font-bold text-ink-muted">المنطقة</span>
-                  <select value={zoneId} onChange={(event) => zoneContext.selectZone(event.target.value)} className="input-field mt-1.5 w-full">
+                  <AppSelect value={zoneId} onChange={(event) => zoneContext.selectZone(event.target.value)} className="input-field mt-1.5 w-full">
                     <option value="">اختر المنطقة</option>
                     {zones.map((zone) => <option key={zone.id} value={zone.id}>{zone.nameAr}</option>)}
-                  </select>
+                  </AppSelect>
                 </label>
               )}
               {zonesEnabled && zones.length === 0 && (
               <label className="block">
                 <span className="text-[11px] font-bold text-ink-muted">{t('منطقة التوصيل', 'Delivery region')}</span>
-                <select
+                <AppSelect
                   value={deliveryRegion}
                   onChange={(event) => setDeliveryRegion(event.target.value as DeliveryRegion)}
                   className="input-field mt-1.5 w-full"
@@ -637,7 +638,7 @@ export function CheckoutScreen() {
                   <option value="central">{t('داخل السموع', 'Central')}</option>
                   <option value="outer">{t('الأطراف', 'Outer area')}</option>
                   <option value="remote">{t('منطقة بعيدة', 'Remote area')}</option>
-                </select>
+                </AppSelect>
               </label>
               )}
               <label className="block">

@@ -1,3 +1,4 @@
+import { AppSelect } from '@samou-go/ui';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ApiError, listActiveDeliveryZones } from '@samou-go/api-client';
 import type { DeliveryZone } from '@samou-go/shared-types';
@@ -169,7 +170,7 @@ export function ZoneSelector({ compact = false }: { compact?: boolean }) {
   return (
     <label className={compact ? "home-zone block min-w-0 flex-1 text-xs font-medium text-ink-muted" : "block text-sm font-bold"}>
       منطقة التوصيل
-      <select
+      <AppSelect
         aria-label="منطقة التوصيل"
         className={compact ? "mt-0 min-h-11 w-full rounded-xl border-0 bg-transparent pe-6 text-sm font-bold text-ink focus-visible:ring-2 focus-visible:ring-brand" : "mt-2 min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-ink"}
         value={zone.activeZone?.id ?? ''}
@@ -182,7 +183,7 @@ export function ZoneSelector({ compact = false }: { compact?: boolean }) {
             {item.nameAr}
           </option>
         ))}
-      </select>
+      </AppSelect>
       {zone.error && (
         <button type="button" className="mt-2 min-h-11 text-danger-ink" onClick={zone.reload}>
           {zone.error} — إعادة المحاولة

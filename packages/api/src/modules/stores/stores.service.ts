@@ -9,11 +9,10 @@ import type {
   Product,
   PopularProduct,
   Store,
-  StoreStatus,
   StoreWithCatalogue,
   UserRole,
 } from '@samou-go/shared-types';
-import { StoreStatus as StoreStatusEnum, UserRole as UserRoleEnum, generateStoreSlug } from '@samou-go/shared-types';
+import { UserRole as UserRoleEnum, generateStoreSlug } from '@samou-go/shared-types';
 import { prisma, caseInsensitiveContains } from '../../lib/prisma';
 import { conflict, forbidden, notFound } from '../../lib/http-error';
 import { toProduct, toStore, toStoreWithCatalogue } from './stores.mapper';

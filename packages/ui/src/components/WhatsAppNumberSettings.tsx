@@ -1,3 +1,4 @@
+import { AppSelect } from './AppSelect';
 import { useEffect, useId, useState } from 'react';
 import { useLanguage } from '../lib';
 
@@ -35,7 +36,7 @@ export function WhatsAppNumberSettings({ value, fallbackPhone, onSave }: {
     <legend className="px-1 text-sm font-bold">{t('رقم واتساب', 'WhatsApp number')}</legend>
     <p id={`${id}-help`} className="mb-3 text-xs leading-6 text-ink-muted">{t('اختر المقدمة كما تظهر في حسابك على واتساب. هذا الرقم للتواصل فقط ولا يغيّر رقم الدخول أو OTP.', 'Choose the prefix shown in your WhatsApp account. This contact number does not change your login or OTP number.')}</p>
     <div dir="ltr" className="flex min-w-0 gap-2">
-      <select aria-label={t('مقدمة رقم واتساب', 'WhatsApp country code')} value={country} onChange={e => { setCountry(e.target.value); setMessage(''); }} className="min-h-11 rounded-xl border border-line bg-canvas px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand"><option value="970">+970</option><option value="972">+972</option></select>
+      <AppSelect aria-label={t('مقدمة رقم واتساب', 'WhatsApp country code')} value={country} onChange={e => { setCountry(e.target.value); setMessage(''); }} className="min-h-11 rounded-xl border border-line bg-canvas px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand"><option value="970">+970</option><option value="972">+972</option></AppSelect>
       <input type="tel" inputMode="tel" aria-label={t('رقم واتساب دون المقدمة', 'WhatsApp number without country code')} aria-describedby={`${id}-help`} value={local} onChange={e => { const raw = e.target.value; if (/^(\+|00)?97[02]/.test(raw)) { const next=splitNumber(raw); setCountry(next.country); setLocal(next.local); } else setLocal(raw); setMessage(''); }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void save(); } }} placeholder="569123456" className="min-h-11 w-full min-w-0 rounded-xl border border-line bg-canvas px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand" />
     </div>
     <p className="mt-2 text-xs leading-5 text-ink-muted">{t('تأكد أنه رقمك؛ لم يتم التحقق من ملكيته عبر واتساب. تركه فارغًا يعيد استخدام رقم التواصل الأساسي.', 'Use your own number; WhatsApp ownership has not been verified. Leave blank to use the primary contact number.')}</p>

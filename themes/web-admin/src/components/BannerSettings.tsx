@@ -1,3 +1,4 @@
+import { AppSelect } from '@samou-go/ui';
 import { useEffect, useRef, useState } from 'react';
 import { getStores, getPlatformSettings, updatePlatformSettings, uploadImage } from '@samou-go/api-client';
 import { DEFAULT_HOME_BANNERS, type Store, type HomeBanner } from '@samou-go/shared-types';
@@ -95,8 +96,8 @@ export function BannerSettings() {
               }} className="mt-2 block min-h-11 w-full min-w-0 rounded-xl border border-line p-2 text-sm font-normal file:me-3 file:rounded-lg file:border-0 file:bg-brand-tint file:px-3 file:py-2 file:font-bold file:text-brand" />
               <span className="mt-1 block text-xs font-normal text-ink-muted">{uploadingId === item.id ? 'جارٍ رفع الصورة…' : 'اختر ملفًا من الصور أو الملفات على جهازك'}</span>
             </label>
-            <label className="text-sm font-bold">قائمة العرض<select value={item.kind ?? 'announcement'} onChange={event => update(item.id, { kind: event.target.value === 'product' ? 'product' : 'announcement', storeId: event.target.value === 'product' ? item.storeId : undefined })} className="input-field mt-1 w-full"><option value="announcement">إعلانات التطبيق — 1200×800</option><option value="product">إعلانات المنتجات — 1600×900</option></select></label>
-            {item.kind === 'product' && <label className="text-sm font-bold">المتجر عند الضغط<select required value={item.storeId ?? ''} onChange={event => update(item.id, { storeId: event.target.value || undefined })} className="input-field mt-1 w-full"><option value="">اختر المتجر</option>{stores.map(store => <option key={store.id} value={store.id}>{store.nameAr}</option>)}</select></label>}
+            <label className="text-sm font-bold">قائمة العرض<AppSelect value={item.kind ?? 'announcement'} onChange={event => update(item.id, { kind: event.target.value === 'product' ? 'product' : 'announcement', storeId: event.target.value === 'product' ? item.storeId : undefined })} className="input-field mt-1 w-full"><option value="announcement">إعلانات التطبيق — 1200×800</option><option value="product">إعلانات المنتجات — 1600×900</option></AppSelect></label>
+            {item.kind === 'product' && <label className="text-sm font-bold">المتجر عند الضغط<AppSelect required value={item.storeId ?? ''} onChange={event => update(item.id, { storeId: event.target.value || undefined })} className="input-field mt-1 w-full"><option value="">اختر المتجر</option>{stores.map(store => <option key={store.id} value={store.id}>{store.nameAr}</option>)}</AppSelect></label>}
             <label className="text-sm font-bold">الموضع الرأسي<input type="range" min={0} max={100} value={item.positionY} onChange={event => update(item.id, { positionY: Number(event.target.value) })} className="mt-3 block w-full accent-brand" /></label>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-3">

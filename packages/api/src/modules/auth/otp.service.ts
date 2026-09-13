@@ -36,8 +36,6 @@ import { toPublicUser } from "./auth.mapper";
 import { issueRefreshToken } from "./refresh-token";
 import { revokeAllUserRefreshTokens } from "./refresh-token";
 import type {
-  AdminStoreOtpRequestBody,
-  AdminCaptainOtpRequestBody,
   AdminOtpVerifyBody,
 } from "./auth.schemas";
 
@@ -423,7 +421,7 @@ export async function adminVerifyStoreOtp(body: AdminOtpVerifyBody): Promise<Aut
 
   // Create the user (store manager) and their store in ONE transaction so a
   // failure mid-way never orphans an account or a store.
-  const { user, store } = await prisma.$transaction(async tx => {
+  const { user } = await prisma.$transaction(async tx => {
     const user = await tx.user.create({
       data: {
       publicCode: await nextPublicCode(UserRole.STORE_MANAGER, tx),

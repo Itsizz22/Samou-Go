@@ -1,3 +1,4 @@
+import { AppSelect } from '@samou-go/ui';
 import { StoreHomeCategoryPicker, saveStoreHomeCategories } from './StoreHomeCategories';
 import { StoreChoices } from './StoreAssignmentPicker';
 /**
@@ -295,7 +296,7 @@ export function CreateStoreDialog({
           />
         </FieldLabel>
         <FieldLabel hint={t('نوع المتجر', 'Store type')}>
-          <select
+          <AppSelect
             className={inputClass}
             value={storeType}
             onChange={e => setStoreType(e.target.value as StoreType | '')}
@@ -307,7 +308,7 @@ export function CreateStoreDialog({
                 {t(label.ar, label.en)}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </FieldLabel>
         <StoreHomeCategoryPicker value={categoryKeys} onChange={setCategoryKeys} disabled={saving} />
         <FieldLabel hint="Manager display name (optional)">

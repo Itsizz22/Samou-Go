@@ -121,6 +121,7 @@ enum StoreType {
 /// One account, one role. Phone is the login identifier — Samou' users do not
 /// reliably have email.
 model User {
+  lastDispatchAt DateTime?
   whatsappNumber String?
   publicCode String? @unique
   marketingNotificationsEnabled Boolean @default(true)
@@ -333,6 +334,10 @@ model Product {
 /// `deliveryFee` always comes from `calculateDeliveryFee(itemCount)` in
 /// @samou-go/shared-types, never from the client.
 model Order {
+  dispatchCaptainId String?
+  dispatchExpiresAt DateTime?
+  preparationStartedAt DateTime?
+  preparedAt DateTime?
   unavailableAction String @default("CONTACT")
   changeProposal String?
   unclaimedAlertAt DateTime?
