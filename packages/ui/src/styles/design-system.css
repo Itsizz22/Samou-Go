@@ -1211,3 +1211,14 @@ img.broken-image-fallback {
   0%,100% { transform: scale(1); }
   45% { transform: scale(1.16); }
 }
+
+/* Mobile catalogue actions stay in the viewport instead of clipped columns. */
+@media (max-width: 639px) {
+ .mobile-product-list table, .mobile-product-list tbody { display: block; width: 100%; }
+ .mobile-product-list thead { display: none; }
+ .mobile-product-list tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: .75rem; gap: .25rem; }
+ .mobile-product-list td { display: block; min-width: 0; padding: .5rem; }
+ .mobile-product-list td:first-child { grid-column: 1 / -1; }
+ .mobile-product-list td:last-child { grid-column: 1 / -1; }
+ .mobile-product-list td button { min-height: 44px; min-width: 44px; }
+}
