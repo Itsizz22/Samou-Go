@@ -189,6 +189,7 @@ async function getPlatformSettingsRaw() {
     discoveryCategoryIds: row.discoveryCategoryIdsJson ? JSON.parse(row.discoveryCategoryIdsJson) as string[] : null,
     featuredCategoryIds: row.featuredCategoryIdsJson ? JSON.parse(row.featuredCategoryIdsJson) as string[] : null,
     homeCategories: row.homeCategoriesJson ? JSON.parse(row.homeCategoriesJson) as import("@samou-go/shared-types").HomeCategory[] : null,
+    homeVideos: row.homeVideosJson ? JSON.parse(row.homeVideosJson) as import("@samou-go/shared-types").HomeVideoAd[] : [],
     homeBanners: row.homeBannersJson ? JSON.parse(row.homeBannersJson) as import("@samou-go/shared-types").HomeBanner[] : null,
     gpsCaptureEnabled: row.gpsCaptureEnabled,
     preparationReminderMinutes: row.preparationReminderMinutes,
@@ -212,7 +213,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
     const categories = await prisma.category.findMany({ where: { id: { in: categoryIds } }, include: { store: { select: { nameAr: true, nameEn: true, storeType: true } } } });
     if (categories.length !== categoryIds.length || categories.some(category => !isDishStore(category.store))) throw badRequest('اختر أقسامًا موجودة من المطاعم والمقاهي والحلويات والمخابز');
   }
-  const advertisedStoreIds = [...new Set((body.homeBanners ?? []).filter(banner => banner.kind === 'product').flatMap(banner => banner.storeId ? [banner.storeId] : []))];
+  const advertisedStoreIds = [...new Set([...(body.homeBanners ?? []).filter(banner => banner.kind === 'product'), ...(body.homeVideos ?? [])].flatMap(banner => banner.storeId ? [banner.storeId] : []))];
   if (advertisedStoreIds.length) {
     const count = await prisma.store.count({ where: { id: { in: advertisedStoreIds } } });
     if (count !== advertisedStoreIds.length) throw badRequest('متجر أحد الإعلانات غير موجود / An advertised store does not exist');
@@ -237,6 +238,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
       ...(body.discoveryCategoryIds !== undefined ? { discoveryCategoryIdsJson: body.discoveryCategoryIds === null ? null : JSON.stringify(body.discoveryCategoryIds) } : {}),
       ...(body.featuredCategoryIds !== undefined ? { featuredCategoryIdsJson: body.featuredCategoryIds === null ? null : JSON.stringify(body.featuredCategoryIds) } : {}),
       ...(body.homeCategories !== undefined ? { homeCategoriesJson: JSON.stringify(body.homeCategories) } : {}),
+      ...(body.homeVideos !== undefined ? { homeVideosJson: JSON.stringify(body.homeVideos) } : {}),
       ...(body.homeBanners !== undefined ? { homeBannersJson: JSON.stringify(body.homeBanners) } : {}),
       ...(body.gpsCaptureEnabled !== undefined ? { gpsCaptureEnabled: body.gpsCaptureEnabled } : {}),
       ...(body.preparationReminderMinutes !== undefined ? { preparationReminderMinutes: body.preparationReminderMinutes } : {}),
@@ -257,6 +259,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
       ...(body.discoveryCategoryIds !== undefined ? { discoveryCategoryIdsJson: body.discoveryCategoryIds === null ? null : JSON.stringify(body.discoveryCategoryIds) } : {}),
       ...(body.featuredCategoryIds !== undefined ? { featuredCategoryIdsJson: body.featuredCategoryIds === null ? null : JSON.stringify(body.featuredCategoryIds) } : {}),
       ...(body.homeCategories !== undefined ? { homeCategoriesJson: JSON.stringify(body.homeCategories) } : {}),
+      ...(body.homeVideos !== undefined ? { homeVideosJson: JSON.stringify(body.homeVideos) } : {}),
       ...(body.homeBanners !== undefined ? { homeBannersJson: JSON.stringify(body.homeBanners) } : {}),
       ...(body.gpsCaptureEnabled !== undefined ? { gpsCaptureEnabled: body.gpsCaptureEnabled } : {}),
       ...(body.preparationReminderMinutes !== undefined ? { preparationReminderMinutes: body.preparationReminderMinutes } : {}),
@@ -280,6 +283,7 @@ export async function updatePlatformSettings(body: PlatformSettingsBody) {
     discoveryCategoryIds: row.discoveryCategoryIdsJson ? JSON.parse(row.discoveryCategoryIdsJson) as string[] : null,
     featuredCategoryIds: row.featuredCategoryIdsJson ? JSON.parse(row.featuredCategoryIdsJson) as string[] : null,
     homeCategories: row.homeCategoriesJson ? JSON.parse(row.homeCategoriesJson) as import("@samou-go/shared-types").HomeCategory[] : null,
+    homeVideos: row.homeVideosJson ? JSON.parse(row.homeVideosJson) as import("@samou-go/shared-types").HomeVideoAd[] : [],
     homeBanners: row.homeBannersJson ? JSON.parse(row.homeBannersJson) as import("@samou-go/shared-types").HomeBanner[] : null,
     gpsCaptureEnabled: row.gpsCaptureEnabled,
     preparationReminderMinutes: row.preparationReminderMinutes,

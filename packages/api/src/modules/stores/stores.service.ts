@@ -14,7 +14,7 @@ import type {
 } from '@samou-go/shared-types';
 import { UserRole as UserRoleEnum, generateStoreSlug } from '@samou-go/shared-types';
 import { prisma, caseInsensitiveContains } from '../../lib/prisma';
-import { conflict, forbidden, notFound } from '../../lib/http-error';
+import { badRequest, conflict, forbidden, notFound } from '../../lib/http-error';
 import { toProduct, toStore, toStoreWithCatalogue } from './stores.mapper';
 import type {
   CreateCategoryBody,
@@ -325,8 +325,11 @@ export async function assertStoreAccess(
 
 /** PATCH /stores/:storeId */
 export async function updateStore(storeId: string, body: UpdateStoreBody): Promise<Store> {
-  const existing = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true } });
+  const existing = await prisma.store.findUnique({ where: { id: storeId } });
   if (!existing) throw notFound('المتجر غير موجود / Store not found');
+  if ((body.acceptsScheduledOrders ?? existing.acceptsScheduledOrders) && (!(body.openingTime === undefined ? existing.openingTime : body.openingTime) || !(body.closingTime === undefined ? existing.closingTime : body.closingTime))) throw badRequest('حدد ساعات العمل قبل تفعيل الجدولة');
+  if (body.busyUntil && (Date.parse(body.busyUntil) <= Date.now() || Date.parse(body.busyUntil) > Date.now() + 24 * 60 * 60_000)) throw badRequest('مدة الازدحام يجب أن تكون خلال 24 ساعة');
+  if ((body.busyUntil || body.busyExtraMinutes) && (body.storeStatus ?? existing.storeStatus) !== 'BUSY') throw badRequest('فعّل حالة مشغول لإضافة مدة الازدحام');
 
   if (body.deliveryZoneId && !await prisma.deliveryZone.findFirst({ where: { id: body.deliveryZoneId, isActive: true } })) throw notFound("منطقة المتجر غير متاحة");
   const updated = await prisma.store.update({
@@ -341,7 +344,10 @@ export async function updateStore(storeId: string, body: UpdateStoreBody): Promi
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
       ...(body.isApproved !== undefined ? { isApproved: body.isApproved } : {}),
       ...(body.isAcceptingOrders !== undefined ? { isAcceptingOrders: body.isAcceptingOrders } : {}),
-      ...(body.storeStatus !== undefined ? { storeStatus: body.storeStatus } : {}),
+      ...(body.storeStatus !== undefined ? { storeStatus: body.storeStatus, busyUntil: null, busyExtraMinutes: 0 } : {}),
+      ...(body.busyUntil !== undefined ? { busyUntil: body.busyUntil ? new Date(body.busyUntil) : null } : {}),
+      ...(body.busyExtraMinutes !== undefined ? { busyExtraMinutes: body.busyExtraMinutes } : {}),
+      ...(body.acceptsScheduledOrders !== undefined ? { acceptsScheduledOrders: body.acceptsScheduledOrders } : {}),
       ...(body.storeType !== undefined ? { storeType: body.storeType } : {}),
       ...(body.openingTime !== undefined ? { openingTime: body.openingTime } : {}),
       ...(body.closingTime !== undefined ? { closingTime: body.closingTime } : {}),
@@ -435,6 +441,7 @@ export async function updateProduct(
     }
   }
 
+  if (body.unavailableUntil && (Date.parse(body.unavailableUntil) <= Date.now() || Date.parse(body.unavailableUntil) > Date.now() + 7 * 24 * 60 * 60_000)) throw badRequest('اختر وقتاً لاحقاً خلال أسبوع لإعادة التفعيل');
   validateProductDiscount(body.price ?? Number(existing.price), body.originalPrice !== undefined ? body.originalPrice : existing.originalPrice == null ? null : Number(existing.originalPrice));
   const updated = await prisma.product.update({
     where: { id: productId },
@@ -444,7 +451,8 @@ export async function updateProduct(
       ...(body.originalPrice !== undefined ? { originalPrice: body.originalPrice } : {}),
       ...(body.price !== undefined ? { price: body.price } : {}),
       ...(body.imageUrl !== undefined ? { imageUrl: body.imageUrl } : {}),
-      ...(body.isAvailable !== undefined ? { isAvailable: body.isAvailable } : {}),
+      ...(body.isAvailable !== undefined ? { isAvailable: body.isAvailable, unavailableUntil: null } : {}),
+      ...(body.unavailableUntil !== undefined ? { unavailableUntil: body.unavailableUntil ? new Date(body.unavailableUntil) : null, ...(body.unavailableUntil ? { isAvailable: false } : {}) } : {}),
       ...(body.optionsEnabled !== undefined ? { optionsEnabled: body.optionsEnabled } : {}),
       ...(body.categoryId !== undefined ? { categoryId: body.categoryId } : {}),
     },
@@ -469,7 +477,7 @@ export async function deactivateProduct(storeId: string, productId: string): Pro
 
   const updated = await prisma.product.update({
     where: { id: productId },
-    data: { isAvailable: false },
+    data: { isAvailable: false, unavailableUntil: null },
   });
   return toProduct(updated);
 }

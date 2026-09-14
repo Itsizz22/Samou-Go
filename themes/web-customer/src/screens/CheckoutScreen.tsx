@@ -1,3 +1,5 @@
+import { OrderSchedulePicker } from '@/components/OrderSchedulePicker';
+import { storeTimeToIso } from '@/lib/store-time';
 import { AppSelect } from '@samou-go/ui';
 import { normalizeSelectedOptions } from '@samou-go/shared-types';
 import { CheckoutDeliveryEstimate } from '@/components/DeliveryEstimate';
@@ -85,6 +87,8 @@ export function CheckoutScreen() {
   const zoneContext = useDeliveryZone();
   const [authGate, setAuthGate] = useState(false);
   const cart = useCart();
+  const [scheduleLocal, setScheduleLocal] = useState('');
+  const scheduledFor = !cart.isMultiStore ? storeTimeToIso(scheduleLocal) : undefined;
   const navigate = useNavigate();
   const { t, language } = useLanguage();
   const { isOffline } = useNetworkStatus();
@@ -211,7 +215,7 @@ export function CheckoutScreen() {
       storeId: group.storeId, fulfillmentType: group.fulfillmentType,
       items: items.filter(item => group.lines.some(line => line.productId === item.productId)),
       deliveryRegion, deliveryZoneId: zoneId || undefined,
-    })) : [{ storeId: cart.storeId, items, fulfillmentType, voucherCode: appliedVoucher || undefined, deliveryRegion, deliveryZoneId: zoneId || undefined }];
+    })) : [{ storeId: cart.storeId, scheduledFor, items, fulfillmentType, voucherCode: appliedVoucher || undefined, deliveryRegion, deliveryZoneId: zoneId || undefined }];
     Promise.all(requests.map(body => quoteOrder(body, controller.signal)))
       .then(results => {
         const first = results[0]; if (!first) throw new Error('السلة فارغة');
@@ -241,7 +245,7 @@ export function CheckoutScreen() {
       cancelled = true;
       controller.abort();
     };
-  }, [cart.storeId, cart.isMultiStore, cart.storeGroups, fulfillmentType, items, appliedVoucher, deliveryRegion, zoneId, auth.user?.id, quoteRevision, pricingSettings.data?.updatedAt]);
+  }, [scheduledFor, cart.storeId, cart.isMultiStore, cart.storeGroups, fulfillmentType, items, appliedVoucher, deliveryRegion, zoneId, auth.user?.id, quoteRevision, pricingSettings.data?.updatedAt]);
 
   if (!auth.ready) {
     return (
@@ -353,6 +357,10 @@ export function CheckoutScreen() {
         setFieldError('يرجى اختيار منطقة التوصيل');
         return;
       }
+      if (!cart.isMultiStore && scheduleLocal && !scheduledFor) {
+        setFieldError('اختر موعداً صحيحاً بتوقيت السموع');
+        return;
+      }
 
       if (!cart?.storeId || (items ?? []).length === 0) {
         setSubmitError(
@@ -442,6 +450,7 @@ export function CheckoutScreen() {
         // Single-store: existing flow.
         const created = await submitCheckoutAttempt(auth.user!.id, 'single', {
           storeId: cart.storeId!,
+          scheduledFor,
           items,
           customerAddressText: finalText,
           deliveryRegion: fulfillmentType === 'PICKUP' ? undefined : deliveryRegion,
@@ -1012,6 +1021,7 @@ export function CheckoutScreen() {
             </p>
           )}
           <ConnectionNotice />
+          {!cart.isMultiStore && <OrderSchedulePicker storeId={cart.storeId} value={scheduleLocal} onChange={setScheduleLocal} />}
           {cart.storeGroups.map(group => <CheckoutDeliveryEstimate key={group.storeId} storeId={group.storeId} pickup={(cart.isMultiStore ? group.fulfillmentType : fulfillmentType) === 'PICKUP'} />)}
           <fieldset className="mb-4 rounded-2xl border border-line bg-surface p-4"><legend className="text-sm font-bold">إذا لم يتوفر أحد الأصناف</legend>{([{ id: 'CONTACT', label: 'تواصل معي قبل الاستبدال' }, { id: 'REMOVE', label: 'أفضل حذف الصنف' }, { id: 'SUGGEST', label: 'اقترح لي بديلاً' }] as const).map(option => <label key={option.id} className="flex min-h-11 items-center gap-3 text-sm"><input type="radio" name="unavailable" checked={unavailableAction === option.id} onChange={() => setUnavailableAction(option.id)} />{option.label}</label>)}<p className="text-xs text-ink-muted">لن يتم الاستبدال تلقائيًا. سيصلك أي تعديل أو حذف وسعر الطلب الجديد للموافقة قبل اعتماده.</p></fieldset>
           {submitError && (

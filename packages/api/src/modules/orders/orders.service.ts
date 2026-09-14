@@ -1,3 +1,5 @@
+import { effectiveProductAvailability } from '../stores/availability';
+import { validateScheduledStart } from './scheduling';
 import { deliveryTransaction } from './delivery-transaction';
 import { sizeOptionPriceDelta } from '@samou-go/shared-types';
 import { resolveRouteFee } from '../zones/route-pricing';
@@ -233,7 +235,7 @@ async function priceBasket(
 
   const products = await db.product.findMany({
     where: { id: { in: [...new Set(items.map(item => item.productId))] }, storeId },
-    select: { id: true, nameAr: true, price: true, originalPrice: true, optionsEnabled: true, isAvailable: true },
+    select: { id: true, nameAr: true, price: true, originalPrice: true, optionsEnabled: true, isAvailable: true, unavailableUntil: true },
   });
 
   const byId = new Map(products.map(product => [product.id, product]));
@@ -276,7 +278,7 @@ async function priceBasket(
         `منتج غير متوفر في هذا المتجر / Product not in this store: ${productId}`
       );
     }
-    if (!product.isAvailable) {
+    if (!effectiveProductAvailability(product)) {
       throw unprocessable(
         'PRODUCT_UNAVAILABLE',
         `المنتج غير متاح حالياً / Currently unavailable: ${product.nameAr}`
@@ -357,6 +359,11 @@ async function priceBasket(
  * before the customer commits. Same arithmetic as `createOrder`, no writes.
  */
 export async function quoteOrder(body: QuoteOrderBody): Promise<OrderQuote> {
+  if (body.scheduledFor) {
+    const store = await prisma.store.findUnique({ where: { id: body.storeId } });
+    if (!store) throw notFound('المتجر غير موجود');
+    validateScheduledStart(body.scheduledFor, store);
+  }
   const lines = await priceBasket(prisma, body.storeId, body.items);
   // Normalize null → undefined so the default 'central' zone kicks in.
   const region = body.deliveryRegion ?? undefined;
@@ -414,6 +421,7 @@ export async function createOrder(
     // If any step throws, the whole unit rolls back — no order, no items,
     // no voucher redemption, no partial financials.
     const lines = await priceBasket(tx, body.storeId, body.items);
+    const scheduledFor = body.scheduledFor ? validateScheduledStart(body.scheduledFor, await tx.store.findUniqueOrThrow({ where: { id: body.storeId } })) : null;
     const region = body.deliveryRegion ?? undefined;
     const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, region);
     const requestedZoneId = body.fulfillmentType === 'PICKUP'
@@ -482,6 +490,7 @@ export async function createOrder(
         orderNumber: formatOrderNumber(now, sequence.sequence),
         customerId,
         storeId: body.storeId,
+        scheduledFor,
         status: OrderStatus.PENDING,
         fulfillmentType: body.fulfillmentType ?? 'DELIVERY',
         customerAddressText: body.customerAddressText,
@@ -849,7 +858,7 @@ export async function reorderOrder(
       continue;
     }
     const product = item.productId ? byId.get(item.productId) : undefined;
-    if (!product || !product.isAvailable) {
+    if (!product || !effectiveProductAvailability(product)) {
       skipped += 1;
       continue;
     }
@@ -894,6 +903,9 @@ export async function updateOrderStatus(
 
   const current = order.status;
   const next = body.status;
+  if (next === OrderStatus.ACCEPTED && order.scheduledFor && order.scheduledFor.getTime() > Date.now()) {
+    throw badState('SCHEDULE_NOT_DUE', 'لم يحن وقت بدء تحضير الطلب المجدول بعد');
+  }
 
   if (current === next) {
     throw badState(
@@ -954,7 +966,7 @@ export async function updateOrderStatus(
     if (next === OrderStatus.CANCELLED) {
       const elapsed = Date.now() - new Date(order.createdAt).getTime();
       const twoMinutesMs = 2 * 60 * 1000;
-      if (current !== OrderStatus.PENDING || elapsed >= twoMinutesMs) {
+      if (current !== OrderStatus.PENDING || (elapsed >= twoMinutesMs && !order.scheduledFor)) {
         throw badState(
           'CANCEL_WINDOW_CLOSED',
           'لا يمكن إلغاء الطلب بعد مرور دقيقتين / Cannot cancel after 2 minutes'
@@ -1088,6 +1100,9 @@ export async function updateOrderStatus(
   let updated;
   try {
     updated = await deliveryTransaction(async tx => {
+      const timing = next === OrderStatus.ACCEPTED ? await tx.store.findUniqueOrThrow({ where: { id: order.storeId } }) : null;
+      const extra = timing?.storeStatus === 'BUSY' && (!timing.busyUntil || timing.busyUntil > new Date()) ? timing.busyExtraMinutes : 0;
+      const prepMinutes = Math.min(300, (body.estimatedPrepMinutes ?? 20) + extra);
       if (assignCaptainOnClaim) await lockCaptainCapacity(tx, actor.sub, orderId);
       const result = await tx.order.update({
         where: {
@@ -1110,11 +1125,11 @@ export async function updateOrderStatus(
         },
         data: {
           status: next,
-          ...(next === OrderStatus.ACCEPTED ? { preparationStartedAt: new Date(), estimatedPrepMinutes: body.estimatedPrepMinutes ?? 20, estimatedReadyAt: new Date(Date.now()+(body.estimatedPrepMinutes ?? 20)*60_000) } : {}),
+          ...(next === OrderStatus.ACCEPTED ? { preparationStartedAt: new Date(), estimatedPrepMinutes: prepMinutes, estimatedReadyAt: new Date(Date.now()+prepMinutes*60_000) } : {}),
           ...(next === OrderStatus.READY_FOR_PICKUP ? { preparedAt: new Date() } : {}),
           ...(body.estimatedPrepMinutes !== undefined ? {
-            estimatedPrepMinutes: body.estimatedPrepMinutes,
-            estimatedReadyAt: new Date(Date.now() + body.estimatedPrepMinutes * 60_000),
+            estimatedPrepMinutes: prepMinutes,
+            estimatedReadyAt: new Date(Date.now() + prepMinutes * 60_000),
             prepReminderSentAt: null, prepReminderLeaseUntil: null,
           } : {}),
           ...(assignCaptainOnClaim ? { captainId: actor.sub } : {}),
@@ -1181,6 +1196,7 @@ export async function assignCaptain(
   body: AssignCaptainBody
 ): Promise<OrderDetail> {
   const order = await loadOrderOrThrow(orderId);
+  if (order.scheduledFor && order.status === OrderStatus.PENDING) throw badState('SCHEDULE_NOT_ACCEPTED', 'يجب قبول الطلب المجدول عند حلول موعده قبل تعيين الكابتن');
 
   if (actor.role === UserRole.STORE_MANAGER) {
     if (!(await storeIdsManagedBy(actor.sub)).includes(order.storeId)) {

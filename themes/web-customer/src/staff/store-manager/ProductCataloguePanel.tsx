@@ -1,3 +1,5 @@
+import { ProductPauseDialog } from './ProductPauseDialog';
+import { endOfStoreDay } from '@/lib/store-time';
 import { AppSelect, CatalogueProductList } from '@samou-go/ui';
 import { ProductCustomizationEditor } from '@samou-go/api-client';
 /**
@@ -208,7 +210,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
         // visible in the list instead of being hidden behind a stale filter.
         setFilterCategoryId('');
       } else if (modal === 'edit' && editTarget) {
-        await updateProduct(storeId, editTarget.id, input);
+        await updateProduct(storeId, editTarget.id, { ...input, unavailableUntil: !form.isAvailable && editTarget.unavailableUntil ? editTarget.unavailableUntil : null });
         toast.success('تم تحديث المنتج', 'Product updated');
       }
       closeModal();
@@ -244,10 +246,13 @@ export function ProductCataloguePanel({ storeId }: Props) {
   /* ---- Inline toggle availability --------------------------------------- */
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  const handleToggleAvailability = async (p: Product) => {
+  const [pauseTarget, setPauseTarget] = useState<Product | null>(null);
+  const handleToggleAvailability = async (p: Product, minutes?: number | null) => {
+    if (p.isAvailable && minutes === undefined) { setPauseTarget(p); return; }
     setTogglingId(p.id);
     try {
-      await updateProduct(storeId, p.id, { isAvailable: !p.isAvailable });
+      await updateProduct(storeId, p.id, { isAvailable: !p.isAvailable, unavailableUntil: p.isAvailable && minutes ? (minutes === -1 ? endOfStoreDay() : new Date(Date.now() + minutes * 60_000).toISOString()) : null });
+      setPauseTarget(null);
       toast.success(
         p.isAvailable ? 'تم إيقاف المنتج مؤقتاً' : 'تم تفعيل المنتج',
         p.isAvailable ? `${p.nameAr} marked unavailable` : `${p.nameAr} marked available`
@@ -304,6 +309,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
 
   return (
     <div className="min-h-[60vh]">
+      {pauseTarget && <ProductPauseDialog product={pauseTarget} pending={!!togglingId} onChoose={minutes => void handleToggleAvailability(pauseTarget, minutes)} onClose={() => setPauseTarget(null)} />}
       <div className="sq-catalogue-toolbar">
         <div className="sq-catalogue-title">
           <div><h2>{t('منتجات متجرك', 'Your products')}</h2><p>{t('رتّب منتجاتك وحدّث تفاصيلها بسهولة', 'Keep your catalogue up to date')}</p></div>
@@ -366,7 +372,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
 
       {!catalogue.loading && visibleProducts.length > 0 && (
         <CatalogueProductList products={visibleProducts} togglingId={togglingId} deactivatingId={deactivatingId}
-          onEdit={openEdit} onToggle={handleToggleAvailability} onDeactivate={handleDeactivate}
+          onEdit={openEdit} onToggle={product => void handleToggleAvailability(product)} onDeactivate={handleDeactivate}
           formatPrice={price => formatCurrency(price, { unit: 'symbol' })} />
       )}
 

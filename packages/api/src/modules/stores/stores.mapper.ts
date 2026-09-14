@@ -1,3 +1,4 @@
+import { effectiveProductAvailability } from './availability';
 import { sizeOptionPriceDelta } from '@samou-go/shared-types';
 import type {
   Prisma,
@@ -18,6 +19,9 @@ import { decimalToNumber } from '../../lib/decimal';
 
 export function toStore(store: PrismaStore): Store {
   return {
+    busyUntil: store.busyUntil?.toISOString() ?? null,
+    busyExtraMinutes: store.storeStatus === 'BUSY' && (!store.busyUntil || store.busyUntil > new Date()) ? store.busyExtraMinutes : 0,
+    acceptsScheduledOrders: store.acceptsScheduledOrders,
     id: store.id,
     deliveryZoneId: store.deliveryZoneId,
     publicCode: store.publicCode ?? null,
@@ -31,7 +35,7 @@ export function toStore(store: PrismaStore): Store {
     isActive: store.isActive,
     isApproved: store.isApproved,
     isAcceptingOrders: store.isAcceptingOrders,
-    storeStatus: store.storeStatus as StoreStatus,
+    storeStatus: (store.storeStatus === 'BUSY' && store.busyUntil && store.busyUntil <= new Date() ? 'OPEN' : store.storeStatus) as StoreStatus,
     storeType: (store.storeType as StoreType) ?? null,
     openingTime: store.openingTime ?? null,
     closingTime: store.closingTime ?? null,
@@ -62,7 +66,8 @@ export function toProduct(product: ProductWithOptions): Product {
   return {
     id: product.id, nameAr: product.nameAr, description: product.description,
     price: decimalToNumber(product.price), originalPrice: product.originalPrice == null ? null : decimalToNumber(product.originalPrice), imageUrl: product.imageUrl,
-    isAvailable: product.isAvailable, categoryId: product.categoryId, storeId: product.storeId,
+    unavailableUntil: product.unavailableUntil?.toISOString() ?? null,
+    isAvailable: effectiveProductAvailability(product), categoryId: product.categoryId, storeId: product.storeId,
     optionsEnabled: product.optionsEnabled,
     ...(product.optionGroups && product.optionsEnabled ? {
       optionGroups: product.optionGroups.map(group => ({

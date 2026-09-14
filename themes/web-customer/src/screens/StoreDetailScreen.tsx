@@ -1,5 +1,6 @@
 import { ProductPrice } from '@/components/ProductPrice';
-import { DeliveryEstimate } from '@/components/DeliveryEstimate';
+import { StoreHero } from '@/components/StoreHero';
+import { StoreProductCarousel } from '@/components/StoreProductCarousel';
 import { StoreOfferSheet } from '@/components/StoreOfferSheet';
 import type { Offer } from '@samou-go/shared-types';
 import { ProductImageViewer } from '@/components/ProductImageViewer';
@@ -15,14 +16,14 @@ import { normalizeOptionGroups, resolveSelectedOptions } from '@samou-go/shared-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, AlertTriangle, ArrowRight, Clock3, FolderOpen, Heart, Loader2, MessageCircle, Minus, Plus, RefreshCw, ShoppingCart, Star, Store } from 'lucide-react';
+import { Search, X, AlertTriangle, ArrowRight, Clock3, FolderOpen, Loader2, Minus, Plus, RefreshCw, Star } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
 import { useFavorites } from '@/components/FavoritesProvider';
 import { useStore, useOffersForStore, usePopularProducts } from '@/hooks/useApi';
 import { HorizontalScrollGallery, ImageWithFallback, useLanguage } from '@samou-go/ui';
 import { ProductRowSkeleton, Skeleton } from '@/components/Skeleton';
 import { formatCurrency } from '@/lib/delivery';
-import { StoreStatus, STORE_STATUS_LABELS, formatWhatsAppLink } from '@samou-go/shared-types';
+import { StoreStatus } from '@samou-go/shared-types';
 import { hapticConfirm, hapticTap } from '@/lib/haptics';
 import { PageTransition } from '@/components/PageTransition';
 import { ProductOptionsSheet } from '@/components/ProductOptionsSheet';
@@ -38,8 +39,7 @@ export function StoreDetailScreen() {
   const [preview, setPreview] = useState<{ src: string; name: string } | null>(null);
   const cart = useCart();
   const favorites = useFavorites();
-  const { t, language } = useLanguage();
-  const isArabic = language === 'ar';
+  const { t } = useLanguage();
 
   const handleToggleFavorite = async () => {
     const toggled = await favorites.toggle(storeId);
@@ -185,90 +185,11 @@ export function StoreDetailScreen() {
   return (
     <PageTransition>
       <main className="sq-store-menu min-h-screen bg-canvas pb-28 font-sans text-ink">
-        <header className="bg-surface">
-          <div className="safe-top relative bg-brand-tint">
-            <div className="relative aspect-video max-h-72 overflow-hidden" data-swipe-back="off">
-              {current.coverUrl && <ImageWithFallback src={current.coverUrl} alt="" className="sq-store-cover-image" />}
-            </div>
-            <div className="absolute inset-x-0 top-3 mx-auto flex max-w-md items-center justify-between px-5 safe-top">
-            <button
-              type="button"
-              aria-label={t('رجوع', 'Back')}
-              onClick={() => navigate(-1)}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-surface/95 p-2 text-ink transition hover:bg-canvas active:scale-95"
-            >
-              <ArrowRight size={22} className="rtl:rotate-180" />
-            </button>
-            <button
-              type="button"
-              aria-label={
-                favorites.isFavorite(storeId) ? t('إزالة من المفضلة', 'Remove from favorites') : t('إضافة إلى المفضلة', 'Add to favorites')
-              }
-              aria-pressed={favorites.isFavorite(storeId)}
-              onClick={() => void handleToggleFavorite()}
-              disabled={favorites.pending.includes(storeId)}
-              className="justify-self-end flex h-11 w-11 items-center justify-center rounded-full bg-surface/95 p-2 text-ink transition hover:bg-canvas active:scale-95 disabled:opacity-60"
-            >
-              <Heart size={20} fill={favorites.isFavorite(storeId) ? 'currentColor' : 'none'} />
-            </button>
-            <button
-              type="button"
-              aria-label={`السلة (${cart.itemCount})`}
-              onClick={() => navigate('/cart')}
-              className="relative flex h-11 w-11 items-center justify-center rounded-full bg-surface/95 p-2 text-ink transition hover:bg-canvas active:scale-95"
-            >
-              <ShoppingCart size={20} />
-              <AnimatePresence>
-                {cart.itemCount > 0 && (
-                  <motion.span
-                    key={cart.itemCount}
-                    initial={{ scale: 0.4 }}
-                    animate={{ scale: [0.4, 1.15, 0.92, 1] }}
-                    transition={{ duration: 0.45 }}
-                    className="absolute -top-0.5 -end-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-danger px-1 text-micro font-bold text-white"
-                  >
-                    {cart.itemCount > 99 ? '99+' : cart.itemCount}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-            </div>
-            <div className="absolute inset-x-0 -bottom-10 flex justify-center">
-              <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl">
-                {current.logoUrl ? <ImageWithFallback src={current.logoUrl} alt={t('شعار المتجر', 'Store logo')} className="sq-store-logo-image h-full w-full" /> : <span className="flex h-full w-full items-center justify-center bg-brand-tint"><Store size={36} className="text-brand" /></span>}
-              </div>
-            </div>
-          </div>
-            <div className="mx-auto max-w-md px-5 pb-5 pt-14 text-center">
-              <h1 className="text-lg font-extrabold">{t(current.nameAr, current.nameEn)}</h1>
-              {current.publicCode && <p className="text-xs text-ink-muted">رقم المتجر: <span dir="ltr">{current.publicCode}</span></p>}
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs">
-                <span className="rounded-full bg-brand-tint px-3 py-2 font-bold">{!storeIsOpen(current) ? t('مغلق حالياً', 'Closed') : current.storeStatus === StoreStatus.BUSY ? t('مشغول — يستقبل الطلبات', 'Busy — accepting orders') : t('مفتوح ويستقبل الطلبات', 'Open for orders')}</span>
-                <span className="inline-flex items-center gap-2 rounded-xl border border-line bg-canvas px-3 py-2"><Clock3 size={16} className="text-brand" /><strong>{t('مواعيد العمل', 'Opening hours')}</strong><span dir={current.openingTime ? 'ltr' : undefined}>{current.openingTime ? `${current.openingTime}${current.closingTime ? ` – ${current.closingTime}` : ''}` : t('مواعيد العمل غير محددة', 'Hours not set')}</span></span>
-              </div>
-              <DeliveryEstimate store={current} />
-              {current.isRecommended && (
-                <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-brand-tint px-2 py-0.5 text-micro font-bold text-brand-dark">
-                  <Star size={10} fill="currentColor" />
-                  {t('موصى به لدينا', 'Recommended by us')}
-                </span>
-              )}
-              <p className="truncate text-[11px] text-ink-muted" dir="ltr">
-                {current.phone}
-              </p>
-              {current.phone && (
-                <a
-                  href={formatWhatsAppLink(current.whatsappNumber || current.phone, `مرحباً، أريد الاستفسار عن متجر ${current.nameAr}`)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-1 inline-flex items-center gap-1 rounded-full bg-brand-tint px-2 py-0.5 text-micro font-bold text-brand-dark transition hover:bg-brand/10 active:scale-95"
-                >
-                  <MessageCircle size={10} />
-                  {t('تواصل عبر واتساب', 'WhatsApp')}
-                </a>
-              )}
-            </div>
-        </header>
+        <StoreHero store={current} favorite={favorites.isFavorite(storeId)} favoritePending={favorites.pending.includes(storeId)} itemCount={cart.itemCount} onBack={() => navigate(-1)} onFavorite={() => void handleToggleFavorite()} onCart={() => navigate('/cart')} />
+        <StoreProductCarousel products={[
+          ...current.categories.flatMap(category => category.products.filter(product => product.isAvailable && product.imageUrl).slice(0, 1)),
+          ...current.categories.flatMap(category => category.products),
+        ]} onSelect={product => navigate(`/stores/${storeId}?productId=${product.id}`, { replace: true })} />
         {current.storeType === 'PHARMACY' && <section className="mx-auto my-5 max-w-md rounded-2xl border border-brand bg-brand-tint p-5"><h2 className="font-extrabold">اطلب أدويتك من الصيدلية</h2><p className="my-3 text-sm leading-7">أرفق الوصفة والعنوان، وستراجع الصيدلية الطلب وترسل السعر لتقبله أو ترفضه قبل بدء التوصيل.</p><button className="min-h-11 w-full rounded-xl bg-brand px-4 font-bold text-white" onClick={() => navigate('/custom-requests?storeId=' + current.id)}>إرفاق وصفة وطلب تسعير</button></section>}
 
         {/* Store status banner — shows when store is not OPEN */}

@@ -68,6 +68,18 @@ export function createApp(): Application {
     const data = await storage.readFinal(key);
     if (!data) { next(); return; }
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('Accept-Ranges', 'bytes');
+    if (req.headers.range && req.method === 'GET') {
+      const match = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
+      const start = match?.[1] ? Number(match[1]) : Math.max(0, data.length - Number(match?.[2]));
+      const end = match?.[1] && match[2] ? Math.min(Number(match[2]), data.length - 1) : data.length - 1;
+      if (!match || (!match[1] && !match[2]) || !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= data.length) {
+        res.setHeader('Content-Range', `bytes */${data.length}`);
+        res.status(416).end(); return;
+      }
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${data.length}`);
+      res.status(206).type(path.extname(key)).send(data.subarray(start, end + 1)); return;
+    }
     res.type(path.extname(key)).send(data);
   }));
   // Missing image files can outlive their database URL after storage loss.

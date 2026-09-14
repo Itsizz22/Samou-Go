@@ -96,12 +96,16 @@ export const createProductSchema = z.object({
 
 export const updateProductSchema = createProductSchema
   .partial()
+  .extend({ unavailableUntil: z.string().datetime().nullable().optional() })
   .refine(data => Object.keys(data).length > 0, {
     message: 'يجب توفير حقل واحد على الأقل للتحديث / At least one field required',
   });
 
 export const updateStoreSchema = z
   .object({
+    busyUntil: z.string().datetime().nullable().optional(),
+    busyExtraMinutes: z.number().int().min(0).max(120).optional(),
+    acceptsScheduledOrders: z.boolean().optional(),
     whatsappNumber: whatsappNumberSchema,
     deliveryZoneId: z.string().min(1).max(100).nullable().optional(),
     nameAr: z.string().trim().min(1).max(160).optional(),

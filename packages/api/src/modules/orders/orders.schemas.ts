@@ -60,6 +60,7 @@ export const orderItemInputSchema = z.object({
 export const voucherCodeField = z.string().trim().min(1).max(40).optional();
 
 export const createOrderSchema = z.object({
+  scheduledFor: z.string().datetime().optional(),
   requestId: z.string().uuid().optional(),
   storeId: z.string().min(1, 'معرّف المتجر مطلوب / storeId is required'),
   items: z
@@ -100,6 +101,7 @@ export const createOrderSchema = z.object({
  * literal strings, so `null` triggered a 422 validation error.
  */
 export const quoteOrderSchema = createOrderSchema.pick({
+  scheduledFor: true,
   storeId: true,
   items: true,
   voucherCode: true,

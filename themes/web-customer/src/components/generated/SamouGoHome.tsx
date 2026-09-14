@@ -37,6 +37,7 @@ import { useDrawer } from '@/components/NavigationDrawer';
 import { FeaturedProductsShowcase } from '@/components/FeaturedProductsShowcase';
 import { CravingShortcuts } from '@/components/CravingShortcuts';
 import { PromoBannerSlider } from '@/components/PromoBannerSlider';
+import { VideoAdCarousel } from '@/components/VideoAdCarousel';
 import { useOrders, useStores, useAuth, useAllOffers, useFeaturedProducts, type PopularProduct } from '@/hooks/useApi';
 import { useFavorites } from '@/components/FavoritesProvider';
 import { useCart } from '@/components/CartProvider';
@@ -258,6 +259,7 @@ export function SamouGoHome() {
 
       <DiscoverySections onAdd={handlePopularAdd} featuredProducts={dishProducts} />
       <PromoBannerSlider kind="product" />
+      <VideoAdCarousel />
 
       {/* Store Ads & Offers Feed */}
       {(offers.loading || activeOffers.length > 0) && <section className="mx-auto max-w-md px-5 pt-7" id="exclusive-offers" aria-labelledby="offers-title">

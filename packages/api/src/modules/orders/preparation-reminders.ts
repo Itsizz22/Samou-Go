@@ -1,3 +1,4 @@
+import { expireAvailabilityTimers } from '../stores/availability';
 import { OrderStatus } from '@samou-go/shared-types';
 import { prisma } from '../../lib/prisma';
 import { sendPushToMany } from '../../lib/push';
@@ -53,6 +54,8 @@ export function startPreparationReminderScheduler(): () => Promise<void> {
       const id = 'preparation-reminders';
       await prisma.backgroundJobHeartbeat.upsert({ where: { id }, create: { id, lastStartedAt: new Date() }, update: { lastStartedAt: new Date() } });
       try {
+        await expireAvailabilityTimers();
+        await dispatchScheduledReminders();
         await dispatchAvailableOrders();
         await dispatchPreparationReminders();
         await dispatchUnclaimedAlerts();
@@ -67,6 +70,37 @@ export function startPreparationReminderScheduler(): () => Promise<void> {
   timer.unref();
   tick();
   return async () => { stopped = true; clearInterval(timer); await running; };
+}
+
+/** Lease-like timestamp permits retries after failure, without duplicate concurrent sends. */
+export async function dispatchScheduledReminders(now = new Date()): Promise<void> {
+  const due = { status: OrderStatus.PENDING, scheduledFor: { lte: now }, scheduledReminderAt: null,
+    OR: [{ scheduledReminderLeaseUntil: null }, { scheduledReminderLeaseUntil: { lte: now } }] };
+  const orders = await prisma.order.findMany({
+    where: due,
+    include: { store: { select: { managerId: true } } }, take: 100,
+    orderBy: { scheduledFor: 'asc' },
+  });
+  for (const order of orders) {
+    const lease = new Date(now.getTime() + 5 * 60_000);
+    const claimed = await prisma.order.updateMany({
+      where: { ...due, id: order.id },
+      data: { scheduledReminderLeaseUntil: lease },
+    });
+    if (!claimed.count) continue;
+    try {
+      const result = await sendPushToMany([order.store.managerId], {
+        title: 'حان موعد الطلب المجدول', body: `راجع الطلب ${order.orderNumber} واقبله لبدء التحضير.`,
+        data: { type: 'NEW_ORDER', orderId: order.id, storeId: order.storeId, screen: 'order' },
+      }, { dataOnly: true });
+      if (result.totalSent > 0 && result.totalFailed === 0) await prisma.order.updateMany({
+        where: { id: order.id, scheduledReminderLeaseUntil: lease },
+        data: { scheduledReminderAt: now, scheduledReminderLeaseUntil: null },
+      });
+    } catch (error) {
+      console.error('[scheduled-order] Reminder failed', order.id, error instanceof Error ? error.message : 'unknown');
+    }
+  }
 }
 
 /** Escalate once when a delivery has remained without a captain for ten minutes. */

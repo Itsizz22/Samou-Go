@@ -9,10 +9,12 @@ import { UserRole } from '@samou-go/shared-types';
 import { badRequest, badState, forbidden, notFound } from '../lib/http-error';
 import { prisma } from '../lib/prisma';
 import { processImage, sniffImageType } from './image';
+import { inspectVideo } from './video';
+import { MAX_VIDEO_BYTES } from './uploads.config';
 import { storage } from './storage';
 import { ALL_ALLOWED_MIMES, ALLOWED_AUDIO_MIMES, MIME_TO_EXT, MAX_AUDIO_BYTES, uploadConfig } from './uploads.config';
 
-const KEY_PATTERN = /^(user|product|store|offer|category|banner|option|audio)\/([^/]+)\/([^/]+)\.(jpg|png|webp|webm|m4a|ogg|mp3)$/;
+const KEY_PATTERN = /^(user|product|store|offer|category|banner|option|audio|video)\/([^/]+)\/([^/]+)\.(jpg|png|webp|webm|mp4|m4a|ogg|mp3)$/;
 
 export interface UploadCaller {
   userId: string;
@@ -141,12 +143,22 @@ function assertBannerKey(key: string, caller: UploadCaller): void {
   if (caller.role !== UserRole.ADMIN || !key.startsWith(`banner/${caller.userId}/`)) throw forbidden();
 }
 
+function assertVideoKey(key: string, caller: UploadCaller): void {
+  if (caller.role !== UserRole.ADMIN || !key.startsWith(`video/${caller.userId}/`) || !key.endsWith('.mp4')) throw forbidden();
+}
+
 export async function presign(
   caller: UploadCaller,
   input: { contentType: string; kind: UploadKind; resourceId?: string; purpose?: 'logo' | 'cover' | 'image' }
 ): Promise<PresignUploadResult> {
   if (input.kind === 'banner' && caller.role !== UserRole.ADMIN) throw forbidden();
   input = { ...input, contentType: input.contentType.split(';')[0]!.trim().toLowerCase() };
+  if (input.kind === 'video') {
+    if (caller.role !== UserRole.ADMIN) throw forbidden();
+    if (input.contentType !== 'video/mp4') throw badRequest('اختر فيديو MP4 بترميز H.264');
+    const key = `video/${caller.userId}/${randomUUID()}.mp4`;
+    return { uploadUrl: storage.rawUploadUrl(key), key, contentType: 'video/mp4', maxBytes: MAX_VIDEO_BYTES };
+  }
   const isAudio = ALLOWED_AUDIO_MIMES.some(mime => mime === input.contentType);
   if ((input.kind === 'audio') !== isAudio) throw badRequest('نوع الملف لا يطابق المرفق / File type does not match upload kind');
   if (input.kind === 'banner' && isAudio) throw badRequest('اختر صورة JPEG أو PNG أو WebP');
@@ -235,7 +247,9 @@ export async function storeRaw(key: string, body: Readable, caller: UploadCaller
   const parsed = parseKey(key);
   if (!parsed) throw badRequest('مفتاح رفع غير صالح / Invalid upload key');
 
-  if (parsed.kind === 'audio') {
+  if (parsed.kind === 'video') {
+    assertVideoKey(key, caller);
+  } else if (parsed.kind === 'audio') {
     if (parsed.ownerId !== caller.userId) throw forbidden();
   } else if (parsed.kind === 'banner') {
     assertBannerKey(key, caller);
@@ -266,6 +280,7 @@ export async function finalizeUpload(
   }
 
   if (parsed.kind === 'banner') assertBannerKey(key, caller);
+  if (parsed.kind === 'video') assertVideoKey(key, caller);
   if (parsed.kind === 'audio' && parsed.ownerId !== caller.userId) throw forbidden();
   const product = parsed.kind === 'product' ? await resolveProduct(parsed.ownerId, caller) : null;
   const store = parsed.kind === 'store' ? await resolveStore(parsed.ownerId, caller) : null;
@@ -280,6 +295,12 @@ export async function finalizeUpload(
       'UPLOAD_NOT_READY',
       'لم تُرفع الملفات بعد، أعد المحاولة / File has not been uploaded yet'
     );
+  }
+  if (kind === 'video') {
+    const dimensions = inspectVideo(raw);
+    await storage.writeFinal(key, raw);
+    await storage.removeRaw(key).catch(() => undefined);
+    return { url: storage.finalUrl(key), ...dimensions };
   }
   if (kind === 'audio') {
     if (raw.length > MAX_AUDIO_BYTES) throw badRequest('التسجيل أكبر من الحد المسموح / Recording exceeds size limit');
@@ -428,7 +449,7 @@ export async function removeCurrentImage(
   resourceId?: string,
   purpose?: 'logo' | 'cover' | 'image'
 ): Promise<void> {
-  if (kind === 'banner') throw forbidden();
+  if (kind === 'banner' || kind === 'video') throw forbidden();
   if (kind === 'user') {
     const user = await prisma.user.findUnique({
       where: { id: caller.userId },
@@ -528,6 +549,7 @@ export async function removeCurrentImage(
 export async function removeUpload(key: string, caller: UploadCaller): Promise<void> {
   const parsed = parseKey(key);
   if (!parsed) throw badRequest('مفتاح رفع غير صالح / Invalid upload key');
+  if (parsed.kind === 'video') throw forbidden(); // Unpublish through admin settings; cached clients may still use the asset.
   if (parsed.kind === 'audio') {
     if (parsed.ownerId !== caller.userId) throw forbidden();
     await storage.removeRaw(key);

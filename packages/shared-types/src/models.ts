@@ -55,6 +55,9 @@ export interface PublicUser {
  * ------------------------------------------------------------------------- */
 
 export interface Store {
+  busyUntil?: string | null;
+  busyExtraMinutes?: number;
+  acceptsScheduledOrders?: boolean;
   deliveryZoneId?: string | null;
   whatsappNumber?: string | null;
   /** Recent completed delivery range, not a live route ETA. Null when fewer than five valid samples. */
@@ -151,6 +154,7 @@ export interface SelectedOption {
 }
 
 export interface Product {
+  unavailableUntil?: string | null;
   id: string;
   nameAr: string;
   description: string | null;
@@ -305,6 +309,7 @@ export interface OrderStatusHistoryEntry {
 }
 
 export interface Order {
+  scheduledFor?: string | null;
   id: string;
   /** Human-facing reference, e.g. `SG-260728-0042`. Unique. */
   orderNumber: string;
@@ -399,6 +404,7 @@ export interface OrderDetail extends Order {
 
 /** The condensed row used in list views. */
 export interface OrderSummary {
+  scheduledFor?: string | null;
   storeContact?: { name: string; phone: string; whatsappNumber?: string | null } | null;
   /** Kitchen lines, included for store managers and admins. */
   items?: { imageUrl?: string | null; id: string; productNameAr: string; quantity: number; totalPrice: number; note: string | null; optionNames: string[] }[];

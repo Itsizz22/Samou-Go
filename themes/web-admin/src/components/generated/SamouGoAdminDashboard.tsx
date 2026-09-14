@@ -1189,7 +1189,6 @@ function OrdersPanel() {
 function UsersPanel() {
   const toast = useToast();
   const { t } = useLanguage();
-  const [roleFilter, setRoleFilter] = useState<'ALL' | UserRole>('ALL');
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
   const [page, setPage] = useState(1);
@@ -1202,12 +1201,12 @@ function UsersPanel() {
   // Any filter/search change restarts from the first page.
   useEffect(() => {
     setPage(1);
-  }, [roleFilter, debounced]);
+  }, [debounced]);
 
   const users = useUsers({
     page,
     pageSize: 50,
-    ...(roleFilter === 'ALL' ? {} : { role: roleFilter }),
+    role: UserRole.CUSTOMER,
     ...(debounced ? { search: debounced } : {}),
   });
   const rows = users.data?.items ?? [];
@@ -1326,7 +1325,7 @@ function UsersPanel() {
 
   return (
     <PanelShell
-      title="المستخدمون"
+      title="العملاء"
       en="All Users"
       loading={users.loading}
       error={users.error}
@@ -1344,19 +1343,7 @@ function UsersPanel() {
               aria-label="Search users"
             />
           </label>
-          <AppSelect
-            value={roleFilter}
-            onChange={e => setRoleFilter(e.target.value as 'ALL' | UserRole)}
-            className="h-9 rounded-xl border border-line bg-canvas px-2 text-xs font-semibold text-ink outline-none focus:border-brand"
-            aria-label="Filter by role"
-          >
-            <option value="ALL">{t('كل الأدوار', 'All roles')}</option>
-            {(Object.keys(UserRole) as UserRole[]).map(role => (
-              <option key={role} value={role}>
-                {t(USER_ROLE_LABELS[role].ar, USER_ROLE_LABELS[role].en)}
-              </option>
-            ))}
-          </AppSelect>
+          <p className="text-xs text-ink-muted">{t('حسابات العملاء فقط. المتاجر والسائقون في صفحاتهم المستقلة.', 'Customer accounts only. Stores and drivers have their own pages.')}</p>
         </div>
       }
     >

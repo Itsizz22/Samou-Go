@@ -1320,7 +1320,7 @@ export async function uploadImage(
 ): Promise<FinalizeUploadResult> {
   // Compress the image on-device before uploading (no server load, faster on mobile).
   const { compressImage } = await import('./compressImage');
-  const compressed = input.kind === 'audio' || input.kind === 'store' ? file : await compressImage(file);
+  const compressed = input.kind === 'video' || input.kind === 'audio' || input.kind === 'store' ? file : await compressImage(file);
 
   const prepared = await presignUpload(
     {

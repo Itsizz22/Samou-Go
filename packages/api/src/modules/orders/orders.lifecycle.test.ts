@@ -1,4 +1,6 @@
 import { dispatchAvailableOrders, dispatchScore } from './automatic-dispatch';
+import { expireAvailabilityTimers } from '../stores/availability';
+import { dispatchScheduledReminders } from './preparation-reminders';
 import { nextPublicCode } from '../../lib/public-code';
 import { randomUUID } from 'node:crypto';
 import { UserRole } from '@samou-go/shared-types';
@@ -738,6 +740,40 @@ it('saves home banners for admin only and validates image URLs', async () => {
   expect((await request<{ homeBanners: unknown[] }>('GET', '/platform/settings', 'CUSTOMER')).data.homeBanners).toEqual([]);
 });
 
+it('persists ordered video ads for admin only and supports disabling and removal', async () => {
+  const { env } = await import('../../config/env');
+  const ad = { id: 'video-test', title: 'إعلان فيديو', videoUrl: `${env.publicApiOrigin}/uploads/video/admin/demo.mp4`, enabled: true };
+  for (const role of ['CUSTOMER', 'STORE_MANAGER', 'CAPTAIN']) expect((await request('PATCH', '/platform/settings', role, { homeVideos: [ad] })).status).toBe(403);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeVideos: [ad] })).status).toBe(200);
+  expect((await request<{ homeVideos: unknown[] }>('GET', '/platform/settings')).data.homeVideos).toEqual([ad]);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeVideos: [{ ...ad, videoUrl: 'https://example.com/fake.mp4' }] })).status).toBe(422);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeVideos: [ad, ad] })).status).toBe(422);
+  const disabled = { ...ad, enabled: false };
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeVideos: [disabled] })).status).toBe(200);
+  expect((await request<{ homeVideos: unknown[] }>('GET', '/platform/settings')).data.homeVideos).toEqual([disabled]);
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeVideos: [] })).status).toBe(200);
+  expect((await request<{ homeVideos: unknown[] }>('GET', '/platform/settings')).data.homeVideos).toEqual([]);
+});
+
+it('serves video byte ranges after a missing disk cache and rejects invalid ranges', async () => {
+  const { storage } = await import('../../uploads/storage');
+  const bytes = Buffer.from('0123456789');
+  const read = vi.spyOn(storage, 'readFinal').mockResolvedValue(bytes);
+  const url = `${base}/uploads/video/admin/${randomUUID()}.mp4`;
+  try {
+    const response = await fetch(url, { headers: { Range: 'bytes=2-5' } });
+    expect(response.status).toBe(206);
+    expect(response.headers.get('content-range')).toBe('bytes 2-5/10');
+    expect(response.headers.get('content-type')).toContain('video/mp4');
+    expect(await response.text()).toBe('2345');
+    const suffix = await fetch(url, { headers: { Range: 'bytes=-3' } });
+    expect(await suffix.text()).toBe('789');
+    expect((await fetch(url, { headers: { Range: 'bytes=100-200' } })).status).toBe(416);
+    const head = await fetch(url, { method: 'HEAD' });
+    expect(head.headers.get('content-length')).toBe('10');
+  } finally { read.mockRestore(); }
+});
+
 it('uploads product and category images through HTTP and persists decodable WebP files', async () => {
   const sharp = (await import('sharp')).default;
   const image = await sharp({ create: { width: 100, height: 80, channels: 3, background: { r: 30, g: 140, b: 100 } } }).png().toBuffer();
@@ -1224,4 +1260,64 @@ it('creates a store in a custom home category atomically and rejects unknown cat
   expect(created.status, JSON.stringify(created.error)).toBe(201);
   const settings = await request<{ homeCategories: Array<{ key: string; storeIds: string[] }> }>('GET', '/platform/settings');
   expect(settings.data.homeCategories.find(c => c.key === category.key)?.storeIds).toContain(created.data.store.id);
+});
+
+it('persists product pauses, enforces them during pricing, and preserves manual overrides', async () => {
+  await fixture.db.product.create({ data: { id: 'timed-product', storeId: 'store', nameAr: 'صنف مؤقت', price: 20 } });
+  const route = '/stores/store/products/timed-product';
+  const until = new Date(Date.now() + 60 * 60_000);
+  expect((await request('PATCH', route, 'CUSTOMER', { unavailableUntil: until.toISOString() })).status).toBe(403);
+  expect((await request('PATCH', route, 'STORE_MANAGER', { unavailableUntil: until.toISOString() })).status).toBe(200);
+  const body = { storeId: 'store', items: [{ productId: 'timed-product', quantity: 1 }], customerAddressText: 'عنوان اختبار التوقيت' };
+  expect((await request('POST', '/orders', 'CUSTOMER', body)).status).toBe(422);
+  await expireAvailabilityTimers(new Date(until.getTime() + 1));
+  expect((await fixture.db.product.findUniqueOrThrow({ where: { id: 'timed-product' } })).isAvailable).toBe(true);
+  expect((await request('POST', '/orders', 'CUSTOMER', body)).status).toBe(201);
+  await request('PATCH', route, 'STORE_MANAGER', { unavailableUntil: until.toISOString() });
+  await request('PATCH', route, 'STORE_MANAGER', { isAvailable: false });
+  await expireAvailabilityTimers(new Date(until.getTime() + 1));
+  const manual = await fixture.db.product.findUniqueOrThrow({ where: { id: 'timed-product' } });
+  expect(manual.isAvailable).toBe(false);
+  expect(manual.unavailableUntil).toBeNull();
+});
+
+it('adds busy preparation time and restores open status without undoing a manual close', async () => {
+  const until = new Date(Date.now() + 60 * 60_000);
+  await request('PATCH', '/stores/store', 'STORE_MANAGER', { storeStatus: 'BUSY', busyExtraMinutes: 15, busyUntil: until.toISOString() });
+  const body = { storeId: 'store', items: [{ productId: 'product', quantity: 1 }], customerAddressText: 'عنوان اختبار الازدحام' };
+  const order = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', body);
+  const accepted = await request<OrderDetail>('PATCH', `/orders/${order.data.id}/status`, 'STORE_MANAGER', { status: 'ACCEPTED', estimatedPrepMinutes: 20 });
+  expect(accepted.status, JSON.stringify(accepted.error)).toBe(200);
+  expect(accepted.data.estimatedPrepMinutes).toBe(35);
+  await expireAvailabilityTimers(new Date(until.getTime() + 1));
+  expect((await fixture.db.store.findUniqueOrThrow({ where: { id: 'store' } })).storeStatus).toBe('OPEN');
+  await request('PATCH', '/stores/store', 'STORE_MANAGER', { storeStatus: 'CLOSED' });
+  await expireAvailabilityTimers(new Date(until.getTime() + 1));
+  expect((await fixture.db.store.findUniqueOrThrow({ where: { id: 'store' } })).storeStatus).toBe('CLOSED');
+  await request('PATCH', '/stores/store', 'STORE_MANAGER', { storeStatus: 'OPEN' });
+});
+
+it('validates scheduled orders and blocks early preparation and captain assignment', async () => {
+  const scheduledFor = new Date(Date.now() + 2 * 60 * 60_000).toISOString();
+  const body = { storeId: 'store', items: [{ productId: 'product', quantity: 1 }], scheduledFor, customerAddressText: 'عنوان اختبار الجدولة' };
+  expect((await request('POST', '/orders', 'CUSTOMER', body)).status).toBe(422);
+  expect((await request('PATCH', '/stores/store', 'STORE_MANAGER', { acceptsScheduledOrders: true, openingTime: '00:00', closingTime: '00:00' })).status).toBe(200);
+  const order = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', body);
+  expect(order.status, JSON.stringify(order.error)).toBe(201);
+  expect(order.data.scheduledFor).toBe(scheduledFor);
+  const route = `/orders/${order.data.id}`;
+  expect((await request('PATCH', `${route}/status`, 'STORE_MANAGER', { status: 'ACCEPTED' })).status).toBe(400);
+  expect((await request('PATCH', `${route}/captain`, 'STORE_MANAGER', { captainId: 'CAPTAIN' })).status).toBe(400);
+  expect((await request('GET', route, 'CAPTAIN')).status).toBe(403);
+  await dispatchAvailableOrders();
+  expect((await fixture.db.order.findUniqueOrThrow({ where: { id: order.data.id } })).dispatchCaptainId).toBeNull();
+  await fixture.db.order.update({ where: { id: order.data.id }, data: { scheduledFor: new Date(Date.now() - 60_000), createdAt: new Date(Date.now() - 3_600_000) } });
+  vi.mocked(sendPushToMany).mockClear();
+  await Promise.all([dispatchScheduledReminders(), dispatchScheduledReminders()]);
+  expect(vi.mocked(sendPushToMany).mock.calls.filter(call => call[1].data?.orderId === order.data.id)).toHaveLength(1);
+  expect((await request('PATCH', `${route}/status`, 'CUSTOMER', { status: 'CANCELLED' })).status).toBe(200);
+  const dueOrder = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', body);
+  await fixture.db.order.update({ where: { id: dueOrder.data.id }, data: { scheduledFor: new Date(Date.now() - 60_000) } });
+  expect((await request('PATCH', `/orders/${dueOrder.data.id}/status`, 'STORE_MANAGER', { status: 'ACCEPTED', estimatedPrepMinutes: 20 })).status).toBe(200);
+  await request('PATCH', '/stores/store', 'STORE_MANAGER', { acceptsScheduledOrders: false });
 });

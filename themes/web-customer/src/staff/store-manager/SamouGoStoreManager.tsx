@@ -1,3 +1,5 @@
+import { StoreTimingControls } from './StoreTimingControls';
+import { ScheduledOrderNotice } from '@/components/ScheduledOrderNotice';
 import { AppSelect } from '@samou-go/ui';
 import { StoreCaptainContact } from '@samou-go/api-client';
 import { OrderChat } from '@samou-go/api-client';
@@ -514,6 +516,7 @@ export function SamouGoStoreManager() {
               </button>
             ))}
           </div>
+          {managedStore.data && <StoreTimingControls store={managedStore.data} onSaved={() => managedStore.refresh()} />}
         </div>
       </header>
 
@@ -639,7 +642,7 @@ export function SamouGoStoreManager() {
         )}
 
         <label className="mb-3 flex items-center justify-between rounded-xl bg-brand-surface px-3 py-2 text-xs font-bold text-brand-deep">
-          <span>{t('وقت التحضير عند القبول', 'Prep time')}</span>
+          <span>{t('وقت التحضير الأساسي (تضاف مدة الازدحام)', 'Base prep time (busy delay added)')}</span>
           <AppSelect value={prepMinutes} onChange={(event) => setPrepMinutes(Number(event.target.value))} className="rounded-lg border border-brand bg-surface px-2 py-1 text-xs text-ink outline-none">
             {[15, 20, 25, 30, 40, 50, 60].map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
           </AppSelect>
@@ -1022,6 +1025,7 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
   } | null = (() => {
     switch (order.status) {
       case OrderStatus.PENDING:
+        if (order.scheduledFor && Date.parse(order.scheduledFor) > Date.now()) return null;
         return { labelAr: 'قبول', labelEn: 'Accept', icon: Check, handler: onAccept, color: 'bg-brand hover:bg-brand-dark focus:ring-brand/40 text-white' };
       case OrderStatus.ACCEPTED:
         return { labelAr: 'بدء التحضير', labelEn: 'Start Cooking', icon: UtensilsCrossed, handler: onStartPreparing, color: 'bg-warning hover:bg-warning-dark focus:ring-warning/40 text-white' };
@@ -1094,6 +1098,7 @@ function OrderRow({ order, pending, onAccept, onStartPreparing, onReadyForPickup
             </ul>
           </details>
         )}
+        <ScheduledOrderNotice value={order.scheduledFor} />
         {order.estimatedPrepMinutes !== null && order.estimatedPrepMinutes !== undefined && (
           <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-brand-dark">
             <Clock3 size={13} />

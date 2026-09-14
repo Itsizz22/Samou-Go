@@ -60,6 +60,20 @@ export const walletCreditSchema = z.object({
 
 /** PATCH /platform/settings — platform-wide economy knobs (admin only). */
 export const platformSettingsSchema = z.object({
+  homeVideos: z.array(z.object({
+    id: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/),
+    title: z.string().trim().min(1).max(120),
+    videoUrl: z.string().max(2048).refine(value => {
+      try {
+        const url = new URL(value);
+        return url.origin === new URL(env.publicApiOrigin).origin && !url.search && !url.hash
+          && /^\/uploads\/video\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9-]+\.mp4$/.test(url.pathname);
+      } catch { return false; }
+    }, 'ارفع فيديو صالحًا من إدارة الإعلانات'),
+    posterUrl: z.string().max(2048).refine(isBannerImageUrl).optional(),
+    storeId: z.string().min(1).max(120).optional(),
+    enabled: z.boolean(),
+  })).max(20).refine(items => new Set(items.map(item => item.id)).size === items.length, 'معرفات الفيديو مكررة').optional(),
   freeDeliveryEnabled: z.boolean().optional(),
   autoPricingEnabled: z.boolean().optional(),
   baseDeliveryFee: z.number().min(0).max(10000).optional(),

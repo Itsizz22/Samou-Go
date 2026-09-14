@@ -60,6 +60,7 @@ const h = vi.hoisted(() => {
   };
 
   const tx = {
+    store: { findUniqueOrThrow: vi.fn(async () => ({ storeStatus: 'OPEN', busyUntil: null, busyExtraMinutes: 0 })) },
     user: { updateMany: vi.fn(async () => ({count:1})) },
     order: {
       count: vi.fn(async () => 0),

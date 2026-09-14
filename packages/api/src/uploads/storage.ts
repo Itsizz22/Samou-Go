@@ -7,7 +7,7 @@ import { Transform } from 'node:stream';
 import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { badRequest, payloadTooLarge } from '../lib/http-error';
-import { uploadConfig, uploadDirs, MAX_AUDIO_BYTES } from './uploads.config';
+import { uploadConfig, uploadDirs, MAX_AUDIO_BYTES, MAX_VIDEO_BYTES } from './uploads.config';
 
 /**
  * Where an upload actually lives. The local adapter writes to
@@ -51,7 +51,7 @@ export class LocalStorageAdapter implements StorageAdapter {
     const counter = new Transform({
       transform(chunk: Buffer, _encoding, callback) {
         received += chunk.length;
-        if (received > (rawKey.startsWith('audio/') ? MAX_AUDIO_BYTES : uploadConfig.maxBytes)) {
+        if (received > (rawKey.startsWith('video/') ? MAX_VIDEO_BYTES : rawKey.startsWith('audio/') ? MAX_AUDIO_BYTES : uploadConfig.maxBytes)) {
           callback(payloadTooLarge());
           return;
         }

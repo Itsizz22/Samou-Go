@@ -1,15 +1,13 @@
 import { AuthSupportContact } from '@/components/AuthSupportContact';
-import { FEATURE_FLAGS } from '@samou-go/api-client';
+import { markAccountSetup, needsAccountSetup } from '@/lib/account-setup';
 import { useEffect, useState } from 'react';
-import { Crosshair, Eye, EyeOff, Loader2, MapPin } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
   ApiError,
-  ENABLE_LOCATION,
   register,
   requestOtp,
   resetPassword,
-  updateMyLocation,
   useAuth,
   useToast,
 } from '@/hooks/useApi';
@@ -17,14 +15,6 @@ import { OtpPinInput } from '@/components/OtpPinInput';
 import { BrandLogo, useLanguage, TermsModal } from '@samou-go/ui';
 import { normalizePhone, isValidPalestinianMobile } from '@/lib/phone';
 import { roleHomePath } from '@/lib/roles';
-import {
-  ADDRESS_TAG_META,
-  ADDRESS_TAGS,
-  readSavedAddresses,
-  upsertAddress,
-  writeSavedAddresses,
-  type AddressTag,
-} from '@/lib/address-book';
 
 const phoneValid = (phone: string) => isValidPalestinianMobile(phone);
 
@@ -125,7 +115,7 @@ export function RegisterScreen() {
   const navigate = useNavigate();
   const toast = useToast();
   const { t } = useLanguage();
-  const [step, setStep] = useState<'form' | 'otp' | 'location'>('form');
+  const [step, setStep] = useState<'form' | 'otp'>('form');
   const [code, setCode] = useState('');
   const [resendSeconds, setResendSeconds] = useState(0);
   useEffect(() => {
@@ -142,12 +132,7 @@ export function RegisterScreen() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<LocalizedText | null>(null);
   const valid = name.trim().length >= 2 && phoneValid(phone) && password.length >= 8 && password === confirmPassword && accepted;
-  const [locationText, setLocationText] = useState('');
-  const [locationTag, setLocationTag] = useState<AddressTag>('home');
-  const [geoPending, setGeoPending] = useState(false);
-  const [geoApplied, setGeoApplied] = useState(false);
-  const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
-  if (auth.ready && auth.user && step !== 'location') return <Navigate to={roleHomePath(auth.user.role)} replace />;
+  if (auth.ready && auth.user) return <Navigate to={needsAccountSetup(auth.user.id) ? '/account-setup' : roleHomePath(auth.user.role)} replace />;
 
   const sendRegistrationCode = async () => {
     if (!valid || pending || resendSeconds > 0) return;
@@ -179,13 +164,13 @@ export function RegisterScreen() {
       });
       // Store tokens via the API client's token layer.
       const { setToken, setRefreshToken } = await import('@samou-go/api-client');
+      markAccountSetup(result.user.id);
       setToken(result.accessToken);
       setRefreshToken(result.refreshToken ?? null);
       // Refresh auth context to pick up the user profile.
-      setStep('location');
       await auth.refresh();
       toast.success('تم إنشاء الحساب — أهلاً بك!', 'Account created — welcome!');
-      setStep('location');
+      navigate('/account-setup', { replace: true });
     } catch (cause: unknown) {
       const message = cause instanceof Error ? cause.message : String(cause);
       let localizedMessage: LocalizedText;
@@ -198,58 +183,6 @@ export function RegisterScreen() {
     } finally {
       setPending(false);
     }
-  };
-
-  /* ---- Location onboarding (step 2) -------------------------------------- */
-
-  const saveLocationAndEnter = () => {
-    if (pending) return;
-    setError(null);
-    const text = locationText.trim();
-    if (!text) {
-      navigate('/', { replace: true });
-      return;
-    }
-    const saved = readSavedAddresses();
-    const address = {
-      id:
-        typeof crypto !== 'undefined' && 'randomUUID' in crypto
-          ? crypto.randomUUID()
-          : `addr-${Date.now()}`,
-      label: ADDRESS_TAG_META[locationTag].ar,
-      tag: locationTag,
-      addressText: text,
-      addressNote: geoApplied ? '📍 الموقع الحالي' : undefined,
-      ...(geoCoords ? { lat: geoCoords.lat, lng: geoCoords.lng } : {}),
-    };
-    writeSavedAddresses(upsertAddress(saved, address));
-    if (geoCoords) {
-      void updateMyLocation(geoCoords.lat, geoCoords.lng).catch(() => undefined);
-    }
-    navigate('/', { replace: true });
-  };
-
-  const shareCurrentLocation = () => {
-    if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING) return;
-    if (geoPending || !('geolocation' in navigator)) return;
-    setGeoPending(true);
-    setError(null);
-    navigator.geolocation.getCurrentPosition(
-      position => {
-        const { latitude, longitude } = position.coords;
-        setGeoCoords({ lat: latitude, lng: longitude });
-        setLocationText(prev =>
-          prev.trim() ? prev : `موقعي الحالي — ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
-        );
-        setGeoApplied(true);
-        setGeoPending(false);
-      },
-      () => {
-        setGeoPending(false);
-        setError({ ar: 'تعذّر تحديد موقعك — اكتب عنوانك يدوياً', en: 'Location unavailable — type your address' });
-      },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 }
-    );
   };
 
   return (
@@ -360,86 +293,6 @@ export function RegisterScreen() {
           </button>
           <button type="button" disabled={pending} onClick={() => { setCode(''); setError(null); setResendSeconds(0); setStep('form'); }} className="mt-4 w-full text-sm text-ink-muted">{t('تعديل رقم الهاتف', 'Change phone number')}</button>
         </form>
-      )}
-      {step === 'location' && (
-        <div>
-          <div className="mt-5 flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-tint text-brand">
-              <MapPin size={20} />
-            </span>
-            <div>
-              <h2 className="text-sm font-extrabold">{t('أين تسكن؟', 'Where should we deliver?')}</h2>
-            </div>
-          </div>
-          <p className="mt-3 text-xs leading-relaxed text-ink-muted">
-            شارك حيّك وعنوانك لتجهيز طلباتك بشكل أسرع — يمكنك تغييره لاحقاً من الملف الشخصي.
-          </p>
-          <label className="mt-4 block text-sm font-bold">
-            العنوان
-            <textarea
-              className="input-field mt-1.5 min-h-24 w-full resize-none"
-              dir="rtl"
-              value={locationText}
-              onChange={event => setLocationText(event.target.value)}
-              placeholder="الحي / الشارع / علامة مميزة — مثل: شارع السموع الرئيسي، بجانب المسجد"
-              aria-label="Delivery address"
-            />
-          </label>
-          <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Address tag">
-            {ADDRESS_TAGS.map(tag => (
-              <button
-                key={tag}
-                type="button"
-                role="radio"
-                aria-checked={locationTag === tag}
-                onClick={() => setLocationTag(tag)}
-                className={`rounded-full px-3 py-1.5 text-[11px] font-bold transition ${
-                  locationTag === tag
-                    ? 'bg-brand text-white'
-                    : 'bg-surface text-ink-muted shadow-card'
-                }`}
-              >
-                {t(ADDRESS_TAG_META[tag].ar, ADDRESS_TAG_META[tag].en)}
-              </button>
-            ))}
-          </div>
-          {ENABLE_LOCATION && (
-          <button
-            type="button"
-            onClick={shareCurrentLocation}
-            disabled={geoPending}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-xs font-bold text-brand-deep transition hover:bg-brand-surface disabled:opacity-60"
-          >
-            {geoPending ? (
-              <Loader2 size={15} className="animate-spin" />
-            ) : (
-              <Crosshair size={15} />
-            )}
-            {geoApplied ? (
-              <>{t('تم تحديد موقعك', 'Location captured')}</>
-            ) : (
-              <>
-                {t('شارك موقعي الحالي', 'Use my location')}
-              </>
-            )}
-          </button>
-          )}
-          <ErrorBanner error={error} />
-          <button
-            type="button"
-            onClick={saveLocationAndEnter}
-            className="btn-primary mt-5 w-full justify-center"
-          >
-            {t('حفظ والمتابعة', 'Save & continue')}
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/', { replace: true })}
-            className="mt-3 w-full text-sm font-bold text-ink-muted"
-          >
-            {t('تخطي الآن', 'Skip for now')}
-          </button>
-        </div>
       )}
       <p className="mt-5 text-center text-sm text-ink-muted">
         لديك حساب؟{' '}

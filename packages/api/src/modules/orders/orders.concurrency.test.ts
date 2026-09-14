@@ -117,7 +117,7 @@ const tx = {
     user: { updateMany: vi.fn(async () => ({count:1})) },
     deliveryPricingConfig: { findUnique: vi.fn().mockResolvedValue(null) },
     platformSettings: { findUnique: vi.fn().mockResolvedValue(null) },
-    store: { findUnique: vi.fn(async () => state.store) },
+    store: { findUnique: vi.fn(async () => state.store), findUniqueOrThrow: vi.fn(async () => ({ ...state.store, storeStatus: 'OPEN', busyUntil: null, busyExtraMinutes: 0 })) },
     product: { findMany: vi.fn(async () => state.products) },
     productOptionGroup: { findMany: vi.fn(async () => []) },
     dailyOrderSequence: {

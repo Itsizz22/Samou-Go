@@ -44,6 +44,7 @@ export function CatalogueProductList({ products, togglingId, deactivatingId, onE
           <button type="button" onClick={() => onDeactivate(product)} disabled={deactivatingId === product.id} className="sq-catalogue-archive" aria-label={`${t('إيقاف', 'Deactivate')} ${product.nameAr}`} title={t('إيقاف المنتج', 'Deactivate product')}>{deactivatingId === product.id ? <Loader2 size={16} className="animate-spin"/> : <Archive size={16}/>}</button>
         </div>
       </div>
+      {!product.isAvailable && product.unavailableUntil && <p className="px-3 pb-3 text-xs text-ink-muted">{t('يعود تلقائياً', 'Available again')}: {new Intl.DateTimeFormat('ar-PS', { timeZone: 'Asia/Hebron', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(product.unavailableUntil))}</p>}
     </article>; })}
   </div>
     {preview && <ProductImagePreview product={preview} onClose={() => setPreview(null)} />}

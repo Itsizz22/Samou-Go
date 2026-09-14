@@ -1,3 +1,4 @@
+import { ScheduledOrderNotice } from '@/components/ScheduledOrderNotice';
 import { OrderChat } from '@samou-go/api-client';
 import { OrderContactCard } from '@samou-go/ui';
 import { getLiveOrderTracking } from '@samou-go/api-client';
@@ -81,7 +82,7 @@ export function OrderTrackingScreen() {
     const remaining = Math.max(0, Math.ceil((2 * 60 * 1000 - elapsed) / 1000));
     return remaining;
   }, [order.data]);
-  const canCancel = cancelTimeRemaining > 0 && order.data?.status === OrderStatus.PENDING;
+  const canCancel = (cancelTimeRemaining > 0 || !!order.data?.scheduledFor) && order.data?.status === OrderStatus.PENDING;
 
   const handleCancel = async () => {
     if (!order.data || cancelling) return;
@@ -275,6 +276,7 @@ export function OrderTrackingScreen() {
                   ))}
                 </ul>
 
+                <ScheduledOrderNotice value={order.data.scheduledFor} />
                 <dl className="mt-3 space-y-1.5 border-t border-line pt-3 text-[11px]">
                   <div className="flex justify-between text-ink-muted">
                     <dt>المجموع الفرعي</dt>
@@ -317,7 +319,7 @@ export function OrderTrackingScreen() {
                 <section className="rounded-2xl bg-surface p-4 shadow-card">
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-[10px] font-bold text-danger leading-relaxed">
-                      {t(`متبقي ${cancelTimeRemaining} ثانية`, `${cancelTimeRemaining}s remaining`)}
+                      {order.data.scheduledFor ? t('يمكنك الإلغاء حتى قبول المتجر وبدء التحضير', 'Cancel before the store accepts and starts preparation') : t(`متبقي ${cancelTimeRemaining} ثانية`, `${cancelTimeRemaining}s remaining`)}
                     </p>
                   </div>
                   <button

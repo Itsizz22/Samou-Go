@@ -58,6 +58,7 @@ export function toOrder(order: PrismaOrder): Order {
   return {
     id: order.id,
     orderNumber: order.orderNumber,
+    scheduledFor: order.scheduledFor?.toISOString() ?? null,
     customerId: order.customerId,
     storeId: order.storeId,
     captainId: order.captainId,
@@ -193,6 +194,7 @@ export function toOrderSummary(order: OrderForSummary, viewerRole?: string, view
   const restricted = viewerRole === UserRole.CAPTAIN && (!viewerId || order.captainId !== viewerId);
   const staff = viewerRole === UserRole.STORE_MANAGER || (viewerRole === UserRole.CAPTAIN && !restricted) || viewerRole === UserRole.ADMIN;
   return {
+    scheduledFor: order.scheduledFor?.toISOString() ?? null,
     id: order.id,
     orderNumber: order.orderNumber,
     status: order.status,

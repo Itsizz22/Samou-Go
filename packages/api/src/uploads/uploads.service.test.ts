@@ -6,6 +6,7 @@ import { Readable } from 'node:stream';
 import sharp from 'sharp';
 import { UserRole } from '@samou-go/shared-types';
 import { HttpError } from '../lib/http-error';
+import { videoFixture } from './video.fixture';
 
 /**
  * Uploads pipeline tests — avatar + product images against the real local
@@ -169,6 +170,21 @@ describe('sniffImageType', () => {
 });
 
 describe('presign', () => {
+  it('restricts every video upload stage to the owning admin and preserves uploaded bytes', async () => {
+    for (const caller of [CUSTOMER, MANAGER]) {
+      await expectHttpError(presign(caller, { kind: 'video', contentType: 'video/mp4' }), 'FORBIDDEN', 403);
+      await expectHttpError(storeRaw('video/u-admin/demo.mp4', Readable.from(videoFixture()), caller), 'FORBIDDEN', 403);
+      await expectHttpError(finalizeUpload(caller, 'video/u-admin/demo.mp4', 'video'), 'FORBIDDEN', 403);
+    }
+    const prepared = await presign(ADMIN, { kind: 'video', contentType: 'video/mp4' });
+    expect(prepared.maxBytes).toBe(40 * 1024 * 1024);
+    const bytes = videoFixture();
+    await storeRaw(prepared.key, Readable.from(bytes), ADMIN);
+    const result = await finalizeUpload(ADMIN, prepared.key, 'video');
+    expect(result.width).toBe(1920);
+    expect(await storage.readFinal(prepared.key)).toEqual(bytes);
+    await expectHttpError(finalizeUpload({ ...ADMIN, userId: 'another-admin' }, prepared.key, 'video'), 'FORBIDDEN', 403);
+  });
   it('rejects an unsupported content type', async () => {
     await expectHttpError(
       presign(CUSTOMER, { contentType: 'text/html', kind: 'user' }),

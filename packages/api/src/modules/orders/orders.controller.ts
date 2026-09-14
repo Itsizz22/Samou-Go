@@ -131,9 +131,11 @@ export async function createOrderHandler(req: Request, res: Response): Promise<v
       if (store) {
         // Notify store manager
         await sendPushToUser(store.managerId, {
-          title: 'طلب جديد للمتجر 🛒',
-          body: `لديك طلب جديد في ${store.nameAr}\nرقم الطلب: ${result.orderNumber}\nافتح الطلب لمراجعة التفاصيل وتأكيد القبول.`,
-          data: { orderId: result.id, type: 'NEW_ORDER', storeId: result.storeId, screen: 'order' },
+          title: result.scheduledFor ? 'حجز طلب لوقت لاحق' : 'طلب جديد للمتجر 🛒',
+          body: result.scheduledFor
+            ? `الطلب ${result.orderNumber} مجدول لبدء التحضير ${new Intl.DateTimeFormat('ar-PS', { timeZone: 'Asia/Hebron', dateStyle: 'short', timeStyle: 'short' }).format(new Date(result.scheduledFor))}`
+            : `لديك طلب جديد في ${store.nameAr}\nرقم الطلب: ${result.orderNumber}\nافتح الطلب لمراجعة التفاصيل وتأكيد القبول.`,
+          data: { orderId: result.id, type: result.scheduledFor ? 'SCHEDULED_ORDER' : 'NEW_ORDER', storeId: result.storeId, screen: 'order' },
         }, { dataOnly: true });
         // Captains are notified after store acceptance, when pool access is granted.
       }

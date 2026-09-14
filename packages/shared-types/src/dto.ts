@@ -216,6 +216,7 @@ export interface CreateOrderItemInput {
  * an amount — the server resolves it and computes the discount itself.
  */
 export interface CreateOrderInput {
+  scheduledFor?: string;
   unavailableAction?: "CONTACT" | "REMOVE" | "SUGGEST";
   requestId?: string;
   storeId: string;
@@ -270,6 +271,7 @@ export interface OrderListQuery extends PaginationQuery {
 
 /** A price quote — lets the checkout screen show the fee before committing. */
 export interface QuoteOrderInput {
+  scheduledFor?: string;
   fulfillmentType?: 'DELIVERY' | 'PICKUP';
   storeId: string;
   items: CreateOrderItemInput[];
@@ -349,6 +351,7 @@ export interface CreateProductInput {
 }
 
 export interface UpdateProductInput {
+  unavailableUntil?: string | null;
   nameAr?: string;
   description?: string;
   price?: number;
@@ -376,6 +379,9 @@ export interface UpdateCategoryInput {
 }
 
 export interface UpdateStoreInput {
+  busyUntil?: string | null;
+  busyExtraMinutes?: number;
+  acceptsScheduledOrders?: boolean;
   deliveryZoneId?: string | null;
   whatsappNumber?: string | null;
   storeType?: StoreType | null;
@@ -649,6 +655,15 @@ export interface HomeCategory {
   storeIds?: string[];
 }
 
+export interface HomeVideoAd {
+  id: string;
+  title: string;
+  videoUrl: string;
+  posterUrl?: string;
+  storeId?: string;
+  enabled: boolean;
+}
+
 export interface HomeBanner {
   kind?: "announcement" | "product";
   storeId?: string;
@@ -673,6 +688,7 @@ export interface PlatformSettings {
   featuredCategoryIds?: string[] | null;
   homeCategories?: HomeCategory[] | null;
   homeBanners?: HomeBanner[] | null;
+  homeVideos?: HomeVideoAd[] | null;
   autoPricingEnabled?: boolean;
   baseDeliveryFee?: number;
   perKmFee?: number;
@@ -706,6 +722,7 @@ export interface UpdatePlatformSettingsInput {
   featuredCategoryIds?: string[] | null;
   homeCategories?: HomeCategory[] | null;
   homeBanners?: HomeBanner[];
+  homeVideos?: HomeVideoAd[];
   autoPricingEnabled?: boolean;
   baseDeliveryFee?: number;
   perKmFee?: number;
@@ -727,7 +744,7 @@ export interface UpdatePlatformSettingsInput {
  * ------------------------------------------------------------------------- */
 
 /** What a processed image eventually attaches to. */
-export type UploadKind = 'user' | 'product' | 'store' | 'offer' | 'category' | 'banner' | 'option' | 'audio';
+export type UploadKind = 'user' | 'product' | 'store' | 'offer' | 'category' | 'banner' | 'option' | 'audio' | 'video';
 
 /** POST /uploads/presign */
 export interface PresignUploadInput {

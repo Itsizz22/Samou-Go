@@ -242,6 +242,9 @@ model Store {
   isAcceptingOrders Boolean @default(true)
   /// Three-state availability: OPEN = accepting, BUSY = prep delay, CLOSED = not accepting.
   storeStatus StoreStatus @default(OPEN)
+  busyUntil DateTime?
+  busyExtraMinutes Int @default(0)
+  acceptsScheduledOrders Boolean @default(false)
   /// Store category — drives the customer home filter bar.
   storeType   StoreType?
   /// Store operating hours (HH:mm format, e.g. "08:00", "23:00").
@@ -272,6 +275,7 @@ model Store {
   @@index([isActive])
   @@index([nameAr])
   @@index([slug])
+  @@index([storeStatus, busyUntil])
   @@map("stores")
 }
 
@@ -306,6 +310,7 @@ model Product {
   originalPrice Decimal? @db.Decimal(10, 2)
   imageUrl    String?
   isAvailable Boolean  @default(true)
+  unavailableUntil DateTime?
   /// Admin/manager toggle: when false, product option groups are hidden from the customer catalogue.
   optionsEnabled Boolean @default(true)
   categoryId  String?
@@ -320,6 +325,7 @@ model Product {
   optionGroups ProductOptionGroup[]
 
   @@index([storeId, isAvailable])
+  @@index([isAvailable, unavailableUntil])
   @@index([categoryId])
   @@index([nameAr])
   @@map("products")
@@ -334,6 +340,9 @@ model Order {
   preparationStartedAt DateTime?
   preparedAt DateTime?
   unavailableAction String @default("CONTACT")
+  scheduledFor DateTime?
+  scheduledReminderAt DateTime?
+  scheduledReminderLeaseUntil DateTime?
   changeProposal String?
   unclaimedAlertAt DateTime?
   autoPriced Boolean @default(false)
@@ -422,6 +431,7 @@ model Order {
   @@index([deliveryZoneId])
   @@index([cartCheckoutId])
   @@index([status, prepReminderSentAt, estimatedReadyAt], map: "orders_preparation_reminder_idx")
+  @@index([status, scheduledFor])
   @@map("orders")
 }  /// One basket line. `unitPrice` and `totalPrice` are frozen at order time.
 model OrderItem {
@@ -786,6 +796,7 @@ model PlatformSettings {
   featuredCategoryIdsJson String?
   homeCategoriesJson String?
   homeBannersJson String?
+  homeVideosJson String?
   gpsCaptureEnabled Boolean @default(false)
   preparationReminderMinutes Int @default(5)
   updatedAt DateTime @updatedAt

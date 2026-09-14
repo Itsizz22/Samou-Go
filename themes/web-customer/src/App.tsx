@@ -5,6 +5,8 @@ import { SessionRecovery, needsSessionRecovery, ConnectionNotice } from '@samou-
 import { StaffOrderDetailsScreen } from './screens/StaffOrderDetailsScreen';
 import { StartupIntro } from './components/StartupIntro';
 import { CustomerOnboarding } from '@/components/CustomerOnboarding';
+import { AccountSetupScreen } from '@/screens/AccountSetupScreen';
+import { needsAccountSetup } from '@/lib/account-setup';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 import { dismissAndroidOverlay } from '@/lib/androidBack';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
@@ -194,7 +196,7 @@ function ProtectedRoute({ auth, children, allowStaff = false }: { auth: Auth; ch
 
 function AuthRoute({ auth, children }: { auth: Auth; children: React.ReactNode }) {
   if (!auth.ready) return null;
-  return auth.user ? <Navigate to={roleHomePath(auth.user.role)} replace /> : <>{children}</>;
+  return auth.user ? <Navigate to={auth.user.role === UserRole.CUSTOMER && needsAccountSetup(auth.user.id) ? '/account-setup' : roleHomePath(auth.user.role)} replace /> : <>{children}</>;
 }
 
 /**
@@ -260,6 +262,7 @@ function StartupRoutes({ auth }: { auth: Auth }) {
       <Route path="/login" element={<AuthRoute auth={auth}><LoginScreen /></AuthRoute>} />
       <Route path="/verify-phone" element={<AuthRoute auth={auth}><PhoneVerificationScreen /></AuthRoute>} />
       <Route path="/register" element={<AuthRoute auth={auth}><RegisterScreen /></AuthRoute>} />
+      <Route path="/account-setup" element={<RoleGuard auth={auth} role={UserRole.CUSTOMER}><AccountSetupScreen /></RoleGuard>} />
       <Route path="/forgot-password" element={<AuthRoute auth={auth}><ForgotPasswordScreen /></AuthRoute>} />
 
       {/* Merged staff apps — lazy-loaded, CAPTAIN-only. */}

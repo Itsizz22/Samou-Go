@@ -23,6 +23,8 @@ export const MIME_TO_EXT: Record<AllowedMime, string> = {
 
 /** Max audio upload size: 4 MB. */
 export const MAX_AUDIO_BYTES = 4 * 1024 * 1024;
+/** Original H.264 MP4 ads, without image recompression. */
+export const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
 
 /** Square avatar target — profile images are always a 256×256 cover crop. */
 export const AVATAR_SIZE = 256;
