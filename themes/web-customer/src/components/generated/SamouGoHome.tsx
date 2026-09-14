@@ -248,7 +248,7 @@ export function SamouGoHome() {
       </section>
       {!searchTerm.trim() && <div className="market-more">
       <FeaturedProductsShowcase products={dishProducts} loading={popular.loading} onAdd={handlePopularAdd} />
-      <CravingShortcuts products={dishProducts} />
+      <CravingShortcuts />
 
       <PromoBannerSlider />
 

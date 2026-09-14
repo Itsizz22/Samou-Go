@@ -330,6 +330,7 @@ export function StoreDetailScreen() {
           className="mx-auto w-full max-w-md px-5 py-2"
           trackClassName="gap-2"
           showArrows={false}
+          showSwipeHint
         >
           <button type="button" aria-pressed={active === 'all'} onClick={() => { setActiveCategoryId('all'); setMenuSearch(''); }} className={`min-h-11 shrink-0 rounded-full px-4 text-xs font-bold ${active === 'all' ? 'bg-brand text-white' : 'bg-canvas text-ink-muted'}`}>{t('كل القائمة', 'Full menu')}</button>
           {!!popular.data?.length && <button type="button" aria-pressed={active === 'popular'} onClick={() => { setActiveCategoryId('popular'); setMenuSearch(''); }} className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-xs font-bold ${active === 'popular' ? 'bg-brand text-white' : 'bg-canvas text-ink-muted'}`}><Star size={14} />{t('الأكثر طلباً', 'Most ordered')}</button>}

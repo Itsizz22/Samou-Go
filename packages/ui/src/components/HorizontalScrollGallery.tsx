@@ -8,7 +8,7 @@
  * injected by the component — the design-system `.scrollbar-none` utility is
  * *not* assumed, so this package stays self-contained.
  */
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useLanguage } from '../lib/LanguageProvider';
@@ -30,6 +30,8 @@ export interface HorizontalScrollGalleryProps {
   slotEnd?: React.ReactNode;
   /** Hide the prev/next buttons entirely (mobile strips usually do). */
   showArrows?: boolean;
+  /** Show a localized swipe hint only when the rail overflows. */
+  showSwipeHint?: boolean;
   children: React.ReactNode;
 }
 
@@ -56,9 +58,21 @@ export const HorizontalScrollGallery: React.FC<HorizontalScrollGalleryProps> = (
   trackClassName,
   slotEnd,
   showArrows = true,
+  showSwipeHint = false,
   children,
 }) => {
   const trackRef = useRef<HTMLDivElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track || !showSwipeHint) return;
+    const measure = () => setOverflows(track.scrollWidth > track.clientWidth + 2);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(track);
+    for (const child of track.children) observer.observe(child);
+    return () => observer.disconnect();
+  }, [children, showSwipeHint]);
   const { language } = useLanguage();
   const isArabic = language === 'ar';
 
@@ -80,7 +94,9 @@ export const HorizontalScrollGallery: React.FC<HorizontalScrollGalleryProps> = (
 
       {hasHeader && (
         <header className="mb-3 flex items-end justify-between gap-3">
-          <div>{title && <h2 className="text-[15px] font-extrabold text-ink">{title}</h2>}</div>
+          <div>{title && <h2 className="text-[15px] font-extrabold text-ink">{title}</h2>}
+            {showSwipeHint && overflows && <p className="mt-1 flex items-center gap-1 text-xs text-ink-muted"><span aria-hidden="true">↔</span>{isArabic ? 'اسحب القائمة لعرض باقي الأقسام' : 'Swipe to see more categories'}</p>}
+          </div>
           {slotEnd}
         </header>
       )}
