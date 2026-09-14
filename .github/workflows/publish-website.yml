@@ -1,0 +1,59 @@
+name: Publish Public Website
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'websites/samouquick/**'
+      - '.github/workflows/publish-website.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-website-deploy
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - name: Stage public files with downloads closed
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const source = 'websites/samouquick';
+          const output = '.vercel/output';
+          fs.mkdirSync(output + '/static', { recursive: true });
+          for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
+            if (entry.isDirectory() && ['assets', 'content'].includes(entry.name)) {
+              fs.cpSync(path.join(source, entry.name), path.join(output, 'static', entry.name), { recursive: true });
+            } else if (entry.isFile() && /\.(html|css|js|txt|xml|ico|webmanifest)$/.test(entry.name) && entry.name !== 'vercel.json') {
+              fs.copyFileSync(path.join(source, entry.name), path.join(output, 'static', entry.name));
+            }
+          }
+          const config = JSON.parse(fs.readFileSync(source + '/vercel.json', 'utf8'));
+          const routes = config.headers.map(rule => ({ src: rule.source, headers: Object.fromEntries(rule.headers.map(h => [h.key, h.value])), continue: true }));
+          routes.push({ src: '/downloads(?:/.*)?', status: 307, headers: { Location: '/#download' } });
+          routes.push({ handle: 'filesystem' });
+          routes.push({ src: '/(privacy|terms|delete-account)', dest: '/$1.html' });
+          fs.writeFileSync(output + '/config.json', JSON.stringify({ version: 3, routes }));
+          fs.writeFileSync('.vercel/project.json', JSON.stringify({ projectId: 'prj_3YWYttPml1X8myscKDodRlaLkAmF', orgId: process.env.VERCEL_ORG_ID }));
+          if (fs.existsSync(output + '/static/downloads')) throw Error('Downloads must remain closed');
+          const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
+          if (walk(output + '/static').some(file => /\.(apk|aab)$/i.test(file))) throw Error('Do not publish mobile binaries');
+          NODE
+      - name: Publish to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: prj_3YWYttPml1X8myscKDodRlaLkAmF
+        run: npx --yes vercel@59.11.7 deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN"
