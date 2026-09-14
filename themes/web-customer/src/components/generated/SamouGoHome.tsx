@@ -336,28 +336,29 @@ export function SamouGoHome() {
 
       {!stores.error && (stores.loading || featured.length > 0) && <section className="mx-auto max-w-md px-5 pt-8" aria-labelledby="featured-title" aria-busy={stores.loading}>
         <div className="mb-4 flex items-end justify-between"><div><h2 id="featured-title" className="text-lg font-extrabold">{t('المتاجر المميزة', 'Featured stores')}</h2></div><button type="button" onClick={() => document.getElementById('nearby-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="text-xs font-bold text-brand">{t('عرض الكل', 'See all')}</button></div>
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+        <div className="flex snap-x snap-proximity gap-3 overflow-x-auto px-1 pb-3 pt-1 scrollbar-none">
           {stores.loading
             ? [0, 1, 2].map(index => <div key={index} className="skeleton min-w-49 overflow-hidden rounded-2xl shadow-card" aria-hidden="true"><div className="h-24 bg-line-soft" /><div className="space-y-2 p-3"><div className="ms-auto h-3 w-2/3 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-1/2 rounded bg-line-soft" /><div className="h-5 w-20 rounded-full bg-line-soft" /></div></div>)
-            : featured.map(({ store, category, initials, gradient }) => (
-                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="w-60 shrink-0 overflow-hidden rounded-2xl border border-line-soft bg-surface transition duration-200 hover:shadow-card focus-visible:ring-2 focus-visible:ring-brand" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
-                  <article>
-                    <div className={`relative flex h-32 items-center justify-center bg-linear-to-br ${gradient}`}>
-                      {store.logoUrl ? <ImageWithFallback src={store.logoUrl} alt="" className="sq-store-logo-image sq-store-logo-image--whole h-full w-full" fallbackText={initials} /> : <span className="text-3xl font-black text-white/40">{initials}</span>}
-                      {store.isRecommended && <span className="absolute inset-s-2 top-2 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-1 text-micro font-bold text-white shadow-card" title={t('ينصح به لدينا', 'Recommended by us')}><Star size={10} fill="currentColor" />{t('موصى به', 'Recommended')}</span>}
-                      {store.badges?.includes('badge_popular') && <span className="absolute inset-e-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('الأكثر طلباً', 'Most popular')}><Flame size={9} />{t('الأكثر طلباً', 'Popular')}</span>}
-                      {store.badges?.includes('badge_fast') && <span className="absolute inset-e-2 top-10 inline-flex items-center gap-0.5 rounded-full bg-blue-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('سريع التجهيز', 'Fast prep')}><Zap size={9} />{t('سريع', 'Fast')}</span>}
-                      {store.badges?.includes('badge_has_offers') && <span className="absolute inset-e-2 top-17 inline-flex items-center gap-0.5 rounded-full bg-brand-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('عرض حصري', 'Special offer')}><Tag size={9} />{t('عرض', 'Offer')}</span>}
-                      <span className={`absolute inset-s-2 bottom-2 rounded-full px-2 py-1 text-micro font-bold ${storeIsOpen(store) ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{storeIsOpen(store) ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
-                      <button type="button" aria-label={t(`إضافة ${store.nameAr} إلى المفضلة`, `Favorite ${store.nameEn}`)} aria-pressed={favorites.isFavorite(store.id)} onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggleLike(store.id); }} disabled={favorites.pending.includes(store.id)} className="absolute inset-e-2 top-2 rounded-full bg-surface/85 p-2 text-brand"><Heart size={15} fill={favorites.isFavorite(store.id) ? 'currentColor' : 'none'} /></button>
+            : featured.map(({ store, category, initials }) => (
+                <article key={store.id} className="relative w-60 shrink-0 snap-start rounded-3xl border border-line-soft bg-surface p-4 transition-shadow duration-200 hover:shadow-card">
+                  <button type="button" aria-label={t(`إضافة ${store.nameAr} إلى المفضلة`, `Favorite ${store.nameEn}`)} aria-pressed={favorites.isFavorite(store.id)} onClick={() => { void toggleLike(store.id); }} disabled={favorites.pending.includes(store.id)} className="absolute end-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-brand-surface text-brand transition-colors hover:bg-brand-tint active:bg-brand-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"><Heart size={18} fill={favorites.isFavorite(store.id) ? 'currentColor' : 'none'} /></button>
+                  <Link to={`/stores/${encodeURIComponent(store.id)}`} className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-4" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
+                    <div className="mb-4 flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl bg-canvas">
+                      {store.logoUrl ? <ImageWithFallback src={store.logoUrl} alt="" className="sq-store-logo-image sq-store-logo-image--whole h-full w-full" fallbackText={initials} /> : <StoreIcon size={36} className="text-brand" aria-hidden="true" />}
                     </div>
-                    <div className="p-3 text-start">
-                      <h3 className="line-clamp-2 min-h-10 text-sm font-extrabold leading-5">{t(store.nameAr, store.nameEn)}</h3>
-                      <p className="mt-1 text-xs text-ink-muted">{t(category.ar, category.en)}</p><DeliveryEstimate store={store} compact />
-                      {freeDeliveryEnabled && <span className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-brand-tint px-2.5 py-1.5 text-xs font-bold text-brand-dark"><Truck size={14} aria-hidden="true" />{t("التوصيل مجاني", "Free delivery")}</span>}
+                    <h3 className="line-clamp-2 min-h-10 text-sm font-extrabold leading-5">{t(store.nameAr, store.nameEn)}</h3>
+                    <p className="mt-1 truncate text-xs text-ink-muted">{t(category.ar, category.en)}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-micro font-bold ${storeIsOpen(store) ? 'bg-brand-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}><span className="h-1.5 w-1.5 rounded-full bg-current" />{storeIsOpen(store) ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
+                      {store.isRecommended && <span className="inline-flex items-center gap-1 text-micro font-bold text-brand"><Star size={12} />{t('موصى به', 'Recommended')}</span>}
+                      {store.badges?.includes('badge_popular') && <span className="inline-flex items-center gap-1 text-micro text-ink-muted"><Flame size={12} />{t('الأكثر طلباً', 'Popular')}</span>}
+                      {store.badges?.includes('badge_fast') && <span className="inline-flex items-center gap-1 text-micro text-ink-muted"><Zap size={12} />{t('سريع', 'Fast')}</span>}
+                      {store.badges?.includes('badge_has_offers') && <span className="inline-flex items-center gap-1 text-micro text-brand"><Tag size={12} />{t('عرض', 'Offer')}</span>}
                     </div>
-                  </article>
-                </Link>
+                    <DeliveryEstimate store={store} compact />
+                    {freeDeliveryEnabled && <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-brand-dark"><Truck size={14} aria-hidden="true" />{t('التوصيل مجاني', 'Free delivery')}</span>}
+                  </Link>
+                </article>
               ))}
         </div>
       </section>}
@@ -405,7 +406,7 @@ export function SamouGoHome() {
           {categories.filter(category => category.enabled).filter((category, index) => !categoriesCollapsed || index < 4 || category.key === activeCategory).map(category => {
             const Icon = CATEGORY_ICONS[category.key as StoreCategoryKey] ?? StoreIcon;
             const active = activeCategory === category.key;
-            const photo = category.imageUrl;
+            const photo = category.imageUrl || (category.key !== 'all' && category.key in CATEGORY_ICONS ? '/images/categories/' + category.key + '.svg' : undefined);
             return <button key={category.key} type="button" aria-pressed={active} onClick={() => { setActiveCategory(category.key); requestAnimationFrame(() => document.getElementById('home-results')?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })); }} className={`flex min-w-0 flex-col items-center gap-2 rounded-2xl border p-1.5 pb-3 text-center transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-brand ${active ? 'border-brand bg-brand-tint text-brand-dark' : 'border-line bg-surface text-ink-soft'}`}>
               <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-brand-surface text-brand">{photo ? <ImageWithFallback src={photo} alt="" className="h-full w-full object-cover" /> : <Icon size={26} />}</span>
               <span className="text-[11px] font-bold leading-relaxed">{t(category.ar, category.en)}</span>
