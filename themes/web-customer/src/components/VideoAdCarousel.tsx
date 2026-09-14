@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 import { usePlatformSettings } from '@samou-go/api-client';
 import { useLanguage } from '@samou-go/ui';
 import type { HomeVideoAd } from '@samou-go/shared-types';
-import { Pause, Play, Volume2, VolumeX, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 function AdPlayer({ ad, active, visible, next }: { ad: HomeVideoAd; active: boolean; visible: boolean; next: () => void }) {
   const { t } = useLanguage();
   const video = useRef<HTMLVideoElement>(null);
-  const [muted, setMuted] = useState(true);
+  const [aspectRatio, setAspectRatio] = useState(9 / 16);
   const [paused, setPaused] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -36,22 +36,23 @@ function AdPlayer({ ad, active, visible, next }: { ad: HomeVideoAd; active: bool
       void element.play().then(() => setBlocked(false)).catch(() => setBlocked(true));
     } else { setPaused(true); element.pause(); }
   };
-  return <div className="relative aspect-video overflow-hidden rounded-2xl bg-ink">
-    {active ? <video ref={video} src={ad.videoUrl} poster={ad.posterUrl} muted={muted} playsInline preload="metadata"
-      aria-label={ad.title} className="h-full w-full object-contain"
+  return <div className="relative w-full overflow-hidden rounded-2xl bg-ink" style={{ aspectRatio }}>
+    {active ? <video ref={video} src={ad.videoUrl} poster={ad.posterUrl} muted playsInline preload="metadata"
+      role="button" tabIndex={0}
+      aria-label={`${ad.title} — ${paused || blocked || (reduce && !manual) ? t('تشغيل الإعلان', 'Play ad') : t('إيقاف الإعلان', 'Pause ad')}`}
+      onClick={toggle} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); } }}
+      className="h-full w-full cursor-pointer object-cover focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-brand"
+      onLoadedMetadata={event => { const element = event.currentTarget; if (element.videoWidth && element.videoHeight) setAspectRatio(element.videoWidth / element.videoHeight); }}
       onError={() => setFailed(true)}
       onTimeUpdate={event => { const element = event.currentTarget; setProgress(element.duration ? element.currentTime / element.duration : 0); }}
       onEnded={() => { if (!reduce) next(); else setPaused(true); }} />
-      : ad.posterUrl ? <img src={ad.posterUrl} alt="" loading="lazy" className="h-full w-full object-contain" /> : null}
+      : ad.posterUrl ? <img src={ad.posterUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
     {active && <>
       <span className="absolute start-3 top-3 rounded-md bg-ink/70 px-2 py-1 text-xs font-bold text-white">{t('إعلان', 'Advertisement')}</span>
       {failed ? <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-ink/90 p-5 text-center text-white">
         <p>{t('تعذر تشغيل الإعلان', 'Unable to play this ad')}</p>
         <button type="button" className="min-h-11 rounded-lg border border-white/50 px-4" onClick={() => { setFailed(false); video.current?.load(); void video.current?.play().catch(() => setBlocked(true)); }}>{t('إعادة المحاولة', 'Retry')}</button>
-      </div> : <div className="absolute bottom-4 end-3 flex gap-2">
-        <button type="button" aria-label={paused || blocked || (reduce && !manual) ? t('تشغيل الإعلان', 'Play ad') : t('إيقاف الإعلان', 'Pause ad')} onClick={toggle} className="grid size-11 place-items-center rounded-full bg-ink/75 text-white focus-visible:ring-2 focus-visible:ring-brand">{paused || blocked || (reduce && !manual) ? <Play size={19} /> : <Pause size={19} />}</button>
-        <button type="button" aria-label={muted ? t('تشغيل الصوت', 'Unmute') : t('كتم الصوت', 'Mute')} aria-pressed={!muted} onClick={() => setMuted(value => !value)} className="grid size-11 place-items-center rounded-full bg-ink/75 text-white focus-visible:ring-2 focus-visible:ring-brand">{muted ? <VolumeX size={19} /> : <Volume2 size={19} />}</button>
-      </div>}
+      </div> : null}
       <div className="absolute inset-x-0 bottom-0 h-1 bg-white/20" aria-hidden="true"><div className="h-full origin-left bg-brand" style={{ transform: `scaleX(${progress})` }} /></div>
     </>}
   </div>;
@@ -83,7 +84,7 @@ export function VideoAdCarousel() {
     if (target instanceof HTMLElement) rail.current?.scrollTo({ left: target.offsetLeft, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   };
   if (!ads.length) return null;
-  return <section ref={section} className="mx-auto max-w-md px-5 pt-5" aria-label={t('إعلانات الفيديو', 'Video advertisements')}>
+  return <section ref={section} className="video-ad-section mx-auto max-w-md px-5 pt-5" aria-label={t('إعلانات الفيديو', 'Video advertisements')}>
     <div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-lg font-extrabold">{t('شاهد الجديد', 'See what’s new')}</h2><span className="text-xs text-ink-muted">{t('إعلانات', 'Advertisements')}</span></div>
     <div ref={rail} dir="ltr" data-swipe-back="off" className="relative flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain scrollbar-none" onScroll={() => {
       const element = rail.current; if (!element) return;

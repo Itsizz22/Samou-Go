@@ -1,3 +1,4 @@
+import { MAX_ACTIVE_CAPTAIN_ORDERS } from '@samou-go/shared-types';
 import { AppSelect } from '@samou-go/ui';
 import { requestOtp, normalizeLoginPhone } from '@samou-go/api-client';
 import { OrderChat } from '@samou-go/api-client';
@@ -884,6 +885,10 @@ export function SamouGoCaptain() {
               </section>
             )}
 
+            <p className="mt-4 text-sm font-bold text-ink-muted" role="status">
+              {t('طلباتك النشطة', 'Your active orders')} <bdi>{new Set([...activeItems, ...availableItems.filter(order => order.captainId === auth.user?.id)].map(order => order.id)).size}/{MAX_ACTIVE_CAPTAIN_ORDERS}</bdi>
+              {' · '}{t('الحد الأقصى 3 طلبات في الوقت نفسه', 'Up to 3 orders at a time')}
+            </p>
             {/* Active deliveries */}
             {activeItems.length > 0 && (
               <section aria-label={t('التوصيلات الجارية', 'Active deliveries')} className="mt-5 rounded-2xl border border-warning-tint bg-surface p-4 shadow-card">

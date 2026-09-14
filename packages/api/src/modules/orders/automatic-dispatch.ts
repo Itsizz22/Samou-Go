@@ -3,47 +3,42 @@ import { OrderStatus } from "@samou-go/shared-types";
 import { prisma } from "../../lib/prisma";
 import { sendPushToMany } from "../../lib/push";
 import {
+  ACTIVE_CAPTAIN_STATUSES,
   eligibleCaptainIds,
   lockCaptainCapacity,
   PREPARATION_POOL_STATUSES,
+  storeDispatchPressure,
 } from "./captain-pool";
 
 const OFFER_MS = 25_000;
-export function dispatchScore(
-  waitMinutes: number,
-  arrivalMinutes: number | null,
-  readyMinutes: number,
-): number {
-  const fairness = Math.min(60, Math.max(0, waitMinutes)) / 3;
-  if (arrivalMinutes === null) return fairness;
-  return (
-    fairness +
-    Math.max(0, 35 - Math.abs(arrivalMinutes - readyMinutes) * 3) +
-    Math.max(0, 25 - arrivalMinutes)
-  );
+type Coordinate = { latitude: number | null; longitude: number | null };
+type CaptainLocation = { lat: number; lng: number; updatedAt: Date } | null;
+
+function validPoint(point: Coordinate): point is { latitude: number; longitude: number } {
+  return point.latitude !== null && point.longitude !== null &&
+    Number.isFinite(point.latitude) && Number.isFinite(point.longitude) &&
+    Math.abs(point.latitude) <= 90 && Math.abs(point.longitude) <= 180;
 }
-function approximateArrival(
-  store: { latitude: number | null; longitude: number | null },
-  location: { lat: number; lng: number; updatedAt: Date } | null,
-  now: Date,
-): number | null {
-  if (
-    store.latitude === null ||
-    store.longitude === null ||
-    !location ||
-    now.getTime() - location.updatedAt.getTime() > 120_000 ||
-    location.updatedAt > now
-  )
-    return null;
+function distanceKm(a: Coordinate, b: Coordinate): number | null {
+  if (!validPoint(a) || !validPoint(b)) return null;
   const radians = Math.PI / 180;
-  const a =
-    Math.sin(((location.lat - store.latitude) * radians) / 2) ** 2 +
-    Math.cos(store.latitude * radians) *
-      Math.cos(location.lat * radians) *
-      Math.sin(((location.lng - store.longitude) * radians) / 2) ** 2;
-  const km = 6371 * 2 * Math.asin(Math.sqrt(Math.min(1, a)));
-  // A bounded ranking hint, not a road ETA or a basis for penalties.
-  return km > 30 ? null : (km / 20) * 60;
+  const value = Math.sin((b.latitude - a.latitude) * radians / 2) ** 2 +
+    Math.cos(a.latitude * radians) * Math.cos(b.latitude * radians) *
+    Math.sin((b.longitude - a.longitude) * radians / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(Math.min(1, value)));
+}
+
+/** Lower is better. Pickup proximity leads, while customer proximity breaks route tradeoffs.
+ * Straight-line distance is a ranking hint, never a road ETA or delivery fee.
+ * Missing/stale GPS falls back behind drivers with a usable location.
+ */
+export function dispatchDistance(store: Coordinate, customer: Coordinate, location: CaptainLocation, now: Date): number | null {
+  if (!location || now.getTime() - location.updatedAt.getTime() > 120_000 || location.updatedAt > now) return null;
+  const point = { latitude: location.lat, longitude: location.lng };
+  const pickup = distanceKm(point, store);
+  const dropoff = distanceKm(point, customer);
+  if (pickup === null) return dropoff;
+  return dropoff === null ? pickup : pickup * 0.65 + dropoff * 0.35;
 }
 
 /** Persisted exclusive offers survive restarts; shared user locks prevent competing assignments. */
@@ -77,17 +72,9 @@ export async function dispatchAvailableOrders(now = new Date()): Promise<void> {
     const occupied = new Set(offeredElsewhere.map((o) => o.dispatchCaptainId));
     const captains = await prisma.user.findMany({
       where: { id: { in: ids.filter((id) => !occupied.has(id)) } },
-      select: { id: true, lastDispatchAt: true, captainLocation: true },
+      select: { id: true, lastDispatchAt: true, captainLocation: true, captainOrders: { where: { status: { in: ACTIVE_CAPTAIN_STATUSES } }, select: { id: true } } },
     });
-    const readyMinutes =
-      order.status === OrderStatus.READY_FOR_PICKUP
-        ? 0
-        : Math.max(
-            0,
-            ((order.estimatedReadyAt?.getTime() ?? now.getTime()) -
-              now.getTime()) /
-              60_000,
-          );
+    const pressure = await storeDispatchPressure(order.storeId);
     captains.sort((a, b) => {
       // Rotate an expired offer before trying the same captain again.
       if (
@@ -95,16 +82,17 @@ export async function dispatchAvailableOrders(now = new Date()): Promise<void> {
         (b.id === order.dispatchCaptainId)
       )
         return a.id === order.dispatchCaptainId ? 1 : -1;
-      const score = (c: typeof a) =>
-        dispatchScore(
-          c.lastDispatchAt
-            ? (now.getTime() - c.lastDispatchAt.getTime()) / 60_000
-            : 60,
-          approximateArrival(order.store, c.captainLocation, now),
-          readyMinutes,
-        );
+      // Under load, spread work before adding a third delivery to the nearest driver.
+      if (pressure.active && a.captainOrders.length !== b.captainOrders.length) {
+        return a.captainOrders.length - b.captainOrders.length;
+      }
+      const distance = (c: typeof a) => dispatchDistance(order.store, order, c.captainLocation, now);
+      const aDistance = distance(a), bDistance = distance(b);
+      if (aDistance === null && bDistance !== null) return 1;
+      if (aDistance !== null && bDistance === null) return -1;
       return (
-        score(b) - score(a) ||
+        (aDistance !== null && bDistance !== null ? aDistance - bDistance : 0) ||
+        a.captainOrders.length - b.captainOrders.length ||
         (a.lastDispatchAt?.getTime() ?? 0) -
           (b.lastDispatchAt?.getTime() ?? 0) ||
         a.id.localeCompare(b.id)

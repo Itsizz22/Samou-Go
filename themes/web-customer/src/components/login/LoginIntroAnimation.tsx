@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { useLanguage } from '@samou-go/ui';
 
 const VIDEO = '/assets/login/login-delivery.mp4';
 const POSTER = '/assets/login/login-delivery-poster.jpg';
@@ -8,7 +7,6 @@ const FORM_REVEAL_AT = 1.1;
 
 /** Playback belongs to this mount, never to the form's input/validation state. */
 export function LoginIntroAnimation({ children }: { children: ReactNode }) {
-  const { language } = useLanguage();
   const video = useRef<HTMLVideoElement>(null);
   const [finished, setFinished] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -46,11 +44,6 @@ export function LoginIntroAnimation({ children }: { children: ReactNode }) {
               if (event.currentTarget.currentTime >= FORM_REVEAL_AT) setRevealed(true);
             }}
             onEnded={finish} onError={finish} disablePictureInPicture />
-        )}
-        {!finished && (
-          <button type="button" className="login-film__skip" onClick={finish}>
-            {language === 'ar' ? 'تخطي المقدمة' : 'Skip intro'}
-          </button>
         )}
       </div>
       <motion.div inert={!shown} aria-hidden={!shown} initial={false}

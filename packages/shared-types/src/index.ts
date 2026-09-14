@@ -20,3 +20,4 @@ export * from './options';
 
 export * from './tracking';
 export * from './dishes';
+export * from './captain';

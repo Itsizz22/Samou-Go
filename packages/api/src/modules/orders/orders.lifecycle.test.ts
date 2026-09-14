@@ -1,4 +1,4 @@
-import { dispatchAvailableOrders, dispatchScore } from './automatic-dispatch';
+import { dispatchAvailableOrders, dispatchDistance } from './automatic-dispatch';
 import { expireAvailabilityTimers } from '../stores/availability';
 import { dispatchScheduledReminders } from './preparation-reminders';
 import { nextPublicCode } from '../../lib/public-code';
@@ -1136,7 +1136,7 @@ it('imports the approved 31-area tariff transactionally with corrected names and
   expect(await fixture.db.deliveryZone.count({ where: { nameAr: { in: [...samouTariff.zones] } } })).toBe(31);
 });
 
-it('offers one captain at a time, rotates expired offers and prevents two active deliveries', async () => {
+it('offers one captain at a time, rotates expired offers and limits captains to three active deliveries even under concurrent claims', async () => {
   const storeId = 'dispatch-test-store';
   const captainIds = ['dispatch-first', 'dispatch-second'];
   for (const [index,id] of captainIds.entries()) {
@@ -1144,14 +1144,17 @@ it('offers one captain at a time, rotates expired offers and prevents two active
     await fixture.db.user.create({data:{id,phone,name:id,passwordHash:'unused',role:'CAPTAIN',isActive:true,isVerified:true,isAvailable:true}});
     tokens[id] = signAccessToken({userId:id,role:UserRole.CAPTAIN,phone}).accessToken;
   }
-  await fixture.db.store.create({data:{id:storeId,nameAr:'متجر اختبار التوزيع',nameEn:'Dispatch',managerId:'STORE_MANAGER',phone:'0599977710',dedicatedCaptains:{connect:captainIds.map(id=>({id}))}}});
+  await fixture.db.store.create({data:{id:storeId,nameAr:'متجر اختبار التوزيع',nameEn:'Dispatch',managerId:'STORE_MANAGER',phone:'0599977710',latitude:31.4,longitude:35.0,dedicatedCaptains:{connect:captainIds.map(id=>({id}))}}});
+  await fixture.db.captainLocation.create({data:{captainId:captainIds[0]!,lat:31.401,lng:35.001}});
+  await fixture.db.captainLocation.create({data:{captainId:captainIds[1]!,lat:31.5,lng:35.1}});
+  await fixture.db.user.update({where:{id:captainIds[0]!},data:{lastDispatchAt:new Date()}});
   const first = await preparationOrder();
-  await fixture.db.order.update({where:{id:first.id},data:{storeId}});
+  await fixture.db.order.update({where:{id:first.id},data:{storeId,latitude:31.42,longitude:35.02}});
   const pushes=vi.mocked(sendPushToMany);pushes.mockClear();
   await Promise.all([dispatchAvailableOrders(),dispatchAvailableOrders()]);
   let offered=await fixture.db.order.findUniqueOrThrow({where:{id:first.id}});
   expect(offered.captainId).toBeNull();
-  expect(captainIds).toContain(offered.dispatchCaptainId);
+  expect(offered.dispatchCaptainId).toBe(captainIds[0]);
   expect(pushes.mock.calls.filter(call=>call[1].data?.orderId===first.id)).toHaveLength(1);
   const original=offered.dispatchCaptainId!;
   const other=captainIds.find(id=>id!==original)!;
@@ -1162,13 +1165,21 @@ it('offers one captain at a time, rotates expired offers and prevents two active
   offered=await fixture.db.order.findUniqueOrThrow({where:{id:first.id}});
   expect(offered.dispatchCaptainId).toBe(other);
   expect((await request('POST',`/orders/${first.id}/reserve`,other)).status).toBe(200);
-  const next=await preparationOrder();
-  await fixture.db.order.update({where:{id:next.id},data:{storeId}});
-  expect((await request('POST',`/orders/${next.id}/reserve`,other)).status).toBe(409);
+  const second=await preparationOrder();
+  await fixture.db.order.update({where:{id:second.id},data:{storeId}});
+  expect((await request('POST',`/orders/${second.id}/reserve`,other)).status).toBe(200);
+  const candidates=await Promise.all([preparationOrder(),preparationOrder()]);
+  for (const candidate of candidates) await fixture.db.order.update({where:{id:candidate.id},data:{storeId}});
+  const results=await Promise.all(candidates.map(candidate=>request('POST',`/orders/${candidate.id}/reserve`,other)));
+  expect(results.map(result=>result.status).sort()).toEqual([200,409]);
+  const next=candidates[results.findIndex(result=>result.status===409)]!;
   expect((await request('PATCH',`/orders/${next.id}/captain`,'ADMIN',{captainId:other})).status).toBe(409);
   await dispatchAvailableOrders();
   expect((await fixture.db.order.findUniqueOrThrow({where:{id:next.id}})).dispatchCaptainId).toBe(original);
-  expect(await fixture.db.order.count({where:{captainId:other,status:{notIn:['DELIVERED','CANCELLED']}}})).toBe(1);
+  expect(await fixture.db.order.count({where:{captainId:other,status:{notIn:['DELIVERED','CANCELLED']}}})).toBe(3);
+  await fixture.db.order.update({where:{id:first.id},data:{status:'DELIVERED'}});
+  expect((await request('PATCH',`/orders/${next.id}/captain`,'ADMIN',{captainId:other})).status).toBe(200);
+
 });
 
 it('does not dispatch pending approval, pickup or closed orders and records preparation timestamps', async () => {
@@ -1189,10 +1200,18 @@ it('does not dispatch pending approval, pickup or closed orders and records prep
   expect((await fixture.db.order.findUniqueOrThrow({where:{id:order.id}})).dispatchCaptainId).toBeNull();
 });
 
-it('uses readiness alignment and waiting time without penalizing missing location', () => {
-  expect(dispatchScore(5,10,12)).toBeGreaterThan(dispatchScore(5,2,12));
-  expect(dispatchScore(60,null,12)).toBeGreaterThan(dispatchScore(0,null,12));
-  expect(dispatchScore(0,null,12)).toBe(0);
+it('prioritizes pickup and customer proximity, with safe missing/stale GPS fallback', () => {
+  const now=new Date();
+  const store={latitude:31.4,longitude:35.0}, customer={latitude:31.42,longitude:35.02};
+  const near={lat:31.401,lng:35.001,updatedAt:now}, far={lat:31.5,lng:35.1,updatedAt:now};
+  expect(dispatchDistance(store,customer,near,now)!).toBeLessThan(dispatchDistance(store,customer,far,now)!);
+  const east={lat:31.4,lng:35.01,updatedAt:now}, west={lat:31.4,lng:34.99,updatedAt:now};
+  expect(dispatchDistance(store,customer,east,now)!).toBeLessThan(dispatchDistance(store,customer,west,now)!);
+  expect(dispatchDistance(store,customer,null,now)).toBeNull();
+  expect(dispatchDistance(store,customer,{...near,updatedAt:new Date(now.getTime()-120001)},now)).toBeNull();
+  expect(dispatchDistance(store,customer,{...near,updatedAt:new Date(now.getTime()+1)},now)).toBeNull();
+  expect(dispatchDistance(store,customer,{...near,lat:NaN},now)).toBeNull();
+  expect(dispatchDistance(store,{latitude:null,longitude:null},near,now)).toBeGreaterThan(0);
 });
 
 
@@ -1320,4 +1339,41 @@ it('validates scheduled orders and blocks early preparation and captain assignme
   await fixture.db.order.update({ where: { id: dueOrder.data.id }, data: { scheduledFor: new Date(Date.now() - 60_000) } });
   expect((await request('PATCH', `/orders/${dueOrder.data.id}/status`, 'STORE_MANAGER', { status: 'ACCEPTED', estimatedPrepMinutes: 20 })).status).toBe(200);
   await request('PATCH', '/stores/store', 'STORE_MANAGER', { acceptsScheduledOrders: false });
+});
+
+
+it('spreads peak demand before a third delivery, blocks manual bypass and restores normal capacity', async () => {
+  const storeId='peak-load-store', busy='peak-busy', idle='peak-idle';
+  for (const [index,id] of [busy,idle].entries()) {
+    const phone=`059997778${index}`;
+    await fixture.db.user.create({data:{id,phone,name:id,passwordHash:'unused',role:'CAPTAIN',isActive:true,isVerified:true,isAvailable:true}});
+    tokens[id]=signAccessToken({userId:id,role:UserRole.CAPTAIN,phone}).accessToken;
+    await fixture.db.captainLocation.create({data:{captainId:id,lat:31.4+index*0.01,lng:35,updatedAt:new Date()}});
+  }
+  await fixture.db.store.create({data:{id:storeId,nameAr:'اختبار الضغط',nameEn:'Peak test',managerId:'STORE_MANAGER',phone:'0599977789',latitude:31.4,longitude:35,dedicatedCaptains:{connect:[{id:busy},{id:idle}]}}});
+  for (let index=0;index<2;index++) {
+    const order=await preparationOrder();
+    await fixture.db.order.update({where:{id:order.id},data:{storeId,captainId:busy}});
+  }
+  const waiting=[];
+  for (let index=0;index<3;index++) {
+    const order=await preparationOrder();
+    await fixture.db.order.update({where:{id:order.id},data:{storeId}});
+    waiting.push(order);
+  }
+  const first=waiting[0]!;
+  const blocked=await request('POST',`/orders/${first.id}/reserve`,busy);
+  expect(blocked.status).toBe(409);
+  expect(JSON.stringify(blocked.error)).toContain('peak demand');
+  expect((await request('PATCH',`/orders/${first.id}/captain`,'ADMIN',{captainId:busy})).status).toBe(409);
+  await dispatchAvailableOrders();
+  expect((await fixture.db.order.findUniqueOrThrow({where:{id:first.id}})).dispatchCaptainId).toBe(idle);
+  await fixture.db.order.update({where:{id:first.id},data:{dispatchExpiresAt:new Date(Date.now()-1000)}});
+  await dispatchAvailableOrders();
+  expect((await fixture.db.order.findUniqueOrThrow({where:{id:first.id}})).dispatchCaptainId).toBe(busy);
+  expect((await request('POST',`/orders/${first.id}/reserve`,busy)).status).toBe(200);
+  await fixture.db.order.update({where:{id:first.id},data:{status:'DELIVERED'}});
+  // The queue drops below the threshold: the original three-order limit applies again.
+  expect((await request('PATCH',`/orders/${waiting[1]!.id}/captain`,'ADMIN',{captainId:busy})).status).toBe(200);
+  expect((await request('PATCH',`/orders/${waiting[2]!.id}/captain`,'ADMIN',{captainId:busy})).status).toBe(409);
 });
