@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
-import { classifyStore, ImageWithFallback, useLanguage } from '@samou-go/ui';
+import { ImageWithFallback, useLanguage } from '@samou-go/ui';
 import { normalizeOptionGroups, resolveSelectedOptions, type Product } from '@samou-go/shared-types';
 import { useStore } from '@/hooks/useApi';
 import { useCart, type CartStoreGroup } from './CartProvider';
@@ -15,12 +15,12 @@ export function MealComplements({ group }: { group: CartStoreGroup }) {
   const cart = useCart();
   const { t } = useLanguage();
   const [selected, setSelected] = useState<Product | null>(null);
-  if (!store || !storeIsOpen(store) || classifyStore(store) !== 'restaurant') return null;
+  if (!store || !storeIsOpen(store)) return null;
   const products = mealComplements(store, new Set(group.lines.map(line => line.productId)));
   if (!products.length && !selected) return null;
-  return <section className="mt-5 rounded-2xl border border-line bg-surface p-4" aria-label={t('أكمل وجبتك', 'Complete your meal')}>
-    <h2 className="font-extrabold text-ink">{t('أكمل وجبتك', 'Complete your meal')}</h2>
-    <p className="mt-1 text-xs text-ink-muted">{group.storeNameAr} · {t('إضافات اختيارية', 'Optional extras')}</p>
+  return <section className="mt-5 rounded-2xl border border-line bg-surface p-4" aria-label={t('تحب مشروب مع وجبتك؟', 'A drink with your meal?')}>
+    <h2 className="font-extrabold text-ink">{t('تحب مشروب مع وجبتك؟', 'A drink with your meal?')}</h2>
+    <p className="mt-1 text-xs text-ink-muted">{group.storeNameAr} · {t('مشروبات من نفس المتجر — الإضافة حسب رغبتك', 'Drinks from the same store — entirely optional')}</p>
     <div className="mt-3 space-y-3">
       {products.map(product => {
         const hasOptions = product.optionsEnabled && normalizeOptionGroups(product.optionGroups).length > 0;
