@@ -15,7 +15,8 @@
     "cap:open": "npx cap open android",
     "cap:sync:ios": "cap sync ios && node scripts/fix-ios-paths.cjs",
     "cap:build:ios": "npm run build --workspace @samou-go/ui && npm run build && npm run cap:sync:ios",
-    "cap:open:ios": "cap open ios"
+    "cap:open:ios": "cap open ios",
+    "test": "vitest run"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

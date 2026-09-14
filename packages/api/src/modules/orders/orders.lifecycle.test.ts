@@ -1158,3 +1158,70 @@ it('uses readiness alignment and waiting time without penalizing missing locatio
   expect(dispatchScore(60,null,12)).toBeGreaterThan(dispatchScore(0,null,12));
   expect(dispatchScore(0,null,12)).toBe(0);
 });
+
+
+it('shares option templates with stable IDs, independent copies, explicit consent and tenant isolation', async () => {
+  type Group = import('@samou-go/shared-types').ProductOptionGroup;
+  for (const id of ['template-a', 'template-b', 'template-c']) await fixture.db.product.create({ data: { id, storeId: 'store', nameAr: id, price: 20 } });
+  const path = (id: string) => `/stores/store/products/${id}`;
+  const created = await request<Group>('POST', path('template-a') + '/options', 'STORE_MANAGER', { name: 'خضار', kind: 'ADDON', maxSelect: 2, items: [{ name: 'زيتون', price: 2 }, { name: 'فطر', price: 3 }] });
+  expect(created.status).toBe(201);
+  const source = created.data;
+  expect((await request('PUT', path('template-b') + `/options/${source.id}`, 'STORE_MANAGER', {name:'Wrong product'})).status).toBe(404);
+  const promoted = await request<{ id: string }>('POST', path('template-a') + `/options/${source.id}/template`, 'STORE_MANAGER');
+  expect(promoted.status).toBe(201);
+  const templateId = promoted.data.id;
+  const linked = await request<Group>('POST', path('template-b') + '/option-templates', 'STORE_MANAGER', { templateId, mode: 'shared' });
+  const copied = await request<Group>('POST', path('template-c') + '/option-templates', 'STORE_MANAGER', { templateId, mode: 'independent' });
+  expect(linked.status).toBe(201); expect(copied.status).toBe(201);
+  expect(copied.data.templateId).toBeNull();
+  const change = { name: 'خضار معدلة', items: source.items.map(item => ({ id: item.id, name: item.name, price: 5 })) };
+  expect((await request('PUT', path('template-a') + `/options/${source.id}`, 'STORE_MANAGER', change)).status).toBe(422);
+  expect((await request('PUT', path('template-a') + `/options/${source.id}`, 'STORE_MANAGER', { ...change, applyToLinked: true })).status).toBe(200);
+  const options = async (id: string) => (await request<{ items: Group[] }>('GET', path(id) + '/options', 'STORE_MANAGER')).data.items[0]!;
+  const updated = await options('template-b');
+  expect(updated.items.map(i => i.id).sort()).toEqual(linked.data.items.map(i => i.id).sort());
+  expect(updated.items.every(i => i.priceDelta === 5)).toBe(true);
+  expect((await options('template-c')).items.map(i => i.priceDelta).sort()).toEqual([2,3]);
+  await fixture.db.store.create({ data: { id: 'other-template-store', managerId: 'ADMIN', nameAr: 'متجر آخر', nameEn: 'Other store', phone: '0599991777' } });
+  await fixture.db.product.create({ data: { id: 'other-template-product', storeId: 'other-template-store', nameAr: 'آخر', price: 10 } });
+  expect((await request('POST', '/stores/other-template-store/products/other-template-product/option-templates', 'STORE_MANAGER', { templateId, mode: 'shared' })).status).toBe(403);
+  expect((await request('POST', '/stores/other-template-store/products/other-template-product/option-templates', 'ADMIN', { templateId, mode: 'shared' })).status).toBe(404);
+  expect((await request('POST', path('template-b') + `/options/${updated.id}/detach`, 'STORE_MANAGER')).status).toBe(200);
+  expect((await options('template-b')).templateId).toBeNull();
+  expect((await request('PUT', path('template-a') + `/options/${source.id}`, 'STORE_MANAGER', { ...change, applyToLinked: true, items: change.items.map(i => ({ ...i, price: 7 })) })).status).toBe(200);
+  expect((await options('template-b')).items.every(i => i.priceDelta === 5)).toBe(true);
+  const removed = await fetch(`${base}/api/v1/stores/store/option-templates/${templateId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${tokens.STORE_MANAGER}` } });
+  expect(removed.status).toBe(204);
+  expect((await options('template-a')).items.map(i => i.id).sort()).toEqual(source.items.map(i => i.id).sort());
+  expect((await options('template-a')).templateId).toBeNull();
+});
+
+it('includes uncategorized products without creating database categories and hides unavailable products publicly', async () => {
+  type Catalogue = import('@samou-go/shared-types').StoreWithCatalogue;
+  await fixture.db.product.create({ data: { id: 'uncat-visible', storeId: 'store', nameAr: 'بدون قسم متاح', price: 10 } });
+  await fixture.db.product.create({ data: { id: 'uncat-hidden', storeId: 'store', nameAr: 'بدون قسم مخفي', price: 10, isAvailable: false } });
+  const count = await fixture.db.category.count();
+  const publicView = await request<Catalogue>('GET', '/stores/store');
+  expect(publicView.status).toBe(200);
+  const visible = publicView.data.categories.flatMap(c => c.products);
+  expect(visible.some(p => p.id === 'uncat-visible')).toBe(true);
+  expect(visible.some(p => p.id === 'uncat-hidden')).toBe(false);
+  const managed = await request<Catalogue>('GET', '/stores/store/full', 'STORE_MANAGER');
+  expect(managed.data.categories.flatMap(c => c.products).some(p => p.id === 'uncat-hidden')).toBe(true);
+  expect(await fixture.db.category.count()).toBe(count);
+  expect((await fixture.db.product.findUniqueOrThrow({ where: { id: 'uncat-visible' } })).categoryId).toBeNull();
+});
+
+it('creates a store in a custom home category atomically and rejects unknown categories without orphan users', async () => {
+  const category = { key: 'electronics-test', ar: 'إلكترونيات', en: 'Electronics', enabled: true, storeIds: [] };
+  expect((await request('PATCH', '/platform/settings', 'ADMIN', { homeCategories: [category] })).status).toBe(200);
+  const body = { nameAr: 'إلكترونيات تجريبية', nameEn: 'Test electronics', phone: '0599991888', password: 'samou1234', storeType: 'STORE', homeCategoryKeys: ['missing'] };
+  const users = await fixture.db.user.count();
+  expect((await request('POST', '/admin/stores', 'ADMIN', body)).status).toBe(409);
+  expect(await fixture.db.user.count()).toBe(users);
+  const created = await request<{ store: { id: string } }>('POST', '/admin/stores', 'ADMIN', { ...body, homeCategoryKeys: [category.key] });
+  expect(created.status, JSON.stringify(created.error)).toBe(201);
+  const settings = await request<{ homeCategories: Array<{ key: string; storeIds: string[] }> }>('GET', '/platform/settings');
+  expect(settings.data.homeCategories.find(c => c.key === category.key)?.storeIds).toContain(created.data.store.id);
+});

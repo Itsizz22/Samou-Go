@@ -115,6 +115,13 @@ describe('authenticate', () => {
     expectHttpError(next, 'UNAUTHORIZED', 401);
   });
 
+  it('rejects a token using an unapproved signing algorithm', async () => {
+    const token = jwt.sign({ role: UserRole.CUSTOMER, phone: '0599000001' }, h.secret, { subject: 'u-customer', algorithm: 'HS384' });
+    const next = makeNext();
+    await authenticate(makeRequest({ authorization: `Bearer ${token}` }), {} as Response, next as unknown as NextFunction);
+    expectHttpError(next, 'UNAUTHORIZED', 401);
+  });
+
   it('rejects an expired token (401)', async () => {
     const expired = jwt.sign(
       { role: UserRole.CUSTOMER, phone: '0599000001', exp: Math.floor(Date.now() / 1000) - 60 },

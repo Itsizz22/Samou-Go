@@ -1,6 +1,7 @@
 import { AppSelect } from '@samou-go/ui';
 import { useEffect, useState } from "react";
 import {
+  listOptionTemplates, attachOptionTemplate, promoteOptionTemplate, detachOptionTemplate, deleteOptionTemplate,
   createOptionGroup,
   deleteOptionGroup,
   listOptionGroups,
@@ -9,7 +10,7 @@ import {
   uploadImage,
   type OptionGroupInput,
 } from "./api";
-import type { ProductOptionGroup } from "@samou-go/shared-types";
+import type { ProductOptionGroup, ProductOptionTemplateSummary } from "@samou-go/shared-types";
 type Draft = Required<
   Pick<
     OptionGroupInput,
@@ -32,7 +33,11 @@ const field =
   "min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink";
 const button =
   "min-h-11 rounded-xl border border-line px-3 text-sm font-bold text-brand disabled:opacity-50";
-export function ProductCustomizationEditor({
+type EditorProps = { storeId: string; productId: string; initialEnabled?: boolean };
+export function ProductCustomizationEditor(props: EditorProps) {
+  return <ProductEditor key={`${props.storeId}:${props.productId}`} {...props} />;
+}
+function ProductEditor({
   storeId,
   productId,
   initialEnabled = true,
@@ -41,6 +46,11 @@ export function ProductCustomizationEditor({
   productId: string;
   initialEnabled?: boolean;
 }) {
+  const [templates, setTemplates] = useState<ProductOptionTemplateSummary[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [templateMode, setTemplateMode] = useState<'shared' | 'independent'>('shared');
+  const [applyToLinked, setApplyToLinked] = useState(false);
+  const [deleteTemplateConfirm, setDeleteTemplateConfirm] = useState(false);
   const [enabled, setEnabled] = useState(initialEnabled);
   const [groups, setGroups] = useState<ProductOptionGroup[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -50,7 +60,8 @@ export function ProductCustomizationEditor({
   const [loaded, setLoaded] = useState(false);
   async function load() {
     try {
-      setGroups((await listOptionGroups(storeId, productId)).items);
+      const [options, library] = await Promise.all([listOptionGroups(storeId, productId), listOptionTemplates(storeId)]);
+      setGroups(options.items); setTemplates(library.items);
       setLoaded(true);
     } catch {
       setMessage("تعذر تحميل الخيارات. حاول مجددًا.");
@@ -61,6 +72,7 @@ export function ProductCustomizationEditor({
   }, [storeId, productId]);
   function open(g?: ProductOptionGroup, kind: Draft["kind"] = "ADDON") {
     setEditing(g?.id ?? null);
+    setApplyToLinked(false);
     setMessage("");
     setDraft(
       g
@@ -135,8 +147,9 @@ export function ProductCustomizationEditor({
         throw Error(
           "الحد الأقصى يجب أن يكون أكبر من صفر ولا يقل عن الحد الأدنى",
         );
+      if (groups.find(g => g.id === editing)?.templateId && !applyToLinked) throw Error("أكد تطبيق التغيير على المنتجات المرتبطة أو افصل القالب أولًا");
       const input = {
-        ...draft,
+        ...draft, applyToLinked,
         items: draft.items.map((i, n) => ({ ...i, sortOrder: n })),
       };
       if (editing) await updateOptionGroup(storeId, productId, editing, input);
@@ -149,6 +162,13 @@ export function ProductCustomizationEditor({
     } finally {
       setBusy(false);
     }
+  }
+  async function templateAction(action: () => Promise<unknown>) {
+    if (busy) return;
+    setBusy(true); setMessage('');
+    try { await action(); await load(); setDeleteTemplateConfirm(false); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'تعذر حفظ القالب'); }
+    finally { setBusy(false); }
   }
   async function photo(index: number, file: File) {
     setBusy(true);
@@ -203,6 +223,17 @@ export function ProductCustomizationEditor({
           تحميل الخيارات
         </button>
       )}
+      {!draft && loaded && <fieldset disabled={busy} className="space-y-3 rounded-xl border border-line bg-surface p-3">
+        <legend className="px-1 text-sm font-bold">قوالب متجرك</legend>
+        <p className="text-xs leading-6 text-ink-muted">احفظ الإضافات مرة واحدة، ثم استخدمها مع بقية المنتجات.</p>
+        {templates.length > 0 ? <>
+          <AppSelect aria-label="القالب المحفوظ" className={field} value={selectedTemplate} onChange={e => { setSelectedTemplate(e.target.value); setDeleteTemplateConfirm(false); }}><option value="">اختر قالبًا</option>{templates.map(template => <option key={template.id} value={template.id}>{template.name} — {template.linkedProductCount} منتجات مرتبطة</option>)}</AppSelect>
+          <label className="block text-sm">طريقة الاستخدام<AppSelect className={field} value={templateMode} onChange={e => setTemplateMode(e.target.value === 'shared' ? 'shared' : 'independent')}><option value="shared">مشترك — التعديل يحدّث المنتجات المرتبطة</option><option value="independent">نسخة مستقلة — التعديل لهذا المنتج فقط</option></AppSelect></label>
+          <button type="button" className={button} disabled={!selectedTemplate} onClick={() => void templateAction(() => attachOptionTemplate(storeId, productId, selectedTemplate, templateMode))}>استخدام القالب</button>
+          <button type="button" className={button} disabled={!selectedTemplate} onClick={() => setDeleteTemplateConfirm(!deleteTemplateConfirm)}>حذف من المكتبة</button>
+          {deleteTemplateConfirm && <div className="space-y-2 text-sm"><p>سيُحذف القالب من المكتبة وتبقى خيارات المنتجات كنسخ مستقلة.</p><button type="button" className={button} onClick={() => void templateAction(() => deleteOptionTemplate(storeId, selectedTemplate))}>تأكيد حذف القالب</button></div>}
+        </> : <p className="text-xs text-ink-muted">من أي مجموعة أدناه، اختر «حفظ كقالب مشترك».</p>}
+      </fieldset>}
       {!draft &&
         groups.map((g) => (
           <div
@@ -218,6 +249,8 @@ export function ProductCustomizationEditor({
             <button type="button" className={button} onClick={() => open(g)}>
               تعديل
             </button>
+            <p className="w-full text-xs text-ink-muted">{g.templateId ? 'قالب مشترك' : 'خيارات مستقلة لهذا المنتج'}</p>
+            <button type="button" className={button} disabled={busy} onClick={() => void templateAction(() => g.templateId ? detachOptionTemplate(storeId, productId, g.id) : promoteOptionTemplate(storeId, productId, g.id))}>{g.templateId ? 'فصل القالب والتعديل لهذا المنتج فقط' : 'حفظ كقالب مشترك'}</button>
           </div>
         ))}
       {!draft && loaded && (
@@ -239,6 +272,7 @@ export function ProductCustomizationEditor({
       )}
       {draft && (
         <fieldset disabled={busy} className="space-y-4">
+          {groups.find(g => g.id === editing)?.templateId && <label className="flex min-h-11 items-start gap-2 rounded-xl border border-line bg-brand-tint p-3 text-sm"><input type="checkbox" checked={applyToLinked} onChange={e => setApplyToLinked(e.target.checked)}/>تطبيق التعديلات على جميع المنتجات المرتبطة بهذا القالب ({templates.find(template => template.id === groups.find(g => g.id === editing)?.templateId)?.linkedProductCount ?? 1})</label>}
           <label className="block text-sm">
             اسم المجموعة
             <input

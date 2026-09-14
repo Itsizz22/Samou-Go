@@ -99,7 +99,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
   );
 
   const categories = useMemo(
-    () => catalogue.data?.categories ?? [],
+    () => (catalogue.data?.categories ?? []).filter(category => !category.isSynthetic),
     [catalogue.data]
   );
 
@@ -481,15 +481,10 @@ export function ProductCataloguePanel({ storeId }: Props) {
                 </div>
               )}
 
-              <label className="block rounded-2xl border border-line bg-brand-tint p-4">
-                <span className="block text-sm font-bold">{t('السعر بعد الخصم (₪)', 'Discounted price (₪)')}</span>
-                <input type="number" min="0.01" step="0.01" dir="ltr" value={form.discountPrice} onChange={e => setForm(f => ({ ...f, discountPrice: e.target.value }))} className="input-field mt-2 w-full" />
-                <span className="mt-2 block text-xs text-ink-muted">{t('اختياري؛ اتركه فارغًا لإلغاء الخصم. يظهر السعر الأصلي مشطوبًا للزبون.', 'Optional. Leave empty to remove the discount. Customers see the original price crossed out.')}</span>
-              </label>
               {/* Price + Category row */}
               <div className="grid grid-cols-2 gap-3">
-                <label className="block">
-                  <span className="mb-1 block text-xs font-bold text-ink">السعر (₪) *</span>
+                <label className="block min-w-0">
+                  <span className="mb-2 block text-xs font-bold text-ink">السعر (₪) *</span>
                   <input
                     type="number"
                     min="0.01"
@@ -498,31 +493,19 @@ export function ProductCataloguePanel({ storeId }: Props) {
                     onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
                     placeholder="0.00"
                     dir="ltr"
-                    className="w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+                    className="min-h-11 w-full rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
                   />
                 </label>
-                <label className="block">
-                  <span className="mb-1 flex items-center justify-between text-xs font-bold text-ink">
+                <label className="block min-w-0">
+                  <span className="mb-2 flex items-center text-xs font-bold text-ink">
                     <span>القسم</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCategoryOpen(open => !open);
-                        setCategoryName('');
-                      }}
-                      className="inline-flex items-center gap-1 rounded-lg bg-brand-surface px-2 py-1 text-[11px] font-bold text-brand-deep transition hover:bg-brand-soft"
-                      aria-expanded={categoryOpen}
-                      aria-label="New category"
-                    >
-                      {categoryOpen ? <X size={12} /> : <Plus size={12} />}
-                      {t(categoryOpen ? 'إلغاء' : 'قسم جديد', categoryOpen ? 'Cancel' : 'New')}
-                    </button>
                   </span>
                   <div className="relative">
                     <AppSelect
+                      aria-label={t('القسم', 'Category')}
                       value={form.categoryId}
                       onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
-                      className="w-full appearance-none rounded-xl border border-line bg-canvas pe-7 ps-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+                      className="min-h-11 w-full appearance-none rounded-xl border border-line bg-canvas pe-7 ps-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
                     >
                       <option value="">بدون قسم</option>
                       {categories.map(c => (
@@ -531,6 +514,22 @@ export function ProductCataloguePanel({ storeId }: Props) {
                     </AppSelect>
                   </div>
                 </label>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryOpen(open => !open);
+                    setCategoryName('');
+                  }}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-brand-surface px-3 py-2 text-[11px] font-bold text-brand-deep transition hover:bg-brand-soft"
+                  aria-expanded={categoryOpen}
+                  aria-label="New category"
+                >
+                  {categoryOpen ? <X size={12} /> : <Plus size={12} />}
+                  {t(categoryOpen ? 'إلغاء' : 'قسم جديد', categoryOpen ? 'Cancel' : 'New')}
+                </button>
               </div>
 
               {/* Quick category creation — a brand-new store has zero sections,
@@ -569,6 +568,12 @@ export function ProductCataloguePanel({ storeId }: Props) {
                   {t('لا توجد أقسام بعد — أنشئ قسماً جديداً قبل إضافة المنتجات', 'No sections yet — create one first')}
                 </p>
               )}
+
+              <label className="block rounded-2xl border border-line bg-canvas p-4">
+                <span className="block text-sm font-bold">{t('السعر بعد الخصم (₪)', 'Discounted price (₪)')}</span>
+                <input type="number" min="0.01" step="0.01" dir="ltr" value={form.discountPrice} onChange={e => setForm(f => ({ ...f, discountPrice: e.target.value }))} placeholder="0.00" className="mt-2 min-h-11 w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                <span className="mt-2 block text-xs leading-5 text-ink-muted">{t('اختياري؛ اتركه فارغًا لإلغاء الخصم. يظهر السعر الأصلي مشطوبًا للزبون.', 'Optional. Leave empty to remove the discount. Customers see the original price crossed out.')}</span>
+              </label>
 
               {/* Availability toggle */}
               <label className="flex cursor-pointer items-center gap-3">

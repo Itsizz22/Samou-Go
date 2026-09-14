@@ -244,6 +244,7 @@ export type LogoutBody = z.infer<typeof logoutSchema>;
 
 /** POST /api/v1/admin/stores — admin creates a new store + its manager account. */
 export const adminCreateStoreSchema = z.object({
+  homeCategoryKeys: z.array(z.string().min(1).max(120)).max(20).optional(),
   nameAr: z.string().trim().min(2, "الاسم العربي قصير جداً / Arabic name too short").max(160, "الاسم العربي طويل جداً / Arabic name too long"),
   nameEn: z.string().trim().min(2, "English name too short / English name too short").max(160, "English name too long / English name too long"),
   phone: phoneSchema,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 export function useCheckoutDraft(key: string) {
   const read = () => {
     try {
@@ -17,5 +17,6 @@ export function useCheckoutDraft(key: string) {
       /* Draft remains in memory. */
     }
   }, [key, state]);
-  return [value, (value: string) => setState({ key, value })] as const;
+  const update = useCallback((value: string) => setState({ key, value }), [key]);
+  return [value, update] as const;
 }

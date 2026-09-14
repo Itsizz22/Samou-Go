@@ -241,7 +241,7 @@ export function CheckoutScreen() {
       cancelled = true;
       controller.abort();
     };
-  }, [cart.storeId, cart.storeGroups, fulfillmentType, items, appliedVoucher, deliveryRegion, zoneId, auth.user?.id, quoteRevision, pricingSettings.data?.updatedAt]);
+  }, [cart.storeId, cart.isMultiStore, cart.storeGroups, fulfillmentType, items, appliedVoucher, deliveryRegion, zoneId, auth.user?.id, quoteRevision, pricingSettings.data?.updatedAt]);
 
   if (!auth.ready) {
     return (

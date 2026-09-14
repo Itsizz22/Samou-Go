@@ -15,3 +15,5 @@ export type { BootstrapOptions, AppLanguage, BrandTheme } from './bootstrap';
 export { WhatsAppNumberSettings } from './components/WhatsAppNumberSettings';
 
 export { OrderContactCard } from './components/OrderContactCard';
+
+export { UploadImageDetails } from './components/UploadImageDetails';

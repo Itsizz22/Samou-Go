@@ -1,0 +1,63 @@
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { motion } from 'framer-motion';
+import { useLanguage } from '@samou-go/ui';
+
+const VIDEO = '/assets/login/login-delivery.mp4';
+const POSTER = '/assets/login/login-delivery-poster.jpg';
+const FORM_REVEAL_AT = 1.1;
+
+/** Playback belongs to this mount, never to the form's input/validation state. */
+export function LoginIntroAnimation({ children }: { children: ReactNode }) {
+  const { language } = useLanguage();
+  const video = useRef<HTMLVideoElement>(null);
+  const [finished, setFinished] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const shown = revealed || finished;
+  const finish = useCallback(() => {
+    video.current?.pause();
+    setFinished(true);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    // Autoplay refusal or a stalled download must not lock login.
+    const timeout = window.setTimeout(finish, 5000);
+    const player = video.current;
+    if (player) {
+      player.muted = true;
+      void player.play().catch(() => { if (active) finish(); });
+    }
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+      player?.pause();
+    };
+  }, [finish]);
+
+  return (
+    <div className="login-film">
+      <div className="login-film__stage">
+        {finished ? (
+          <img src={POSTER} alt="" width={800} height={500} className="login-film__media" />
+        ) : (
+          <video ref={video} className="login-film__media" width={800} height={500}
+            src={VIDEO} muted playsInline autoPlay preload="auto" aria-hidden="true"
+            onTimeUpdate={(event) => {
+              if (event.currentTarget.currentTime >= FORM_REVEAL_AT) setRevealed(true);
+            }}
+            onEnded={finish} onError={finish} disablePictureInPicture />
+        )}
+        {!finished && (
+          <button type="button" className="login-film__skip" onClick={finish}>
+            {language === 'ar' ? 'تخطي المقدمة' : 'Skip intro'}
+          </button>
+        )}
+      </div>
+      <motion.div inert={!shown} aria-hidden={!shown} initial={false}
+        animate={{ opacity: shown ? 1 : 0, y: shown ? 0 : 64, scale: shown ? 1 : 0.98 }}
+        transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}>
+        {children}
+      </motion.div>
+    </div>
+  );
+}

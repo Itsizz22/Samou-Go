@@ -120,13 +120,14 @@ function useAndroidBackButton() {
 
 function App() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   useAndroidBackButton();
   // The merged app serves the customer storefront plus the Captain and Store
   // Manager dashboards, so those three roles are allowed at the session level.
   // An ADMIN (or any other role) token on this origin is a foreign session and
   // is signed out by the gate instead of rendering a wrong-role UI.
   const auth = useAuth();
-  const [splashElapsed, setSplashElapsed] = useState(false);
+  const [splashElapsed, setSplashElapsed] = useState(() => pathname === '/login');
   const [pushCheckedFor, setPushCheckedFor] = useState<string | null>(null);
   const finishIntro = useCallback(() => setSplashElapsed(true), []);
   const platformSettings = usePlatformSettings();
@@ -153,6 +154,9 @@ function App() {
     return () => { active = false; };
   }, [auth.ready, auth.user?.id, splashElapsed]);
   if (splashElapsed && needsSessionRecovery(auth)) return <SessionRecovery auth={auth} />;
+
+  // Direct login has its own short intro; retain session readiness gating.
+  if (pathname === '/login' && !auth.ready) return <div className="min-h-svh bg-canvas" aria-busy="true" />;
 
   // Keep the intro (or its final still) until playback and session restoration finish.
   if (!auth.ready || !splashElapsed) return <StartupIntro onComplete={finishIntro} waitingForSession={!auth.ready} />;
@@ -359,6 +363,7 @@ function LocationPermissionPrompt({ auth }: { auth: Auth }) {
   // The parent keys this component by account, isolating pending GPS callbacks.
   const mounted = useRef(false);
   const capturePending = useRef(false);
+  const captureCancelled = useRef(false);
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; };
@@ -386,7 +391,7 @@ function LocationPermissionPrompt({ auth }: { auth: Auth }) {
     }
     const sessionToken = getToken();
     if (!sessionToken) return;
-    const isCurrentSession = () => mounted.current && getToken() === sessionToken;
+    const isCurrentSession = () => mounted.current && !captureCancelled.current && getToken() === sessionToken;
     capturePending.current = true;
     setBusy(true);
     setStatus({ ar: 'جارٍ تحديد موقعك…', en: 'Detecting your location…' });
@@ -422,6 +427,7 @@ function LocationPermissionPrompt({ auth }: { auth: Auth }) {
   if (!needsLocation) return null;
 
   const skip = () => {
+    captureCancelled.current = true;
     if (dismissKey) markLocationDismissed(dismissKey);
     setDismissed(true);
   };
@@ -451,7 +457,7 @@ function LocationPermissionPrompt({ auth }: { auth: Auth }) {
                 type="button"
                 onClick={() => void capture()}
                 disabled={busy}
-                className="flex h-9 items-center gap-1.5 rounded-xl bg-brand px-4 text-xs font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
+                className="flex min-h-11 items-center gap-1.5 rounded-xl bg-brand px-4 text-xs font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
               >
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} />}
                 {t('مشاركة موقعي', 'Share my location')}
@@ -459,8 +465,7 @@ function LocationPermissionPrompt({ auth }: { auth: Auth }) {
               <button
                 type="button"
                 onClick={skip}
-                disabled={busy}
-                className="flex h-9 items-center gap-1.5 rounded-xl border border-line px-3 text-xs font-bold text-ink-muted transition hover:bg-canvas active:scale-95 disabled:opacity-60"
+                className="flex min-h-11 items-center gap-1.5 rounded-xl border border-line px-3 text-xs font-bold text-ink-muted transition hover:bg-canvas active:scale-95 disabled:opacity-60"
               >
                 <X size={13} />
                 {t('لاحقاً', 'Later')}

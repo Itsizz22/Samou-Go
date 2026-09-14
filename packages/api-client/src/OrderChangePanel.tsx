@@ -1,6 +1,7 @@
 import { AppSelect } from '@samou-go/ui';
 import { useState } from "react";
 import {
+  ApiError,
   getOrder,
   getStore,
   proposeOrderChange,
@@ -23,6 +24,7 @@ export function OrderChangePanel({
   const [open, setOpen] = useState(!manager);
   const [items, setItems] = useState<CreateOrderInput["items"]>([]);
   const [draftVersion, setDraftVersion] = useState("");
+  const [stale, setStale] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const order = useResource(
@@ -41,6 +43,8 @@ export function OrderChangePanel({
   const seed = () => {
     if (order.data) {
       setDraftVersion(order.data.updatedAt);
+      setStale(false);
+      setMessage("");
       setItems(
         order.data.items.map((i) => ({
           productId: i.productId,
@@ -63,9 +67,13 @@ export function OrderChangePanel({
     try {
       await action();
       setMessage("تم الحفظ");
+      if (manager) { setItems([]); setDraftVersion(""); }
       order.refresh();
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "تعذر الحفظ");
+      if (e instanceof ApiError && e.status === 409) {
+        setStale(manager); order.refresh();
+        setMessage(manager ? 'تغير الطلب. اضغط «تحميل أصناف الطلب للتعديل» لمراجعة النسخة الجديدة قبل الإرسال.' : 'تغير الطلب. راجع التفاصيل المحدّثة قبل اتخاذ القرار.');
+      } else setMessage(e instanceof Error ? e.message : "تعذر الحفظ");
     } finally {
       setPending(false);
     }
@@ -217,7 +225,7 @@ export function OrderChangePanel({
                         الموافقة على التعديل
                       </button>
                       <button
-                        disabled={pending}
+                        disabled={pending || stale}
                         className="min-h-11 rounded-xl border border-line px-3"
                         onClick={() =>
                           void run(() =>
@@ -240,6 +248,7 @@ export function OrderChangePanel({
                   <button
                     type="button"
                     onClick={seed}
+                    disabled={order.loading || order.refreshing}
                     className="min-h-11 text-brand"
                   >
                     تحميل أصناف الطلب للتعديل
@@ -361,7 +370,7 @@ export function OrderChangePanel({
                   {items.length > 0 && (
                     <button
                       type="button"
-                      disabled={pending}
+                      disabled={pending || stale}
                       className="min-h-11 rounded-xl bg-brand px-3 text-white"
                       onClick={() =>
                         void run(() =>

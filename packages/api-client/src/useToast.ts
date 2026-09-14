@@ -34,6 +34,7 @@ export function useToast() {
 
   const success = (ar: string, en: string, options?: ToastOptions) => {
     toast.success(pick(ar, en, options), {
+      id: `feedback:success:${pick(ar, en, options)}`,
       duration: options?.duration ?? DEFAULT_DURATION,
       position: 'top-center',
       style,
@@ -42,6 +43,7 @@ export function useToast() {
 
   const error = (ar: string, en: string, options?: ToastOptions) => {
     toast.error(pick(ar, en, options), {
+      id: `feedback:error:${pick(ar, en, options)}`,
       duration: options?.duration ?? DEFAULT_DURATION,
       position: 'top-center',
       style,
@@ -49,7 +51,8 @@ export function useToast() {
   };
 
   const info = (ar: string, en: string, options?: ToastOptions) => {
-    toast(pick(ar, en, options), {
+    toast.info(pick(ar, en, options), {
+      id: `feedback:info:${pick(ar, en, options)}`,
       duration: options?.duration ?? DEFAULT_DURATION,
       position: 'top-center',
       style,

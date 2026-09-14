@@ -35,6 +35,7 @@ export function ImageWithFallback({
   fallbackText,
   className = '',
   onError,
+  onLoad,
   ...rest
 }: ImageWithFallbackProps) {
   const [failedSource, setFailedSource] = useState<string | undefined>();
@@ -57,8 +58,14 @@ export function ImageWithFallback({
     <img
       src={src}
       alt={alt}
-      className={`${className} transition-opacity duration-300`}
+      className={`${className} sq-loaded-image`}
       onError={handleError}
+      onLoad={event => {
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          event.currentTarget.animate([{ opacity: 0.4 }, { opacity: 1 }], { duration: 180, easing: 'ease-out' });
+        }
+        onLoad?.(event);
+      }}
       loading="lazy"
       {...rest}
     />

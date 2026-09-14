@@ -1,3 +1,4 @@
+import { LayoutGroup, motion, useReducedMotion } from 'framer-motion';
 import { useCart } from '@/components/CartProvider';
 import { useEffect, useState } from 'react';
 import { Home, ShoppingCart, FileText, Menu, type LucideIcon } from 'lucide-react';
@@ -50,6 +51,7 @@ function useActiveOrderCount() {
 
 export function BottomNav() {
   const { t } = useLanguage();
+  const reduced = useReducedMotion();
   const { pathname } = useLocation();
   const menuActive = ['/menu', '/offers', '/favorites', '/profile', '/settings'].some(path => pathname === path || pathname.startsWith(`${path}/`));
   const cart = useCart();
@@ -66,7 +68,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="sq-bottom-nav liquid-glass fixed bottom-0 inset-x-0 z-20 border-t border-line px-4"
+      className="sq-bottom-nav fixed bottom-0 inset-x-0 z-20 border-t border-line px-3"
       aria-label={t('التنقل السفلي', 'Bottom navigation')}
     >
       {ordersError && (
@@ -77,26 +79,27 @@ export function BottomNav() {
           </button>
         </p>
       )}
-      <div className="mx-auto grid max-w-md grid-cols-4 items-stretch gap-0.5 sm:grid-cols-4">
+      <LayoutGroup id="customer-navigation"><div className="mx-auto grid max-w-md grid-cols-4 items-stretch gap-1">
         {TABS.map(({ to, labelAr, labelEn, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             end={to === '/home'}
             className={({ isActive }) =>
-              `relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand ${
+              `sq-nav-link relative flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand ${
                 (isActive || (to === '/menu' && menuActive))
-                  ? 'bg-brand-surface text-brand'
+                  ? 'sq-nav-selected text-brand'
                   : 'text-ink-muted hover:bg-canvas'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <span className={`relative ${isActive || (to === '/menu' && menuActive) ? 'sq-tab-active' : ''}`}>
+                {(isActive || (to === '/menu' && menuActive)) && <motion.span aria-hidden="true" layoutId="active-tab" className="absolute inset-0 rounded-2xl bg-brand-surface" transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 36 }} />}
+                <span className={`sq-nav-icon relative ${isActive || (to === '/menu' && menuActive) ? 'sq-tab-active' : ''}`}>
                   <Icon
                     key={to === '/cart' ? cartFeedback : to}
-                    size={21}
+                    size={22}
                     strokeWidth={isActive || (to === '/menu' && menuActive) ? 2.5 : 1.8}
                     fill="none"
                     className={`${
@@ -105,20 +108,20 @@ export function BottomNav() {
                       isActive || (to === '/menu' && menuActive) ? 'text-brand-deep' : ''
                     }`}
                   />
-                  {to === '/cart' && cart.itemCount > 0 && <span className="absolute -inset-e-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-xs font-bold text-white" dir="ltr">{cart.itemCount > 99 ? "99+" : cart.itemCount}</span>}
+                  {to === '/cart' && cart.itemCount > 0 && <span className="sq-nav-badge" dir="ltr">{cart.itemCount > 99 ? "99+" : cart.itemCount}</span>}
                   {/* Active-order badge — only on the Orders tab */}
                   {to === '/orders' && activeOrders > 0 && (
-                    <span className="absolute -inset-e-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[8px] font-black text-white animate-[cartPop_0.3s_var(--ease-spring)_both]">
-                      {activeOrders > 9 ? '9+' : activeOrders}
+                    <span className="sq-nav-badge" dir="ltr">
+                      {activeOrders > 99 ? '99+' : activeOrders}
                     </span>
                   )}
                 </span>
-                <span className="text-[11px] leading-4 truncate w-full text-center">{t(labelAr, labelEn)}</span>
+                <span className="relative text-[11px] leading-4 truncate w-full text-center">{t(labelAr, labelEn)}</span>
               </>
             )}
           </NavLink>
         ))}
-      </div>
+      </div></LayoutGroup>
     </nav>
   );
 }

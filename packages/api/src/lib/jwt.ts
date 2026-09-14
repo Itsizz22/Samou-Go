@@ -1,8 +1,8 @@
-import jwt from 'jsonwebtoken';
-import { UserRole } from '@samou-go/shared-types';
-import type { JwtPayload } from '@samou-go/shared-types';
-import { env } from '../config/env';
-import { unauthorized } from './http-error';
+import jwt from "jsonwebtoken";
+import { UserRole } from "@samou-go/shared-types";
+import type { JwtPayload } from "@samou-go/shared-types";
+import { env } from "../config/env";
+import { unauthorized } from "./http-error";
 
 export interface IssuedToken {
   accessToken: string;
@@ -17,19 +17,23 @@ export function signAccessToken(input: {
   sessionVersion?: number;
 }): IssuedToken {
   const accessToken = jwt.sign(
-    { role: input.role, phone: input.phone, sessionVersion: input.sessionVersion ?? 0 },
+    {
+      role: input.role,
+      phone: input.phone,
+      sessionVersion: input.sessionVersion ?? 0,
+    },
     env.jwt.secret,
     {
       subject: input.userId,
       // The env value is a duration string like '7d'; @types/jsonwebtoken
       // narrows this to a template literal union, so widen it here.
-      expiresIn: env.jwt.expiresIn as jwt.SignOptions['expiresIn'],
-    }
+      expiresIn: env.jwt.expiresIn as jwt.SignOptions["expiresIn"],
+    },
   );
 
   const decoded = jwt.decode(accessToken);
   const expiresIn =
-    decoded && typeof decoded === 'object' && typeof decoded.exp === 'number'
+    decoded && typeof decoded === "object" && typeof decoded.exp === "number"
       ? decoded.exp - Math.floor(Date.now() / 1000)
       : 0;
 
@@ -43,17 +47,19 @@ const VALID_ROLES = new Set<string>(Object.values(UserRole));
 export function verifyAccessToken(token: string): JwtPayload {
   let decoded: unknown;
   try {
-    decoded = jwt.verify(token, env.jwt.secret);
+    decoded = jwt.verify(token, env.jwt.secret, { algorithms: ["HS256"] });
   } catch {
-    throw unauthorized('الجلسة غير صالحة أو منتهية / Invalid or expired session');
+    throw unauthorized(
+      "الجلسة غير صالحة أو منتهية / Invalid or expired session",
+    );
   }
 
   // Validate the CLAIMS, never trust their presence blindly. `sub` is the user
   // id and `role` the authorization scope; both must exist and be sane. RBAC
   // downstream is built entirely on this object — the client payload can never
   // override it because only the signature holder can mint it.
-  if (!decoded || typeof decoded !== 'object') {
-    throw unauthorized('الجلسة غير صالحة / Malformed token');
+  if (!decoded || typeof decoded !== "object") {
+    throw unauthorized("الجلسة غير صالحة / Malformed token");
   }
 
   const sub = (decoded as { sub?: unknown }).sub;
@@ -61,13 +67,13 @@ export function verifyAccessToken(token: string): JwtPayload {
   const phone = (decoded as { phone?: unknown }).phone;
 
   if (
-    typeof sub !== 'string' ||
+    typeof sub !== "string" ||
     sub.length === 0 ||
-    typeof role !== 'string' ||
+    typeof role !== "string" ||
     !VALID_ROLES.has(role) ||
-    typeof phone !== 'string'
+    typeof phone !== "string"
   ) {
-    throw unauthorized('الجلسة غير صالحة / Malformed token');
+    throw unauthorized("الجلسة غير صالحة / Malformed token");
   }
 
   return decoded as unknown as JwtPayload;

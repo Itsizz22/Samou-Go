@@ -1,3 +1,4 @@
+import { UploadImageDetails } from '@samou-go/ui';
 import { AppSelect } from '@samou-go/ui';
 import { listActiveDeliveryZones, useResource } from '@samou-go/api-client';
 import { WhatsAppNumberSettings } from '@samou-go/ui';
@@ -181,8 +182,17 @@ export function StoreProfilePanel({ storeId }: Props) {
   };
 
   /* ---- Store logo (attach / change / remove) ------------------------------ */
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const validateStoreImage = (file: File) => {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024) {
+      toast.error('اختر صورة JPEG أو PNG أو WebP لا تتجاوز 8MB', 'Choose JPEG, PNG or WebP up to 8MB');
+      return false;
+    }
+    setSelectedImage(file);
+    return true;
+  };
   const handleLogoPicked = async (file: File | undefined) => {
-    if (!file) return;
+    if (!file || !validateStoreImage(file)) return;
     if (file.size > 8 * 1024 * 1024) {
       toast.error('الملف أكبر من 8MB', 'File exceeds 8MB');
       return;
@@ -220,6 +230,7 @@ export function StoreProfilePanel({ storeId }: Props) {
 
   const handleCover = async (file?: File, remove = false) => {
     if ((!file && !remove) || coverBusy || logoBusy) return;
+    if (file && !validateStoreImage(file)) return;
     setCoverBusy(true);
     try {
       if (remove) {
@@ -340,6 +351,7 @@ export function StoreProfilePanel({ storeId }: Props) {
             <p className="mt-3 text-xs leading-6 text-ink-muted">تظهر هذه المواعيد للعملاء. حالة «مفتوح / مغلق» تُدار يدويًا؛ حفظ الوقت لا يغلق المتجر تلقائيًا.</p>
           </section>
         <h3 className="border-t border-line pt-5 text-base font-extrabold">{t('هوية المتجر وصوره', 'Store identity and photos')}</h3>
+        <UploadImageDetails file={selectedImage} busy={logoBusy || coverBusy} />
         {/* Store logo */}
         <div className="space-y-3">
           <div className="rounded-xl border border-line bg-canvas p-3">
@@ -351,7 +363,7 @@ export function StoreProfilePanel({ storeId }: Props) {
                 <img
                   src={logoSrc}
                   alt={form.nameAr || 'Store logo'}
-                  className="h-16 w-16 shrink-0 rounded-xl object-cover"
+                  className="sq-store-logo-image h-16 w-16 shrink-0 rounded-xl"
                 />
               ) : (
                 <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
@@ -396,10 +408,10 @@ export function StoreProfilePanel({ storeId }: Props) {
 
           <section className="space-y-3 rounded-2xl border border-line bg-canvas p-4">
             <h3 className="font-bold">{t('خلفية المتجر', 'Store cover')}</h3>
-            <div className="relative aspect-[16/9] overflow-hidden rounded-xl bg-brand-tint">
-              {coverSrc && <img src={coverSrc} alt={t('معاينة خلفية المتجر', 'Store cover preview')} className="h-full w-full object-cover" />}
-              <div className="absolute inset-0 flex items-center justify-center bg-ink/10">
-                {logoSrc ? <img src={logoSrc} alt="" className="h-20 w-20 rounded-2xl border-4 border-surface bg-surface object-contain shadow-card" /> : <Store size={40} className="text-brand" />}
+            <div className="relative mb-10 aspect-video bg-brand-tint">
+              {coverSrc && <img src={coverSrc} alt={t('معاينة خلفية المتجر', 'Store cover preview')} className="sq-store-cover-image" />}
+              <div className="absolute inset-x-0 -bottom-8 flex items-center justify-center">
+                {logoSrc ? <img src={logoSrc} alt="" className="sq-store-logo-image h-24 w-24 rounded-2xl" /> : <Store size={40} className="text-brand" />}
               </div>
             </div>
             <p className="text-xs leading-6 text-ink-muted">{t('صورة أفقية بنسبة 16:9؛ سيظهر الشعار في المنتصف فوقها. يُحفظ تغيير الصور مباشرة.', 'Use a 16:9 landscape image. The logo appears centered over it. Image changes save immediately.')}</p>

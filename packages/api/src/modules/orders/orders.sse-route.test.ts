@@ -142,7 +142,7 @@ describe('CORS for the deployed SPAs', () => {
   });
 
   it('lets a Vercel preview origin in as well', async () => {
-    const origin = 'https://samou-go-order-tracking-git-main-acme.vercel.app';
+    const origin = 'https://samou-go-order-tracking-git-main-samou-go.vercel.app';
     const { headers } = await peek(`/orders/${h.order.id}/events`, { Origin: origin });
     expect(headers.get('access-control-allow-origin')).toBe(origin);
   });

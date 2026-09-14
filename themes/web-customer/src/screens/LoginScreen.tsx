@@ -1,4 +1,4 @@
-import loginBrand from '@/assets/login-brand.jpeg';
+import { LoginIntroAnimation } from '@/components/login/LoginIntroAnimation';
 import { AuthSupportContact } from '@/components/AuthSupportContact';
 import { useState } from 'react';
 import { CheckCheck, Eye, EyeOff, KeyRound, Loader2, Smartphone } from 'lucide-react';
@@ -34,10 +34,7 @@ export function LoginScreen() {
       data-figma-node="4:7"
     >
       <div className="customer-login__screen mx-auto w-full max-w-md">
-        <header className="overflow-hidden bg-white">
-          <img src={loginBrand} width={1600} height={1066} alt="Samou Quick — من مكانك إلى بابك، كل ما تحتاجه يصلك بسرعة وسهولة" fetchPriority="high" className="block h-auto w-full" />
-        </header>
-
+<LoginIntroAnimation>
         <div className="customer-login__content flex flex-col gap-6 p-6">
           <div className="flex flex-col gap-1.5 text-start">
             <h1 id="login-title" className="font-sans text-2xl font-bold leading-8">
@@ -181,6 +178,7 @@ export function LoginScreen() {
             </Link>
           </p>
         </div>
+        </LoginIntroAnimation>
       </div>
     </main>
   );

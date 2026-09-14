@@ -1320,7 +1320,7 @@ export async function uploadImage(
 ): Promise<FinalizeUploadResult> {
   // Compress the image on-device before uploading (no server load, faster on mobile).
   const { compressImage } = await import('./compressImage');
-  const compressed = input.kind === 'audio' ? file : await compressImage(file);
+  const compressed = input.kind === 'audio' || input.kind === 'store' ? file : await compressImage(file);
 
   const prepared = await presignUpload(
     {
@@ -1403,6 +1403,7 @@ export function deleteProduct(
 /* ---- Product option groups --------------------------------------------- */
 
 export interface OptionGroupInput {
+  applyToLinked?: boolean;
   kind?: 'ADDON' | 'SIZE' | 'INGREDIENT' | 'FIXED';
   name: string;
   required?: boolean;
@@ -1424,6 +1425,7 @@ interface OptionItemDto {
 }
 
 export interface OptionGroupDto {
+  templateId?: string | null;
   kind?: 'ADDON' | 'SIZE' | 'INGREDIENT' | 'FIXED';
   id: string;
   productId: string;
@@ -2268,4 +2270,20 @@ export function sendOrderChat(orderId: string, body: { recipientId: string; mess
 }
 export function markOrderChatRead(orderId: string, peerId: string, messageId: string, signal?: AbortSignal): Promise<{ read: boolean }> {
   return request('POST', `/platform/orders/${encodeURIComponent(orderId)}/chat/read`, { auth: true, body: { peerId, messageId }, signal });
+}
+
+export function listOptionTemplates(storeId: string): Promise<{items: import('@samou-go/shared-types').ProductOptionTemplateSummary[]}> {
+  return request('GET', `/stores/${encodeURIComponent(storeId)}/option-templates`, {auth: true});
+}
+export function attachOptionTemplate(storeId: string, productId: string, templateId: string, mode: 'shared' | 'independent'): Promise<OptionGroupDto> {
+  return request('POST', `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}/option-templates`, {auth: true, body: {templateId, mode}});
+}
+export function promoteOptionTemplate(storeId: string, productId: string, groupId: string): Promise<import('@samou-go/shared-types').ProductOptionTemplateSummary> {
+  return request('POST', `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}/options/${encodeURIComponent(groupId)}/template`, {auth: true});
+}
+export function detachOptionTemplate(storeId: string, productId: string, groupId: string): Promise<OptionGroupDto> {
+  return request('POST', `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}/options/${encodeURIComponent(groupId)}/detach`, {auth: true});
+}
+export function deleteOptionTemplate(storeId: string, templateId: string): Promise<void> {
+  return request('DELETE', `/stores/${encodeURIComponent(storeId)}/option-templates/${encodeURIComponent(templateId)}`, {auth: true});
 }

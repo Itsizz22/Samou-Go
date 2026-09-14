@@ -1,7 +1,7 @@
 import { AppErrorBoundary, LanguageProvider, OfflineBanner, bootstrapApp } from '@samou-go/ui';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Toaster } from 'sonner';
+import { AppToaster } from '@samou-go/api-client';
 import './index.css';
 import App from './App.tsx';
 
@@ -16,6 +16,6 @@ bootstrapApp({ allowDarkMode: true });
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AppErrorBoundary><OfflineBanner /><LanguageProvider><App /></LanguageProvider></AppErrorBoundary>
-    <Toaster />
+    <AppToaster />
   </StrictMode>
 );

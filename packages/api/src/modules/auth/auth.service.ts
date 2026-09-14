@@ -319,16 +319,22 @@ export async function adminCreateStore(
     throw conflict('رقم الجوال مسجّل مسبقاً / This phone number is already registered');
   }
 
-  const user = await prisma.user.create({ include: assignedStoresInclude,
+  const passwordHash = await hashPassword(body.password ?? `otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`);
+  return prisma.$transaction(async tx => {
+  const keys = [...new Set(body.homeCategoryKeys ?? [])];
+  const settings = keys.length ? await tx.platformSettings.findUnique({ where: { id: 'platform' } }) : null;
+  const categories = settings?.homeCategoriesJson ? JSON.parse(settings.homeCategoriesJson) as import('@samou-go/shared-types').HomeCategory[] : [];
+  if (keys.some(key => key === 'all' || !categories.some(category => category.key === key))) {
+    throw conflict('تغيرت أنواع المتاجر. أعد تحميلها ثم حاول مجددًا. / Store categories changed; reload and retry.');
+  }
+  const user = await tx.user.create({ include: assignedStoresInclude,
     data: {
-      publicCode: await nextPublicCode(UserRole.STORE_MANAGER, prisma),
+      publicCode: await nextPublicCode(UserRole.STORE_MANAGER, tx),
       name: body.managerName ?? body.nameAr,
       phone: body.phone,
       // An admin-provided password lets the owner log in with phone+password;
       // otherwise a random hash keeps the account unguessable (OTP login only).
-      passwordHash: await hashPassword(
-        body.password ?? `otp-${randomInt(0, 1_000_000_000)}-${Date.now()}`
-      ),
+      passwordHash,
       role: UserRole.STORE_MANAGER,
       isActive: true,
       isVerified: true,
@@ -336,9 +342,9 @@ export async function adminCreateStore(
   });
 
   const slug = generateStoreSlug(body.nameAr);
-  const store = await prisma.store.create({
+  const store = await tx.store.create({
     data: {
-      publicCode: await nextPublicCode('STORE', prisma),
+      publicCode: await nextPublicCode('STORE', tx),
       nameAr: body.nameAr,
       nameEn: body.nameEn,
       slug,
@@ -350,7 +356,13 @@ export async function adminCreateStore(
     },
   });
 
+  if (keys.length && settings) {
+    const updated = categories.map(category => keys.includes(category.key) ? { ...category, storeIds: [...new Set([...(category.storeIds ?? []), store.id])] } : category);
+    const saved = await tx.platformSettings.updateMany({ where: { id: settings.id, homeCategoriesJson: settings.homeCategoriesJson }, data: { homeCategoriesJson: JSON.stringify(updated) } });
+    if (saved.count !== 1) throw conflict('تغيرت الفئات أثناء الحفظ. أعد المحاولة. / Categories changed; retry.');
+  }
   return { user: toPublicUser(user), store };
+  });
 }
 
 /** POST /admin/captains — admin creates a new delivery captain. */

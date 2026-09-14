@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent, type CSSProperties } from 'react';
 
 /** Loop uses boundary copies, so wrapping never sweeps across every slide. */
 export function useShowcaseCarousel(count: number, intervalMs = 3500) {
@@ -17,12 +17,12 @@ export function useShowcaseCarousel(count: number, intervalMs = 3500) {
   const paused = hovered || focused || stopped || drag !== null || reducedMotion || !visible;
   const setIndex = (index: number) => { setInstant(false); setPosition(count > 1 ? Math.min(count - 1, Math.max(0, index)) + 1 : 0); };
   const step = (delta: number) => { setInstant(false); setPosition(current => count > 1 ? Math.max(0, Math.min(count + 1, current + delta)) : 0); };
-  const settle = () => {
+  const settle = useCallback(() => {
     if (count > 1 && (position === 0 || position === count + 1)) {
       setInstant(true);
       setPosition(position === 0 ? count : 1);
     }
-  };
+  }, [count, position]);
   useEffect(() => { setInstant(true); setPosition(count > 1 ? 1 : 0); }, [count]);
   useEffect(() => {
     const media = matchMedia('(prefers-reduced-motion: reduce)');
@@ -42,7 +42,7 @@ export function useShowcaseCarousel(count: number, intervalMs = 3500) {
     if (position !== 0 && position !== count + 1) return;
     const timer = setTimeout(settle, reducedMotion ? 0 : 500);
     return () => clearTimeout(timer);
-  }, [position, count, reducedMotion]);
+  }, [position, count, reducedMotion, settle]);
   const finish = (event: PointerEvent<HTMLDivElement>, cancel = false) => {
     const gesture = start.current;
     start.current = null;

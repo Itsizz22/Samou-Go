@@ -169,7 +169,7 @@ export function SamouGoCaptain() {
   // header reflects the last PATCH, not the last local flip.
   useEffect(() => {
     if (auth.user) setAvailable(auth.user.isAvailable);
-  }, [auth.user?.isAvailable]);
+  }, [auth.user]);
 
   /* ---- Role gate --------------------------------------------------------- */
 
@@ -819,17 +819,17 @@ export function SamouGoCaptain() {
         </div>
         <button type="button" onClick={() => setSidebarOpen(false)} aria-label={t('إغلاق القائمة', 'Close navigation')} className="absolute end-3 top-3 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-ink-muted hover:bg-canvas md:hidden"><X size={18} /></button>
       </aside>
-      <header className="liquid-glass px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] text-ink">
-        <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="Captain navigation">
+      <header className="sq-staff-glass-header">
+        <nav className="sq-staff-glass-nav sq-captain-glass-nav" aria-label="Captain navigation">
           <button type="button" onClick={() => setSidebarOpen(value => !value)} aria-expanded={sidebarOpen} aria-label={t('فتح القائمة', 'Open navigation')} className="rounded-lg p-2 text-white transition hover:bg-white/10 active:scale-95"><Menu size={21} /></button>
           <button type="button" aria-label="Profile" onClick={() => setActiveTab('account')} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-surface/15 transition hover:bg-surface/25">
             {auth.user.profileImageUrl ? <img src={auth.user.profileImageUrl} alt={auth.user.name} className="h-full w-full object-cover" /> : <UserRound size={21} />}
           </button>
-          <div className="text-center leading-tight">
+          <div className="sq-staff-glass-title">
             <p className="text-[16px] font-extrabold">{activeTab === 'home' ? t(`مرحباً ${captainName} 👋`, `Hello, ${captainName}`) : t(NAV_ITEMS.find(item => item.id === activeTab)?.label ?? 'الكابتن', NAV_ITEMS.find(item => item.id === activeTab)?.english ?? 'Captain')}</p>
             {auth.user.publicCode && <p className="text-xs text-ink-muted">رقم الكابتن: <span dir="ltr">{auth.user.publicCode}</span></p>}
           </div>
-          <div className="flex items-center gap-2" dir="ltr">
+          <div className="sq-staff-glass-tools" dir="ltr">
             <LanguageToggle />
             <ThemeToggle />
             <NotificationBell
@@ -838,14 +838,15 @@ export function SamouGoCaptain() {
               chimeOnNew={false}
               max={10}
             />
-            <button
+
+          </div>
+        </nav>
+              <div className="sq-staff-glass-status sq-captain-glass-status"><span>{t('استقبال الطلبات', 'Receiving orders')}</span>            <button
               type="button"
               aria-pressed={available}
               disabled={availabilityMutation.pending}
               onClick={() => void handleToggleAvailability()}
-              className={`flex items-center gap-1 rounded-full px-2.5 py-1.5 text-micro font-bold transition disabled:opacity-60 ${
-                available ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'
-              }`}
+              className="sq-captain-availability"
             >
               {availabilityMutation.pending ? (
                 <Loader2 size={10} className="animate-spin" />
@@ -853,10 +854,8 @@ export function SamouGoCaptain() {
                 <span className={`h-2 w-2 rounded-full ${available ? 'bg-brand' : 'bg-surface/70'}`} />
               )}
               {t(available ? 'متاح' : 'غير متاح', available ? 'Available' : 'Offline')}
-            </button>
-          </div>
-        </nav>
-      </header>
+            </button></div>
+</header>
 
       <div className="sq-staff-content pt-5">
         {activeTab === 'home' && (

@@ -18,6 +18,7 @@ export function CravingShortcuts({ products }: { products: Product[] }) {
   const { t } = useLanguage();
   return <section className="mx-auto my-5 max-w-md px-5" aria-labelledby="cravings-title">
     <h2 id="cravings-title" className="mb-3 text-lg font-bold text-ink">{t('ماذا تشتهي اليوم؟', 'What are you craving?')}</h2>
+    <img src="/images/home/cravings-spread-1440.webp" srcSet="/images/home/cravings-spread-720.webp 720w, /images/home/cravings-spread-1440.webp 1440w" sizes="(min-width: 1200px) 1160px, calc(100vw - 40px)" alt="" width={1440} height={480} loading="lazy" decoding="async" className="mb-4 block aspect-[3/1] w-full rounded-2xl object-cover" />
     <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-2 scrollbar-none" data-swipe-back="off">
       {cravings.map(({ ar, en, match, icon: Icon }) => {
         const photo = products.find(product => product.isAvailable && product.imageUrl && match.test(product.nameAr));

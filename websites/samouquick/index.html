@@ -4,15 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#f1faf6" />
-    <title>سموع كويك | اطلب من مطاعم ومتاجر السموع</title>
+    <title>سموع كويك | توصيل مطاعم ومتاجر السموع</title>
     <meta
       name="description"
-      content="اطلب من مطاعم ومتاجر السموع عبر سموع كويك. تعرّف على الخدمة وتابع العدّ التنازلي للإطلاق وتواصل مع الدعم المحلي."
+      content="اطلب من مطاعم ومتاجر السموع عبر Samou Quick وتابع طلبك حتى يصلك."
     />
     <link rel="canonical" href="https://samouquick.com/" />
     <meta
       property="og:title"
-      content="سموع كويك | اطلب من مطاعم ومتاجر السموع"
+      content="سموع كويك | توصيل مطاعم ومتاجر السموع"
     />
     <meta
       property="og:image"
@@ -20,7 +20,8 @@
     />
     <link rel="icon" href="/assets/brand-mark.webp" />
     <link rel="stylesheet" href="/fonts.css" />
-    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/cinematic.css" />
+    <link rel="preload" as="image" href="/assets/hero.webp" />
     <script src="/site.js" defer></script>
     <meta
       property="og:description"
@@ -30,90 +31,34 @@
     <meta property="og:locale" content="ar_PS" />
     <meta property="og:url" content="https://samouquick.com/" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="/refinements.css" />
-    <link rel="stylesheet" href="/design-finish.css" />
-    <link rel="stylesheet" href="/liquid-glass.css" />
   </head>
-  <body class="has-mobile-download launch-site">
+  <body class="cinema-site">
     <a href="#main" class="skip">انتقل للمحتوى</a>
-    <div class="coverage-bar">
-      <span class="coverage-dot" aria-hidden="true"></span>نخدم كافة أحياء
-      ومناطق بلدة السموع
-    </div>
-    <header class="shell site-header">
-      <a href="#main" class="brand" aria-label="سموع كويك، الرئيسية"
-        ><img
-          src="/assets/brand-mark.webp"
-          width="54"
-          height="54"
-          alt=""
-        /><span>سموع كويك<small dir="ltr">Samou Quick</small></span></a
-      >
-      <nav class="header-nav" aria-label="التنقل الرئيسي">
-        <a href="#discover">شو بتقدر تطلب؟</a
-        ><a href="#how-it-works">كيف تطلب؟</a><a href="#about">عن سموع كويك</a>
-      </nav>
-      <a class="pill compact" href="#download"
-        >موعد الإطلاق <span aria-hidden="true">↓</span></a
-      >
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a href="#main" class="brand" aria-label="سموع كويك، الرئيسية"><img src="/assets/brand-mark.webp" width="48" height="48" alt=""/><span>سموع كويك<small lang="en">Samou Quick</small></span></a>
+        <nav class="header-nav" aria-label="التنقل الرئيسي"><a href="#main">الرئيسية</a><a href="#how-it-works">كيف يعمل؟</a><a href="#app-screens">التطبيق</a><a href="#faq">الأسئلة الشائعة</a></nav>
+        <a class="button small" href="#download">موعد الإطلاق <span aria-hidden="true">↓</span></a>
+      </div>
     </header>
     <main id="main">
-      <section class="hero shell" aria-labelledby="hero-title">
-        <div class="hero-copy">
-          <span class="eyebrow">من البلد، لأهل البلد</span>
-          <h1 id="hero-title">
-            اطلب من مطاعم<br />ومتاجر السموع<br /><span>ونوصّله لبابك.</span>
-          </h1>
-          <p>اطلب من متاجر ومطاعم السموع من تطبيق واحد.</p>
-          <div class="hero-actions">
-            <div>
-              <a class="pill" href="/#download"
-                >موعد الإطلاق <span aria-hidden="true">↓</span></a
-              ><small>الإطلاق قريبًا · 26 سبتمبر 2026</small>
-            </div>
-            <a
-              class="hero-qr"
-              href="#download"
-              aria-label="رمز QR لفتح صفحة الإطلاق على الهاتف"
-              ><img
-                src="/assets/download-qr.svg"
-                width="96"
-                height="96"
-                alt="امسح الرمز لمتابعة إطلاق سموع كويك"
-              /><span>افتحه على هاتفك</span></a
-            >
-          </div>
+      <section class="hero" aria-labelledby="hero-title">
+        <video class="hero-video" data-source="/assets/hero-story.webm" poster="/assets/hero.webp" preload="none" autoplay muted loop playsinline aria-hidden="true" tabindex="-1"></video>
+        <div class="hero-shade"></div>
+        <div class="shell hero-copy">
+          <p class="eyebrow">من البلد، لأهل البلد</p>
+          <h1 id="hero-title">كل اللي بدّك إياه.<br/>صار أقرب.</h1>
+          <p class="hero-description">اطلب من مطاعم ومتاجر السموع<br class="mobile-break"/> من تطبيق واحد.</p>
+          <div class="hero-actions"><a class="button" href="#download">قريبًا — سموع كويك <span aria-hidden="true">↓</span></a><a class="quiet-link" href="#app-screens">اكتشف التطبيق</a></div>
         </div>
-        <div class="hero-art">
-          <div class="phone-halo" aria-hidden="true"></div>
-          <figure class="hero-phone">
-            <img
-              src="/assets/app-home.webp"
-              width="390"
-              height="844"
-              alt="واجهة سموع كويك لاختيار منطقتك: اصفي، الولي، واد جحيش ومناطق السموع"
-              fetchpriority="high"
-            />
-            <figcaption>تبدأ التجربة من منطقتك</figcaption>
-          </figure>
-          <div class="local-label">
-            <span>بلدك أقرب</span
-            ><strong>من اصفي للحصيني<br />ومن السيميا للدير</strong>
-          </div>
-        </div>
+        <div class="shell hero-bottom"><p><span class="live-dot" aria-hidden="true"></span>من السموع. لكل أحيائها.</p><a href="#app-screens" aria-label="اكتشف تجربة التطبيق">اكتشف أكثر <span aria-hidden="true">↓</span></a></div>
+        <button class="motion-control" type="button" hidden aria-label="إيقاف حركة الخلفية">إيقاف الحركة</button>
       </section>
-      <section
-        id="discover"
-        class="discovery shell reveal"
-        aria-labelledby="discovery-title"
-      >
-        <div class="section-heading">
-          <div>
-            <h2 id="discovery-title">شو بتقدر تطلب اليوم؟</h2>
-          </div>
-          <p>اضغط على الفئة لتعرف أكثر، وتصفّح المتاجر المتاحة داخل التطبيق.</p>
-        </div>
-        <div class="category-grid">
+      <section id="app-screens" class="intro shell" aria-labelledby="intro-title">
+        <div class="intro-copy reveal"><p class="eyebrow">بلدك، بتطبيق واحد</p><h2 id="intro-title">قريب من يومك.<br/>أقرب للي بدّك إياه.</h2><p>من وجبة بتحبها لمشتريات البيت. سموع كويك يجمع اختيارك وطلبك وتواصلك في مكان واحد.</p><a class="text-link" href="#how-it-works">خلّينا نوريك كيف <span aria-hidden="true">↓</span></a><p class="asset-note">لقطات فعلية من التطبيق. المنتجات المعروضة تجريبية للتوضيح، والمتاح يختلف حسب منطقتك.</p></div>
+        <figure class="phone intro-phone reveal"><img src="/assets/app-home.webp" width="390" height="844" loading="lazy" alt="واجهة سموع كويك الفعلية لاختيار منطقة التوصيل"/><figcaption>البداية من منطقتك</figcaption></figure>
+      </section>
+      <section id="discover" class="discovery" aria-labelledby="discovery-title"><div class="shell"><div class="section-heading"><h2 id="discovery-title">شو على بالك اليوم؟</h2><p>تصفّح الفئات، والتفاصيل داخل التطبيق.</p></div><div class="category-strip">
           <!-- CATEGORIES:START -->
           <details class="category-card" id="category-restaurants">
             <summary>
@@ -260,157 +205,22 @@
             </div>
           </details>
           <!-- CATEGORIES:END -->
-        </div>
-        <p class="section-note">
-          القوائم والإتاحة يحددها كل متجر. راجع التفاصيل داخل التطبيق قبل الطلب.
-        </p>
-      </section>
-      <section id="about" class="why shell reveal" aria-labelledby="why-title">
-        <div class="section-title">
-          <p>من السموع، ولأهل السموع</p>
-          <h2 id="why-title">ليش سموع كويك؟</h2>
-          <p class="section-intro">
-            نقرّب متاجر بلدك منك. تختار طلبك وتراجع تفاصيله وتتواصل مع من يجهّزه
-            ويوصله، من مكان واحد.
-          </p>
-        </div>
-        <div class="benefits">
-          <article>
-            <div>
-              <h3>متاجر بلدك بين إيديك</h3>
-              <p>
-                تصفّح المتاجر المتاحة وقوائمها، واختَر ما يناسب يومك من البيت.
-              </p>
-            </div>
-          </article>
-          <article>
-            <div>
-              <h3>طلب واضح من البداية</h3>
-              <p>
-                راجع المنتجات والكميات والعنوان ورسوم التوصيل قبل تأكيد طلبك.
-              </p>
-            </div>
-          </article>
-          <article>
-            <div>
-              <h3>خليك على اطلاع</h3>
-              <p>
-                تابع حالة الطلب من التطبيق، وتواصل مع المتجر والكابتن عند
-                الحاجة.
-              </p>
-            </div>
-          </article>
-          <article>
-            <div>
-              <h3>دعم قريب منك</h3>
-              <p>فريق محلي في السموع، تواصل معه على واتساب للمساعدة في طلبك.</p>
-            </div>
-          </article>
-        </div>
-      </section>
-      <section
-        id="how-it-works"
-        class="how-it-works shell reveal"
-        aria-labelledby="how-title"
-      >
-        <div class="section-heading">
-          <div>
-            <h2 id="how-title">طلبك بخمس خطوات.</h2>
+      </div></div></section>
+      <section id="how-it-works" class="story shell" aria-labelledby="story-title">
+        <div class="story-intro"><p class="eyebrow">من أول اختيار، لحد الباب</p><h2 id="story-title">بسيطة. خطوة بخطوة.</h2></div>
+        <div class="story-layout">
+          <div class="story-phone-wrap"><figure class="phone story-phone"><img src="/assets/app-products.webp" width="390" height="844" loading="lazy" alt="قائمة منتجات تجريبية حقيقية داخل تطبيق سموع كويك"/><figcaption>صور وأسعار واضحة، قبل ما تطلب</figcaption></figure></div>
+          <div class="story-steps">
+            <article class="story-step" data-step="choose"><span class="step-number" aria-hidden="true">01 / اختار</span><h3>اللي بدّك إياه،<br/>على ذوقك.</h3><p>اختَر المتجر، شوف الصور والأسعار، وأضف الأصناف والكميات اللي بتناسبك.</p></article>
+            <article class="story-step" data-step="order"><span class="step-number" aria-hidden="true">02 / اطلب</span><h3>طلب واضح.<br/>من أول خطوة.</h3><p>راجع سلتك، اكتب عنوانك بالتفصيل، وتأكد من المجموع ورسوم التوصيل قبل التأكيد.</p><p class="detail-line">اختيارك وعنوانك وتفاصيلك. كلّها بإيدك.</p></article>
+            <article class="story-step" data-step="track"><span class="step-number" aria-hidden="true">03 / تابع</span><h3>خليك قريب<br/>من طلبك.</h3><p>افتح «طلباتي» لمتابعة الحالة، وتواصل مع المتجر أو الكابتن من تفاصيل الطلب عند الحاجة.</p><ol class="order-stages" aria-label="مراحل الطلب"><li>قيد التحضير</li><li>جاهز للاستلام</li><li>في الطريق</li></ol><small>مراحل توضيحية؛ تظهر حالة طلبك الفعلية داخل التطبيق.</small></article>
           </div>
-          <a class="text-link" href="#download">ابدأ من التطبيق ←</a>
-        </div>
-        <ol class="steps">
-          <li>
-            <span dir="ltr">01</span>
-            <h3>اختَر المتجر</h3>
-            <p>تصفّح الخيارات في منطقتك.</p>
-          </li>
-          <li>
-            <span dir="ltr">02</span>
-            <h3>اختَر طلبك</h3>
-            <p>أضف الأصناف والكميات للسلة.</p>
-          </li>
-          <li>
-            <span dir="ltr">03</span>
-            <h3>حدّد عنوانك</h3>
-            <p>اكتب عنوانًا واضحًا وراجع الرسوم.</p>
-          </li>
-          <li>
-            <span dir="ltr">04</span>
-            <h3>تابع طلبك</h3>
-            <p>تابع حالته وتواصل عند الحاجة.</p>
-          </li>
-          <li>
-            <span dir="ltr">05</span>
-            <h3>استلمه</h3>
-            <p>يصل طلبك للعنوان الذي حددته.</p>
-          </li>
-        </ol>
-      </section>
-      <section class="app-preview shell reveal" aria-labelledby="preview-title">
-        <div class="preview-copy">
-          <span class="eyebrow">من داخل التطبيق</span>
-          <h2 id="preview-title">من منطقتك<br />للي على بالك.</h2>
-          <p>
-            صور المنتجات وأسعارها أمامك. أضف اختيارك إلى السلة، وعدّل الكمية قبل
-            الانتقال لإتمام الطلب.
-          </p>
-          <p class="preview-note">
-            لقطات فعلية من واجهة التطبيق بحجم الهاتف، باستخدام متجر ومنتجات
-            تجريبية للتوضيح. المتاجر والمنتجات المتاحة تختلف حسب منطقتك.
-          </p>
-          <a class="support-link" href="#app-screens"
-            >شوف التطبيق <span aria-hidden="true">↓</span></a
-          >
-        </div>
-        <div
-          id="app-screens"
-          class="screenshots"
-          tabindex="0"
-          role="region"
-          aria-label="لقطات التطبيق، اسحب لتصفح الصور"
-        >
-          <figure>
-            <img
-              src="/assets/app-products.webp"
-              width="390"
-              height="844"
-              loading="lazy"
-              alt="لقطة فعلية لقائمة المنتجات التجريبية وأسعارها في سموع كويك"
-            />
-            <figcaption>اختَر من القائمة</figcaption>
-          </figure>
-          <figure>
-            <img
-              src="/assets/app-home.webp"
-              width="390"
-              height="844"
-              loading="lazy"
-              alt="لقطة فعلية لاختيار منطقة التوصيل في سموع كويك"
-            />
-            <figcaption>حدّد منطقتك</figcaption>
-          </figure>
         </div>
       </section>
-      <aside class="parcel-notice shell reveal" aria-labelledby="parcel-title">
-        <img
-          src="/assets/parcel-delivery.webp"
-          width="900"
-          height="600"
-          loading="lazy"
-          alt="سموع كويك — توصيل الطرود قريبًا"
-        />
-        <div>
-          <span class="eyebrow">قريبًا، خطوة جديدة</span>
-          <h2 id="parcel-title">توصيل الطرود</h2>
-          <p>نعمل على إضافته إلى خدماتنا. سنعلن هنا عندما يصبح متاحًا.</p>
-        </div>
-      </aside>
-      <section class="faq shell reveal" aria-labelledby="faq-title">
-        <div class="section-title">
-          <h2 id="faq-title">عندك سؤال؟</h2>
-          <p>أجوبة سريعة عن تجربة سموع كويك.</p>
-        </div>
+      <section class="delivery-scene" aria-labelledby="delivery-title"><img src="/assets/samou-delivery.webp" width="1000" height="488" loading="lazy" alt="سموع كويك يجمع الطعام ومشتريات البيت"/><div class="shell delivery-copy reveal"><p class="eyebrow">04 / استلم</p><h2 id="delivery-title">من محلّك المفضل،<br/>لحد عندك.</h2><p>عنوان واضح، وطلب بتعرف تفاصيله.<br/>والباقي، خطوة بخطوة معك.</p></div></section>
+      <section id="about" class="about shell"><p class="eyebrow">ليش سموع كويك؟</p><div><h2>من البلد، لأهل البلد.</h2><p>نقرّب متاجر السموع من أهلها. خيارات واضحة، متابعة من التطبيق، ودعم محلي يعرف بلدك.</p><a class="text-link" href="https://wa.me/970569189337" target="_blank" rel="noopener noreferrer">احكي معنا على واتساب ↗</a></div></section>
+      <aside class="parcel-notice shell"><span class="coming-tag">قريبًا</span><strong>توصيل الطرود</strong><p>خطوة جديدة نعمل عليها. سنعلن عندما تصبح متاحة.</p></aside>
+      <section id="faq" class="faq shell" aria-labelledby="faq-title"><div><p class="eyebrow">قبل ما تبدأ</p><h2 id="faq-title">عندك سؤال؟</h2><p>نحن معك من 10 صباحًا<br/>حتى 12 منتصف الليل.</p></div>
         <div class="faq-list">
           <details>
             <summary>وين الخدمة متاحة؟</summary>
@@ -437,41 +247,18 @@
           <details>
             <summary>متى بتتوفر نسخة iPhone؟</summary>
             <p>
-              نسخة iPhone غير متاحة للتنزيل حاليًا، ولم نحدد موعد إطلاق. سنعلن
-              هنا وعلى صفحاتنا عندما تصبح جاهزة.
+              ستتوفر نسخة iPhone عند إطلاق سموع كويك. تابع العدّاد لمعرفة الوقت المتبقي.
             </p>
           </details>
         </div>
+
       </section>
-      <section id="download" class="download shell reveal">
-        <div class="download-heading">
-          <img
-            src="/assets/brand-mark.webp"
-            alt="شعار سموع كويك"
-            width="96"
-            height="96"
-          />
-          <h2>سموع كويك، قريبًا.<br /><span>خليك جاهز.</span></h2>
-          <p>اختار، اطلب، تابع طلبك من نفس المكان.</p>
-          <div class="download-qr">
-            <img
-              src="/assets/download-qr.svg"
-              width="120"
-              height="120"
-              loading="lazy"
-              alt="QR لفتح صفحة موعد الإطلاق على هاتفك"
-            />
-            <div>
-              <strong>تتصفح من الكمبيوتر؟</strong>
-              <p>امسح الرمز بكاميرا هاتفك،<br />وتابع العدّ التنازلي.</p>
-            </div>
-          </div>
-        </div>
+      <section id="download" class="download"><div class="shell download-layout"><div class="download-copy"><img src="/assets/brand-mark.webp" width="64" height="64" alt="شعار سموع كويك" loading="lazy"/><h2>سموع كويك، قريبًا.</h2><p>نجهّز لكم التطبيق. تابعوا العدّاد وأخبار الإطلاق، وسنعلن هنا عند إتاحة التنزيل.</p><p class="iphone-note">التطبيق غير متاح للتنزيل حاليًا.</p></div>
         <div
           class="download-card launch-card"
           data-launch-at="2026-09-26T13:13:17Z"
         >
-          <h3>قريبًا بعد أسبوعين</h3>
+          <h3>موعد الإطلاق الرسمي</h3>
           <p class="launch-date">
             نلتقي في <time datetime="2026-09-26T13:13:17Z">26 سبتمبر 2026</time>
           </p>
@@ -502,76 +289,10 @@
             </p></noscript
           >
         </div>
-      </section>
-      <section class="help shell reveal">
-        <h2>عندك سؤال قبل الإطلاق؟</h2>
-        <p>نحن معك، خطوة بخطوة.</p>
-        <a href="https://wa.me/970569189337" class="support-link"
-          >تواصل مع الدعم على واتساب <span aria-hidden="true">↗</span></a
-        >
-      </section>
+
+      </div></section>
     </main>
-    <footer class="site-footer">
-      <div class="shell footer-grid">
-        <div class="footer-brand">
-          <a class="brand" href="/#main"
-            ><img
-              src="/assets/brand-mark.webp"
-              width="72"
-              height="72"
-              alt="شعار سموع كويك"
-            /><span>سموع كويك<small dir="ltr">Samou Quick</small></span></a
-          >
-          <p>متاجر السموع وطلباتك اليومية، أقرب إليك.</p>
-          <a class="pill" href="/#download"
-            >موعد الإطلاق <span aria-hidden="true">↓</span></a
-          ><small>قريبًا · 26 سبتمبر 2026</small>
-        </div>
-        <nav class="footer-nav" aria-label="عن سموع كويك">
-          <h2>سموع كويك</h2>
-          <a href="/#about">عن الشركة</a><a href="/privacy">سياسة الخصوصية</a
-          ><a href="/terms">الشروط والأحكام</a
-          ><a href="/delete-account">طلب حذف الحساب</a>
-        </nav>
-        <div class="footer-contact">
-          <h2>خلينا على تواصل</h2>
-          <p class="support-hours">
-            ساعات الدعم: من 10 صباحًا<br />حتى 12 منتصف الليل.
-          </p>
-          <a
-            class="support-link"
-            href="https://wa.me/970569189337"
-            target="_blank"
-            rel="noopener noreferrer"
-            >الدعم على واتساب ↗</a
-          ><a class="phone-link" href="tel:+970569189337" dir="ltr"
-            >+970 56 918 9337</a
-          >
-          <nav class="social-links" aria-label="شبكات التواصل الاجتماعي">
-            <a
-              href="https://www.facebook.com/SamouQuick"
-              target="_blank"
-              rel="noopener noreferrer"
-              >فيسبوك ↗</a
-            ><a
-              href="https://www.instagram.com/samouquick/"
-              target="_blank"
-              rel="noopener noreferrer"
-              >إنستغرام ↗</a
-            >
-          </nav>
-        </div>
-      </div>
-      <div class="shell footer-bottom">
-        <span>© 2026 سموع كويك. جميع الحقوق محفوظة.</span
-        ><span>من البلد، لأهل البلد.</span>
-      </div>
-    </footer>
-    <nav class="mobile-download" aria-label="تنزيل التطبيق">
-      <span>سموع كويك<small>قريبًا بعد أسبوعين</small></span
-      ><a class="pill" href="/#download"
-        >موعد الإطلاق <span aria-hidden="true">↓</span></a
-      >
-    </nav>
+    <footer class="site-footer"><div class="shell footer-main"><a class="brand" href="#main"><img src="/assets/brand-mark.webp" width="44" height="44" alt=""/><span>سموع كويك<small>من البلد، لأهل البلد.</small></span></a><nav aria-label="روابط قانونية"><a href="/privacy">الخصوصية</a><a href="/terms">الشروط والأحكام</a><a href="/delete-account">حذف الحساب</a></nav><nav aria-label="تواصل معنا"><a href="https://www.facebook.com/SamouQuick" target="_blank" rel="noopener noreferrer">فيسبوك ↗</a><a href="https://www.instagram.com/samouquick/" target="_blank" rel="noopener noreferrer">إنستغرام ↗</a><a href="https://wa.me/970569189337" target="_blank" rel="noopener noreferrer">واتساب ↗</a></nav></div><div class="shell footer-bottom"><span>© 2026 سموع كويك</span><a href="tel:+970569189337" dir="ltr">+970 56 918 9337</a><span>الدعم: 10 صباحًا – 12 منتصف الليل</span></div></footer>
+    <nav class="mobile-download" aria-label="موعد إطلاق التطبيق"><span>سموع كويك<small>كل اللي بدك إياه، أقرب.</small></span><a class="button small" href="#download">موعد الإطلاق ↓</a></nav>
   </body>
 </html>

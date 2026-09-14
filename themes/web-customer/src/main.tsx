@@ -3,7 +3,7 @@ import { ZoneProvider } from './components/ZoneProvider';
 import { AppErrorBoundary, LanguageProvider, OfflineBanner, bootstrapApp } from '@samou-go/ui';
 import { createRoot, type Root } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { AppToaster } from '@samou-go/api-client';
 import './index.css';
 import App from './App.tsx';
 import { CartProvider } from './components/CartProvider';
@@ -34,7 +34,6 @@ window.addEventListener('unhandledrejection', (event) => {
 // ---------------------------------------------------------------------------
 const isNative =
   typeof window !== 'undefined' &&
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   (window.location.protocol === 'capacitor:' ||
     window.location.hostname === 'localhost' && navigator.userAgent.includes('Capacitor'));
 
@@ -84,6 +83,6 @@ root.render(
         </AuthProvider>
       </BrowserRouter>
     </LanguageProvider>
-    <Toaster />
+    <AppToaster />
   </AppErrorBoundary>,
 );

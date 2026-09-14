@@ -1,6 +1,6 @@
-import rateLimit from 'express-rate-limit';
-import type { ApiFailure } from '@samou-go/shared-types';
-import { env } from '../config/env';
+import rateLimit from "express-rate-limit";
+import type { ApiFailure } from "@samou-go/shared-types";
+import { env } from "../config/env";
 
 /**
  * Applied to `POST /auth/login` and `POST /auth/register`.
@@ -13,15 +13,15 @@ import { env } from '../config/env';
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1_000, // 15 minutes
   max: env.isDevelopment ? 1000 : 10,
-  standardHeaders: 'draft-7', // RateLimit-* headers (RFC draft)
+  standardHeaders: "draft-7", // RateLimit-* headers (RFC draft)
   legacyHeaders: false,
   skip: () => env.isTest,
   message: {
     success: false,
     error: {
-      code: 'TOO_MANY_REQUESTS',
+      code: "TOO_MANY_REQUESTS",
       message:
-        'طلبات كثيرة جداً، يرجى المحاولة بعد 15 دقيقة / Too many attempts — try again in 15 minutes',
+        "طلبات كثيرة جداً، يرجى المحاولة بعد 15 دقيقة / Too many attempts — try again in 15 minutes",
     },
   } satisfies ApiFailure,
   // Store defaults to in-memory. For a multi-instance deployment, swap to
@@ -37,15 +37,15 @@ export const authLimiter = rateLimit({
 export const otpIpLimiter = rateLimit({
   windowMs: 5 * 60 * 1_000, // 5 minutes
   max: env.isDevelopment ? 1000 : 20,
-  standardHeaders: 'draft-7',
+  standardHeaders: "draft-7",
   legacyHeaders: false,
   skip: () => env.isTest,
   message: {
     success: false,
     error: {
-      code: 'TOO_MANY_REQUESTS',
+      code: "TOO_MANY_REQUESTS",
       message:
-        'طلبات كثيرة جداً، يرجى المحاولة بعد 5 دقائق / Too many requests — try again in 5 minutes',
+        "طلبات كثيرة جداً، يرجى المحاولة بعد 5 دقائق / Too many requests — try again in 5 minutes",
     },
   } satisfies ApiFailure,
 });
@@ -59,15 +59,15 @@ export const otpIpLimiter = rateLimit({
 export const orderLimiter = rateLimit({
   windowMs: 10 * 60 * 1_000, // 10 minutes
   max: env.isDevelopment ? 1000 : 5,
-  standardHeaders: 'draft-7',
+  standardHeaders: "draft-7",
   legacyHeaders: false,
   skip: () => env.isTest,
   message: {
     success: false,
     error: {
-      code: 'TOO_MANY_REQUESTS',
+      code: "TOO_MANY_REQUESTS",
       message:
-        'لقد أرسلت طلبات كثيرة، يرجى الانتظار قليلاً / You placed too many orders — please wait a moment',
+        "لقد أرسلت طلبات كثيرة، يرجى الانتظار قليلاً / You placed too many orders — please wait a moment",
     },
   } satisfies ApiFailure,
 });
@@ -82,15 +82,15 @@ export const orderLimiter = rateLimit({
 export const quoteLimiter = rateLimit({
   windowMs: 5 * 60 * 1_000, // 5 minutes
   max: env.isDevelopment ? 1000 : 30,
-  standardHeaders: 'draft-7',
+  standardHeaders: "draft-7",
   legacyHeaders: false,
   skip: () => env.isTest,
   message: {
     success: false,
     error: {
-      code: 'TOO_MANY_REQUESTS',
+      code: "TOO_MANY_REQUESTS",
       message:
-        'طلبات كثيرة جداً، يرجى المحاولة بعد قليل / Too many requests — please wait a moment',
+        "طلبات كثيرة جداً، يرجى المحاولة بعد قليل / Too many requests — please wait a moment",
     },
   } satisfies ApiFailure,
 });
@@ -102,11 +102,32 @@ export const quoteLimiter = rateLimit({
 export const apiLimiter = rateLimit({
   windowMs: 60_000,
   max: 1200,
-  standardHeaders: 'draft-7',
+  standardHeaders: "draft-7",
   legacyHeaders: false,
   skip: () => env.isTest,
   message: {
     success: false,
-    error: { code: 'TOO_MANY_REQUESTS', message: 'طلبات كثيرة، يرجى الانتظار قليلًا / Too many requests, please wait' },
+    error: {
+      code: "TOO_MANY_REQUESTS",
+      message:
+        "طلبات كثيرة، يرجى الانتظار قليلًا / Too many requests, please wait",
+    },
+  } satisfies ApiFailure,
+});
+
+/** Bound CPU-intensive image decoding independently of lightweight API polling. */
+export const uploadProcessingLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skip: () => env.isTest,
+  message: {
+    success: false,
+    error: {
+      code: "TOO_MANY_REQUESTS",
+      message:
+        "يرجى الانتظار قليلًا قبل رفع المزيد / Please wait before uploading more images",
+    },
   } satisfies ApiFailure,
 });

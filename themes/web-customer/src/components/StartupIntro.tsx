@@ -31,6 +31,7 @@ export function StartupIntro({ onComplete, waitingForSession }: { onComplete: ()
     }
     let watchdog: number | undefined;
     let active = true;
+    const mountedVideo = video.current;
     const resume = () => {
       window.clearTimeout(watchdog);
       if (document.hidden) { video.current?.pause(); return; }
@@ -49,7 +50,7 @@ export function StartupIntro({ onComplete, waitingForSession }: { onComplete: ()
       active = false;
       window.clearTimeout(watchdog);
       document.removeEventListener('visibilitychange', resume);
-      video.current?.pause();
+      mountedVideo?.pause();
     };
   }, [fallback, finish]);
 

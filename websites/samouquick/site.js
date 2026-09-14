@@ -1,18 +1,74 @@
-// Progressive enhancements only: all content and controls work without scripts.
-if ("IntersectionObserver" in window) {
-  const reveal = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries)
-        if (entry.isIntersecting) {
-          entry.target.classList.add("shown");
-          reveal.unobserve(entry.target);
-        }
-    },
-    { threshold: 0.12 },
-  );
-  document
-    .querySelectorAll(".reveal")
-    .forEach((section) => reveal.observe(section));
+// Public-site enhancements. No app/API state or external requests.
+const motion = matchMedia('(prefers-reduced-motion: reduce)');
+const header = document.querySelector('.site-header');
+let scrollFrame = 0;
+function updateHeader() {
+  if (scrollFrame) return;
+  scrollFrame = requestAnimationFrame(() => {
+    header?.classList.toggle('scrolled', scrollY > 40);
+    scrollFrame = 0;
+  });
+}
+window.addEventListener('scroll', updateHeader, { passive: true });
+updateHeader();
+if ('IntersectionObserver' in window) {
+  document.body.classList.add('motion-ready');
+  const reveal = new IntersectionObserver(entries => {
+    for (const entry of entries) if (entry.isIntersecting) {
+      entry.target.classList.remove('pending'); reveal.unobserve(entry.target);
+    }
+  }, { threshold: 0.08 });
+  if (!motion.matches) document.querySelectorAll('.reveal').forEach(el => {
+    el.classList.add('pending'); reveal.observe(el);
+  });
+  const phone = document.querySelector('.story-phone-wrap');
+  const steps = new IntersectionObserver(entries => {
+    for (const entry of entries) if (entry.isIntersecting && phone) phone.dataset.active = entry.target.dataset.step;
+  }, { rootMargin: '-25% 0px -25% 0px', threshold: 0.15 });
+  document.querySelectorAll('.story-step').forEach(el => steps.observe(el));
+  const stickyDownload = document.querySelector('.mobile-download');
+  const download = document.querySelector('#download');
+  if (download && stickyDownload) new IntersectionObserver(entries => {
+    stickyDownload.classList.toggle('is-hidden', entries[0].isIntersecting);
+  }, { threshold: 0.1 }).observe(download);
+}
+
+const video = document.querySelector('.hero-video');
+const toggle = document.querySelector('.motion-control');
+const connection = navigator.connection;
+let heroVisible = true;
+let userPaused = false;
+const conserve = () => motion.matches || connection?.saveData || ['slow-2g', '2g', '3g'].includes(connection?.effectiveType);
+function syncVideo() {
+  if (!video) return;
+  if (conserve()) {
+    video.pause(); video.removeAttribute('src'); video.load();
+    if (toggle) toggle.hidden = true;
+    return;
+  }
+  if (!video.getAttribute('src')) video.src = video.dataset.source;
+  if (document.hidden || !heroVisible || userPaused) { video.pause(); return; }
+  video.play().then(() => { if (toggle) toggle.hidden = false; }).catch(() => { if (toggle) toggle.hidden = true; });
+}
+if (video) {
+  // Poster is the complete fallback when motion/data saving/autoplay prevents video.
+  if ('IntersectionObserver' in window) new IntersectionObserver(entries => {
+    heroVisible = entries[0].isIntersecting; syncVideo();
+  }, { threshold: 0.05 }).observe(video);
+  video.addEventListener('error', () => { if (toggle) toggle.hidden = true; });
+  toggle?.addEventListener('click', () => {
+    userPaused = !userPaused;
+    toggle.textContent = userPaused ? 'تشغيل الحركة' : 'إيقاف الحركة';
+    toggle.setAttribute('aria-label', userPaused ? 'تشغيل حركة الخلفية' : 'إيقاف حركة الخلفية');
+    syncVideo();
+  });
+  document.addEventListener('visibilitychange', syncVideo);
+  motion.addEventListener('change', () => {
+    if (motion.matches) document.querySelectorAll('.reveal.pending').forEach(el => el.classList.remove('pending'));
+    syncVideo();
+  });
+  connection?.addEventListener('change', syncVideo);
+  syncVideo();
 }
 
 // One fixed launch instant for every visitor; reloads never restart the timer.

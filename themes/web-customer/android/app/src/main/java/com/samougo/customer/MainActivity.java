@@ -23,6 +23,7 @@ public class MainActivity extends BridgeActivity {
     private static final String CHANNEL_ORDERS_HIGH = "orders_high_priority";
 
     private static volatile boolean resumed = false;
+    private ScopedMediaWebChromeClient scopedMediaClient;
 
     public static boolean isUserActive(android.content.Context context) {
         android.app.KeyguardManager keyguard = context.getSystemService(android.app.KeyguardManager.class);
@@ -39,6 +40,12 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onDestroy() {
+        if (scopedMediaClient != null) scopedMediaClient.finishSelection(null);
+        super.onDestroy();
+    }
+
+    @Override
     public void onPause() {
         resumed = false;
         super.onPause();
@@ -50,6 +57,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(StopAlarmPlugin.class);
         registerPlugin(SettingsPlugin.class);
         super.onCreate(savedInstanceState);
+        scopedMediaClient = new ScopedMediaWebChromeClient(bridge);
+        bridge.getWebView().setWebChromeClient(scopedMediaClient);
         // Apply system-bar/cutout insets to the entire WebView viewport, including
         // fixed headers and sheets. Do not include IME insets (adjustResize handles it).
         android.view.View content = findViewById(android.R.id.content);

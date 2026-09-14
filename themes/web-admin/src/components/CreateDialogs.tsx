@@ -1,5 +1,6 @@
 import { AppSelect } from '@samou-go/ui';
-import { StoreHomeCategoryPicker, saveStoreHomeCategories } from './StoreHomeCategories';
+import { getPlatformSettings } from '@samou-go/api-client';
+import { selectableHomeCategories } from './StoreHomeCategories';
 import { StoreChoices } from './StoreAssignmentPicker';
 /**
  * Samou' Go — Admin creation dialogs.
@@ -13,7 +14,7 @@ import { StoreChoices } from './StoreAssignmentPicker';
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, Plus, Trash2, X } from 'lucide-react';
 import { useCreateCaptain, useCreateStore, useStores, useToast } from '@/hooks/useApi';
-import type { AdminCreateCaptainInput, AdminCreateStoreInput, StoreType } from '@samou-go/shared-types';
+import type { AdminCreateCaptainInput, AdminCreateStoreInput, StoreType, HomeCategory } from '@samou-go/shared-types';
 import { STORE_TYPE_LABELS } from '@samou-go/shared-types';
 import { useLanguage } from '@samou-go/ui';
 
@@ -201,8 +202,16 @@ export function CreateStoreDialog({
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
   const [phone, setPhone] = useState('');
-  const [storeType, setStoreType] = useState<StoreType | ''>('');
-  const [categoryKeys, setCategoryKeys] = useState<string[]>([]);
+  const [storeType, setStoreType] = useState('');
+  const [customTypes, setCustomTypes] = useState<HomeCategory[]>([]);
+  const [typeError, setTypeError] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setTypeError(false);
+    void getPlatformSettings().then(settings => { if (!cancelled) setCustomTypes(selectableHomeCategories(settings.homeCategories ?? [])); }).catch(() => { if (!cancelled) setTypeError(true); });
+    return () => { cancelled = true; };
+  }, [open]);
   const [saving, setSaving] = useState(false);
   const [managerName, setManagerName] = useState('');
   const [password, setPassword] = useState('');
@@ -225,14 +234,12 @@ export function CreateStoreDialog({
       nameEn: nameEn.trim(),
       phone: phone.trim(),
       isActive,
-      ...(storeType ? { storeType: storeType as StoreType } : {}),
+      ...(storeType.startsWith('category:') ? { storeType: 'STORE' as StoreType, homeCategoryKeys: [storeType.slice(9)] } : storeType ? { storeType: storeType as StoreType } : {}),
       ...(managerName.trim() ? { managerName: managerName.trim() } : {}),
       ...(password ? { password } : {}),
     };
     const result = await create.run(input);
     if (result) {
-      try { await saveStoreHomeCategories(result.store.id, categoryKeys); }
-      catch { toast.error('تم إنشاء المتجر، لكن تعذر حفظ فئاته. افتح تصنيف المتجر لإعادة المحاولة.', 'Store created; category assignment failed. Edit its categories to retry.'); }
       toast.success(
         `تم إنشاء المتجر «${result.store.nameAr}»`,
         `Store "${result.store.nameEn}" created`
@@ -242,7 +249,7 @@ export function CreateStoreDialog({
       setNameEn('');
       setPhone('');
       setStoreType('');
-      setCategoryKeys([]);
+
       setManagerName('');
       setPassword('');
       setIsActive(true);
@@ -299,7 +306,7 @@ export function CreateStoreDialog({
           <AppSelect
             className={inputClass}
             value={storeType}
-            onChange={e => setStoreType(e.target.value as StoreType | '')}
+            onChange={e => setStoreType(e.target.value)}
             aria-label="Store type"
           >
             <option value="">{t('— اختر النوع —', '— Select type —')}</option>
@@ -308,9 +315,10 @@ export function CreateStoreDialog({
                 {t(label.ar, label.en)}
               </option>
             ))}
+            {customTypes.map(category => <option key={category.key} value={`category:${category.key}`}>{t(category.ar, category.en)}{!category.enabled ? t(' (مخفية عن الزبون)', ' (hidden)') : ''}</option>)}
           </AppSelect>
+          {typeError && <p role="alert" className="text-sm text-danger">{t('تعذر تحميل الأنواع المخصصة. أعد فتح النافذة للمحاولة.', 'Custom types could not load. Reopen this dialog to retry.')}</p>}
         </FieldLabel>
-        <StoreHomeCategoryPicker value={categoryKeys} onChange={setCategoryKeys} disabled={saving} />
         <FieldLabel hint="Manager display name (optional)">
           <input
             className={inputClass}

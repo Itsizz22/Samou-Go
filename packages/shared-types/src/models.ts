@@ -98,6 +98,8 @@ export interface Store {
 }
 
 export interface Category {
+  /** Display-only bucket for products whose categoryId is null. */
+  isSynthetic?: boolean;
   id: string;
   nameAr: string;
   nameEn: string;
@@ -122,6 +124,8 @@ export interface ProductOptionItem {
 
 /** A product option group (e.g. "الإضافات", "الحجم", "الصلصات"). */
 export interface ProductOptionGroup {
+  templateId?: string | null;
+  linkedProductCount?: number;
   kind?: 'ADDON' | 'SIZE' | 'INGREDIENT' | 'FIXED';
   id: string;
   productId: string;
@@ -444,4 +448,11 @@ export interface OrderSummary {
 export interface DiscoveryProduct extends PopularProduct {
   createdAt: string;
   isRecent: boolean;
+}
+
+/** A reusable option configuration owned by one store. */
+export interface ProductOptionTemplateSummary {
+  id: string;
+  name: string;
+  linkedProductCount: number;
 }

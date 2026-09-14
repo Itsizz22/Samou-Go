@@ -443,6 +443,7 @@ export interface SetAvailabilityInput {
 
 /** POST /admin/stores — admin creates a store plus its manager account. */
 export interface AdminCreateStoreInput {
+  homeCategoryKeys?: string[];
   nameAr: string;
   nameEn: string;
   /** `05XXXXXXXX` — Palestinian mobile. Becomes the manager account's phone. */

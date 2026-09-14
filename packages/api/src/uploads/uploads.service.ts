@@ -300,7 +300,7 @@ export async function finalizeUpload(
   }
 
   const base = baseKeyOf(key);
-  const processed = await processImage({ buffer: raw, kind: kind === 'option' ? 'category' : kind });
+  const processed = await processImage({ buffer: raw, kind: kind === 'option' ? 'category' : kind, purpose: parsed.kind === 'store' ? parsed.purpose : undefined });
 
   // Persist the image first; publishing the banner is a separate settings save.
   // Fresh immutable keys keep cached clients from showing the previous image.
@@ -312,7 +312,27 @@ export async function finalizeUpload(
     return { url: storage.finalUrl(finalKey), width: variant.width, height: variant.height };
   }
 
-  if (parsed.kind === 'user' || parsed.kind === 'store' || parsed.kind === 'offer' || parsed.kind === 'category') {
+  if (parsed.kind === 'store') {
+    const finalKey = `${base}-responsive.webp`;
+    const written: string[] = [];
+    try {
+      for (const variant of processed.variants) {
+        const variantKey = variant.name === 'banner' ? finalKey : `${base}-responsive-${variant.name}.webp`;
+        await storage.writeFinal(variantKey, variant.buffer);
+        written.push(variantKey);
+      }
+      const url = storage.finalUrl(finalKey);
+      await prisma.store.update({ where: { id: store!.id }, data: parsed.purpose === 'cover' ? { coverUrl: url } : { logoUrl: url } });
+      // Retain the private source for future reprocessing; it is not publicly served.
+      const variant = processed.variants[0]!;
+      return { url, width: variant.width, height: variant.height };
+    } catch (error) {
+      for (const writtenKey of written) await storage.removeFinal(writtenKey).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  if (parsed.kind === 'user' || parsed.kind === 'offer' || parsed.kind === 'category') {
     const variant = processed.variants[0]!;
     const finalKey = `${base}.webp`;
     const url = storage.finalUrl(finalKey);
@@ -334,17 +354,8 @@ export async function finalizeUpload(
           where: { id: category!.id },
           data: { imageUrl: url },
         });
-      } else if (parsed.purpose === 'cover') {
-        await prisma.store.update({
-          where: { id: store!.id },
-          data: { coverUrl: url },
-        });
-      } else {
-        await prisma.store.update({
-          where: { id: store!.id },
-          data: { logoUrl: url },
-        });
       }
+
     } catch (error) {
       await storage.removeFinal(finalKey).catch(() => undefined);
       throw error;
@@ -396,6 +407,14 @@ function keyFromPublicUrl(url: string | null): string | null {
   return url.slice(index + marker.length);
 }
 
+async function removeStoreMedia(finalKey: string): Promise<void> {
+  await storage.removeFinal(finalKey);
+  if (!finalKey.endsWith('-responsive.webp')) return;
+  const base = finalKey.slice(0, -'-responsive.webp'.length);
+  for (const size of ['sm', 'md', 'lg']) await storage.removeFinal(`${base}-responsive-${size}.webp`).catch(() => undefined);
+  for (const ext of ['jpg', 'png', 'webp']) await storage.removeRaw(`${base}.${ext}`).catch(() => undefined);
+}
+
 /**
  * DELETE /uploads/current — removes the image currently attached to the
  * caller's own avatar, or (with `resourceId`) to a product or store they
@@ -440,7 +459,7 @@ export async function removeCurrentImage(
     if (!field) return;
 
     const finalKey = keyFromPublicUrl(field);
-    if (finalKey) await storage.removeFinal(finalKey).catch(() => undefined);
+    if (finalKey) await removeStoreMedia(finalKey).catch(() => undefined);
 
     await prisma.store.update({
       where: { id: store.id },
@@ -533,7 +552,8 @@ export async function removeUpload(key: string, caller: UploadCaller): Promise<v
 
   if (parsed.kind === 'store') {
     const store = await resolveStore(parsed.ownerId, caller);
-    const url = storage.finalUrl(`${base}.webp`);
+    const current = parsed.purpose === 'cover' ? store.coverUrl : store.logoUrl;
+    const url = current === storage.finalUrl(`${base}-responsive.webp`) ? current : storage.finalUrl(`${base}.webp`);
     if (parsed.purpose === 'cover') {
       if (store.coverUrl === url) {
         await prisma.store.update({ where: { id: store.id }, data: { coverUrl: null } });
@@ -542,7 +562,7 @@ export async function removeUpload(key: string, caller: UploadCaller): Promise<v
       await prisma.store.update({ where: { id: store.id }, data: { logoUrl: null } });
     }
     await storage.removeRaw(key).catch(() => undefined);
-    await storage.removeFinal(`${base}.webp`).catch(() => undefined);
+    await removeStoreMedia(keyFromPublicUrl(url)!).catch(() => undefined);
     return;
   }
 

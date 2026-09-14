@@ -5,6 +5,7 @@ import { asyncHandler } from '../lib/async-handler';
 import { badRequest } from '../lib/http-error';
 import { noContent, ok } from '../lib/respond';
 import { authenticate, requireAuth } from '../middleware/authenticate';
+import { uploadProcessingLimiter } from '../middleware/rate-limit';
 import type { UploadCaller } from './uploads.service';
 import { finalizeUpload, presign, removeCurrentImage, removeUpload, storeRaw } from './uploads.service';
 
@@ -59,6 +60,7 @@ uploadsRouter.put(
 
 uploadsRouter.post(
   '/finalize',
+  uploadProcessingLimiter,
   asyncHandler(async (req, res) => {
     const body = finalizeSchema.parse(req.body);
     const data = await finalizeUpload(callerOf(req), body.key, body.kind);

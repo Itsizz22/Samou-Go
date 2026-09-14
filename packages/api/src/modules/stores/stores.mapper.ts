@@ -79,6 +79,7 @@ export function toProduct(product: ProductWithOptions): Product {
 export function toStoreWithCatalogue(
   store: PrismaStore & {
     categories: (PrismaCategory & { products: PrismaProduct[] })[];
+    products?: PrismaProduct[];
     dedicatedCaptains?: Array<Pick<import('../../lib/prisma-types').User, 'id' | 'name' | 'phone' | 'isAvailable' | 'isVerified'>>;
   }
 ): StoreWithCatalogue {
@@ -86,6 +87,11 @@ export function toStoreWithCatalogue(
     ...toCategory(category),
     products: category.products.map(toProduct),
   }));
+
+  if (store.products?.length) categories.push({
+    id: `uncategorized:${store.id}`, storeId: store.id, nameAr: 'بدون قسم', nameEn: 'Uncategorized',
+    imageUrl: null, sortOrder: 2147483647, isSynthetic: true, products: store.products.map(toProduct),
+  });
 
   return {
     ...toStore(store),

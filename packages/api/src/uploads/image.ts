@@ -1,12 +1,19 @@
-import sharp from 'sharp';
-import { badRequest } from '../lib/http-error';
-import { AVATAR_SIZE, OFFER_SIZE, PRODUCT_SIZES, WEBP_QUALITY } from './uploads.config';
+import sharp from "sharp";
+import { badRequest } from "../lib/http-error";
+import {
+  AVATAR_SIZE,
+  OFFER_SIZE,
+  PRODUCT_SIZES,
+  WEBP_QUALITY,
+} from "./uploads.config";
 
-const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const PNG_SIGNATURE = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+]);
 const JPEG_SIGNATURE = Buffer.from([0xff, 0xd8, 0xff]);
-const RIFF_SIGNATURE = Buffer.from('RIFF');
+const RIFF_SIGNATURE = Buffer.from("RIFF");
 
-export type ImageMime = 'image/jpeg' | 'image/png' | 'image/webp';
+export type ImageMime = "image/jpeg" | "image/png" | "image/webp";
 
 /**
  * MIME detection from file content, not the client's content-type header.
@@ -16,21 +23,27 @@ export function sniffImageType(buffer: Buffer): ImageMime | null {
   if (
     buffer.length >= 12 &&
     buffer.subarray(0, 4).equals(RIFF_SIGNATURE) &&
-    buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+    buffer.subarray(8, 12).toString("ascii") === "WEBP"
   ) {
-    return 'image/webp';
+    return "image/webp";
   }
-  if (buffer.length >= PNG_SIGNATURE.length && buffer.subarray(0, 8).equals(PNG_SIGNATURE)) {
-    return 'image/png';
+  if (
+    buffer.length >= PNG_SIGNATURE.length &&
+    buffer.subarray(0, 8).equals(PNG_SIGNATURE)
+  ) {
+    return "image/png";
   }
-  if (buffer.length >= JPEG_SIGNATURE.length && buffer.subarray(0, 3).equals(JPEG_SIGNATURE)) {
-    return 'image/jpeg';
+  if (
+    buffer.length >= JPEG_SIGNATURE.length &&
+    buffer.subarray(0, 3).equals(JPEG_SIGNATURE)
+  ) {
+    return "image/jpeg";
   }
   return null;
 }
 
 export interface ImageVariant {
-  name: 'avatar' | 'banner' | 'sm' | 'md' | 'lg';
+  name: "avatar" | "banner" | "sm" | "md" | "lg";
   width: number;
   height: number;
   buffer: Buffer;
@@ -47,38 +60,96 @@ export interface ProcessedImage {
  */
 export async function processImage(input: {
   buffer: Buffer;
-  kind: 'user' | 'product' | 'store' | 'offer' | 'category' | 'banner';
+  kind: "user" | "product" | "store" | "offer" | "category" | "banner";
+  purpose?: "logo" | "cover" | "image";
 }): Promise<ProcessedImage> {
-  if (input.kind === 'banner') {
+  if (input.kind === "store") {
+    try {
+      const variants: ImageVariant[] = [];
+      const max = input.purpose === "cover" ? 4000 : 2000;
+      for (const [name, size] of [
+        ["banner", max],
+        ["sm", 320],
+        ["md", 640],
+        ["lg", 1280],
+      ] as const) {
+        const { data, info } = await sharp(input.buffer, {
+          limitInputPixels: 40_000_000,
+        })
+          .rotate()
+          .resize(size, size, { fit: "inside", withoutEnlargement: true })
+          .webp({ quality: name === "banner" ? 95 : 88, effort: 4 })
+          .toBuffer({ resolveWithObject: true });
+        variants.push({
+          name,
+          buffer: data,
+          width: info.width,
+          height: info.height,
+        });
+      }
+      return { variants };
+    } catch {
+      throw badRequest("ملف صورة غير صالح / Invalid image file");
+    }
+  }
+  if (input.kind === "banner") {
     try {
       // Preserve the original ratio so the admin can adjust the visual crop.
-      const { data, info } = await sharp(input.buffer, { limitInputPixels: 40_000_000 })
-        .rotate().resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
-        .webp({ quality: WEBP_QUALITY }).toBuffer({ resolveWithObject: true });
-      return { variants: [{ name: 'banner', buffer: data, width: info.width, height: info.height }] };
-    } catch { throw badRequest('ملف صورة غير صالح / Invalid image file'); }
+      const { data, info } = await sharp(input.buffer, {
+        limitInputPixels: 40_000_000,
+      })
+        .rotate()
+        .resize(1600, 1600, { fit: "inside", withoutEnlargement: true })
+        .webp({ quality: WEBP_QUALITY })
+        .toBuffer({ resolveWithObject: true });
+      return {
+        variants: [
+          {
+            name: "banner",
+            buffer: data,
+            width: info.width,
+            height: info.height,
+          },
+        ],
+      };
+    } catch {
+      throw badRequest("ملف صورة غير صالح / Invalid image file");
+    }
   }
-  const targets: Array<{ name: ImageVariant['name']; size?: number; width?: number; height?: number }> =
-    input.kind === 'product'
+  const targets: Array<{
+    name: ImageVariant["name"];
+    size?: number;
+    width?: number;
+    height?: number;
+  }> =
+    input.kind === "product"
       ? [
-          { name: 'sm', size: PRODUCT_SIZES.sm },
-          { name: 'md', size: PRODUCT_SIZES.md },
-          { name: 'lg', size: PRODUCT_SIZES.lg },
+          { name: "sm", size: PRODUCT_SIZES.sm },
+          { name: "md", size: PRODUCT_SIZES.md },
+          { name: "lg", size: PRODUCT_SIZES.lg },
         ]
-      : input.kind === 'offer'
-      ? [{ name: 'banner' as const, width: OFFER_SIZE.width, height: OFFER_SIZE.height }]
-      : [{ name: 'avatar', size: AVATAR_SIZE }];
+      : input.kind === "offer"
+        ? [
+            {
+              name: "banner" as const,
+              width: OFFER_SIZE.width,
+              height: OFFER_SIZE.height,
+            },
+          ]
+        : [{ name: "avatar", size: AVATAR_SIZE }];
 
   try {
     const variants: ImageVariant[] = [];
     for (const target of targets) {
       const w = target.width ?? target.size ?? AVATAR_SIZE;
       const h = target.height ?? target.size ?? AVATAR_SIZE;
-      const { data, info } = await sharp(input.buffer)
+      const { data, info } = await sharp(input.buffer, {
+        limitInputPixels: 40_000_000,
+      })
         .rotate()
         .resize(w, h, {
-          fit: target.width !== undefined ? 'cover' : 'contain',
-          position: 'centre',
+          fit: target.width !== undefined ? "cover" : "contain",
+          position: "centre",
           background: { r: 255, g: 255, b: 255, alpha: 1 },
         })
         .webp({ quality: WEBP_QUALITY })
@@ -92,6 +163,6 @@ export async function processImage(input: {
     }
     return { variants };
   } catch {
-    throw badRequest('ملف صورة غير صالح / Invalid image file');
+    throw badRequest("ملف صورة غير صالح / Invalid image file");
   }
 }

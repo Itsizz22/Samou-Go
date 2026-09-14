@@ -11,9 +11,11 @@ import { startForegroundPolling } from './foreground-polling';
  * Every hook returns the same triple: `{ data, loading, error }` plus `reload`.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   API_URL,
+  getToken,
+  subscribeTokenChange,
   ApiError,
   createCaptain,
   createStore,
@@ -112,6 +114,8 @@ export function useResource<T>(
   load: (signal: AbortSignal) => Promise<T>,
   options: ResourceOptions<T> = {}
 ): Resource<T> {
+  const session = useSyncExternalStore(subscribeTokenChange, getToken);
+  key = `${session ?? "anonymous"}:${key}`;
   const { enabled = true, pollMs, stopWhen } = options;
 
   const [result, setResult] = useState<{ key: string; data: T } | null>(null);
@@ -537,6 +541,9 @@ export function useOrderEvent(
     source.onmessage = () => {
       void fetchDetail();
     };
+    // The server emits named SSE updates, which do not fire `onmessage`.
+    const handleUpdate = () => { void fetchDetail(); };
+    source.addEventListener('update', handleUpdate);
 
     source.onerror = () => {
       // Do NOT `source.close()` here: EventSource auto-reconnects with an
@@ -548,6 +555,7 @@ export function useOrderEvent(
 
     return () => {
       if (eventSourceRef.current === source) eventSourceRef.current = null;
+      source.removeEventListener('update', handleUpdate);
       source.close();
     };
   }, [orderId, fetchDetail]);

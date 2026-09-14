@@ -71,7 +71,7 @@ export function CategoriesPanel({ storeId }: Props) {
   const reload = () => void catalogue.reload();
 
   const categories = useMemo(
-    () => [...(catalogue.data?.categories ?? [])].sort((a, b) => a.sortOrder - b.sortOrder),
+    () => [...(catalogue.data?.categories ?? [])].filter(category => !category.isSynthetic).sort((a, b) => a.sortOrder - b.sortOrder),
     [catalogue.data]
   );
 

@@ -197,3 +197,13 @@ storesRouter.delete(
   authorize(UserRole.STORE_MANAGER, UserRole.ADMIN),
   asyncHandler(optionsController.deleteOptionGroupHandler)
 );
+
+storesRouter.get('/:storeId/option-templates', authenticate, authorize(UserRole.STORE_MANAGER, UserRole.ADMIN), asyncHandler(optionsController.listOptionTemplatesHandler));
+
+storesRouter.post('/:storeId/products/:productId/option-templates', authenticate, authorize(UserRole.STORE_MANAGER, UserRole.ADMIN), asyncHandler(optionsController.attachOptionTemplateHandler));
+
+storesRouter.post('/:storeId/products/:productId/options/:groupId/template', authenticate, authorize(UserRole.STORE_MANAGER, UserRole.ADMIN), asyncHandler(optionsController.promoteOptionTemplateHandler));
+
+storesRouter.post('/:storeId/products/:productId/options/:groupId/detach', authenticate, authorize(UserRole.STORE_MANAGER, UserRole.ADMIN), asyncHandler(optionsController.detachOptionTemplateHandler));
+
+storesRouter.delete('/:storeId/option-templates/:templateId', authenticate, authorize(UserRole.STORE_MANAGER, UserRole.ADMIN), asyncHandler(optionsController.deleteOptionTemplateHandler));

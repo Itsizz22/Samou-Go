@@ -1,3 +1,4 @@
+import { MotionValue } from '@/components/MotionValue';
 import { useAndroidOverlayBack } from '@/lib/androidBack';
 import { normalizeOptionGroups } from '@samou-go/shared-types';
 /**
@@ -175,7 +176,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
         initial={reduced ? false : { y: '100%' }}
         animate={{ y: 0 }}
         exit={reduced ? { opacity: 0 } : { y: '100%' }}
-        transition={reduced ? { duration: 0 } : { type: 'spring', damping: 25, stiffness: 300 }}
+        transition={reduced ? { duration: 0 } : { type: 'spring', damping: 32, stiffness: 380 }}
         drag="y"
         dragControls={dragControls}
         dragListener={false}
@@ -280,7 +281,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
                               (selections[group.id]?.size ?? 0) >= group.maxSelect)
                           }
                           onClick={() => toggleOption(group.id, item.id, group.maxSelect)}
-                          className={`flex min-h-20 w-full items-center gap-3 border-b border-line px-4 py-3 text-start text-sm transition last:border-b-0 active:bg-brand-surface disabled:cursor-default ${selected ? 'bg-brand-surface/40' : 'bg-surface hover:bg-canvas'}`}
+                          className={`flex min-h-20 w-full items-center gap-3 border-b border-line px-4 py-3 text-start text-sm transition-colors duration-200 last:border-b-0 active:bg-brand-surface disabled:cursor-default ${selected ? 'bg-brand-surface/40' : 'bg-surface hover:bg-canvas'}`}
                         >
                           {item.imageUrl ? (
                             <ImageWithFallback
@@ -365,7 +366,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
                 <Minus size={14} />
               </button>
               <span dir="ltr" className="min-w-6 text-center text-sm font-bold">
-                {quantity}
+                <MotionValue value={quantity} />
               </span>
               <button
                 type="button"
@@ -386,7 +387,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
             >
               <ShoppingBag size={16} className="shrink-0" />
               {t('أضف إلى السلة', 'Add to cart')} ·{' '}
-              <span dir="ltr">{formatCurrency(grandTotal)}</span>
+              <MotionValue value={formatCurrency(grandTotal)} />
             </button>
           </div>
         </div>

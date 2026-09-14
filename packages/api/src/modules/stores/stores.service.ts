@@ -187,9 +187,14 @@ export async function listManagedStores(managerId: string): Promise<Store[]> {
 
 /** One store with its whole menu — what the Store Details screen loads. */
 export async function getStoreWithCatalogue(storeId: string): Promise<StoreWithCatalogue> {
-  const store = await (prisma.store.findUnique as any)({
+  const store = await prisma.store.findUnique({
     where: { id: storeId },
     include: {
+      products: {
+        where: { categoryId: null, isAvailable: true },
+        orderBy: { nameAr: 'asc' },
+        include: { optionGroups: { orderBy: { sortOrder: 'asc' }, include: { items: { orderBy: { sortOrder: 'asc' } } } } },
+      },
       categories: {
         orderBy: [{ sortOrder: 'asc' }, { nameAr: 'asc' }],
         include: {
@@ -216,7 +221,7 @@ export async function getStoreWithCatalogue(storeId: string): Promise<StoreWithC
   }
 
   const estimates = await deliveryEstimates([storeId]);
-  return { ...toStoreWithCatalogue(store as any), deliveryEstimate: estimates.get(storeId) ?? null };
+  return { ...toStoreWithCatalogue(store), deliveryEstimate: estimates.get(storeId) ?? null };
 }
 
 /**
@@ -226,12 +231,17 @@ export async function getStoreWithCatalogue(storeId: string): Promise<StoreWithC
  * Never called from public-facing routes.
  */
 export async function getStoreWithFullCatalogue(storeId: string): Promise<StoreWithCatalogue> {
-  const store = await (prisma.store.findUnique as any)({
+  const store = await prisma.store.findUnique({
     where: { id: storeId },
     include: {
       dedicatedCaptains: {
         where: { role: UserRoleEnum.CAPTAIN },
         select: { id: true, name: true, phone: true, isAvailable: true, isVerified: true },
+      },
+      products: {
+        where: { categoryId: null },
+        orderBy: { nameAr: 'asc' },
+        include: { optionGroups: { orderBy: { sortOrder: 'asc' }, include: { items: { orderBy: { sortOrder: 'asc' } } } } },
       },
       categories: {
         orderBy: [{ sortOrder: 'asc' }, { nameAr: 'asc' }],
@@ -255,7 +265,7 @@ export async function getStoreWithFullCatalogue(storeId: string): Promise<StoreW
   if (!store) throw notFound('المتجر غير موجود / Store not found');
 
   const estimates = await deliveryEstimates([storeId]);
-  return { ...toStoreWithCatalogue(store as any), deliveryEstimate: estimates.get(storeId) ?? null };
+  return { ...toStoreWithCatalogue(store), deliveryEstimate: estimates.get(storeId) ?? null };
 }
 
 export async function listStoreProducts(

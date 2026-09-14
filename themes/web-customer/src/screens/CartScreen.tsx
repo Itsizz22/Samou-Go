@@ -67,7 +67,7 @@ export function CartScreen() {
           {(cart?.lines ?? []).length === 0 ? (
             <div className="rounded-2xl border border-line bg-surface p-8 text-center shadow-card">
               <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-surface text-brand">
-                <ShoppingBag size={24} />
+                <ShoppingBag size={24} className="sq-empty-welcome" />
               </span>
               <h2 className="mt-3 text-sm font-extrabold">{t('سلتك فارغة', 'Your cart is empty')}</h2>
               <button

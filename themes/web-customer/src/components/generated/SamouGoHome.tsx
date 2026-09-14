@@ -1,8 +1,8 @@
+import { FeaturedStoreCard, StoreCard, StoreCardSkeleton } from '@/components/home/StoreCards';
 import { usePlatformSettings } from '@samou-go/api-client';
 import type { HomeCategory } from '@samou-go/shared-types';
 import { ActiveOrderStrip } from '@/components/ActiveOrderStrip';
-import { DeliveryEstimate } from '@/components/DeliveryEstimate';
-import { StoreHours, storeIsOpen } from '@/components/StoreHours';
+import { storeIsOpen } from '@/components/StoreHours';
 import { CatalogueSearchField } from '@/components/CatalogueSearchField';
 import { ConnectionNotice } from '@/components/ConnectionNotice';
 import { ZoneSelector } from '@/components/ZoneProvider';
@@ -15,33 +15,25 @@ import {
   Apple,
   Beef,
   Cake,
-  ChevronDown,
   ChevronLeft,
   Coffee,
-  Flame,
-  Heart,
   LayoutGrid,
   Loader2,
   MapPin,
   Menu,
   MessageSquarePlus,
-  Plus,
   RefreshCw,
   ShoppingBag,
-  Truck,
   ShoppingCart,
   Star,
   Store as StoreIcon,
-  Tag,
   Utensils,
-  Zap,
   type LucideIcon,
 } from 'lucide-react';
 import { BrandLogo, ImageWithFallback, NotificationBell, useLanguage, type BellNotification } from '@samou-go/ui';
 import { BottomNav } from '@/components/BottomNav';
 import { SupportWhatsAppButton } from '@/components/SupportWhatsAppButton';
 import { useDrawer } from '@/components/NavigationDrawer';
-import { DeliveryFee } from '@samou-go/ui';
 import { FeaturedProductsShowcase } from '@/components/FeaturedProductsShowcase';
 import { CravingShortcuts } from '@/components/CravingShortcuts';
 import { PromoBannerSlider } from '@/components/PromoBannerSlider';
@@ -50,9 +42,7 @@ import { useFavorites } from '@/components/FavoritesProvider';
 import { useCart } from '@/components/CartProvider';
 import { ProductOptionsSheet } from '@/components/ProductOptionsSheet';
 import { hapticConfirm } from '@/lib/haptics';
-import { formatCurrency } from '@/lib/delivery';
 import { Link, useNavigate } from 'react-router-dom';
-import { DEFAULT_DELIVERY_FEE_CONFIG } from '@/lib/delivery';
 import { ORDER_STATUS_LABELS, OrderStatus } from '@samou-go/shared-types';
 import {
   STORE_CATEGORIES,
@@ -95,7 +85,7 @@ const STATUS_BELL_TONE: Record<OrderStatus, NonNullable<BellNotification['tone']
 export function SamouGoHome() {
   const navigate = useNavigate();
   const appearance = usePlatformSettings({ pollMs: 60000 });
-  const categories: HomeCategory[] = appearance.data?.homeCategories ?? STORE_CATEGORIES.map(category => ({ ...category, enabled: true }));
+  const categories: HomeCategory[] = useMemo(() => appearance.data?.homeCategories ?? STORE_CATEGORIES.map(category => ({ ...category, enabled: true })), [appearance.data?.homeCategories]);
   const { openDrawer } = useDrawer();
   const { t, language } = useLanguage();
   const isArabic = language === 'ar';
@@ -104,7 +94,7 @@ export function SamouGoHome() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'open' | 'closed'>('all');
   // Keep the first row visible; expand the remaining categories inline.
-  const [categoriesCollapsed, setCategoriesCollapsed] = useState(true);
+
 
   // Every keystroke would otherwise be a round-trip over Samou' mobile data.
   useEffect(() => {
@@ -145,11 +135,11 @@ export function SamouGoHome() {
     const filtered =
       activeCategory === 'all'
         ? items
-        : items.filter((store) => { const selected = categories.find(category => category.key === activeCategory); return selected?.storeIds ? selected.storeIds.includes(store.id) : classifyStore(store) === activeCategory; });
+        : items.filter((store) => { const selected = categories.find(category => category.key === activeCategory); return selected?.storeIds ? selected.storeIds.includes(store.id) : !categories.some(category => category.key !== 'all' && category.storeIds?.includes(store.id)) && classifyStore(store) === activeCategory; });
     return filtered
       .filter((store) => availabilityFilter === 'all' || (availabilityFilter === 'open' ? storeIsOpen(store) : !storeIsOpen(store)))
-      .map(toStoreCardModel);
-  }, [stores.data, activeCategory, availabilityFilter, appearance.data]);
+      .map(store => { const card = toStoreCardModel(store); const custom = categories.find(category => category.key !== 'all' && category.storeIds?.includes(store.id)); return custom ? { ...card, category: { ...card.category, ar: custom.ar, en: custom.en } } : card; });
+  }, [stores.data, activeCategory, availabilityFilter, categories]);
 
   // Store-wide active offers feed.
   const offers = useAllOffers();
@@ -200,7 +190,7 @@ export function SamouGoHome() {
 
   return <main dir={isArabic ? "rtl" : "ltr"} className="customer-home sq-customer-screen min-h-screen bg-canvas pb-28 font-sans text-ink">
       <a href="#home-results" className="sr-only focus:not-sr-only focus:block focus:p-3">تجاوز إلى المتاجر</a>
-      <header className="home-header liquid-glass px-5 pb-4 pt-3">
+      <header className="home-header px-5 pb-4 pt-3">
         <nav className="mx-auto flex max-w-md items-center justify-between gap-2" aria-label="Main navigation">
           <button
             type="button"
@@ -236,6 +226,8 @@ export function SamouGoHome() {
       <ConnectionNotice loading={stores.loading || popular.loading} failed={Boolean(stores.error || popular.error)} retry={() => { stores.reload(); popular.reload(); }} />
 
       <section className="mx-auto max-w-md px-5">
+        <h1 className="market-headline">{t('شو بدك نوصلك اليوم؟', 'What can we bring you today?')}</h1>
+        <p className="market-subtitle">{t('مطاعم ومتاجر السموع، بمكان واحد', 'Local restaurants and stores, in one place')}</p>
         <CatalogueSearchField value={searchTerm} onChange={setSearchTerm} onSearch={() => setDebouncedSearch(searchTerm.trim())} />
       </section>
 
@@ -243,11 +235,24 @@ export function SamouGoHome() {
         ? <p id="catalogue-search-results" role="status" className="mx-auto max-w-md px-5 pt-6 text-sm text-ink-muted">جارٍ البحث…</p>
         : <HomeProductSearch key={debouncedSearch} query={debouncedSearch} onAdd={handlePopularAdd} />)}
       {!searchTerm.trim() && <>
+      <section className="market-section market-categories" aria-label={t('فئات المتاجر', 'Store categories')}>
+        <div id="category-chips" data-swipe-back="off" className="market-category-track">
+          {categories.filter(category => category.enabled).map(category => {
+            const Icon = CATEGORY_ICONS[category.key as StoreCategoryKey] ?? StoreIcon;
+            const photo = category.imageUrl;
+            return <button key={category.key} type="button" aria-pressed={activeCategory === category.key} onClick={() => setActiveCategory(category.key)} className="market-category">
+              {photo ? <ImageWithFallback src={photo} alt="" className="size-7 rounded-lg object-cover" /> : <Icon size={19} aria-hidden="true" />}<span>{t(category.ar, category.en)}</span>
+            </button>;
+          })}
+        </div>
+      </section>
+      {!searchTerm.trim() && <div className="market-more">
+      <FeaturedProductsShowcase products={dishProducts} loading={popular.loading} onAdd={handlePopularAdd} />
       <CravingShortcuts products={dishProducts} />
 
       <PromoBannerSlider />
 
-      <FeaturedProductsShowcase products={dishProducts} loading={popular.loading} onAdd={handlePopularAdd} />
+
 
 
 
@@ -315,6 +320,7 @@ export function SamouGoHome() {
         )}
       </section>}
 
+</div>}
       {stores.error && <section className="mx-auto max-w-md px-5 pt-8" aria-live="assertive">
           <div className="rounded-2xl border border-danger-tint bg-surface p-5 text-center shadow-card">
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger-ink"><AlertTriangle size={22} /></span>
@@ -330,35 +336,14 @@ export function SamouGoHome() {
       {showEmpty && <section className="mx-auto max-w-md px-5 pt-8" aria-live="polite">
           <div className="rounded-2xl border border-line bg-surface p-6 text-center shadow-card">
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-surface text-brand"><StoreIcon size={22} /></span>
-            <h2 className="mt-3 text-sm font-extrabold">{t(debouncedSearch ? 'لا توجد نتائج مطابقة' : 'لا توجد متاجر متاحة حالياً', debouncedSearch ? 'No matching stores' : 'No stores available yet')}</h2>
+            <h2 className="mt-3 text-sm font-extrabold">{t(debouncedSearch ? 'لا توجد نتائج مطابقة' : 'لا توجد متاجر متاحة حالياً', debouncedSearch ? 'No matching stores' : 'No stores available yet')}</h2><button className="market-text-action mt-3" type="button" onClick={() => { setActiveCategory('all'); setAvailabilityFilter('all'); setSearchTerm(''); }}>{t('مسح الفلاتر', 'Reset filters')}</button>
           </div>
         </section>}
 
-      {!stores.error && (stores.loading || featured.length > 0) && <section className="mx-auto max-w-md px-5 pt-8" aria-labelledby="featured-title" aria-busy={stores.loading}>
-        <div className="mb-4 flex items-end justify-between"><div><h2 id="featured-title" className="text-lg font-extrabold">{t('المتاجر المميزة', 'Featured stores')}</h2></div><button type="button" onClick={() => document.getElementById('nearby-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="text-xs font-bold text-brand">{t('عرض الكل', 'See all')}</button></div>
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-          {stores.loading
-            ? [0, 1, 2].map(index => <div key={index} className="skeleton min-w-49 overflow-hidden rounded-2xl shadow-card" aria-hidden="true"><div className="h-24 bg-line-soft" /><div className="space-y-2 p-3"><div className="ms-auto h-3 w-2/3 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-1/2 rounded bg-line-soft" /><div className="h-5 w-20 rounded-full bg-line-soft" /></div></div>)
-            : featured.map(({ store, category, initials, gradient }) => (
-                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="w-60 shrink-0 overflow-hidden rounded-2xl border border-line-soft bg-surface transition duration-200 hover:shadow-card focus-visible:ring-2 focus-visible:ring-brand" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
-                  <article>
-                    <div className={`relative flex h-32 items-center justify-center bg-linear-to-br ${gradient}`}>
-                      {store.logoUrl ? <ImageWithFallback src={store.logoUrl} alt="" className="h-full w-full object-contain p-4" fallbackText={initials} /> : <span className="text-3xl font-black text-white/40">{initials}</span>}
-                      {store.isRecommended && <span className="absolute inset-s-2 top-2 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-1 text-micro font-bold text-white shadow-card" title={t('ينصح به لدينا', 'Recommended by us')}><Star size={10} fill="currentColor" />{t('موصى به', 'Recommended')}</span>}
-                      {store.badges?.includes('badge_popular') && <span className="absolute inset-e-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('الأكثر طلباً', 'Most popular')}><Flame size={9} />{t('الأكثر طلباً', 'Popular')}</span>}
-                      {store.badges?.includes('badge_fast') && <span className="absolute inset-e-2 top-10 inline-flex items-center gap-0.5 rounded-full bg-blue-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('سريع التجهيز', 'Fast prep')}><Zap size={9} />{t('سريع', 'Fast')}</span>}
-                      {store.badges?.includes('badge_has_offers') && <span className="absolute inset-e-2 top-17 inline-flex items-center gap-0.5 rounded-full bg-brand-500 px-1.5 py-0.5 text-micro font-bold text-white shadow-card" title={t('عرض حصري', 'Special offer')}><Tag size={9} />{t('عرض', 'Offer')}</span>}
-                      <span className={`absolute inset-s-2 bottom-2 rounded-full px-2 py-1 text-micro font-bold ${storeIsOpen(store) ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{storeIsOpen(store) ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
-                      <button type="button" aria-label={t(`إضافة ${store.nameAr} إلى المفضلة`, `Favorite ${store.nameEn}`)} aria-pressed={favorites.isFavorite(store.id)} onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggleLike(store.id); }} disabled={favorites.pending.includes(store.id)} className="absolute inset-e-2 top-2 rounded-full bg-surface/85 p-2 text-brand"><Heart size={15} fill={favorites.isFavorite(store.id) ? 'currentColor' : 'none'} /></button>
-                    </div>
-                    <div className="p-3 text-start">
-                      <h3 className="line-clamp-2 min-h-10 text-sm font-extrabold leading-5">{t(store.nameAr, store.nameEn)}</h3>
-                      <p className="mt-1 text-xs text-ink-muted">{t(category.ar, category.en)}</p><DeliveryEstimate store={store} compact />
-                      {freeDeliveryEnabled && <span className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-brand-tint px-2.5 py-1.5 text-xs font-bold text-brand-dark"><Truck size={14} aria-hidden="true" />{t("التوصيل مجاني", "Free delivery")}</span>}
-                    </div>
-                  </article>
-                </Link>
-              ))}
+      {!stores.error && (stores.loading || featured.length > 0) && <section className="market-section" aria-labelledby="featured-title" aria-busy={stores.loading}>
+        <div className="market-section-heading"><div><h2 id="featured-title">{t('المتاجر المميزة', 'Featured stores')}</h2><p>{t('اكتشف متاجر السموع', 'Discover local stores')}</p></div><a href="#home-results" className="market-text-action">{t('عرض الكل', 'See all')}</a></div>
+        <div data-swipe-back="off" className="market-featured-track">
+          {stores.loading ? [0,1,2].map(i => <StoreCardSkeleton key={i} featured />) : featured.map((card, index) => <FeaturedStoreCard key={card.store.id} card={card} freeDelivery={freeDeliveryEnabled} eager={index === 0} favorite={favorites.isFavorite(card.store.id)} pending={favorites.pending.includes(card.store.id)} onFavorite={() => { void toggleLike(card.store.id); }} />)}
         </div>
       </section>}
 
@@ -385,7 +370,7 @@ export function SamouGoHome() {
           </span>
           <div className="min-w-0 flex-1 text-start">
             <p className="text-base font-bold text-brand">{t('طلب خاص', 'Custom Order')}</p>
-            <p className="mt-0.5 text-micro text-ink-muted">{t('اطلب أي منتج أو غرض غير موجود في القائمة وسنقوم بتوصيله!', 'Order any item not on the menu and we will deliver it!')}</p>
+            <p className="mt-0.5 text-micro text-ink-muted">{t('مش لاقي اللي بدك ياه؟ أرسل طلبك ونتابع معك.', 'Can’t find it? Send us your request.')}<span className="mt-2 block font-bold text-brand">{t('اطلب الآن ←', 'Request now →')}</span></p>
           </div>
         </Link>
       </section>
@@ -394,53 +379,18 @@ export function SamouGoHome() {
 
       </>}
       {!searchTerm.trim() && <>
-      <section className="mx-auto max-w-md px-5 pt-7" aria-labelledby="categories-title">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 id="categories-title" className="text-lg font-extrabold">{t('الفئات', 'Categories')}</h2>
-          <button type="button" aria-expanded={!categoriesCollapsed} aria-controls="category-chips" onClick={() => setCategoriesCollapsed(value => !value)} className="flex min-h-11 items-center gap-1 rounded-full px-3 text-xs font-bold text-brand focus-visible:ring-2 focus-visible:ring-brand">
-            {categoriesCollapsed ? t('المزيد', 'More') : t('عرض أقل', 'Show less')}<ChevronDown size={16} className={categoriesCollapsed ? '' : 'rotate-180'} />
-          </button>
-        </div>
-        <div id="category-chips" className="grid grid-cols-4 gap-2">
-          {categories.filter(category => category.enabled).filter((category, index) => !categoriesCollapsed || index < 4 || category.key === activeCategory).map(category => {
-            const Icon = CATEGORY_ICONS[category.key as StoreCategoryKey] ?? StoreIcon;
-            const active = activeCategory === category.key;
-            const photo = category.imageUrl;
-            return <button key={category.key} type="button" aria-pressed={active} onClick={() => { setActiveCategory(category.key); requestAnimationFrame(() => document.getElementById('home-results')?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })); }} className={`flex min-w-0 flex-col items-center gap-2 rounded-2xl border p-1.5 pb-3 text-center transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-brand ${active ? 'border-brand bg-brand-tint text-brand-dark' : 'border-line bg-surface text-ink-soft'}`}>
-              <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-brand-surface text-brand">{photo ? <ImageWithFallback src={photo} alt="" className="h-full w-full object-cover" /> : <Icon size={26} />}</span>
-              <span className="text-[11px] font-bold leading-relaxed">{t(category.ar, category.en)}</span>
-            </button>;
-          })}
-        </div>
-        <div className="mt-3 flex gap-2" aria-label="Store availability filter">
-          {([['all', t('الكل', 'All')], ['open', t('مفتوح', 'Open')], ['closed', t('مغلق', 'Closed')]] as const).map(([value, label]) => (
-            <button key={value} type="button" onClick={() => setAvailabilityFilter(value)} aria-pressed={availabilityFilter === value} className={`min-h-11 rounded-full px-4 py-2 text-xs font-bold ${availabilityFilter === value ? 'bg-brand text-white' : 'bg-surface text-ink-muted shadow-card'}`}>{label}</button>
-          ))}
-        </div>
-      </section>
+
       </>}
-      {!searchTerm.trim() && !stores.error && (stores.loading || cards.length > 0) && <section id="home-results" aria-live="polite" className="scroll-mt-4 mx-auto max-w-md px-5 pt-8" aria-labelledby="nearby-title" aria-busy={stores.loading}>
+      {!searchTerm.trim() && !stores.error && <section id="home-results" aria-live="polite" className="scroll-mt-4 mx-auto max-w-md px-5 pt-8" aria-labelledby="nearby-title" aria-busy={stores.loading}>
         <div className="mb-4 flex items-end justify-between"><div><h2 id="nearby-title" className="text-lg font-extrabold">{t('كل المتاجر', "All stores in Al-Samou'")}</h2></div>{stores.refreshing ? <Loader2 size={16} className="animate-spin text-brand" aria-label="Refreshing" /> : <ChevronLeft size={18} className="text-ink-subtle" />}</div>
-        <div className="space-y-3">
-          {stores.loading
-            ? [0, 1, 2].map(index => <div key={index} className="skeleton flex items-center gap-3 rounded-2xl p-3 shadow-card" aria-hidden="true"><div className="h-12 w-12 shrink-0 rounded-xl bg-line-soft" /><div className="flex-1 space-y-2"><div className="ms-auto h-3 w-1/2 rounded bg-line-soft" /><div className="ms-auto h-2.5 w-2/3 rounded bg-line-soft" /></div><div className="h-6 w-12 shrink-0 rounded-full bg-line-soft" /></div>)
-            : cards.map(({ store, category, initials, tint }) => (
-                <Link key={store.id} to={`/stores/${encodeURIComponent(store.id)}`} className="home-store-card block overflow-hidden rounded-2xl border border-line-soft bg-surface transition active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-brand" aria-label={t(`فتح متجر ${store.nameAr}`, `Open store ${store.nameEn}`)}>
-                  <div className="relative aspect-[5/2] overflow-hidden bg-brand-surface">
-                    <ImageWithFallback src={store.coverUrl || store.logoUrl || undefined} alt="" className={`h-full w-full ${store.coverUrl ? "object-cover" : "object-contain p-5"}`} fallbackText={initials} />
-                    <span className={`absolute end-3 top-3 rounded-full px-3 py-1 text-xs font-bold ${storeIsOpen(store) ? 'bg-surface text-brand-dark' : 'bg-canvas text-ink-muted'}`}>{storeIsOpen(store) ? t('مفتوح', 'Open') : t('مغلق', 'Closed')}</span>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-3"><ImageWithFallback src={store.logoUrl ?? undefined} alt="" fallbackText={initials} className={`size-12 shrink-0 rounded-xl object-contain ${tint}`} /><div className="min-w-0"><h3 className="line-clamp-2 text-base font-extrabold leading-6">{t(store.nameAr, store.nameEn)}</h3><p className="mt-1 text-xs text-ink-muted">{t(category.ar, category.en)}</p></div></div>
-                    <DeliveryEstimate store={store} compact />
-                    {freeDeliveryEnabled && <span className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-brand-tint px-2.5 py-1.5 text-xs font-bold text-brand-dark"><Truck size={14} aria-hidden="true" />{t("التوصيل مجاني", "Free delivery")}</span>}
-                    <div className="mt-2"><StoreHours store={store} /></div>
-                    {dishProducts.some(product => product.storeId === store.id && product.imageUrl) && <div className="mt-3 flex gap-2" aria-hidden="true">{dishProducts.filter(product => product.storeId === store.id && product.imageUrl).slice(0, 3).map(product => <ImageWithFallback key={product.id} src={product.imageUrl!} alt="" className="aspect-[4/3] min-w-0 flex-1 rounded-lg object-cover" />)}</div>}
-                  </div>
-                </Link>
-              ))}
+        <div className="market-filters" aria-label={t('تصفية حسب حالة المتجر', 'Store availability')}>
+          {([['all', t('الكل', 'All')], ['open', t('مفتوح الآن', 'Open now')], ['closed', t('مغلق', 'Closed')]] as const).map(([value,label]) => <button key={value} type="button" aria-pressed={availabilityFilter === value} onClick={() => setAvailabilityFilter(value)}>{label}</button>)}
+        </div>
+        <div className="market-store-grid">
+          {stores.loading ? [0,1,2,3].map(i => <StoreCardSkeleton key={i} />) : cards.map(card => <StoreCard key={card.store.id} card={card} freeDelivery={freeDeliveryEnabled} />)}
         </div>
       </section>}
+
 
       <BottomNav />
       <SupportWhatsAppButton />

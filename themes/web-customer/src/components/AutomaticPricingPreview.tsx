@@ -48,6 +48,7 @@ export function AutomaticPricingPreview() {
     return () => controller.abort();
   }, [
     cart.storeGroups,
+    cart.lines.length,
     zone.activeZone?.id,
     settings.data?.baseDeliveryFee,
     settings.data?.updatedAt,

@@ -163,7 +163,7 @@ export function SamouGoStoreManager() {
       toast.error('انتهت صلاحية الجلسة', 'Session expired — please sign in again');
     }
     prevUserRef.current = auth.user;
-  }, [auth.user, auth.ready]);
+  }, [auth.user, auth.ready, toast]);
 
   /* -- Role gate --------------------------------------------------------- */
   const isManager = auth.user?.role === UserRole.STORE_MANAGER;
@@ -507,10 +507,10 @@ export function SamouGoStoreManager() {
         </div>
         <button type="button" onClick={() => setSidebarOpen(false)} aria-label={t('إغلاق القائمة', 'Close navigation')} className="absolute inset-e-3 top-3 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-ink-muted hover:bg-canvas md:hidden"><X size={18} /></button>
       </aside>
-      <header className="bg-brand px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
-        <nav className="mx-auto flex max-w-md items-center justify-between" aria-label="التنقل الرئيسي">
+      <header className="sq-staff-glass-header">
+        <nav className="sq-staff-glass-nav" aria-label="التنقل الرئيسي">
           <button type="button" onClick={() => setSidebarOpen(value => !value)} aria-expanded={sidebarOpen} aria-label={t('فتح القائمة', 'Open navigation')} className="rounded-lg p-2 text-white transition hover:bg-white/10 active:scale-95"><Menu size={21} /></button>
-          <div className="flex-1 text-center leading-tight">
+          <div className="sq-staff-glass-title">
             <h1 className="text-[15px] font-extrabold">{t(BOTTOM_TABS.find(tab => tab.id === activeTab)?.ar ?? 'لوحة المتجر', BOTTOM_TABS.find(tab => tab.id === activeTab)?.en ?? 'Store Manager')}</h1>
             <p className="mt-1 text-xs opacity-80">{managedStore.data ? t(managedStore.data.nameAr, managedStore.data.nameEn) : auth.user?.name}</p>
             {(managedStores.data?.length ?? 0) > 1 && (
@@ -521,14 +521,14 @@ export function SamouGoStoreManager() {
               </AppSelect>
             )}
           </div>
-          <div className="flex items-center gap-2" dir="ltr">
-            <LanguageToggle onDark={activeTab === 'home'} />
-            <ThemeToggle onDark={activeTab === 'home'} />
+          <div className="sq-staff-glass-tools" dir="ltr">
+            <LanguageToggle onDark={false} />
+            <ThemeToggle onDark={false} />
             <NotificationBell align="start"
               notifications={bellNotifications}
               storageKey="store-manager"
               chimeOnNew
-              onDark={activeTab === 'home'}
+              onDark={false}
               max={10}
             />
             <button
@@ -542,29 +542,27 @@ export function SamouGoStoreManager() {
             </button>
           </div>
         </nav>
-        <div className="sq-store-status mx-auto mt-3 max-w-md rounded-xl bg-brand-dark px-3 py-2.5">
-          <div className="flex items-center gap-2 text-[11px] font-bold text-white/90">
+        <div className="sq-store-status sq-staff-glass-status">
+          <div className="flex items-center gap-2 text-[11px] font-bold text-ink-muted">
             <Store size={13} />
             <span>{t('حالة المتجر', 'Store Status')}</span>
           </div>
           <div className="mt-2 grid grid-cols-3 gap-1">
             {([
-              { status: StoreStatus.OPEN, color: 'bg-green-500 hover:bg-green-600', label: 'مفتوح' },
-              { status: StoreStatus.BUSY, color: 'bg-amber-500 hover:bg-amber-600', label: 'مشغول' },
-              { status: StoreStatus.CLOSED, color: 'bg-red-500 hover:bg-red-600', label: 'مغلق' },
-            ] as const).map(({ status, color, label }) => (
+              { status: StoreStatus.OPEN, label: 'مفتوح' },
+              { status: StoreStatus.BUSY, label: 'مشغول' },
+              { status: StoreStatus.CLOSED, label: 'مغلق' },
+            ] as const).map(({ status, label }) => (
               <button
                 key={status}
                 type="button"
                 disabled={storeTogglePending || !managedStoreId}
                 onClick={() => void handleSetStoreStatus(status)}
-                className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition active:scale-95 disabled:opacity-60 ${
-                  storeStatus === status
-                    ? `${color} text-white shadow-sm`
-                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                }`}
+                aria-pressed={storeStatus === status}
+                data-status={status.toLowerCase()}
+                className="sq-staff-status-choice"
               >
-                <span className={`h-1.5 w-1.5 rounded-full ${storeStatus === status ? 'bg-white' : 'bg-white/40'}`} />
+                <span className="sq-staff-status-dot" aria-hidden="true" />
                 {t(label, STORE_STATUS_LABELS[status].en)}
               </button>
             ))}
@@ -573,7 +571,7 @@ export function SamouGoStoreManager() {
 
         {/* Operating hours */}
         <div className="mx-auto mt-2 max-w-md rounded-xl bg-brand-dark/80 px-3 py-2.5">
-          <div className="flex items-center gap-2 text-[11px] font-bold text-white/90">
+          <div className="flex items-center gap-2 text-[11px] font-bold text-ink-muted">
             <Clock3 size={13} />
             <span>{t('أوقات العمل', 'Operating hours')}</span>
           </div>
@@ -1311,7 +1309,7 @@ function OrderRow({ order, customerPhone, customerName, pending, onAccept, onSta
         )}
       </div>
 
-      <OrderCustomerDetails order={order} />
+      <OrderCustomerDetails order={order} showStore={false} />
       {order.fulfillmentType !== "PICKUP" && <StoreCaptainContact key={order.captainId} orderId={order.id} captainId={order.captainId} />}
       <OrderChat orderId={order.id} />
       <PreparationCountdown order={order} />

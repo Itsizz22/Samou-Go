@@ -424,7 +424,7 @@ describe('product images', () => {
 });
 
 describe('store logos', () => {
-  it('finalizes a square WebP and attaches the URL to the store', async () => {
+  it('preserves the source and finalizes responsive WebP and attaches the URL to the store', async () => {
     const { key } = await presign(MANAGER, {
       contentType: 'image/png',
       kind: 'store',
@@ -435,8 +435,8 @@ describe('store logos', () => {
     const result = await finalizeUpload(MANAGER, key, 'store');
 
     expect(result.url).toMatch(/^http:\/\/localhost:4000\/uploads\/store\/s1\/[^/]+\.webp$/);
-    expect(result.width).toBe(256);
-    expect(result.height).toBe(256);
+    expect(result.width).toBe(12);
+    expect(result.height).toBe(8);
     expect(h.state.store?.logoUrl).toBe(result.url);
 
     const onDisk = await readFile(
@@ -447,7 +447,10 @@ describe('store logos', () => {
       )
     );
     expect(onDisk.subarray(0, 4).toString('ascii')).toBe('RIFF');
-    expect(await storage.readRaw(key)).toBeNull();
+    expect(await storage.readRaw(key)).not.toBeNull();
+    for (const size of ['sm', 'md', 'lg']) {
+      expect(await storage.readFinal(result.url.split('/uploads/')[1]!.replace(/\.webp$/, `-${size}.webp`))).not.toBeNull();
+    }
   });
 
   it('forbids a non-manager from finalizing a store logo', async () => {
