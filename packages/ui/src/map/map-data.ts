@@ -1,3 +1,4 @@
+import type { FeatureCollection, LineString } from 'geojson';
 /** Public component coordinates remain [latitude, longitude] for API compatibility. */
 export type MapPoint = [number, number];
 export function validMapPoint(value: readonly number[]): value is MapPoint {
@@ -6,7 +7,7 @@ export function validMapPoint(value: readonly number[]): value is MapPoint {
 export function mapboxPoint(point: MapPoint): [number, number] {
   return [point[1], point[0]];
 }
-export function routeGeoJSON(points: readonly MapPoint[]): GeoJSON.FeatureCollection<GeoJSON.LineString> {
+export function routeGeoJSON(points: readonly MapPoint[]): FeatureCollection<LineString> {
   // Reject the entire malformed route instead of connecting gaps with invented lines.
   return { type: 'FeatureCollection', features: points.length > 1 && points.every(validMapPoint) ? [{
     type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: points.map(mapboxPoint) },
