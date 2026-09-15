@@ -1,94 +1,53 @@
-/**
- * Order lifecycle timeline — Pending → … → Delivered, driven by
- * `ORDER_STATUS_SEQUENCE` from shared-types so the UI cannot drift from the
- * state machine. CANCELLED renders as a red aborted state.
- */
-import { Check, X, Bike } from 'lucide-react';
-import {
-  ORDER_STATUS_LABELS,
-  ORDER_STATUS_SEQUENCE,
-  OrderStatus,
-} from '@samou-go/shared-types';
-import { motion, useReducedMotion } from 'framer-motion';
+import { Check, X, Clock3, ChefHat, ShoppingBag, Bike, CircleCheck } from 'lucide-react';
+import { ORDER_STATUS_LABELS, ORDER_STATUS_SEQUENCE, OrderStatus } from '@samou-go/shared-types';
 import { cn, useLanguage } from '@samou-go/ui';
 
 interface OrderStatusTimelineProps {
   status: OrderStatus;
   className?: string;
   compact?: boolean;
+  pickup?: boolean;
 }
 
-export function OrderStatusTimeline({ status, className, compact = false }: OrderStatusTimelineProps) {
+export function OrderStatusTimeline({ status, className, compact = false, pickup = false }: OrderStatusTimelineProps) {
   const { language } = useLanguage();
-  const reduced = useReducedMotion();
-  const isArabic = language === 'ar';
-  if (status === OrderStatus.CANCELLED) {
-    return (
-      <div className={cn('flex items-center gap-2 rounded-xl bg-danger-tint p-3 text-danger-ink', className)}>
-        <X size={16} className="shrink-0" />
-        <p className="text-xs font-bold">{isArabic ? 'تم إلغاء الطلب' : 'Order cancelled'}</p>
-      </div>
-    );
-  }
+  const ar = language === 'ar';
+  if (status === OrderStatus.CANCELLED) return <div role="status" className={cn('flex items-center gap-3 rounded-xl bg-danger-tint p-4 text-danger-ink', className)}><X size={22} /><p className="text-sm font-bold">{ar ? 'تم إلغاء الطلب' : 'Order cancelled'}</p></div>;
 
-  const currentIndex = ORDER_STATUS_SEQUENCE.indexOf(status);
-  const reached = (index: number) => index <= currentIndex;
-
-  return (
-    <div>
-      {!compact && <div dir="ltr" className="relative mx-4 mb-5 h-8" aria-hidden="true">
-        <svg className="absolute inset-0 h-full w-full text-line" viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0 10 H100" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2" /></svg>
-        <motion.div className="absolute inset-0 text-brand" initial={false} animate={{ x: `${(isArabic ? 1 - Math.max(0, currentIndex) / (ORDER_STATUS_SEQUENCE.length - 1) : Math.max(0, currentIndex) / (ORDER_STATUS_SEQUENCE.length - 1)) * 100}%` }} transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 150, damping: 24 }}>
-          <span className="absolute top-1 -ms-3"><Bike size={24} className={status === OrderStatus.DELIVERED ? '' : 'sq-scooter'} /></span>
-        </motion.div>
-      </div>}
-<ol className={cn('flex items-start justify-between w-full px-1 py-2', className)} aria-label={isArabic ? 'حالة الطلب' : 'Order progress'}>
-      {ORDER_STATUS_SEQUENCE.map((step, index) => {
-        const done = reached(index);
-        const isCurrent = index === currentIndex;
-        const isLast = index === ORDER_STATUS_SEQUENCE.length - 1;
-        const label = ORDER_STATUS_LABELS[step];
-        return (
-          <li key={step} aria-current={isCurrent ? 'step' : undefined} className="flex flex-1 flex-col items-center text-center min-w-0">
-            <div className="flex w-full items-center">
-              {index > 0 && (
-                <span className={cn('h-0.5 flex-1', reached(index) ? 'bg-brand' : 'bg-line-soft')} />
-              )}
-              <motion.span
-                key={`${step}:${done}`}
-                initial={isCurrent && !reduced ? { scale: 0.6 } : false}
-                animate={isCurrent ? { scale: 1 } : undefined}
-                transition={{ type: 'spring', stiffness: 260, damping: 14 }}
-                className={cn(
-                  'shrink-0 flex items-center justify-center rounded-full border-2 transition-colors',
-                  isCurrent && status !== OrderStatus.DELIVERED ? 'sq-glow' : '',
-                  compact ? 'h-5 w-5 sm:h-6 sm:w-6' : 'h-7 w-7',
-                  done
-                    ? 'border-brand bg-brand text-white'
-                    : 'border-line-soft bg-surface text-ink-muted'
-                )}
-              >
-                {done ? (
-                  <Check size={compact ? 10 : 13} strokeWidth={3} />
-                ) : (
-                  <span className="text-micro font-bold">{index + 1}</span>
-                )}
-              </motion.span>
-              {!isLast && (
-                <span className={cn('h-0.5 flex-1', reached(index + 1) ? 'bg-brand' : 'bg-line-soft')} />
-              )}
-            </div>
-            {!compact && (
-              <div className="mt-1 w-full px-0.5">
-                <span className={cn('block text-[9px] sm:text-[10px] leading-tight font-bold max-w-12 sm:max-w-15 mx-auto wrap-break-word', done ? 'text-brand-dark' : 'text-ink-muted')}>
-                  {isArabic ? label.ar : label.en}
-                </span>
-              </div>
-            )}
-          </li>
-        );
+  const sequence = pickup ? ORDER_STATUS_SEQUENCE.filter(step => step !== OrderStatus.ON_THE_WAY) : ORDER_STATUS_SEQUENCE;
+  // Legacy pickup orders may still have a delivery status; display ready to collect.
+  const currentIndex = sequence.indexOf(pickup && status === OrderStatus.ON_THE_WAY ? OrderStatus.READY_FOR_PICKUP : status);
+  const hints: Partial<Record<OrderStatus, [string, string]>> = {
+    [OrderStatus.PENDING]: ['بانتظار تأكيد المتجر لطلبك.', 'Waiting for the store to confirm your order.'],
+    [OrderStatus.ACCEPTED]: ['أكد المتجر طلبك وسيبدأ تجهيزه.', 'The store confirmed your order. Preparation is next.'],
+    [OrderStatus.PREPARING]: ['المتجر يجهّز طلبك الآن.', 'The store is preparing your order.'],
+    [OrderStatus.READY_FOR_PICKUP]: pickup ? ['طلبك جاهز. توجّه إلى المتجر للاستلام.', 'Your order is ready. Head to the store to collect it.'] : ['طلبك جاهز وبانتظار استلام الكابتن.', 'Your order is ready for the courier to collect.'],
+    [OrderStatus.ON_THE_WAY]: ['الكابتن في طريقه إليك.', 'Your courier is on the way to you.'],
+    [OrderStatus.DELIVERED]: pickup ? ['تم استلام طلبك. بالعافية!', 'Order collected. Enjoy!'] : ['وصل طلبك. بالعافية!', 'Order delivered. Enjoy!'],
+  };
+  const icons = { [OrderStatus.PENDING]: Clock3, [OrderStatus.ACCEPTED]: CircleCheck, [OrderStatus.PREPARING]: ChefHat, [OrderStatus.READY_FOR_PICKUP]: ShoppingBag, [OrderStatus.ON_THE_WAY]: Bike, [OrderStatus.DELIVERED]: CircleCheck };
+  return <div dir={ar ? 'rtl' : 'ltr'} className={className}>
+    {!compact && <div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-base font-extrabold text-ink">{ar ? 'مراحل طلبك' : 'Order progress'}</h2><span className="rounded-full bg-brand-tint px-3 py-1 text-xs font-bold text-brand-dark">{pickup ? (ar ? 'استلام من المتجر' : 'Store pickup') : (ar ? 'توصيل' : 'Delivery')}</span></div>}
+    <ol aria-label={ar ? 'حالة الطلب' : 'Order progress'} className={compact ? 'flex items-center' : 'space-y-0'}>
+      {sequence.map((step, index) => {
+        const current = index === currentIndex;
+        const complete = index < currentIndex || (current && status === OrderStatus.DELIVERED);
+        const label = pickup && step === OrderStatus.DELIVERED ? { ar: 'تم الاستلام', en: 'Collected' } : ORDER_STATUS_LABELS[step];
+        const Icon = icons[step as keyof typeof icons] ?? Clock3;
+        const hint = hints[step];
+        return <li key={step} aria-current={current ? 'step' : undefined} className={cn('relative', compact ? 'flex flex-1 items-center' : 'flex gap-3')}>
+          <div className={cn('flex shrink-0 flex-col items-center', compact ? '' : 'w-10')}>
+            <span aria-hidden="true" className={cn('relative z-10 flex shrink-0 items-center justify-center rounded-full', compact ? 'h-6 w-6' : 'h-10 w-10', current ? 'bg-brand text-white ring-4 ring-brand-tint' : complete ? 'bg-brand-tint text-brand-dark' : 'border border-line bg-canvas text-ink-muted')}>
+              {complete ? <Check size={compact ? 13 : 18} strokeWidth={3} /> : <Icon size={compact ? 13 : 19} />}
+            </span>
+            {!compact && index < sequence.length - 1 && <span aria-hidden="true" className={cn('my-1 w-0.5 min-h-3 flex-1', complete ? 'bg-brand-tint' : 'bg-line')} />}
+          </div>
+          {compact ? <><span className="sr-only">{ar ? label.ar : label.en}</span>{index < sequence.length - 1 && <span aria-hidden="true" className={cn('h-0.5 flex-1', complete ? 'bg-brand' : 'bg-line')} />}</> : <div className={cn('min-w-0 flex-1 pt-2', index < sequence.length - 1 ? 'pb-5' : '', current ? 'text-brand-dark' : complete ? 'text-ink' : 'text-ink-muted')}>
+            <div className="flex flex-wrap items-center gap-2"><span className="text-sm font-bold leading-6">{ar ? label.ar : label.en}</span>{current && <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-bold">{status === OrderStatus.DELIVERED ? (ar ? 'مكتمل' : 'Complete') : (ar ? 'الآن' : 'Now')}</span>}</div>
+            {current && hint && <p role="status" className="mt-1 text-xs leading-6 text-ink-muted">{hint[ar ? 0 : 1]}</p>}
+          </div>}
+        </li>;
       })}
     </ol>
-    </div>
-  );
+  </div>;
 }

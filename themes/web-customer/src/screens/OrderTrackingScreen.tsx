@@ -1,3 +1,4 @@
+import { PickupDirections } from '@/components/PickupDirections';
 import { ScheduledOrderNotice } from '@/components/ScheduledOrderNotice';
 import { OrderChat } from '@samou-go/api-client';
 import { OrderContactCard } from '@samou-go/ui';
@@ -69,6 +70,7 @@ export function OrderTrackingScreen() {
     pollMs: POLL_MS,
     stopWhen: (o) => o?.status === OrderStatus.DELIVERED || o?.status === OrderStatus.CANCELLED,
   });
+  const pickup = order.data?.fulfillmentType === 'PICKUP';
   const terminal = order.data?.status === OrderStatus.DELIVERED || order.data?.status === OrderStatus.CANCELLED;
   const cart = useCart();
   const toast = useToast();
@@ -207,15 +209,15 @@ export function OrderTrackingScreen() {
           ) : order.data ? (
             <>
               <OrderContactCard title="المتجر" contact={{ name: order.data.store.nameAr, phone: order.data.store.phone, whatsappNumber: order.data.store.whatsappNumber }} />
-              {order.data.captain && <OrderContactCard title="كابتن التوصيل" contact={order.data.captain} />}
+              {!pickup && order.data.captain && <OrderContactCard title="كابتن التوصيل" contact={order.data.captain} />}
               <OrderChat orderId={order.data.id} />
               {/* Timeline */}
               <section className={`rounded-2xl bg-surface p-4 shadow-card ${cancelled ? 'opacity-90' : ''}`}>
-                {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <OrderStatusTimeline status={order.data.status} />}
+                {(pickup || FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING) && <OrderStatusTimeline status={order.data.status} pickup={pickup} />}
               </section>
 
               {/* Delivery PIN — shown only when the captain is on the way */}
-              {order.data.status === OrderStatus.ON_THE_WAY && order.data.deliveryPin && (
+              {!pickup && order.data.status === OrderStatus.ON_THE_WAY && order.data.deliveryPin && (
                 <DeliveryPin pin={order.data.deliveryPin} />
               )}
 
@@ -229,8 +231,9 @@ export function OrderTrackingScreen() {
                   <p className="text-[10px] text-ink-muted leading-relaxed">{order.data.customerAddressText}</p>
                 </div>
               </section>
-              {!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <ZoneLandmarkTrackingView order={order.data} contactPhone={order.data.captain?.phone ?? order.data.store.phone} contactWhatsApp={order.data.captain ? order.data.captain.whatsappNumber : order.data.store.whatsappNumber} />}
-              {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <LiveTrackingCard orderId={order.data.id} load={getLiveOrderTracking} />}
+              {!pickup && !FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <ZoneLandmarkTrackingView order={order.data} contactPhone={order.data.captain?.phone ?? order.data.store.phone} contactWhatsApp={order.data.captain ? order.data.captain.whatsappNumber : order.data.store.whatsappNumber} />}
+              {pickup && <PickupDirections store={order.data.store} />}
+              {!pickup && FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <LiveTrackingCard orderId={order.data.id} load={getLiveOrderTracking} />}
 
               {/* Items */}
               <section className="rounded-2xl bg-surface p-3 shadow-card">
@@ -391,8 +394,8 @@ export function OrderTrackingScreen() {
               <section className="rounded-2xl border border-line bg-brand-surface p-3 text-center">
                 <p className="text-[10px] leading-relaxed text-ink-soft">
                   {t(
-                    'يمكن للكابتن الاتصال بك لتأكيد العنوان عند الوصول.',
-                    "The captain may call to confirm your address on arrival."
+                    pickup ? 'احتفظ برقم الطلب وأبرزه للمتجر عند الاستلام.' : 'يمكن للكابتن الاتصال بك لتأكيد العنوان عند الوصول.',
+                    pickup ? "Show your order number at the store when collecting." : "The captain may call to confirm your address on arrival."
                   )}
                 </p>
               </section>

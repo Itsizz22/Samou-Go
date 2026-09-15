@@ -1,7 +1,7 @@
 import { AppSelect } from '@samou-go/ui';
-import { StoreHomeCategoryEditor } from '../StoreHomeCategories';
+import { StoreTypeEditor } from '../StoreTypeEditor';
 import { DeliveryPricingMatrix } from '../DeliveryPricingMatrix';
-import { STORE_TYPE_LABELS, type StoreType as StoreKind } from '@samou-go/shared-types';
+
 import { getLiveOrderTracking } from '@samou-go/api-client';
 import { LiveTrackingCard } from '@samou-go/ui/map';
 import { CaptainStoreAssignment, assignedIds } from '../StoreAssignmentPicker';
@@ -1560,12 +1560,6 @@ function StoresPanel() {
   }, [allRows, statusFilter]);
   const [createOpen, setCreateOpen] = useState(false);
 
-  const changeStoreType = async (id: string, storeType: StoreKind | null) => {
-    setPendingId(id);
-    try { await updateStore(id, { storeType }); await stores.reload(); toast.success('تم تحديث نوع المتجر', 'Store type updated'); }
-    catch (error) { toast.error('تعذر تحديث نوع المتجر', error instanceof Error ? error.message : 'Update failed'); }
-    finally { setPendingId(null); }
-  };
   const pendingIdRef = useRef<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const approveMutation = useMutation<null, StoreModel>((_, signal) =>
@@ -1909,13 +1903,7 @@ function StoresPanel() {
                               <span className="block text-micro text-ink-muted" dir="ltr">
                                 {store.publicCode ? `${store.publicCode} · ` : ""}{store.nameEn}
                               </span>
-                              <label className="mt-2 block text-xs text-ink-muted">{t('نوع المتجر', 'Store type')}
-                                <AppSelect value={store.storeType ?? ''} disabled={pendingId !== null} onChange={event => void changeStoreType(store.id, event.target.value ? event.target.value as StoreKind : null)} className="ms-2 rounded-lg border border-line bg-surface px-2 py-1 text-ink">
-                                  <option value="">{t('غير محدد', 'Not specified')}</option>
-                                  {Object.entries(STORE_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{t(label.ar, label.en)}</option>)}
-                                </AppSelect>
-                              </label>
-                              <StoreHomeCategoryEditor storeId={store.id} />
+                              <StoreTypeEditor storeId={store.id} storeType={store.storeType ?? null} onSaved={stores.reload} />
                             </div>
                           </div>
                         </td>
