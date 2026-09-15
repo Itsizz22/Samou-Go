@@ -24,6 +24,7 @@ export const walletIdParamsSchema = z.object({
 
 export const locationSchema = z.object({
   capturedAt: z.number().int().positive().optional(),
+  accuracy: z.number().finite().min(0).max(100000).optional(),
   orderId: z.string().min(1).max(100),
   lat: z.number().finite().min(-90).max(90),
   lng: z.number().finite().min(-180).max(180),

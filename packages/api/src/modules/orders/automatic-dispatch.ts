@@ -1,3 +1,4 @@
+import { recordPilotEvent } from '../../lib/pilot-telemetry';
 import { deliveryTransaction } from "./delivery-transaction";
 import { OrderStatus } from "@samou-go/shared-types";
 import { prisma } from "../../lib/prisma";
@@ -149,6 +150,7 @@ export async function dispatchAvailableOrders(now = new Date()): Promise<void> {
           return true;
         });
         if (!offered) continue;
+        recordPilotEvent({ kind: 'dispatch', orderId: order.id, captainId: captain.id, result: 'OFFERED', activeOrders: captain.captainOrders.length, policy: pressure.active ? 'PRESSURE_LOAD_THEN_DISTANCE' : 'DISTANCE_THEN_LOAD' });
         await sendPushToMany(
           [captain.id],
           {

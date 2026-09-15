@@ -1403,3 +1403,22 @@ it('keeps the order destination immutable when customer profile coordinates chan
   expect(tracking.data.addressNote).toBe('Landmark A');
   expect((await request('GET', `/platform/orders/${order.id}/tracking`)).status).toBe(401);
 });
+
+it('restricts pilot diagnostics to admins and never exposes credentials or handoff codes', async () => {
+  const order = await preparationOrder();
+  await fixture.db.order.update({ where: { id: order.id }, data: { captainId: 'CAPTAIN', deliveryPin: '9988', captainHandoffCode: '7766' } });
+  const route = `/admin/pilot/orders/${order.id}`;
+  expect((await request('GET', route)).status).toBe(401);
+  for (const role of ['CUSTOMER','CAPTAIN','STORE_MANAGER']) expect((await request('GET', route, role)).status).toBe(403);
+  await request('PATCH', '/platform/settings', 'ADMIN', { gpsCaptureEnabled: true });
+  expect((await request('PUT','/platform/captains/me/location','CAPTAIN',{orderId:order.id,lat:31.395,lng:35.065,capturedAt:Date.now(),accuracy:12})).status).toBe(200);
+  expect((await request('PUT','/platform/captains/me/location','CAPTAIN',{orderId:order.id,lat:31.395,lng:35.065,capturedAt:Date.now()-120000})).status).toBe(400);
+  const result=await request<{telemetry:{items:{result:string}[]};captainCapacity:{maximum:number}}>('GET',route,'ADMIN');
+  expect(result.status).toBe(200); expect(result.data.captainCapacity.maximum).toBe(3);
+  expect(result.data.telemetry.items.map(e=>e.result)).toEqual(expect.arrayContaining(['ACCEPTED','STALE_OR_FUTURE_SAMPLE']));
+  const text=JSON.stringify(result.data); for (const secret of ['deliveryPin','captainHandoffCode','passwordHash','refreshToken','9988','7766']) expect(text).not.toContain(secret);
+  const account='/admin/pilot/accounts?phone=0599991000';
+  expect((await request('GET',account,'CUSTOMER')).status).toBe(403);
+  const inspected=await request<{passwordState:string}>('GET',account,'ADMIN');
+  expect(inspected.data.passwordState).toBe('BCRYPT_CONFIGURED'); expect(JSON.stringify(inspected.data)).not.toContain('$2');
+});

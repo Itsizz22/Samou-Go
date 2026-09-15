@@ -36,7 +36,7 @@ if (Capacitor.isNativePlatform()) setNativeCaptainTracker((orderId, onMessage) =
       url: `${API_URL}/platform/captains/me/location`, method: 'PUT',
       connectTimeout: 10000, readTimeout: 10000,
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      data: { orderId, lat: position.latitude, lng: position.longitude, capturedAt: position.time,
+      data: { orderId, lat: position.latitude, lng: position.longitude, capturedAt: position.time, accuracy: position.accuracy,
         ...(position.bearing !== null && position.bearing >= 0 && position.bearing < 360 ? { heading: position.bearing } : {}) },
     }).then(response => {
       if (disposed) return;

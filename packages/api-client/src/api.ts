@@ -2245,7 +2245,7 @@ export interface OperationsStatus {
 export const getOperationsStatus = (signal?: AbortSignal) => request<OperationsStatus>('GET', '/admin/operations', { auth: true, signal });
 
 export const getLiveOrderTracking = (id: string, signal?: AbortSignal) => request<import('@samou-go/shared-types').LiveOrderTracking>('GET', '/platform/orders/' + encodeURIComponent(id) + '/tracking', { auth: true, signal });
-export const sendCaptainPosition = (body: { orderId: string; capturedAt?: number; lat: number; lng: number; heading?: number }) => request<unknown>('PUT', '/platform/captains/me/location', { auth: true, body });
+export const sendCaptainPosition = (body: { orderId: string; capturedAt?: number; accuracy?: number; lat: number; lng: number; heading?: number }) => request<unknown>('PUT', '/platform/captains/me/location', { auth: true, body });
 
 export function getDishCategoryOptions(signal?: AbortSignal): Promise<{ id: string; nameAr: string; store: { id: string; nameAr: string } }[]> { return request('GET', '/stores/dish-category-options', { auth: true, signal }); }
 
@@ -2287,3 +2287,6 @@ export function detachOptionTemplate(storeId: string, productId: string, groupId
 export function deleteOptionTemplate(storeId: string, templateId: string): Promise<void> {
   return request('DELETE', `/stores/${encodeURIComponent(storeId)}/option-templates/${encodeURIComponent(templateId)}`, {auth: true});
 }
+
+/** Admin-only pilot snapshot; never cache in local storage. */
+export const getPilotOrderDiagnostics = (orderId: string, signal?: AbortSignal) => request<unknown>('GET', `/admin/pilot/orders/${encodeURIComponent(orderId)}`, { auth: true, signal });

@@ -25,7 +25,7 @@ export function useCaptainTracking(orderId: string | undefined, enabled: boolean
         if (Date.now() - position.timestamp > 30000 || position.timestamp > Date.now() + 5000) return;
         if (position.coords.accuracy > 150) { setMessage('دقة الموقع ضعيفة؛ انتقل إلى مكان مكشوف'); return; }
         sending = true; lastSent = Date.now();
-        void sendCaptainPosition({ orderId, capturedAt: position.timestamp, lat: position.coords.latitude, lng: position.coords.longitude, ...(position.coords.heading != null ? { heading: position.coords.heading } : {}) }).then(() => { lastSent = Date.now(); if (!disposed) setMessage('تتم مشاركة موقعك أثناء فتح التطبيق'); }, () => { if (!disposed) setMessage('تعذر إرسال الموقع؛ تحقق من الإنترنت'); }).finally(() => { sending = false; });
+        void sendCaptainPosition({ orderId, capturedAt: position.timestamp, accuracy: position.coords.accuracy, lat: position.coords.latitude, lng: position.coords.longitude, ...(position.coords.heading != null ? { heading: position.coords.heading } : {}) }).then(() => { lastSent = Date.now(); if (!disposed) setMessage('تتم مشاركة موقعك أثناء فتح التطبيق'); }, () => { if (!disposed) setMessage('تعذر إرسال الموقع؛ تحقق من الإنترنت'); }).finally(() => { sending = false; });
       }, error => { if (!disposed) setMessage(error.code === 1 ? 'اسمح بالوصول إلى الموقع من إعدادات التطبيق لتفعيل التتبع' : 'تعذر تحديد موقعك؛ تحقق من GPS وحاول مجددًا'); }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 });
     };
     start(); document.addEventListener('visibilitychange', start);

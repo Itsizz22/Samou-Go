@@ -1,3 +1,5 @@
+import { recordPilotEvent } from '../../lib/pilot-telemetry';
+import { HttpError } from '../../lib/http-error';
 import { chatOverview, readChat, writeChat, markChatRead } from './order-chat';
 import type { Request, Response } from 'express';
 import { created, ok } from '../../lib/respond';
@@ -9,8 +11,16 @@ import * as platformService from './platform.service';
 /** PUT /api/v1/platform/captains/me/location */
 export async function updateCaptainLocationHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);
-  const body = parseWith(locationSchema, req.body);
-  ok(res, await platformService.updateCaptainLocation(auth.sub, body));
+  let body: ReturnType<typeof locationSchema.parse> | undefined;
+  try {
+    body = parseWith(locationSchema, req.body);
+    const result = await platformService.updateCaptainLocation(auth.sub, body);
+    recordPilotEvent({ kind: 'gps', captainId: auth.sub, orderId: body.orderId, result: 'ACCEPTED', ...(body.capturedAt === undefined ? {} : { sampleAgeMs: Date.now() - body.capturedAt }), ...(body.accuracy === undefined ? {} : { accuracyMeters: body.accuracy }) });
+    ok(res, result);
+  } catch (error) {
+    recordPilotEvent({ kind: 'gps', captainId: auth.sub, ...(body ? { orderId: body.orderId } : {}), result: body?.capturedAt && (Date.now() - body.capturedAt > 30000 || body.capturedAt > Date.now() + 5000) ? 'STALE_OR_FUTURE_SAMPLE' : error instanceof HttpError ? error.code : 'UPLOAD_FAILED' });
+    throw error;
+  }
 }
 
 /** GET /api/v1/platform/orders/:orderId/location */

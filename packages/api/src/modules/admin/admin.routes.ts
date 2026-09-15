@@ -1,3 +1,4 @@
+import { pilotOrderHandler, pilotAccountHandler } from './pilot.controller';
 import { operationsHandler } from './operations.controller';
 import { notificationAuditHandler } from '../admin/notification-audit.controller';
 import { updatePlatformSettingsHandler } from '../platform/platform.controller';
@@ -28,3 +29,6 @@ adminRouter.patch('/settings/pricing', asyncHandler(updatePlatformSettingsHandle
 adminRouter.get('/notifications', asyncHandler(notificationAuditHandler));
 
 adminRouter.get('/operations', asyncHandler(operationsHandler));
+
+adminRouter.get('/pilot/orders/:orderId', asyncHandler(pilotOrderHandler));
+adminRouter.get('/pilot/accounts', asyncHandler(pilotAccountHandler));

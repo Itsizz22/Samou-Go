@@ -36,7 +36,7 @@ export async function updateCaptainLocation(captainId: string, body: LocationBod
   const order = await prisma.order.findUnique({ where: { id: body.orderId }, select: { captainId: true, status: true } });
   if (!order || order.captainId !== captainId || !['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'ON_THE_WAY'].includes(order.status)) throw forbidden('مشاركة الموقع متاحة للطلب المسند النشط فقط / Active assigned order required');
   if (body.capturedAt !== undefined && (Date.now() - body.capturedAt > 30000 || body.capturedAt > Date.now() + 5000)) throw badRequest('قراءة الموقع قديمة؛ أرسل قراءة جديدة / Stale location sample');
-  const { orderId: _orderId, capturedAt: _capturedAt, ...coordinates } = body;
+  const { orderId: _orderId, capturedAt: _capturedAt, accuracy: _accuracy, ...coordinates } = body;
   return prisma.captainLocation.upsert({
     where: { captainId },
     create: { captainId, ...coordinates },

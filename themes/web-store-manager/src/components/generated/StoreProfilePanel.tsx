@@ -1,3 +1,4 @@
+import { StoreLocationEditor } from '@samou-go/ui/map';
 import { UploadImageDetails } from '@samou-go/ui';
 import { AppSelect } from '@samou-go/ui';
 import { listActiveDeliveryZones, useResource } from '@samou-go/api-client';
@@ -143,44 +144,6 @@ export function StoreProfilePanel({ storeId }: Props) {
     setSaveError(null);
   };
 
-  const [locBusy, setLocBusy] = useState(false);
-  const [locMessage, setLocMessage] = useState<{ ar: string; en: string } | null>(null);
-
-  const captureStoreLocation = () => {
-    if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING) return;
-    if (locBusy || !('geolocation' in navigator)) {
-      setLocMessage({ ar: 'تحديد الموقع غير مدعوم', en: 'Geolocation is unavailable' });
-      return;
-    }
-    setLocBusy(true);
-    setLocMessage({ ar: 'جارٍ تحديد الموقع…', en: 'Detecting location…' });
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
-        try {
-          await updateStore(storeId, {
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-          });
-          setLocMessage({
-            ar: `تم حفظ الموقع: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
-            en: `Location saved: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
-          });
-          void storeResource.reload();
-          toast.success('تم تحديث موقع المتجر', 'Store location updated');
-        } catch {
-          setLocMessage({ ar: 'تعذّر حفظ الموقع — حاول مجدداً', en: 'Failed to save location — try again' });
-        } finally {
-          setLocBusy(false);
-        }
-      },
-      () => {
-        setLocBusy(false);
-        setLocMessage({ ar: 'تعذّر تحديد الموقع — تحقق من إذن الموقع', en: 'Location permission was not granted' });
-      },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
-    );
-  };
-
   /* ---- Store logo (attach / change / remove) ------------------------------ */
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const validateStoreImage = (file: File) => {
@@ -273,11 +236,6 @@ export function StoreProfilePanel({ storeId }: Props) {
       </div>
     );
   }
-
-  const coords =
-    storeData && storeData.latitude !== null && storeData.longitude !== null
-      ? { lat: storeData.latitude, lng: storeData.longitude }
-      : null;
 
   return (
     <div className="mx-auto max-w-lg">
@@ -443,49 +401,7 @@ export function StoreProfilePanel({ storeId }: Props) {
             </button>
           </div>
 
-          {/* Store location */}
-          {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <>
-          <div className="rounded-xl border border-line bg-canvas p-3">
-            <span className="mb-2 flex items-center gap-1.5 text-xs font-bold text-ink">
-              <MapPin size={13} className="text-brand" />
-              {t('موقع المتجر (GPS)', 'Store location (GPS)')}
-            </span>
-            <p className="mb-2 text-micro text-ink-muted">
-              {t(
-                'يستخدمه الكابتن للملاحة إلى المتجر',
-                'Used by captains to navigate to your store',
-              )}
-            </p>
-            {coords ? (
-              <p className="mb-2 rounded-lg bg-brand-tint px-2.5 py-1.5 text-micro font-semibold text-brand-deep" dir="ltr">
-                {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-              </p>
-            ) : (
-              <p className="mb-2 text-micro text-warning-ink">
-                {t('لم يتم تحديد موقع المتجر بعد', 'Store location not set yet')}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={() => void captureStoreLocation()}
-              disabled={locBusy}
-              className="flex h-8 items-center gap-1.5 rounded-lg bg-brand px-3 text-[11px] font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
-            >
-              {locBusy ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <MapPin size={13} />
-              )}
-              {t('تحديث موقع المتجر', 'Update store location')}
-            </button>
-            {locMessage && (
-              <p className="mt-2 text-[11px] text-ink-muted" dir="auto">
-                {isArabic ? locMessage.ar : locMessage.en}
-              </p>
-            )}
-          </div>
-
-          </>}
+          {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <StoreLocationEditor t={t} key={storeId} latitude={storeData?.latitude} longitude={storeData?.longitude} onSave={async (latitude, longitude) => { await updateStore(storeId, {latitude, longitude}); await storeResource.reload(); }} />}
           {/* Error */}
           {saveError && (
             <p className="flex items-center gap-1.5 rounded-xl bg-danger-tint px-3 py-2 text-xs font-semibold text-danger-ink">

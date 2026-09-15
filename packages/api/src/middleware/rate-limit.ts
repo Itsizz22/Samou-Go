@@ -1,3 +1,4 @@
+import { recordPilotEvent } from '../lib/pilot-telemetry';
 import rateLimit from "express-rate-limit";
 import type { ApiFailure } from "@samou-go/shared-types";
 import { env } from "../config/env";
@@ -138,6 +139,10 @@ export const captainLocationLimiter = rateLimit({
   windowMs: 60_000,
   max: 20,
   keyGenerator: req => req.auth!.sub,
+  handler: (req, res) => {
+    recordPilotEvent({ kind: 'gps', captainId: req.auth!.sub, result: 'RATE_LIMITED' });
+    res.status(429).json({ success: false, error: { code: 'TOO_MANY_REQUESTS', message: 'يرجى الانتظار قبل تحديث الموقع مجددًا' } });
+  },
   standardHeaders: "draft-7",
   legacyHeaders: false,
   skip: () => env.isTest,

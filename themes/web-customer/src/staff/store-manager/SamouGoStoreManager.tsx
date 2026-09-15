@@ -1,3 +1,4 @@
+import { StoreLocationEditor } from '@samou-go/ui/map';
 import { StoreTimingControls } from './StoreTimingControls';
 import { ScheduledOrderNotice } from '@/components/ScheduledOrderNotice';
 import { AppSelect } from '@samou-go/ui';
@@ -1247,112 +1248,15 @@ function markDismissed(storeId: string): void {
   }
 }
 
-function StoreLocationPrompt({
-  store,
-  storeId,
-  onSaved,
-}: {
-  store: StoreType;
-  storeId: string | null;
-  onSaved: () => void;
-}) {
+function StoreLocationPrompt({ store, storeId, onSaved }: {store: StoreType; storeId: string | null; onSaved: () => void}) {
   const { t } = useLanguage();
-  const toast = useToast();
-  const [busy, setBusy] = useState(false);
   const [dismissed, setDismissed] = useState(() => readDismissed(storeId ?? ''));
-
-  const hasLocation =
-    store.latitude !== null && store.latitude !== undefined &&
-    store.longitude !== null && store.longitude !== undefined;
-
+  const hasLocation = store.latitude != null && store.longitude != null;
   if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING || !storeId || hasLocation || dismissed) return null;
-
-  const capture = () => {
-    if (!FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING) return;
-    if (busy || !('geolocation' in navigator)) {
-      toast.error(
-        t('تحديد الموقع غير مدعوم في هذا المتصفح', 'Geolocation is unavailable'),
-        t('تحديد الموقع غير مدعوم في هذا المتصفح', 'Geolocation is unavailable'),
-      );
-      return;
-    }
-    setBusy(true);
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
-        try {
-          await updateStore(storeId, {
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-          });
-          markDismissed(storeId);
-          setDismissed(true);
-          toast.success('تم حفظ موقع المتجر', 'Store location saved');
-          onSaved();
-        } catch {
-          toast.error('تعذّر حفظ الموقع — حاول مجدداً', 'Could not save location — try again');
-        } finally {
-          setBusy(false);
-        }
-      },
-      () => {
-        setBusy(false);
-        toast.error(
-          'تعذّر تحديد الموقع — تحقق من إذن الموقع',
-          'Location permission was not granted',
-        );
-      },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
-    );
-  };
-
-  const skip = () => {
-    if (!storeId) return;
-    markDismissed(storeId);
-    setDismissed(true);
-  };
-
-  return (
-    <section className="mx-auto max-w-md px-4 pt-5" aria-label="Store location prompt">
-      <div className="rounded-2xl border border-warning-tint bg-surface p-4 shadow-card">
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
-            <MapPin size={18} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-extrabold text-ink">
-              {t('حدّد موقع المتجر على الخريطة', 'Set your store location')}
-            </h2>
-            <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
-              {t(
-                'لن يتمكن الكابتن من الوصول إلى متجرك حتى تحدد موقعه على الخريطة. شارك موقعك الحالي الآن.',
-                'Captains cannot navigate to your store until its location is set. Share your current location now.',
-              )}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void capture()}
-                disabled={busy}
-                className="flex h-9 items-center gap-1.5 rounded-xl bg-brand px-4 text-xs font-bold text-white transition hover:bg-brand-dark active:scale-95 disabled:opacity-60"
-              >
-                {busy ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} />}
-                {t('استخدام موقعي الحالي', 'Use my current location')}
-              </button>
-              <button
-                type="button"
-                onClick={skip}
-                disabled={busy}
-                className="flex h-9 items-center gap-1.5 rounded-xl border border-line px-3 text-xs font-bold text-ink-muted transition hover:bg-canvas active:scale-95 disabled:opacity-60"
-              >
-                <X size={13} />
-                {t('لاحقاً', 'Later')}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  return <section className="mx-auto max-w-md px-4 pt-5" aria-label="Store location prompt">
+    <StoreLocationEditor t={t} latitude={store.latitude} longitude={store.longitude} onSave={async (latitude, longitude) => { await updateStore(storeId, {latitude,longitude}); onSaved(); }} />
+    <button type="button" className="min-h-11 px-3" onClick={()=>{markDismissed(storeId);setDismissed(true);}}>{t('لاحقًا','Later')}</button>
+  </section>;
 }
 
 /** Store manager's account statement — shows ledger entries with balance. */

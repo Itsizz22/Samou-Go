@@ -3,6 +3,12 @@ on:
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
+    inputs:
+      alert_drill:
+        description: 'Controlled alert drill: intentionally fail this run without disrupting production'
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: read
 jobs:
@@ -32,3 +38,8 @@ jobs:
             if (!passed) throw new Error(`Critical: availability check failed for ${new URL(url).host}`);
           }
           JS
+      - name: Controlled operator alert drill
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.alert_drill }}
+        run: |
+          echo "::error::PILOT ALERT DRILL — no production outage was induced. Operator must record receipt and acknowledgement."
+          exit 1
