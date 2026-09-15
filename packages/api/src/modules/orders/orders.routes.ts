@@ -10,7 +10,7 @@ import { requireAuth } from '../../middleware/authenticate';
 import { Router } from 'express';
 import { UserRole } from '@samou-go/shared-types';
 import { asyncHandler } from '../../lib/async-handler';
-import { authenticate, authenticateIfPresent, authorize, optionalAuthenticate } from '../../middleware/authenticate';
+import { authenticate, authorize, optionalAuthenticate } from '../../middleware/authenticate';
 import { orderLimiter, quoteLimiter } from '../../middleware/rate-limit';
 import * as controller from './orders.controller';
 
@@ -22,20 +22,7 @@ export const ordersRouter: Router = Router();
  */
 ordersRouter.post('/quote', optionalAuthenticate, quoteLimiter, asyncHandler(controller.quoteOrderHandler));
 
-/**
- * SSE stream: GET /api/v1/orders/:orderId/events — fires whenever the order's
- * status changes. Paired with the `useOrderEvent` hook in `@samou-go/api-client`.
- *
- * Registered **above** the `authenticate` gate on purpose. A browser
- * `EventSource` cannot set an `Authorization` header, so a hard-gated stream
- * could never connect from any of the seven SPAs — it would 401 before the
- * handler ran and the hook would fall back to polling forever. `optionalAuthenticate`
- * therefore does the work: a token, when one arrives (curl, a native client),
- * is verified and ownership is enforced in the handler; an anonymous stream is
- * allowed and carries status transitions only — never address, phone or captain
- * PII. Order ids are unguessable, so that is the same exposure as the tracking
- * link itself.
- */
+/** Order event streams require bearer authentication and resource ownership. */
 ordersRouter.get('/submissions/:requestId', authenticate, asyncHandler(async (req, res) => {
   const user = requireAuth(req);
   const requestId = String(req.params.requestId);
@@ -44,7 +31,7 @@ ordersRouter.get('/submissions/:requestId', authenticate, asyncHandler(async (re
 }));
 ordersRouter.get(
   '/:orderId/events',
-  authenticateIfPresent,
+  authenticate,
   asyncHandler(controller.orderEventSSEHandler)
 );
 

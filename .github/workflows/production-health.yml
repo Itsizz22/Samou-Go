@@ -1,0 +1,34 @@
+name: Production health
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read-only availability checks
+        run: |
+          node --input-type=module <<'JS'
+          const targets = ['https://samou-go.onrender.com/health', 'https://samou-go.onrender.com/ready', 'https://samou-go-customer.vercel.app/'];
+          for (const url of targets) {
+            let passed = false;
+            for (let attempt = 0; attempt < 2; attempt++) {
+              try {
+                const started = Date.now();
+                const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
+                if (!response.ok) throw new Error('Unhealthy');
+                if (url.endsWith('/health')) {
+                  const body = await response.json();
+                  if (body.data?.status !== 'ok') throw new Error('Unhealthy payload');
+                }
+                console.log(JSON.stringify({ event: 'health.ok', host: new URL(url).host, latencyMs: Date.now() - started, severity: 'Informational' }));
+                passed = true; break;
+              } catch { /* Retry once before failing the scheduled check. */ }
+            }
+            if (!passed) throw new Error(`Critical: availability check failed for ${new URL(url).host}`);
+          }
+          JS

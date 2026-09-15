@@ -677,6 +677,7 @@ it('tracks only assigned active deliveries, changes destination and hides stale 
   expect((await request('PUT', '/platform/captains/me/location', 'CUSTOMER', { orderId: id, lat: 31.395, lng: 35.065 })).status).toBe(403);
   expect((await request('PUT', '/platform/captains/me/location', 'CAPTAIN', { orderId: id, lat: 99, lng: 35 })).status).toBe(422);
   expect((await request('PUT', '/platform/captains/me/location', 'CAPTAIN', { orderId: id, lat: 31.395, lng: 35.065 })).status).toBe(200);
+  expect((await request('PUT', '/platform/captains/me/location', 'CAPTAIN', { orderId: id, lat: 31.395, lng: 35.065, capturedAt: Date.now() - 120000 })).status).toBe(400);
   type Snapshot = { stage: string; location: unknown; distanceMeters: number | null; stale: boolean };
   expect((await request('GET', '/platform/orders/' + id + '/tracking')).status).toBe(401);
   const beforePickup = await request<Snapshot>('GET', '/platform/orders/' + id + '/tracking', 'STORE_MANAGER');
@@ -1376,4 +1377,29 @@ it('spreads peak demand before a third delivery, blocks manual bypass and restor
   // The queue drops below the threshold: the original three-order limit applies again.
   expect((await request('PATCH',`/orders/${waiting[1]!.id}/captain`,'ADMIN',{captainId:busy})).status).toBe(200);
   expect((await request('PATCH',`/orders/${waiting[2]!.id}/captain`,'ADMIN',{captainId:busy})).status).toBe(409);
+});
+it('protects order status streams from anonymous and unrelated accounts', async () => {
+  const order = await preparationOrder();
+  expect((await request('GET', `/orders/${order.id}/events`)).status).toBe(401);
+  await fixture.db.user.create({ data: { id: 'sse-unrelated', phone: '0599988809', name: 'SSE TEST', role: 'CUSTOMER', passwordHash: 'no-login', isActive: true, isVerified: true } });
+  tokens['sse-unrelated'] = signAccessToken({ userId: 'sse-unrelated', role: UserRole.CUSTOMER, phone: '0599988809' }).accessToken;
+  expect((await request('GET', `/orders/${order.id}/events`, 'sse-unrelated')).status).toBe(403);
+  const controller = new AbortController();
+  const response = await fetch(`${base}/api/v1/orders/${order.id}/events`, { headers: { Authorization: `Bearer ${tokens.CUSTOMER}` }, signal: controller.signal });
+  expect(response.status).toBe(200);
+  expect(response.headers.get('content-type')).toContain('text/event-stream');
+  controller.abort();
+});
+it('keeps the order destination immutable when customer profile coordinates change', async () => {
+  const created = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', { storeId: 'store', fulfillmentType: 'DELIVERY', customerAddressText: 'Location A - immutable destination', addressNote: 'Landmark A', latitude: 31.4, longitude: 35.07, items: [{ productId: 'product', quantity: 1 }] });
+  expect(created.status).toBe(201);
+  await fixture.db.user.update({ where: { id: 'CUSTOMER' }, data: { latitude: 31.5, longitude: 35.08 } });
+  const order = await fixture.db.order.findUniqueOrThrow({ where: { id: created.data.id } });
+  expect([order.latitude, order.longitude, order.addressNote]).toEqual([31.4, 35.07, 'Landmark A']);
+  await fixture.db.order.update({ where: { id: order.id }, data: { captainId: 'CAPTAIN', status: 'PREPARING' } });
+  const tracking = await request<{ customer: { lat: number; lng: number }; addressNote: string }>('GET', `/platform/orders/${order.id}/tracking`, 'CAPTAIN');
+  expect(tracking.status).toBe(200);
+  expect(tracking.data.customer).toMatchObject({ lat: 31.4, lng: 35.07 });
+  expect(tracking.data.addressNote).toBe('Landmark A');
+  expect((await request('GET', `/platform/orders/${order.id}/tracking`)).status).toBe(401);
 });

@@ -155,6 +155,14 @@ function App() {
     });
     return () => { active = false; };
   }, [auth.ready, auth.user?.id, splashElapsed]);
+  useEffect(() => {
+    const sync = () => {
+      if (!document.hidden) void import('./lib/webPush').then(({ syncWebPush }) => syncWebPush());
+    };
+    window.addEventListener('online', sync);
+    document.addEventListener('visibilitychange', sync);
+    return () => { window.removeEventListener('online', sync); document.removeEventListener('visibilitychange', sync); };
+  }, []);
   if (splashElapsed && needsSessionRecovery(auth)) return <SessionRecovery auth={auth} />;
 
   // Direct login has its own short intro; retain session readiness gating.

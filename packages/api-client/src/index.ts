@@ -48,3 +48,5 @@ export { ProductCustomizationEditor } from './ProductCustomizationEditor';
 export { StoreCaptainContact } from './StoreCaptainContact';
 
 export { AppToaster } from './AppToaster';
+
+export { setNativeCaptainTracker } from './native-captain-tracker';

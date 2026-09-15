@@ -1,3 +1,4 @@
+import { StoreDiscoveryMap } from '@/components/StoreDiscoveryMap';
 import { FeaturedStoreCard, StoreCard, StoreCardSkeleton } from '@/components/home/StoreCards';
 import { usePlatformSettings } from '@samou-go/api-client';
 import type { HomeCategory } from '@samou-go/shared-types';
@@ -383,6 +384,7 @@ export function SamouGoHome() {
       {!searchTerm.trim() && <>
 
       </>}
+      <StoreDiscoveryMap />
       {!searchTerm.trim() && !stores.error && <section id="home-results" aria-live="polite" className="scroll-mt-4 mx-auto max-w-md px-5 pt-8" aria-labelledby="nearby-title" aria-busy={stores.loading}>
         <div className="mb-4 flex items-end justify-between"><div><h2 id="nearby-title" className="text-lg font-extrabold">{t('كل المتاجر', "All stores in Al-Samou'")}</h2></div>{stores.refreshing ? <Loader2 size={16} className="animate-spin text-brand" aria-label="Refreshing" /> : <ChevronLeft size={18} className="text-ink-subtle" />}</div>
         <div className="market-filters" aria-label={t('تصفية حسب حالة المتجر', 'Store availability')}>

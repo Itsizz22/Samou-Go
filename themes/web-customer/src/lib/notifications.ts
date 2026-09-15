@@ -90,7 +90,11 @@ function ensureListeners(): Promise<void> {
 }
 
 export async function registerForPushNotifications(accessToken: string, requestPermission = true): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!Capacitor.isNativePlatform()) {
+    const { syncWebPush } = await import('./webPush');
+    await syncWebPush();
+    return;
+  }
   try {
     // Tap delivery must work even when permission was revoked after delivery.
     await ensureListeners();

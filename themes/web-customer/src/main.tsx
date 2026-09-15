@@ -1,3 +1,4 @@
+import './lib/nativeCaptainTracking';
 import { IncomingOrderAlert } from './components/IncomingOrderAlert';
 import { ZoneProvider } from './components/ZoneProvider';
 import { AppErrorBoundary, LanguageProvider, OfflineBanner, bootstrapApp } from '@samou-go/ui';

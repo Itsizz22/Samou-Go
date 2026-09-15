@@ -94,8 +94,9 @@ export function CheckoutScreen() {
   const { isOffline } = useNetworkStatus();
   const isArabic = language === 'ar';
 
-  const [saved, setSaved] = useState<SavedAddress[]>(() => readSavedAddresses() ?? []);
+  const [saved, setSaved] = useState<SavedAddress[]>(() => readSavedAddresses(auth.user?.id) ?? []);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  useEffect(() => { setSaved(readSavedAddresses(auth.user?.id)); setSelectedAddressId(null); setPickedLat(undefined); setPickedLng(undefined); }, [auth.user?.id]);
   const [addressText, setAddressText] = useCheckoutDraft(`samou_checkout_draft:${auth.user?.id ?? 'guest'}:addressText`);
   const [addressNote, setAddressNote] = useCheckoutDraft(`samou_checkout_draft:${auth.user?.id ?? 'guest'}:addressNote`);
   const [deliveryRegion, setDeliveryRegion] = useState<DeliveryRegion>('central');
@@ -177,14 +178,15 @@ export function CheckoutScreen() {
   useEffect(() => {
     if ((saved ?? []).length > 0 && !selectedAddressId) {
       setSelectedAddressId(saved[0].id);
+      if (saved[0].deliveryZoneId) zoneContext.selectZone(saved[0].deliveryZoneId);
       if (saved[0].tag) setAddressTag(normalizeTag(saved[0].tag));
-      if (saved[0].lat && saved[0].lng) {
+      if (saved[0].lat !== undefined && saved[0].lng !== undefined) {
         setPickedLat(saved[0].lat);
         setPickedLng(saved[0].lng);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [(saved ?? []).length]);
+  }, [saved]);
 
   useEffect(() => {
     if (pricingSettings.data) setZonesEnabled(pricingSettings.data.enableDeliveryZones);
@@ -384,7 +386,7 @@ export function CheckoutScreen() {
         };
         setSaved((current) => {
           const next = upsertAddress(current, entry);
-          writeSavedAddresses(next);
+          writeSavedAddresses(next, auth.user?.id);
           return next;
         });
       }
@@ -575,8 +577,9 @@ export function CheckoutScreen() {
                     type="button"
                     onClick={() => {
                       setSelectedAddressId(entry.id);
+                      if (entry.deliveryZoneId) zoneContext.selectZone(entry.deliveryZoneId);
                       if (entry.tag) setAddressTag(normalizeTag(entry.tag));
-                      if (entry.lat && entry.lng) {
+                      if (entry.lat !== undefined && entry.lng !== undefined) {
                         setPickedLat(entry.lat);
                         setPickedLng(entry.lng);
                       } else {

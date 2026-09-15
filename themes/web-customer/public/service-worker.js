@@ -13,7 +13,7 @@
  *  - Cross-origin traffic (API, SMS verification) is never
  *    intercepted — network requests must always hit the origin.
  */
-const CACHE_NAME = 'samou-go-customer-v3';
+const CACHE_NAME = 'samou-go-customer-v4';
 const APP_SHELL = '/index.html';
 const API_HOSTNAME = 'samou-go.onrender.com';
 
@@ -44,7 +44,7 @@ self.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+        Promise.all(keys.filter((key) => key.startsWith('samou-go-customer-') && key !== CACHE_NAME).map((key) => caches.delete(key)))
       )
       .then(() => self.clients.claim())
   );
@@ -60,7 +60,9 @@ self.addEventListener('fetch', (event) => {
 
   // Only same-origin GETs participate in the cache. API calls and cross-origin
   // traffic stay network-only.
-  if (url.origin !== self.location.origin || request.method !== 'GET') return;
+  if (url.origin !== self.location.origin || request.method !== 'GET' || request.headers.has('Authorization')) return;
+  // Only public build assets are cacheable; never arbitrary same-origin endpoints.
+  if (request.mode !== 'navigate' && !url.pathname.startsWith('/assets/')) return;
 
   // Navigations: network first, app shell as the offline fallback.
   if (request.mode === 'navigate') {
@@ -93,4 +95,36 @@ self.addEventListener('fetch', (event) => {
       return cached || network;
     }).catch(() => networkOnly(request))
   );
+});
+
+// FCM delivers to the existing worker; no second worker/cache or CDN SDK required.
+// Keep lock-screen text generic: a device can go offline before logout reaches the API.
+self.addEventListener('push', (event) => {
+  event.waitUntil((async () => {
+    let payload;
+    try { payload = event.data ? event.data.json() : {}; } catch { payload = {}; }
+    const data = payload && typeof payload.data === 'object' && payload.data ? payload.data : {};
+    const orderId = typeof data.orderId === 'string' ? data.orderId.slice(0, 100) : '';
+    const expiry = Number(data.expiresAt);
+    const expired = Number.isFinite(expiry) && expiry > 0 && expiry <= Date.now();
+    // iOS requires a visible notification for a push event, including stale messages.
+    await self.registration.showNotification('Samou Quick', {
+      body: expired ? 'افتح التطبيق للاطلاع على آخر التحديثات' : 'لديك تحديث جديد، افتح التطبيق للاطلاع عليه',
+      tag: typeof data.notificationLogId === 'string' ? data.notificationLogId.slice(0, 100) : undefined,
+      data: { path: !expired && orderId ? `/orders/${encodeURIComponent(orderId)}` : '/home' },
+    });
+  })());
+});
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const path = event.notification.data?.path;
+    // Ignore payload URLs. Opening the protected route refetches authoritative state.
+    const safePath = typeof path === 'string' && /^\/orders\/[^/?#]+$/.test(path) ? path : '/home';
+    const target = new URL(safePath, self.location.origin).href;
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const existing = windows.find(client => new URL(client.url).origin === self.location.origin);
+    if (existing) { await existing.navigate(target); await existing.focus(); }
+    else await self.clients.openWindow(target);
+  })());
 });

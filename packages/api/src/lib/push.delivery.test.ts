@@ -35,7 +35,7 @@ describe('FCM delivery payload', () => {
   it('removes only stale device tokens after a failed delivery', async () => {
     mocks.send.mockResolvedValue({ responses: [{ success: false, error: { code: 'messaging/registration-token-not-registered' } }] });
     await expect(sendPushToUser('user', { title: 'Order', body: 'Ready' })).resolves.toEqual({ sent: 0, failed: 1 });
-    expect(mocks.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['device'] } } });
+    expect(mocks.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['device'] }, userId: 'user' } });
   });
 });
 

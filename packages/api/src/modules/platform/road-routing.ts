@@ -1,3 +1,4 @@
+import { recordServerFailure } from '../../lib/operations';
 import { z } from 'zod';
 import type { RoadRoute, TrackingPoint } from '@samou-go/shared-types';
 
@@ -27,7 +28,7 @@ export function createRoadRouter(baseUrl: string | undefined, fetcher: typeof fe
         if (!['https:', 'http:'].includes(url.protocol)) return null;
         url.search = new URLSearchParams({ geometries: 'geojson', overview: 'full', steps: 'false', alternatives: 'false', radiuses: '150;150' }).toString();
         const response = await fetcher(url, { signal: AbortSignal.timeout(2500), redirect: 'error' });
-        if (!response.ok) return null;
+        if (!response.ok) { recordServerFailure('OSRM_HTTP_ERROR'); return null; }
         const parsed = resultSchema.safeParse(await response.json());
         if (!parsed.success) return null;
         const route = parsed.data.routes[0];
@@ -35,7 +36,7 @@ export function createRoadRouter(baseUrl: string | undefined, fetcher: typeof fe
         return { distanceMeters: Math.round(route.distance), durationSeconds: Math.round(route.duration),
           coordinates: route.geometry.coordinates.map(([lng, lat]): [number, number] => [lat, lng]),
           calculatedAt: new Date().toISOString(), trafficAware: false as const };
-      } catch { return null; }
+      } catch { recordServerFailure('OSRM_UNAVAILABLE'); return null; }
     })();
     cache.set(key, { expires: Date.now() + 20000, value });
     return value;

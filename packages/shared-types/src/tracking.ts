@@ -8,6 +8,9 @@ export interface RoadRoute {
 }
 export interface LiveOrderTracking {
   route?: RoadRoute | null;
+  /** Immutable order destination, independent of the current routing stage. */
+  customer?: (TrackingPoint & { label: string }) | null;
+  addressNote?: string | null;
   enabled: boolean;
   stage: 'store' | 'customer' | 'complete';
   location: (TrackingPoint & { updatedAt: string }) | null;

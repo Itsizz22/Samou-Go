@@ -56,5 +56,9 @@
 	<string>تسجيل ملاحظة صوتية لتوضيح تفاصيل التوصيل للكابتن عند رغبتك.</string>
 <key>NSLocationWhenInUseUsageDescription</key>
 <string>نستخدم موقعك عند استخدام التطبيق لتحديد عنوان التسليم ومشاركة موقع الكابتن أثناء الطلب النشط.</string>
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+<string>يشارك حساب الكابتن موقعه أثناء التوصيل النشط حتى عند قفل الشاشة، وتتوقف المشاركة عند انتهاء الطلب أو تسجيل الخروج.</string>
+<key>UIBackgroundModes</key>
+<array><string>location</string><string>remote-notification</string></array>
 </dict>
 </plist>

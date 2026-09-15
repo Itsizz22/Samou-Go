@@ -1,3 +1,4 @@
+import { MapPicker } from '@/components/MapPicker';
 import { WhatsAppNumberSettings } from '@samou-go/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -70,7 +71,9 @@ export function ProfileScreen() {
   }, [resendIn]);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
-  const [addresses, setAddresses] = useState<SavedAddress[]>(() => readSavedAddresses());
+  const [mapAddressId, setMapAddressId] = useState<string | null>(null);
+  const [addresses, setAddresses] = useState<SavedAddress[]>(() => readSavedAddresses(auth.user?.id));
+  useEffect(() => { setAddresses(readSavedAddresses(auth.user?.id)); }, [auth.user?.id]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!auth.ready) {
@@ -162,7 +165,7 @@ export function ProfileScreen() {
   const removeAddress = (id: string) => {
     const next = addresses.filter((entry) => entry.id !== id);
     setAddresses(next);
-    writeSavedAddresses(next);
+    writeSavedAddresses(next, auth.user?.id);
     toast.info('تم حذف العنوان', 'Address removed');
   };
 
@@ -359,6 +362,7 @@ export function ProfileScreen() {
                       <p className="mt-0.5 text-micro text-ink-muted">{entry.addressNote}</p>
                     )}
                   </div>
+                  <button type="button" onClick={() => setMapAddressId(entry.id)} className="min-h-11 px-2 text-xs text-brand">تعديل الموقع</button>
                   <button
                     type="button"
                     aria-label={t('حذف العنوان', 'Remove address')}
@@ -379,6 +383,7 @@ export function ProfileScreen() {
 
         <AccountSwitcher auth={auth} />
       </div>
-</ScreenShell>
+<MapPicker isOpen={Boolean(mapAddressId)} initialLat={addresses.find(entry => entry.id === mapAddressId)?.lat} initialLng={addresses.find(entry => entry.id === mapAddressId)?.lng} onClose={() => setMapAddressId(null)} onPick={(lat,lng) => { const next = addresses.map(entry => entry.id === mapAddressId ? { ...entry,lat,lng } : entry); setAddresses(next); writeSavedAddresses(next, auth.user?.id); }} />
+    </ScreenShell>
   );
 }

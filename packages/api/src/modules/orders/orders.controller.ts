@@ -38,12 +38,8 @@ export async function orderEventSSEHandler(req: Request, res: Response): Promise
   // live stream, an invented one closes immediately instead of becoming an
   // "is this id real?" oracle.
   const order = await ordersService.loadOrderOrThrow(orderId);
-  // Auth: when a token is present, enforce ownership so a signed-in caller can
-  // only follow their own orders. Anonymous streams carry status updates only
-  // (no address/phone/captain PII is ever emitted) for unguessable order ids.
-  if (req.auth) {
-    await ordersService.assertCanView(order, req.auth);
-  }
+  const auth = requireAuth(req);
+  await ordersService.assertCanView(order, auth);
 
   // Set SSE headers — no cache, keep alive, event stream mime type.
   res.setHeader('Content-Type', 'text/event-stream');
@@ -62,9 +58,9 @@ export async function orderEventSSEHandler(req: Request, res: Response): Promise
     if (reading || res.writableEnded) return;
     reading = true;
     try {
-      if (req.auth) await verifyLiveAccessToken(req.headers.authorization?.split(' ')[1] ?? '');
+      await verifyLiveAccessToken(req.headers.authorization?.split(' ')[1] ?? '');
       const order = await ordersService.loadOrderOrThrow(orderId);
-      if (req.auth) await ordersService.assertCanView(order, req.auth);
+      await ordersService.assertCanView(order, auth);
       if (res.writableEnded) return;
       const event = {
         id: order.id,

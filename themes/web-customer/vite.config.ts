@@ -18,7 +18,7 @@ export default defineConfig({
           if (!modulePath.includes('/node_modules/')) return;
           if (/\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(modulePath)) return 'react-vendor';
           if (/\/(framer-motion|motion-dom|motion-utils)\//.test(modulePath)) return 'motion-vendor';
-          if (/\/(leaflet|react-leaflet|@react-leaflet)\//.test(modulePath)) return 'map-vendor';
+          if (/\/(mapbox-gl|@mapbox)\//.test(modulePath)) return 'map-vendor';
         },
       },
     },

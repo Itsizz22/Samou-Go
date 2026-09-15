@@ -1,3 +1,4 @@
+import { WebPushPermission } from './WebPushPermission';
 import { useEffect, useState } from 'react';
 import { getNotificationPreferences, saveNotificationPreferences } from '@samou-go/api-client';
 export function NotificationPreferences() {
@@ -36,6 +37,7 @@ export function NotificationPreferences() {
         إشعارات العروض والإعلانات
       </label>
       <p className="text-xs text-ink-muted">تبقى تحديثات طلباتك مفعّلة عند إيقاف الإعلانات.</p>
+      <WebPushPermission />
       {error && (
         <button type="button" onClick={load} className="min-h-11 text-danger-ink">
           {error} — إعادة المحاولة

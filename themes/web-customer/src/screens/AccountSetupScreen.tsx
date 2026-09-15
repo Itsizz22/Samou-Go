@@ -1,3 +1,4 @@
+import { MapPicker } from '@/components/MapPicker';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BrandLogo } from '@samou-go/ui';
@@ -16,6 +17,7 @@ export function AccountSetupScreen() {
   const [prefix, setPrefix] = useState<'970' | '972' | ''>('');
   const [address, setAddress] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [showMap, setShowMap] = useState(false);
   const [busy, setBusy] = useState(false);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState('');
@@ -44,7 +46,7 @@ export function AccountSetupScreen() {
     setBusy(true); setError('');
     try {
       if (coords) await updateMyLocation(coords.lat, coords.lng);
-      writeSavedAddresses(upsertAddress(readSavedAddresses(), { id: crypto.randomUUID(), label: 'المنزل', tag: 'home', addressText: address.trim(), ...(coords ?? {}) }));
+      writeSavedAddresses(upsertAddress(readSavedAddresses(auth.user?.id), { id: crypto.randomUUID(), label: 'المنزل', tag: 'home', deliveryZoneId: zone.activeZone.id, addressText: address.trim(), ...(coords ?? {}) }), auth.user?.id);
       finish();
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'تعذر حفظ الموقع. حاول مجدداً.'); }
     finally { setBusy(false); }
@@ -66,11 +68,13 @@ export function AccountSetupScreen() {
         <label className="block text-sm font-bold">منطقة التوصيل<select className="input-field mt-2 min-h-12 w-full" value={zone.activeZone?.id ?? ''} disabled={zone.loading} onChange={event => zone.selectZone(event.target.value)}><option value="" disabled>اختر منطقتك</option>{zone.zones.map(item => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</select></label>
         {zone.error && <button type="button" onClick={zone.reload} className="min-h-11 text-sm text-brand">تعذر تحميل المناطق — إعادة المحاولة</button>}
         <button type="button" disabled={locating || busy} onClick={locate} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-brand text-sm font-bold text-brand"><LocateFixed size={18} />{locating ? 'جارٍ تحديد الموقع…' : coords ? 'تم تحديد موقعك — تحديث' : 'استخدم موقعي الحالي'}</button>
+        <button type="button" onClick={() => setShowMap(true)} className="mt-2 min-h-12 w-full rounded-xl border border-line text-brand">حدد الموقع على الخريطة</button>
         <label className="mt-5 block text-sm font-bold">العنوان وعلامة مميزة<textarea value={address} onChange={event => setAddress(event.target.value)} maxLength={500} className="input-field mt-2 min-h-28 w-full resize-none" placeholder="الحي، الشارع، وبجانب أي معلم…" /></label>
         <button type="button" disabled={busy || locating || address.trim().length < 5 || !zone.activeZone} onClick={() => void saveAddress()} className="btn-primary mt-5 min-h-12 w-full justify-center disabled:opacity-50">{busy ? 'جارٍ الحفظ…' : 'حفظ وابدأ التصفح'}</button>
         <button type="button" disabled={busy || locating} onClick={finish} className="mt-2 min-h-11 w-full text-sm text-ink-muted">سأحدد عنواني عند الطلب</button>
       </>}
       {error && <p role="alert" className="mt-4 text-sm leading-6 text-danger-ink">{error}</p>}
     </section>
+    <MapPicker isOpen={showMap} initialLat={coords?.lat} initialLng={coords?.lng} onPick={(lat,lng) => setCoords({lat,lng})} onClose={() => setShowMap(false)} />
   </main>;
 }

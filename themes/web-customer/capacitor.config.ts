@@ -10,6 +10,7 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
   },
   android: {
+    useLegacyBridge: true,
     allowMixedContent: false,
     webContentsDebuggingEnabled: false,
   },

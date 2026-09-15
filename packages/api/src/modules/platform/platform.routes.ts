@@ -1,3 +1,4 @@
+import { captainLocationLimiter } from '../../middleware/rate-limit';
 import { getTracking } from './tracking.service';
 import { requireAuth } from '../../middleware/authenticate';
 import { parseWith } from '../../lib/validate';
@@ -22,6 +23,7 @@ platformRouter.get('/orders/:orderId/tracking', asyncHandler(async (req, res) =>
 platformRouter.put(
   '/captains/me/location',
   authorize(UserRole.CAPTAIN),
+  captainLocationLimiter,
   asyncHandler(controller.updateCaptainLocationHandler)
 );
 

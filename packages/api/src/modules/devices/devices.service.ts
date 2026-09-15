@@ -29,36 +29,15 @@ export async function registerDeviceToken(
     ...(body.deviceInfo !== undefined ? { deviceInfo: body.deviceInfo } : {}),
   };
 
-  if (existing) {
-    // Same device, same user → refresh metadata (bumps `updatedAt`). This
-    // keeps the row fresh without creating a duplicate or affecting the
-    // user's other active devices.
-    if (existing.userId === userId) {
-      await prisma.deviceToken.update({
-        where: { id: existing.id },
-        data: metadata,
-      });
-    } else {
-      // Token already registered — if it belongs to a different user (e.g.
-      // device was factory-reset and re-registered by another account),
-      // reassign it rather than creating a duplicate row.
-      await prisma.deviceToken.update({
-        where: { id: existing.id },
-        data: { userId, ...metadata },
-      });
-    }
-    return { id: existing.id, upserted: true };
-  }
-
-  const row = await prisma.deviceToken.create({
-    data: {
-      userId,
-      token: body.token,
-      ...metadata,
-    },
+  // The unique-token upsert is atomic. Concurrent registration/resume requests
+  // must not both observe a missing token and race through create().
+  const row = await prisma.deviceToken.upsert({
+    where: { token: body.token },
+    create: { userId, token: body.token, ...metadata },
+    update: { userId, ...metadata },
+    select: { id: true },
   });
-
-  return { id: row.id, upserted: false };
+  return { id: row.id, upserted: existing !== null };
 }
 
 /** Remove a device token — called on logout or when the app is uninstalled. */

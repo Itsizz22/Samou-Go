@@ -65,7 +65,7 @@ async function getMessaging(): Promise<Messaging | null> {
     initialised = true;
     return firebaseMessaging;
   } catch (err) {
-    console.error('[push] Failed to initialise Firebase Admin SDK — push disabled', err);
+    console.error(JSON.stringify({ event: 'push.initialization_failed', severity: 'High' }));
     initialised = true;
     return null;
   }
@@ -207,8 +207,9 @@ async function deliverPushToUser(
   // tokens of this user are removed — other devices stay untouched.
   if (staleTokenIds.length > 0) {
     await prisma.deviceToken.deleteMany({
-      where: { id: { in: staleTokenIds } },
+      where: { id: { in: staleTokenIds }, userId },
     });
+    console.warn(JSON.stringify({ event: 'push.invalid_tokens_removed', count: staleTokenIds.length, severity: 'Warning' }));
   }
 
   return { sent, failed };
@@ -257,8 +258,10 @@ export async function sendPushToUser(userId: string, payload: PushPayload, optio
   const audit = await prisma.notificationDelivery.create({ data: {
     userId, orderId: payload.data?.orderId, type: payload.data?.type ?? 'GENERAL', title: payload.title,
   } }).catch(() => { console.error('[push-audit] Could not create delivery audit'); return null; });
+  console.info(JSON.stringify({ event: 'push.requested', auditId: audit?.id, severity: 'Informational' }));
   try {
     const result = await deliverPushToUser(userId, { ...payload, data: { ...payload.data, ...(audit ? { notificationLogId: audit.id } : {}) } }, options);
+    console.info(JSON.stringify({ event: 'push.provider_result', auditId: audit?.id, sent: result.sent, failed: result.failed, skipped: result.skipped, severity: result.failed ? 'High' : 'Informational' }));
     if (audit) await prisma.notificationDelivery.update({ where: { id: audit.id }, data: {
       status: result.skipped ?? (result.failed ? (result.sent ? 'PARTIAL' : 'FAILED') : 'ACCEPTED'),
       sentCount: result.sent, failedCount: result.failed,
@@ -267,6 +270,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload, optio
     return { sent: result.sent, failed: result.failed };
   } catch (error) {
     const code = error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' ? error.code.slice(0, 100) : 'SEND_FAILED';
+    console.error(JSON.stringify({ event: 'push.provider_failed', auditId: audit?.id, severity: 'High' }));
     if (audit) await prisma.notificationDelivery.update({ where: { id: audit.id }, data: { status: 'FAILED', errorCode: code, failedCount: 1 } }).catch(() => console.error('[push-audit] Could not record provider failure'));
     throw error;
   }

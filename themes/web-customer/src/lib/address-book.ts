@@ -1,3 +1,4 @@
+import { validMapPoint } from '@samou-go/ui/map';
 /**
  * Address book — saved destinations for checkout.
  *
@@ -27,6 +28,7 @@ export interface SavedAddress {
   tag?: AddressTag;
   addressText: string;
   addressNote?: string;
+  deliveryZoneId?: string;
   /** Optional WGS84 coordinates captured by the "use my location" flow. */
   lat?: number;
   lng?: number;
@@ -34,20 +36,29 @@ export interface SavedAddress {
 
 const STORAGE_KEY = 'samou-go.addresses.v1';
 
-export function readSavedAddresses(): SavedAddress[] {
+export function readSavedAddresses(userId?: string): SavedAddress[] {
+  if (!userId) return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(`${STORAGE_KEY}:${userId}`);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as SavedAddress[]) : [];
+    return Array.isArray(parsed) ? parsed.filter((value: unknown): value is SavedAddress => {
+      if (!value || typeof value !== 'object') return false;
+      const entry = value as Partial<SavedAddress>;
+      return typeof entry.id === 'string' && typeof entry.label === 'string' && typeof entry.addressText === 'string' &&
+        (entry.deliveryZoneId === undefined || typeof entry.deliveryZoneId === 'string') &&
+        (entry.addressNote === undefined || typeof entry.addressNote === 'string') &&
+        ((entry.lat === undefined && entry.lng === undefined) || (typeof entry.lat === 'number' && typeof entry.lng === 'number' && validMapPoint([entry.lat, entry.lng])));
+    }).slice(-8) : [];
   } catch {
     return [];
   }
 }
 
-export function writeSavedAddresses(addresses: SavedAddress[]): void {
+export function writeSavedAddresses(addresses: SavedAddress[], userId?: string): void {
+  if (!userId) return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(addresses));
+    localStorage.setItem(`${STORAGE_KEY}:${userId}`, JSON.stringify(addresses));
   } catch {
     /* private mode — addresses just won't persist */
   }

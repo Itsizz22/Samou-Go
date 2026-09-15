@@ -2,17 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Server } from 'node:http';
 import { UserRole } from '@samou-go/shared-types';
 
-/**
- * Route-level tests for the order-tracking SSE stream.
- *
- * Two regressions are pinned here, both of which silently reduced live tracking
- * to 15-second polling in `web-order-tracking`:
- *
- *   1. The stream sat *below* `ordersRouter.use(authenticate)`, so it 401'd for
- *      every browser — `EventSource` cannot send an `Authorization` header.
- *   2. The client asked for `/orders/events/:id` while the API served
- *      `/orders/:id/events`, so even an authenticated caller got a 404.
- */
+/** Bearer-authenticated streams preserve CORS without exposing anonymous order status. */
 
 const h = vi.hoisted(() => {
   const env = {
@@ -99,8 +89,12 @@ async function peek(
 }
 
 describe('GET /orders/:orderId/events', () => {
-  it('opens an event stream for an anonymous caller instead of 401ing', async () => {
-    const { status, headers } = await peek(`/orders/${h.order.id}/events`);
+  it('rejects anonymous streams', async () => {
+    expect((await peek(`/orders/${h.order.id}/events`)).status).toBe(401);
+  });
+  it('opens an authenticated owner stream', async () => {
+    const token = signAccessToken({ userId: 'u-customer', role: UserRole.CUSTOMER, phone: '0599300101' }).accessToken;
+    const { status, headers } = await peek(`/orders/${h.order.id}/events`, { Authorization: `Bearer ${token}` });
     expect(status).toBe(200);
     expect(headers.get('content-type')).toContain('text/event-stream');
     expect(headers.get('cache-control')).toContain('no-cache');
@@ -135,7 +129,7 @@ describe('the authenticate gate below the stream still holds', () => {
 describe('CORS for the deployed SPAs', () => {
   it('lets a Vercel production origin read the stream with credentials', async () => {
     const origin = 'https://samou-go-order-tracking.vercel.app';
-    const { status, headers } = await peek(`/orders/${h.order.id}/events`, { Origin: origin });
+    const { status, headers } = await peek(`/orders/${h.order.id}/events`, { Origin: origin, Authorization: `Bearer ${signAccessToken({ userId: 'u-customer', role: UserRole.CUSTOMER, phone: '0599300101' }).accessToken}` });
     expect(status).toBe(200);
     expect(headers.get('access-control-allow-origin')).toBe(origin);
     expect(headers.get('access-control-allow-credentials')).toBe('true');

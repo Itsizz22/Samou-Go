@@ -2245,7 +2245,7 @@ export interface OperationsStatus {
 export const getOperationsStatus = (signal?: AbortSignal) => request<OperationsStatus>('GET', '/admin/operations', { auth: true, signal });
 
 export const getLiveOrderTracking = (id: string, signal?: AbortSignal) => request<import('@samou-go/shared-types').LiveOrderTracking>('GET', '/platform/orders/' + encodeURIComponent(id) + '/tracking', { auth: true, signal });
-export const sendCaptainPosition = (body: { orderId: string; lat: number; lng: number; heading?: number }) => request<unknown>('PUT', '/platform/captains/me/location', { auth: true, body });
+export const sendCaptainPosition = (body: { orderId: string; capturedAt?: number; lat: number; lng: number; heading?: number }) => request<unknown>('PUT', '/platform/captains/me/location', { auth: true, body });
 
 export function getDishCategoryOptions(signal?: AbortSignal): Promise<{ id: string; nameAr: string; store: { id: string; nameAr: string } }[]> { return request('GET', '/stores/dish-category-options', { auth: true, signal }); }
 

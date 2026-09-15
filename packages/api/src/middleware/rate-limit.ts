@@ -131,3 +131,15 @@ export const uploadProcessingLimiter = rateLimit({
     },
   } satisfies ApiFailure,
 });
+
+/** Authenticated captain identity avoids penalizing shared mobile carrier IPs.
+ * Per-process, matching the existing single-instance limiter infrastructure. */
+export const captainLocationLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 20,
+  keyGenerator: req => req.auth!.sub,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skip: () => env.isTest,
+  message: { success: false, error: { code: "TOO_MANY_REQUESTS", message: "يرجى الانتظار قبل تحديث الموقع مجددًا" } } satisfies ApiFailure,
+});

@@ -1,3 +1,4 @@
+import { readOrderEvents } from './order-event-stream';
 import { startForegroundPolling } from './foreground-polling';
 /**
  * Samou' Go — data-fetching hooks over `./api.ts`.
@@ -491,7 +492,7 @@ export function useOrderEvent(
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
 
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const streamToken = useSyncExternalStore(subscribeTokenChange, getToken, () => null);
 
   const loadRef = useRef<(signal: AbortSignal) => Promise<OrderDetail>>(
     (signal) => getOrder(orderId as string, signal)
@@ -515,50 +516,24 @@ export function useOrderEvent(
     }
   }, []);
 
-  // ——— SSE connection (push channel) ———
+  // Bearer-authenticated stream. Reconnect on token changes without putting tokens in URLs.
   useEffect(() => {
-    // No order to follow: nothing is loading, nothing to keep open.
-    if (!orderId) {
-      setLoading(false);
-      return;
-    }
-
-    // Path must match `ordersRouter.get('/:orderId/events')` on the API — the
-    // id goes in the middle, not last. `EventSource` cannot set an
-    // `Authorization` header, so this stream is anonymous by design and the
-    // server sends status transitions only (no PII); `withCredentials` is kept
-    // so the allow-list/credentials handshake stays consistent with `fetch`.
-    const url = `${API_URL}/orders/${orderId}/events?t=${Date.now()}`;
-    const source = new EventSource(url, { withCredentials: true });
-
-    eventSourceRef.current = source;
-
-    source.onopen = () => {
-      setLoading(false);
-      setError(null);
+    if (!orderId || !streamToken) { setLoading(false); return; }
+    const controller = new AbortController();
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const connect = async () => {
+      try {
+        await readOrderEvents(`${API_URL}/orders/${encodeURIComponent(orderId)}/events`, streamToken, controller.signal, () => {
+          if (!controller.signal.aborted) { setError(null); void fetchDetail(); }
+        });
+      } catch {
+        if (!controller.signal.aborted) setError(new ApiError('SSE_ERROR', 'Connection lost — reconnecting…'));
+      }
+      if (!controller.signal.aborted) retry = setTimeout(() => { void connect(); }, 5000);
     };
-
-    source.onmessage = () => {
-      void fetchDetail();
-    };
-    // The server emits named SSE updates, which do not fire `onmessage`.
-    const handleUpdate = () => { void fetchDetail(); };
-    source.addEventListener('update', handleUpdate);
-
-    source.onerror = () => {
-      // Do NOT `source.close()` here: EventSource auto-reconnects with an
-      // exponential backoff of its own, so the stream heals itself when the
-      // network or the server comes back. We only surface the outage to the UI
-      // and clear it on the next successful `onopen`.
-      setError(new ApiError('SSE_ERROR', 'Connection lost — reconnecting…'));
-    };
-
-    return () => {
-      if (eventSourceRef.current === source) eventSourceRef.current = null;
-      source.removeEventListener('update', handleUpdate);
-      source.close();
-    };
-  }, [orderId, fetchDetail]);
+    void connect();
+    return () => { controller.abort(); if (retry) clearTimeout(retry); };
+  }, [orderId, streamToken, fetchDetail]);
 
   // ——— polling safety net ———
   // Runs whenever SSE is missing or a push was missed; `pollMs: 0` disables it

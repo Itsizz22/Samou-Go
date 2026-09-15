@@ -1,155 +1,38 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const h = vi.hoisted(() => {
-  const tx = {
-    deviceToken: {
-      findUnique: vi.fn(),
-      update: vi.fn(),
-      create: vi.fn(),
-      deleteMany: vi.fn(),
-    },
-  };
-  return { tx };
-});
-
-vi.mock('../../lib/prisma', () => ({
-  prisma: {
-    deviceToken: {
-      findUnique: h.tx.deviceToken.findUnique,
-      update: h.tx.deviceToken.update,
-      create: h.tx.deviceToken.create,
-      deleteMany: h.tx.deviceToken.deleteMany,
-    },
-  },
-}));
-
-import {
-  registerDeviceToken,
-  unregisterDeviceToken,
-} from './devices.service';
-
-type RegBody = Parameters<typeof registerDeviceToken>[1];
-
-function token(kind: 'fresh' | 'existing-driver' | 'existing-other'): void {
-  if (kind === 'fresh') h.tx.deviceToken.findUnique.mockResolvedValue(null);
-  else
-    h.tx.deviceToken.findUnique.mockResolvedValue(
-      kind === 'existing-driver'
-        ? { id: 'tt1', userId: 'driver-1' }
-        : { id: 'tt1', userId: 'driver-2' }
-    );
-}
-
+const db = vi.hoisted(() => ({ findUnique: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() }));
+vi.mock('../../lib/prisma', () => ({ prisma: { deviceToken: db } }));
+import { registerDeviceToken, unregisterDeviceToken } from './devices.service';
 beforeEach(() => {
   vi.clearAllMocks();
+  db.findUnique.mockResolvedValue(null);
+  db.upsert.mockResolvedValue({ id: 'device' });
 });
-
-describe('registerDeviceToken — per-device upsert', () => {
-  it('creates a brand-new token with device metadata', async () => {
-    token('fresh');
-    h.tx.deviceToken.create.mockResolvedValue({ id: 'tt-new' });
-
-    const body: RegBody = { token: 'fcm-A', platform: 'android', deviceInfo: 'Samsung S24 · Android 14' };
-    const result = await registerDeviceToken('driver-1', body);
-
-    expect(result).toEqual({ id: 'tt-new', upserted: false });
-    expect(h.tx.deviceToken.create).toHaveBeenCalledWith({
-      data: {
-        userId: 'driver-1',
-        token: 'fcm-A',
-        platform: 'android',
-        deviceInfo: 'Samsung S24 · Android 14',
-      },
+describe('device registration concurrency and ownership', () => {
+  it('uses the token unique key for simultaneous first registrations', async () => {
+    const results = await Promise.all(Array.from({ length: 10 }, () => registerDeviceToken('user-a', { token: 'device-token', platform: 'android' })));
+    expect(results.every(result => result.id === 'device')).toBe(true);
+    expect(db.upsert).toHaveBeenCalledTimes(10);
+    expect(db.upsert).toHaveBeenCalledWith({
+      where: { token: 'device-token' },
+      create: { userId: 'user-a', token: 'device-token', platform: 'android' },
+      update: { userId: 'user-a', platform: 'android' }, select: { id: true },
     });
-    expect(h.tx.deviceToken.update).not.toHaveBeenCalled();
+    // This verifies the atomic query contract; real PostgreSQL races are a separate acceptance gate.
   });
-
-  it('create is valid without deviceInfo (field omitted, not null)', async () => {
-    token('fresh');
-    h.tx.deviceToken.create.mockResolvedValue({ id: 'tt-new' });
-
-    await registerDeviceToken('driver-1', { token: 'fcm-B', platform: 'ios' });
-
-    const data = h.tx.deviceToken.create.mock.calls[0]![0] as { data: Record<string, unknown> };
-    expect(data.data).not.toHaveProperty('deviceInfo');
+  it('reassigns only the matching device and preserves omitted metadata', async () => {
+    db.findUnique.mockResolvedValue({ id: 'device', userId: 'old-account' });
+    await expect(registerDeviceToken('new-account', { token: 'device-token', platform: 'ios' })).resolves.toEqual({ id: 'device', upserted: true });
+    expect(db.upsert.mock.calls[0]?.[0].update).toEqual({ userId: 'new-account', platform: 'ios' });
+    expect(db.deleteMany).not.toHaveBeenCalled();
   });
-
-  it('re-registering the same token for the SAME user refreshes metadata, never duplicates', async () => {
-    token('existing-driver');
-    h.tx.deviceToken.update.mockResolvedValue({});
-
-    const result = await registerDeviceToken('driver-1', {
-      token: 'fcm-A',
-      platform: 'ios',
-      deviceInfo: 'iPhone 15',
-    });
-
-    expect(result).toEqual({ id: 'tt1', upserted: true });
-    expect(h.tx.deviceToken.update).toHaveBeenCalledWith({
-      where: { id: 'tt1' },
-      data: { platform: 'ios', deviceInfo: 'iPhone 15' },
-    });
-    expect(h.tx.deviceToken.create).not.toHaveBeenCalled();
+  it('refreshes supplied metadata on both branches', async () => {
+    await registerDeviceToken('user-a', { token: 'token', platform: 'web', deviceInfo: 'Safari' });
+    const query = db.upsert.mock.calls[0]?.[0];
+    expect(query.create.deviceInfo).toBe('Safari');
+    expect(query.update.deviceInfo).toBe('Safari');
   });
-
-  it('re-registration without deviceInfo preserves the stored metadata (no overwrite with undefined)', async () => {
-    token('existing-driver');
-
-    await registerDeviceToken('driver-1', { token: 'fcm-A', platform: 'android' });
-
-    const arg = h.tx.deviceToken.update.mock.calls[0]![0] as { data: Record<string, unknown> };
-    expect(arg.data).toEqual({ platform: 'android' });
-    expect(arg.data).not.toHaveProperty('deviceInfo');
-  });
-
-  it('reassigns a token leftover from ANOTHER user to the registering user', async () => {
-    token('existing-other');
-    h.tx.deviceToken.update.mockResolvedValue({});
-
-    const result = await registerDeviceToken('driver-1', {
-      token: 'fcm-stale',
-      platform: 'web',
-    });
-
-    expect(result).toEqual({ id: 'tt1', upserted: true });
-    expect(h.tx.deviceToken.update).toHaveBeenCalledWith({
-      where: { id: 'tt1' },
-      data: { userId: 'driver-1', platform: 'web' },
-    });
-  });
-
-  it('never touches the tokens of the user’s OTHER devices on re-registration', async () => {
-    token('existing-driver');
-
-    await registerDeviceToken('driver-1', { token: 'fcm-A', platform: 'android' });
-
-    expect(h.tx.deviceToken.findUnique).toHaveBeenCalledTimes(1);
-    expect(h.tx.deviceToken.create).not.toHaveBeenCalled();
-    // Only the one matched row is updated — no userId-scoped bulk writes.
-    const calls = h.tx.deviceToken.update.mock.calls as Array<[{ where: Record<string, unknown> }]>;
-    expect(calls).toHaveLength(1);
-    expect(calls[0]![0].where).toEqual({ id: 'tt1' });
-  });
-});
-
-describe('unregisterDeviceToken — selective per-device removal', () => {
-  it('deletes ONLY the matching token for the given user', async () => {
-    h.tx.deviceToken.deleteMany.mockResolvedValue({ count: 1 });
-
-    await unregisterDeviceToken('driver-1', { token: 'fcm-A' });
-
-    expect(h.tx.deviceToken.deleteMany).toHaveBeenCalledWith({
-      where: { token: 'fcm-A', userId: 'driver-1' },
-    });
-  });
-
-  it('is a no-op for a token owned by someone else', async () => {
-    h.tx.deviceToken.deleteMany.mockResolvedValue({ count: 0 });
-
-    await unregisterDeviceToken('driver-2', { token: 'fcm-A' });
-
-    expect(h.tx.deviceToken.deleteMany).toHaveBeenCalledWith({
-      where: { token: 'fcm-A', userId: 'driver-2' },
-    });
+  it('logout cannot remove another account device or other devices', async () => {
+    await unregisterDeviceToken('user-a', { token: 'device-token' });
+    expect(db.deleteMany).toHaveBeenCalledWith({ where: { token: 'device-token', userId: 'user-a' } });
   });
 });
