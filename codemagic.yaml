@@ -1,0 +1,77 @@
+# Manual TestFlight builds only; existing GitHub production workflows are unchanged.
+workflows:
+  ios-testflight:
+    name: Samou Quick iOS TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    integrations:
+      app_store_connect: samou-go-app-store-connect
+    environment:
+      node: 22
+      xcode: "26.6"
+      groups:
+        - samou_ios_release
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.samougo.customer
+      vars:
+        BUNDLE_ID: com.samougo.customer
+        APPLE_TEAM_ID: XY75ZT4PUS
+        VITE_API_URL: https://samou-go.onrender.com/api/v1
+    scripts:
+      - name: Validate release inputs and install Firebase configuration
+        script: |
+          set -euo pipefail
+          python3 scripts/ios/release.py prepare
+          xcodebuild -version
+      - name: Install locked dependencies
+        script: |
+          set -euo pipefail
+          npm ci
+          git diff --exit-code -- package-lock.json
+      - name: Build customer assets and sync existing iOS project
+        script: |
+          set -euo pipefail
+          npm run build --workspace @samou-go/shared-types
+          npm run cap:build:ios --workspace @samou-go/web-customer
+          python3 scripts/ios/release.py source
+      - name: Resolve Swift packages
+        script: |
+          set -euo pipefail
+          mkdir -p build/ios/logs
+          xcodebuild -resolvePackageDependencies \
+            -project themes/web-customer/ios/App/App.xcodeproj \
+            -scheme App 2>&1 | tee build/ios/logs/spm.log
+      - name: Apply Codemagic-managed App Store signing and version
+        script: |
+          set -euo pipefail
+          xcode-project use-profiles \
+            --project themes/web-customer/ios/App/App.xcodeproj \
+            --custom-export-options='{"teamID":"XY75ZT4PUS","method":"app-store-connect"}'
+          python3 scripts/ios/release.py signing
+          python3 scripts/ios/release.py version
+      - name: Archive device build and export signed IPA
+        script: |
+          set -euo pipefail
+          xcode-project build-ipa \
+            --project themes/web-customer/ios/App/App.xcodeproj \
+            --scheme App --config Release --no-show-build-settings \
+            --archive-directory build/ios/xcarchive \
+            --ipa-directory build/ios/ipa \
+            --archive-xcargs "DEVELOPMENT_TEAM=XY75ZT4PUS" \
+            2>&1 | tee build/ios/logs/archive-export.log
+      - name: Verify exported Firebase config and distribution entitlements
+        script: |
+          set -euo pipefail
+          python3 scripts/ios/release.py ipa
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/xcarchive/*.xcarchive
+      - build/ios/xcarchive/**/*.dSYM
+      - build/ios/logs/*.log
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
