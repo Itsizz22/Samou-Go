@@ -1,0 +1,53 @@
+name: Production backup
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    if: ${{ vars.BACKUP_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      restore-db:
+        image: postgres:18
+        env:
+          POSTGRES_USER: validation
+          POSTGRES_PASSWORD: validation-local-only
+          POSTGRES_DB: backup_validation
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U validation -d backup_validation"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scripts/operations/package-lock.json
+      - run: npm ci --prefix scripts/operations --ignore-scripts
+      - run: npm test --prefix scripts/operations
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-18
+      - name: Snapshot and upload privately
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BACKUP_BLOB_READ_WRITE_TOKEN }}
+          PG_BIN: /usr/lib/postgresql/18/bin
+        run: node scripts/operations/backup-vercel.cjs
+      - name: Restore uploaded backup in isolated disposable database
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BACKUP_BLOB_READ_WRITE_TOKEN }}
+          PG_BIN: /usr/lib/postgresql/18/bin
+        run: node scripts/operations/restore-vercel.cjs

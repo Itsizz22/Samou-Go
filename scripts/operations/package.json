@@ -1,0 +1,1 @@
+{"name":"samou-backup-operations","private":true,"version":"1.0.0","dependencies":{"@vercel/blob":"2.8.0"},"scripts":{"test":"node --test backup-vercel.test.cjs"}}
