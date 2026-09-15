@@ -91,3 +91,10 @@ packages/api/.routing/
 /docs/gps-delivery-verification-20260910.md
 /docs/gps-physical-verification-20260910.md
 /docs/launch-preparation-20260910.md
+
+# Apple signing material and local native release products
+*.p8
+*.p12
+*.mobileprovision
+/build/ios/
+**/__pycache__/

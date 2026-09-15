@@ -46,3 +46,5 @@ order ID is synthetic: it cannot prove a real order's details/acceptance API wor
 - Validate a real order end-to-end on staging, then TestFlight on a physical iPhone.
 
 Android must remain data-only for staff alerts while APNs includes an explicit alert.
+
+Cloud signing and TestFlight release: [Codemagic setup](../../../docs/ios-codemagic-release.md).
