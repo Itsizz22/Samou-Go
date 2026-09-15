@@ -1,6 +1,7 @@
 package com.samougo.customer;
 
 import android.net.Uri;
+import android.graphics.Bitmap;
 import android.webkit.ValueCallback;
 import android.webkit.WebView;
 import androidx.activity.result.ActivityResultLauncher;
@@ -26,6 +27,14 @@ public final class ScopedMediaWebChromeClient extends BridgeWebChromeClient {
         multiplePicker = bridge.registerForActivityResult(
             new ActivityResultContracts.PickMultipleVisualMedia(),
             uris -> finishSelection(uris.isEmpty() ? null : uris.toArray(new Uri[0])));
+    }
+
+    /** Chromium otherwise paints its default play graphic before a video has a frame.
+     * HTML owns our posters; preserve transparency while the muted video prepares.
+     */
+    @Override
+    public Bitmap getDefaultVideoPoster() {
+        return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
     }
 
     @Override

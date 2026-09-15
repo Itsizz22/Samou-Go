@@ -159,7 +159,12 @@
   .official-brand-intro { opacity: 1; animation: none; }
 }
 
-/* Decorative launch film: never expose browser media controls or its play overlay. */
+/* Autoplay films use app-owned previews, never the WebView play overlay. */
+.inline-autoplay-video::-webkit-media-controls,
+.inline-autoplay-video::-webkit-media-controls-enclosure,
+.inline-autoplay-video::-webkit-media-controls-panel,
+.inline-autoplay-video::-webkit-media-controls-overlay-play-button,
+.inline-autoplay-video::-webkit-media-controls-start-playback-button,
 .startup-film::-webkit-media-controls,
 .startup-film::-webkit-media-controls-enclosure,
 .startup-film::-webkit-media-controls-panel,

@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom';
 import { usePlatformSettings } from '@samou-go/api-client';
 import { useLanguage } from '@samou-go/ui';
 import type { HomeVideoAd } from '@samou-go/shared-types';
+import { useVideoFirstFrame } from '@/lib/useVideoFirstFrame';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 function AdPlayer({ ad, active, visible, next }: { ad: HomeVideoAd; active: boolean; visible: boolean; next: () => void }) {
   const { t } = useLanguage();
-  const video = useRef<HTMLVideoElement>(null);
+  const { video, frameReady, revealVideo } = useVideoFirstFrame();
   const [aspectRatio, setAspectRatio] = useState(9 / 16);
   const [paused, setPaused] = useState(false);
   const [blocked, setBlocked] = useState(false);
@@ -25,6 +26,7 @@ function AdPlayer({ ad, active, visible, next }: { ad: HomeVideoAd; active: bool
     if (!element) return;
     if (!active || !visible || paused || (reduce && !manual)) { element.pause(); return; }
     let cancelled = false;
+    element.muted = true;
     void element.play().then(() => { if (!cancelled) setBlocked(false); }).catch(() => { if (!cancelled) setBlocked(true); });
     return () => { cancelled = true; element.pause(); };
   }, [active, visible, paused, reduce, manual]);
@@ -37,11 +39,13 @@ function AdPlayer({ ad, active, visible, next }: { ad: HomeVideoAd; active: bool
     } else { setPaused(true); element.pause(); }
   };
   return <div className="relative w-full overflow-hidden rounded-2xl bg-ink" style={{ aspectRatio }}>
-    {active ? <video ref={video} src={ad.videoUrl} poster={ad.posterUrl} muted playsInline preload="metadata"
+    {active && ad.posterUrl && <img src={ad.posterUrl} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full object-cover" />}
+    {active ? <video ref={video} src={ad.videoUrl} poster={ad.posterUrl} muted playsInline autoPlay={visible && !paused && (!reduce || manual)} preload="auto" controls={false} disablePictureInPicture disableRemotePlayback
+      onPlaying={revealVideo} style={{ opacity: frameReady ? 1 : 0 }}
       role="button" tabIndex={0}
       aria-label={`${ad.title} — ${paused || blocked || (reduce && !manual) ? t('تشغيل الإعلان', 'Play ad') : t('إيقاف الإعلان', 'Pause ad')}`}
       onClick={toggle} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); } }}
-      className="h-full w-full cursor-pointer object-cover focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-brand"
+      className="inline-autoplay-video relative h-full w-full cursor-pointer object-cover focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-brand"
       onLoadedMetadata={event => { const element = event.currentTarget; if (element.videoWidth && element.videoHeight) setAspectRatio(element.videoWidth / element.videoHeight); }}
       onError={() => setFailed(true)}
       onTimeUpdate={event => { const element = event.currentTarget; setProgress(element.duration ? element.currentTime / element.duration : 0); }}
