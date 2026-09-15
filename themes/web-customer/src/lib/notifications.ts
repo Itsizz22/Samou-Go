@@ -1,7 +1,7 @@
 /** Native notification listeners live once per WebView; account tokens never do. */
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
-import { API_URL, getToken, setLogoutDeviceToken, recordNotificationOpened, ApiError } from '@samou-go/api-client';
+import { API_URL, getToken, getRefreshToken, setLogoutDeviceToken, recordNotificationOpened, ApiError } from '@samou-go/api-client';
 import { globalNavigate } from './globalNavigate';
 import { stopOrderAlarm } from './orderAlarm';
 import { presentIncomingOrder, dismissIncomingOrder } from './incomingOrder';
@@ -128,7 +128,7 @@ async function sendTokenToServer(token: string, accessToken: string): Promise<vo
       const response = await fetch(`${API_URL}/devices/token`, {
         method: 'POST', signal: controller.signal,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ token, platform: Capacitor.getPlatform(), deviceInfo: navigator.userAgent.slice(0, 140) }),
+        body: JSON.stringify({ refreshToken: getRefreshToken(), token, platform: Capacitor.getPlatform(), deviceInfo: navigator.userAgent.slice(0, 140) }),
       });
       if (response.ok) return;
       if (response.status < 500 && response.status !== 429) return;

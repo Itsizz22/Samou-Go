@@ -928,7 +928,7 @@ export async function updateOrderStatus(
     );
   }
 
-  if (!canRoleSetOrderStatus(actor.role, next)) {
+  if (!canRoleSetOrderStatus(actor.role, next, order.fulfillmentType)) {
     throw forbidden(
       `دورك لا يسمح بتعيين هذه الحالة / Your role may not set status ${next}`
     );

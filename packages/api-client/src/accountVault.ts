@@ -346,3 +346,10 @@ export function updateCurrentSessionTokens(
   );
   notifyListeners();
 }
+
+/** Forget a confirmed signed-out account without activating any other account. */
+export function forgetSignedOutAccount(accountId: string): void {
+  writeAccounts(readAccounts().filter(entry => entry.id !== accountId));
+  if (readActiveId() === accountId) writeActiveId(null);
+  notifyListeners();
+}

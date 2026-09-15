@@ -181,9 +181,8 @@ export function NavigationDrawer() {
 
   const go = () => closeDrawer();
 
-  const handleSignOut = () => {
-    auth.signOut();
-    closeDrawer();
+  const handleSignOut = async () => {
+    if (await auth.signOut()) closeDrawer();
   };
 
   const isActive = (to: string) =>
@@ -372,11 +371,13 @@ export function NavigationDrawer() {
                 <button
                   type="button"
                   onClick={handleSignOut}
+                  disabled={auth.pending}
                   className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-danger-ink/50 bg-danger-tint/40 px-4 py-3 text-xs font-extrabold text-danger-ink transition hover:bg-danger-tint active:scale-[0.98]"
                 >
                   <LogOut size={15} />
-                  {t('تسجيل الخروج', 'Sign out')}
+                  {auth.pending ? t('جارٍ تسجيل الخروج…', 'Signing out…') : t('تسجيل الخروج', 'Sign out')}
                 </button>
+                {auth.error?.code === 'LOGOUT_PENDING' && <p role="alert" className="mt-2 text-sm text-danger-ink">{auth.error.localizedMessage}</p>}
               </footer>
             )}
           </div>

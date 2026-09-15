@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { API_URL, getToken, setLogoutDeviceToken } from '@samou-go/api-client';
+import { API_URL, getToken, getRefreshToken, setLogoutDeviceToken } from '@samou-go/api-client';
 import { getFirebaseApp } from './firebase';
 
 export const webPushConfigured = Boolean(import.meta.env.VITE_FIREBASE_VAPID_KEY && import.meta.env.VITE_FIREBASE_API_KEY);
@@ -45,7 +45,7 @@ async function synchronize(): Promise<boolean> {
     const response = await fetch(`${API_URL}/devices/token`, {
       method: 'POST', signal: AbortSignal.timeout(15000),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ token: deviceToken, platform: 'web', deviceInfo: navigator.userAgent.slice(0, 140) }),
+      body: JSON.stringify({ refreshToken: getRefreshToken(), token: deviceToken, platform: 'web', deviceInfo: navigator.userAgent.slice(0, 140) }),
     });
     return response.ok && getToken() === accessToken;
   } catch {

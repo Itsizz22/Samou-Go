@@ -27,7 +27,7 @@ export async function pilotOrderHandler(req: Request, res: Response) {
   const [tracking, notifications, devices, activeOrders] = await Promise.all([
     getTracking(requireAuth(req), orderId),
     prisma.notificationDelivery.findMany({ where: { orderId }, orderBy: { createdAt: 'desc' }, take: 50, select: { id: true, userId: true, type: true, status: true, sentCount: true, failedCount: true, errorCode: true, providerAcceptedAt: true, openedAt: true, createdAt: true } }),
-    prisma.deviceToken.groupBy({ by: ['userId', 'platform'], where: { userId: { in: recipients } }, _count: { _all: true } }),
+    prisma.deviceToken.groupBy({ by: ['userId', 'platform'], where: { userId: { in: recipients }, refreshSession: { is: { revokedAt: null, expiresAt: { gt: new Date() } } } }, _count: { _all: true } }),
     order.captainId ? prisma.order.count({ where: { captainId: order.captainId, status: { in: ACTIVE_CAPTAIN_STATUSES } } }) : Promise.resolve(0),
   ]);
   const ageMs = tracking.location ? Date.now() - Date.parse(tracking.location.updatedAt) : null;

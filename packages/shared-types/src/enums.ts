@@ -291,6 +291,7 @@ export function canTransitionOrderStatus(
   to: OrderStatus,
   fulfillmentType?: FulfillmentType
 ): boolean {
+  if (fulfillmentType === FulfillmentType.PICKUP && (from === OrderStatus.ON_THE_WAY || to === OrderStatus.ON_THE_WAY)) return false;
   if (ORDER_STATUS_TRANSITIONS[from].includes(to)) return true;
   // PICKUP orders skip ON_THE_WAY — store manager marks directly DELIVERED.
   if (
@@ -304,7 +305,11 @@ export function canTransitionOrderStatus(
 }
 
 /** `true` when `role` is allowed to drive an order into `status`. */
-export function canRoleSetOrderStatus(role: UserRole, status: OrderStatus): boolean {
+export function canRoleSetOrderStatus(role: UserRole, status: OrderStatus, fulfillmentType?: FulfillmentType): boolean {
+  if (fulfillmentType === FulfillmentType.PICKUP) {
+    if (role === UserRole.CAPTAIN || status === OrderStatus.ON_THE_WAY) return false;
+    if (role === UserRole.STORE_MANAGER && status === OrderStatus.DELIVERED) return true;
+  }
   return ORDER_STATUS_ACTORS[status].includes(role);
 }
 
@@ -333,6 +338,7 @@ export function canRoleTransitionOrderStatus(
   fulfillmentType?: FulfillmentType
 ): boolean {
   if (!canTransitionOrderStatus(from, to, fulfillmentType)) return false;
+  if (!canRoleSetOrderStatus(role, to, fulfillmentType)) return false;
 
   switch (role) {
     case UserRole.ADMIN:

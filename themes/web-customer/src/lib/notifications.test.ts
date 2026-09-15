@@ -14,7 +14,7 @@ vi.mock('@capacitor/push-notifications', () => ({ PushNotifications: {
   requestPermissions: mocks.request, register: mocks.register,
 } }));
 vi.mock('@capacitor/app', () => ({ App: { addListener: async () => ({ remove: vi.fn() }) } }));
-vi.mock('@samou-go/api-client', () => ({ API_URL: 'https://api.example.test', getToken: () => mocks.token, setLogoutDeviceToken: vi.fn() }));
+vi.mock('@samou-go/api-client', () => ({ API_URL: 'https://api.example.test', getToken: () => mocks.token, getRefreshToken: () => 'test-refresh-session-long-enough', setLogoutDeviceToken: vi.fn() }));
 vi.mock('@samou-go/ui', () => ({ createLoopingAlert: vi.fn() }));
 vi.mock('./globalNavigate', () => ({ globalNavigate: mocks.navigate }));
 vi.mock('./orderAlarm', () => ({ stopOrderAlarm: async () => {} }));

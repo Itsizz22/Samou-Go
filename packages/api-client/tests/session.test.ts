@@ -173,13 +173,13 @@ describe('authenticated orders transport', () => {
     expect(api.getToken()).toBe('account-b-access');
   });
 
-  it('clears logout locally immediately and preserves a subsequent login', async () => {
+  it('waits for logout confirmation and preserves a subsequent login', async () => {
     const api = await signedIn();
     const response = deferred<Response>();
     const fetch = vi.fn<typeof globalThis.fetch>().mockReturnValue(response.promise);
     vi.stubGlobal('fetch', fetch);
     const logout = api.logout();
-    expect(api.getToken()).toBeNull();
+    expect(api.getToken()).toBe('initial-access');
     expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toMatchObject({ refreshToken: 'initial-refresh' });
     api.setToken('account-b-access');
     api.setRefreshToken('account-b-refresh');
@@ -260,4 +260,36 @@ it('publishes a complete credential pair when switching saved accounts', async (
   unsubscribe();
   expect(pairs).toContainEqual(['other-access', 'other-refresh']);
   expect(pairs).not.toContainEqual(['other-access', 'initial-refresh']);
+});
+
+describe('confirmed device logout', () => {
+  it('keeps credentials until the server confirms revocation even without an in-memory FCM token', async () => {
+    const api = await signedIn();
+    const response = deferred<Response>();
+    const fetch = vi.fn<typeof globalThis.fetch>().mockReturnValue(response.promise);
+    vi.stubGlobal('fetch', fetch);
+    const pending = api.logout();
+    expect(api.getRefreshToken()).toBe('initial-refresh');
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({ refreshToken: 'initial-refresh' });
+    response.resolve(success({}));
+    await pending;
+    expect(api.getToken()).toBeNull();
+    expect(api.getRefreshToken()).toBeNull();
+  });
+  it('does not report offline logout as successful or lose the revocation credential', async () => {
+    const api = await signedIn();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
+    await expect(api.logout()).rejects.toThrow();
+    expect(api.getRefreshToken()).toBe('initial-refresh');
+    expect(api.getToken()).toBe('initial-access');
+  });
+  it('a late logout acknowledgement never clears a newly selected account', async () => {
+    const api = await signedIn();
+    const response = deferred<Response>();
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(response.promise));
+    const pending = api.logout();
+    api.setToken('other-access'); api.setRefreshToken('other-refresh');
+    response.resolve(success({})); await pending;
+    expect(api.getToken()).toBe('other-access');
+  });
 });

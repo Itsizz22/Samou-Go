@@ -123,8 +123,8 @@ async function deliverPushToUser(
   if (!msg) return { sent: 0, failed: 0, skipped: "DISABLED" };
 
   const tokens = await prisma.deviceToken.findMany({
-    where: { userId },
-    select: { id: true, token: true, platform: true },
+    where: { userId, refreshSession: { is: { userId, revokedAt: null, expiresAt: { gt: new Date() } } } },
+    select: { id: true, token: true, platform: true, refreshTokenId: true },
   });
 
   if (tokens.length === 0) return { sent: 0, failed: 0, skipped: "NO_DEVICE" };
@@ -187,7 +187,7 @@ async function deliverPushToUser(
 
   let sent = 0;
   let failed = 0;
-  const staleTokenIds: string[] = [];
+  const staleRegistrations: Array<{ id: string; token: string; refreshTokenId: string | null }> = [];
 
   const perToken = response.responses as Array<{ success: boolean; error?: { code: string } }>;
   for (let i = 0; i < perToken.length; i++) {
@@ -199,17 +199,18 @@ async function deliverPushToUser(
     failed++;
     // Token is no longer valid — mark for removal so we never retry it.
     if (tokens[i] && isStaleTokenCode(resp?.error?.code)) {
-      staleTokenIds.push(tokens[i]!.id);
+      const device = tokens[i]!;
+      staleRegistrations.push({ id: device.id, token: device.token, refreshTokenId: device.refreshTokenId });
     }
   }
 
   // Clean up stale tokens so we never retry them. Only the reported-gone
   // tokens of this user are removed — other devices stay untouched.
-  if (staleTokenIds.length > 0) {
+  if (staleRegistrations.length > 0) {
     await prisma.deviceToken.deleteMany({
-      where: { id: { in: staleTokenIds }, userId },
+      where: { userId, OR: staleRegistrations },
     });
-    console.warn(JSON.stringify({ event: 'push.invalid_tokens_removed', count: staleTokenIds.length, severity: 'Warning' }));
+    console.warn(JSON.stringify({ event: 'push.invalid_tokens_removed', count: staleRegistrations.length, severity: 'Warning' }));
   }
 
   return { sent, failed };

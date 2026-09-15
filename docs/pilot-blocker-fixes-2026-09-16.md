@@ -1,0 +1,26 @@
+# Pilot blocker fixes — 2026-09-16
+
+Release scope: notification session ownership, customer pickup completion, and native video first-frame presentation. No changes to providers, pricing, captain capacity, catalogue, or backup architecture.
+
+1. **Notification leak root cause.** DeviceToken belonged only to a user, not the signing-in session. Logout relied on an optional FCM token kept in client memory; a restarted app could revoke auth without removing its push registration. Recipient queries did not check refresh-session eligibility, and failed logout cleanup was ignored.
+2. **Fix.** Bind each registration to its verified refresh session. Registration checks ownership, revocation and expiry inside a transaction. Private push recipients require a live session belonging to the intended user. Stale-FCM cleanup matches the original token/session snapshot.
+3. **Logout lifecycle.** Server revokes this session and its rotation descendants and removes only their registrations. Other devices remain signed in. Refresh rotation transfers the registration. Client clears auth/account-vault state only after acknowledgement. An offline failure leaves sign-out pending and tells the user to reconnect/retry; it must not claim successful logout. Messages already handed to FCM before revocation cannot be recalled by this change.
+4. **Store A logout physical test: NOT TESTED.** Automated missing-FCM-token regression passes; real phone receipt remains required.
+5. **Account switch physical test: NOT TESTED.** Automated reassignment and late old-account logout protections pass. Physical Store A → Customer B and Store A → Store C remain required.
+6. **Multi-device: PARTIAL.** Isolated integration test proves Device 1 logout preserves Device 2; physical test pending.
+7. **Pickup issue type: CUSTOMER PICKUP.** User confirmed the store action fails with “تعذر تحديث حالة الطلب”.
+8. **Pickup root cause.** READY_FOR_PICKUP → DELIVERED is exposed to the store for personal collection, but the API actor check admitted only captain/admin. A new isolated HTTP regression failed with 403 before the fix.
+9. **Pickup fix.** Permit STORE_MANAGER completion only for PICKUP, retaining store ownership checks. Reject captain actions and ON_THE_WAY for pickup. Regression verifies zero delivery fee, no captain/dispatch/handoff, successful completion and no duplicate ledger/history on retry.
+10. **Physical pickup retest: NOT TESTED.** Before-fix failure and after-fix automated pass are not a field pass.
+11. **Standard delivery: PARTIAL.** Existing lifecycle regression suite passes; one real customer/store/captain delivery after deployment remains required.
+12. **Firebase physical delivery: PARTIAL.** Previously reported working by the user. New session/privacy behavior has not yet been verified on phones.
+13. **PWA: PARTIAL.** Notification appearance accepted by the user. Retest ownership, tap-to-protected-order and logout on updated PWA. PWA uses platform notification sound behavior; custom native Android ringtone parity is not required.
+14. **Operational alert: PARTIAL.** Existing health workflow has a safe manual alert_drill option. Operator destination/receipt/acknowledgement not yet confirmed; a green health run is not proof of alert delivery. No production outage induced.
+15. **Automated results.** API 482 passed / 5 PostgreSQL-specific skipped locally; shared domain 123 passed; API-client 42 passed; customer 31 passed. Whole-workspace TypeScript passed. See final deployment evidence for CI/build status. No standalone captain/store test script exists; both are included in TypeScript/build checks.
+16. **Deployment.** Use existing GitHub CI/Deploy Production pipeline (additive migration, Render, seven Vercel apps). Final workflow URLs/status and production smoke evidence are recorded in the delivery report, not assumed from local tests.
+17. **Remaining blockers.** Physical privacy/switch/multi-device/pickup tests, a real standard delivery and operator alert acknowledgement. Native play-overlay fix also requires an Android visual check. Migration retains historical unbound token rows but excludes them from private sends: install the new APK / reopen the updated PWA and verify registration before the pilot. Do not backfill ambiguous old tokens to arbitrary sessions. No real production orders or tokens were bulk deleted by the implementation.
+18. **Recommendation: CONTINUE CONTROLLED PILOT**, restricted to supervised verification. NOT approved for limited public launch until physical privacy and pickup tests pass.
+
+## Field evidence to collect
+
+Record device/platform, app version, account aliases, order ID, timestamp, expected result, actual result and PASS/FAIL. Never include full FCM tokens or passwords. For logout test, trigger a NEW event after server-confirmed logout (distinguish it from a previously queued notification). Test two devices independently. Confirm that a failed/offline logout remains pending and succeeds after reconnect. For pickup, progress accepted → preparing → ready → customer collected, verify fee 0 and absence of captain tracking/dispatch. Use the existing safe alert drill only with an operator available to acknowledge receipt.

@@ -212,6 +212,8 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+  devices DeviceToken[]
+
 }
 
 /// A shop in Samou'. `managerId` is the STORE_MANAGER who runs it; one manager
@@ -870,6 +872,11 @@ model DeviceToken {
 
   @@index([userId])
   @@map("device_tokens")
+  /// Push ownership follows this device's live refresh session, including rotation.
+  refreshTokenId String?
+  refreshSession RefreshToken? @relation(fields: [refreshTokenId], references: [id], onDelete: SetNull)
+  @@index([refreshTokenId])
+
 }
 
 /// Durable processed media; local disk is only a disposable delivery cache.

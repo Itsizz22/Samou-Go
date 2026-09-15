@@ -6,6 +6,8 @@
  * are idempotent — upserting by the unique token field.
  */
 
+import { unauthorized } from '../../lib/http-error';
+import { hashRefreshToken } from '../auth/refresh-token';
 import { prisma } from '../../lib/prisma';
 import type { RegisterDeviceTokenBody, UnregisterDeviceTokenBody } from './devices.schemas';
 
@@ -18,26 +20,20 @@ export async function registerDeviceToken(
   userId: string,
   body: RegisterDeviceTokenBody
 ): Promise<{ id: string; upserted: boolean }> {
-  const existing = await prisma.deviceToken.findUnique({
-    where: { token: body.token },
-    select: { id: true, userId: true },
+  return prisma.$transaction(async tx => {
+    const session = await tx.refreshToken.findUnique({ where: { tokenHash: hashRefreshToken(body.refreshToken) } });
+    if (!session || session.userId !== userId || session.revokedAt || session.expiresAt <= new Date()) throw unauthorized('Session expired');
+    // Lock the session against logout/rotation before binding. A delayed registration
+    // can never resurrect ownership after the session was revoked.
+    const live = await tx.refreshToken.updateMany({ where: { id: session.id, userId, revokedAt: null, expiresAt: { gt: new Date() } }, data: { expiresAt: session.expiresAt } });
+    if (!live.count) throw unauthorized('Session expired');
+    const existing = await tx.deviceToken.findUnique({ where: { token: body.token }, select: { id: true } });
+    // A refreshed FCM token replaces only this session's previous token.
+    await tx.deviceToken.deleteMany({ where: { userId, refreshTokenId: session.id, token: { not: body.token } } });
+    const metadata = { userId, refreshTokenId: session.id, platform: body.platform, ...(body.deviceInfo !== undefined ? { deviceInfo: body.deviceInfo } : {}) };
+    const row = await tx.deviceToken.upsert({ where: { token: body.token }, create: { token: body.token, ...metadata }, update: metadata, select: { id: true } });
+    return { id: row.id, upserted: existing !== null };
   });
-
-  // Metadata always set together so the row stays coherent on every write.
-  const metadata = {
-    platform: body.platform,
-    ...(body.deviceInfo !== undefined ? { deviceInfo: body.deviceInfo } : {}),
-  };
-
-  // The unique-token upsert is atomic. Concurrent registration/resume requests
-  // must not both observe a missing token and race through create().
-  const row = await prisma.deviceToken.upsert({
-    where: { token: body.token },
-    create: { userId, token: body.token, ...metadata },
-    update: { userId, ...metadata },
-    select: { id: true },
-  });
-  return { id: row.id, upserted: existing !== null };
 }
 
 /** Remove a device token — called on logout or when the app is uninstalled. */

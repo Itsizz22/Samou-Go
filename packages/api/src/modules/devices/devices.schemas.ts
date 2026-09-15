@@ -3,6 +3,7 @@ import { z } from 'zod';
 /** POST /devices/token — register a push notification token. */
 export const registerDeviceTokenSchema = z.object({
   token: z.string().trim().min(1, 'Device token is required').max(512, 'Device token is too long'),
+  refreshToken: z.string().min(20).max(512),
   platform: z.enum(['android', 'ios', 'web']),
   /** Free-form device description (model, OS version, app build) — optional. */
   deviceInfo: z.string().trim().max(160, 'Device info is too long').optional(),

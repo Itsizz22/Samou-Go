@@ -13,7 +13,7 @@ import { sendPushToUser } from './push';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.findMany.mockResolvedValue([{ id: 'device', token: 'test-token', platform: 'android' }]);
+  mocks.findMany.mockResolvedValue([{ id: 'device', token: 'test-token', platform: 'android', refreshTokenId: 'session' }]);
   mocks.send.mockResolvedValue({ responses: [{ success: true }] });
 });
 
@@ -35,7 +35,7 @@ describe('FCM delivery payload', () => {
   it('removes only stale device tokens after a failed delivery', async () => {
     mocks.send.mockResolvedValue({ responses: [{ success: false, error: { code: 'messaging/registration-token-not-registered' } }] });
     await expect(sendPushToUser('user', { title: 'Order', body: 'Ready' })).resolves.toEqual({ sent: 0, failed: 1 });
-    expect(mocks.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['device'] }, userId: 'user' } });
+    expect(mocks.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user', OR: [{ id: 'device', token: 'test-token', refreshTokenId: 'session' }] } });
   });
 });
 
@@ -71,4 +71,9 @@ it('allows order alerts while promotional notifications are disabled', async () 
   expect(mocks.send).not.toHaveBeenCalled();
   await sendPushToUser('user',{title:'طلب',body:'جاهز',data:{type:'NEW_ORDER'} });
   expect(mocks.send).toHaveBeenCalledTimes(1);
+});
+
+it('selects only registrations owned by a live, unexpired recipient session', async () => {
+  await sendPushToUser('recipient', { title: 'Order', body: 'Ready' });
+  expect(mocks.findMany).toHaveBeenCalledWith({ where: { userId: 'recipient', refreshSession: { is: { userId: 'recipient', revokedAt: null, expiresAt: { gt: expect.any(Date) } } } }, select: { id: true, token: true, platform: true, refreshTokenId: true } });
 });

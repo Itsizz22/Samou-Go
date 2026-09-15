@@ -104,18 +104,10 @@ export function useAccounts(): UseAccountsResult {
     const activeBefore = getActiveAccountId();
     const victim = getSavedAccounts().find((entry) => entry.id === accountId);
 
-    // Best-effort server-side revocation of the removed account's refresh
-    // token — a signed-out account must not be resurrectable.
-    if (victim?.refreshToken) {
-      try {
-        await logoutRefreshToken(victim.refreshToken);
-      } catch {
-        /* Offline or already revoked — local removal still proceeds. */
-      }
-    }
-
     setBusyId(accountId);
     try {
+      // Do not discard the credential needed to retry a failed revocation.
+      if (victim?.refreshToken) await logoutRefreshToken(victim.refreshToken);
       const next = removeAccount(accountId);
       if (activeBefore !== accountId) {
         // An inactive account was dropped — the live session is untouched.

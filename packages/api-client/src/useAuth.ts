@@ -13,7 +13,7 @@
  *     `GET /auth/me`. A token the server rejects is dropped rather than left to
  *     fail every later request.
  *   - `signIn` stores the new token (via `login`, which calls `setToken`).
- *   - `signOut` clears it locally and tells the server, which is stateless.
+ *   - `signOut` confirms server-side session revocation before clearing local auth.
  *
  * Stored refresh credentials restore expired access tokens. A screen calls `useAuth()` once at the top
  * and renders `<SignInGate />` when `user` is null.
@@ -49,7 +49,7 @@ export interface Auth {
   ready: boolean;
   /** Resolves to the profile, or `null` on failure — inspect `error`. */
   signIn: (input: LoginInput) => Promise<PublicUser | null>;
-  signOut: () => void;
+  signOut: () => Promise<boolean>;
   /** The last sign-in failure. Cleared when a new attempt starts. */
   error: ApiError | null;
   /** A sign-in request is in flight. */
@@ -248,22 +248,18 @@ export function useAuth(options: UseAuthOptions = {}): Auth {
     [committedProfile],
   );
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async (): Promise<boolean> => {
     bootController.current?.abort();
-    setReady(true);
-    // Ordered deliberately for multi-device selective logout:
-    // 1. UI state drops immediately so the screen reacts even when offline.
-    // 2. `logout()` captures the refresh token + this device's FCM token at the
-    //    TOP of its body — BEFORE storage is cleared — and posts them to
-    //    `/auth/logout` so the server revokes the session and unregisters only
-    //    THIS device. Other devices of the same account stay signed in.
-    // 3. `logout()` clears local tokens immediately after capturing them, so
-    //    in-flight requests cannot restore a session while revocation runs.
-    setUserState(null);
+    setPending(true);
     setError(null);
-    void logout().catch(() => {
-      /* Local logout already completed; server revocation was best-effort. */
-    });
+    try {
+      await logout();
+      if (mounted.current && !getToken()) { setUserState(null); setReady(true); }
+      return true;
+    } catch {
+      if (mounted.current) setError(new ApiError('LOGOUT_PENDING', 'تعذر تأكيد تسجيل الخروج. اتصل بالإنترنت وأعد المحاولة لإيقاف إشعارات هذا الحساب. / Sign-out not confirmed; reconnect and retry.'));
+      return false;
+    } finally { if (mounted.current) setPending(false); }
   }, []);
 
   const refresh = useCallback(async (): Promise<PublicUser | null> => {

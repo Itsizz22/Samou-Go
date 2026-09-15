@@ -26,7 +26,7 @@ import type { PopularProduct } from '@samou-go/shared-types';
  */
 
 import { localizeMessage, readAppLanguage } from './language';
-import { addAccount } from './accountVault';
+import { forgetSignedOutAccount, getActiveAccountId, addAccount } from './accountVault';
 import type {
   AdminCreateCaptainInput,
   AdminCreateStoreInput,
@@ -1132,25 +1132,29 @@ export function me(signal?: AbortSignal): Promise<PublicUser> {
   return request<PublicUser>("GET", "/auth/me", { auth: true, signal });
 }
 
-/** Stateless access tokens are dropped locally; the refresh token is revoked server-side.
- *  The current device's FCM token (see `setLogoutDeviceToken`) is sent along with the
- *  refresh token so `POST /auth/logout` performs a SELECTIVE logout: only THIS device's
- *  token is unregistered, other devices of the same account stay signed in. Pass
- *  `opts.deviceToken` to override the registered token.
- *  Ordering contract: both tokens are read at the TOP of this function, and local
- *  storage is cleared immediately after capture — the server still receives the
- *  credentials and a delayed response cannot clear a subsequent sign-in. */
-export async function logout(opts?: {
-  signal?: AbortSignal;
-  deviceToken?: string;
-}): Promise<void> {
+/** Confirm server-side session/device revocation before reporting sign-out.
+ * Offline/failed requests leave the session available for an explicit retry.
+ */
+export async function logout(opts?: { signal?: AbortSignal; deviceToken?: string }): Promise<void> {
+  const accountId = getActiveAccountId();
   const refresh = getRefreshToken();
-  const body: Record<string, unknown> = {};
-  if (refresh) body.refreshToken = refresh;
+  const access = getToken();
   const deviceToken = opts?.deviceToken ?? getLogoutDeviceToken();
-  if (deviceToken) body.deviceToken = deviceToken;
-  clearTokens();
-  await request<unknown>("POST", "/auth/logout", { body, signal: opts?.signal });
+  if (refresh) {
+    await request<unknown>("POST", "/auth/logout", {
+      body: { refreshToken: refresh, ...(deviceToken ? { deviceToken } : {}) },
+      signal: opts?.signal ?? AbortSignal.timeout(15000),
+    });
+  } else if (access && deviceToken) {
+    await request<unknown>("DELETE", "/devices/token", { auth: true, body: { token: deviceToken }, signal: opts?.signal ?? AbortSignal.timeout(15000) });
+  }
+  const currentRefresh = getRefreshToken();
+  if ((currentRefresh === refresh && getToken() === access) ||
+      (lastRotation?.refreshBefore === refresh && currentRefresh === lastRotation.refreshAfter && getToken() === lastRotation.accessAfter)) {
+    if (accountId) forgetSignedOutAccount(accountId);
+    setLogoutDeviceToken(null);
+    clearTokens();
+  }
 }
 
 /**
@@ -1164,7 +1168,7 @@ export async function logoutRefreshToken(
 ): Promise<void> {
   await request<unknown>("POST", "/auth/logout", {
     body: { refreshToken },
-    signal,
+    signal: signal ?? AbortSignal.timeout(15000),
   });
 }
 

@@ -83,13 +83,14 @@ export async function rotateRefreshToken(raw: string): Promise<RotatedToken> {
       data: { revokedAt: new Date(), replacedByHash: nextHash },
     });
     if (revocation.count === 0) return false;
-    await tx.refreshToken.create({
+    const replacement = await tx.refreshToken.create({
       data: {
         tokenHash: nextHash,
         userId: stored.userId,
         expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
       },
     });
+    await tx.deviceToken.updateMany({ where: { refreshTokenId: stored.id, userId: stored.userId }, data: { refreshTokenId: replacement.id } });
     return true;
   });
 
@@ -99,18 +100,23 @@ export async function rotateRefreshToken(raw: string): Promise<RotatedToken> {
 }
 
 /** Revokes a refresh token (sign-out). Idempotent — unknown tokens are fine. */
-export async function revokeRefreshToken(raw: string): Promise<void> {
-  await prisma.refreshToken
-    .updateMany({
-      where: {
-        tokenHash: hashRefreshToken(raw),
-        revokedAt: null,
-      },
-      data: { revokedAt: new Date() },
-    })
-    .catch(() => {
-      /* Already gone — nothing to revoke. */
-    });
+export async function revokeRefreshToken(raw: string, legacyDeviceToken?: string): Promise<void> {
+  await prisma.$transaction(async tx => {
+    let hash: string | null = hashRefreshToken(raw);
+    // Follow only this rotation lineage, never the user's other devices.
+    while (hash) {
+      const session: { id: string; userId: string } | null = await tx.refreshToken.findUnique({ where: { tokenHash: hash }, select: { id: true, userId: true } });
+      if (!session) break;
+      await tx.refreshToken.updateMany({ where: { id: session.id }, data: { revokedAt: new Date() } });
+      // Re-read after obtaining the row lock: a concurrent rotation may have won.
+      const locked: { replacedByHash: string | null } | null = await tx.refreshToken.findUnique({ where: { id: session.id }, select: { replacedByHash: true } });
+      await tx.deviceToken.deleteMany({ where: { userId: session.userId, OR: [
+        { refreshTokenId: session.id },
+        ...(legacyDeviceToken ? [{ refreshTokenId: null, token: legacyDeviceToken }] : []),
+      ] } });
+      hash = locked?.replacedByHash ?? null;
+    }
+  });
 }
 
 /**

@@ -1422,3 +1422,65 @@ it('restricts pilot diagnostics to admins and never exposes credentials or hando
   const inspected=await request<{passwordState:string}>('GET',account,'ADMIN');
   expect(inspected.data.passwordState).toBe('BCRYPT_CONFIGURED'); expect(JSON.stringify(inspected.data)).not.toContain('$2');
 });
+
+it('scopes push ownership to the live device session across logout, refresh and account switching', async () => {
+  const { issueRefreshToken, rotateRefreshToken, hashRefreshToken } = await import('../auth/refresh-token');
+  const { registerDeviceToken } = await import('../devices/devices.service');
+  const first = await issueRefreshToken('STORE_MANAGER');
+  const second = await issueRefreshToken('STORE_MANAGER');
+  const register = (userId: string, refreshToken: string, token: string) => registerDeviceToken(userId, { refreshToken, token, platform: 'web' });
+  await register('STORE_MANAGER', first, 'pilot-device-one');
+  await register('STORE_MANAGER', second, 'pilot-device-two');
+  // Regression: the app restarted, so its in-memory FCM token is absent at logout.
+  expect((await request('POST', '/auth/logout', undefined, { refreshToken: first })).status).toBe(200);
+  expect(await fixture.db.deviceToken.findUnique({ where: { token: 'pilot-device-one' } })).toBeNull();
+  expect(await fixture.db.deviceToken.findUnique({ where: { token: 'pilot-device-two' } })).not.toBeNull();
+  await expect(register('STORE_MANAGER', first, 'late-registration')).rejects.toThrow();
+  // Customer B owns the same physical token after login, and old Store A logout cannot remove it.
+  const customer = await issueRefreshToken('CUSTOMER');
+  await register('CUSTOMER', customer, 'pilot-device-one');
+  await request('POST', '/auth/logout', undefined, { refreshToken: first, deviceToken: 'pilot-device-one' });
+  expect((await fixture.db.deviceToken.findUnique({ where: { token: 'pilot-device-one' } }))?.userId).toBe('CUSTOMER');
+  expect((await request('DELETE', '/devices/token', 'STORE_MANAGER', { token: 'pilot-device-one' })).status).toBe(200);
+  expect((await fixture.db.deviceToken.findUnique({ where: { token: 'pilot-device-one' } }))?.userId).toBe('CUSTOMER');
+  await expect(register('STORE_MANAGER', customer, 'stolen-registration')).rejects.toThrow();
+  // Firebase rotates its token; only this session's obsolete token disappears.
+  await register('CUSTOMER', customer, 'pilot-device-one-new');
+  expect(await fixture.db.deviceToken.findUnique({ where: { token: 'pilot-device-one' } })).toBeNull();
+  expect(await fixture.db.deviceToken.findUnique({ where: { token: 'pilot-device-two' } })).not.toBeNull();
+  const rotated = await rotateRefreshToken(customer);
+  const linked = await fixture.db.deviceToken.findUnique({ where: { token: 'pilot-device-one-new' }, include: { refreshSession: true } });
+  expect(linked?.refreshSession?.tokenHash).toBe(hashRefreshToken(rotated.raw));
+  // Logout racing with access refresh revokes the replacement, not another device.
+  await request('POST', '/auth/logout', undefined, { refreshToken: customer });
+  expect(await fixture.db.deviceToken.findUnique({ where: { token: 'pilot-device-one-new' } })).toBeNull();
+  await expect(register('CUSTOMER', rotated.raw, 'late-rotated')).rejects.toThrow();
+  const third = await issueRefreshToken('ADMIN');
+  await register('ADMIN', third, 'pilot-device-one');
+  expect((await fixture.db.deviceToken.findUnique({ where: { token: 'pilot-device-one' } }))?.userId).toBe('ADMIN');
+  await request('POST', '/auth/logout', undefined, { refreshToken: second });
+  await request('POST', '/auth/logout', undefined, { refreshToken: third });
+});
+
+it('customer pickup can be completed by its store without a captain and settles only once', async () => {
+  const created = await request<OrderDetail>('POST', '/orders', 'CUSTOMER', { storeId: 'store', items: [{ productId: 'product', quantity: 1 }], fulfillmentType: 'PICKUP', customerAddressText: 'استلام شخصي من المتجر' });
+  expect(created.status).toBe(201);
+  const id = created.data.id;
+  expect(created.data.deliveryFee).toBe(0);
+  const path = `/orders/${id}/status`;
+  for (const status of ['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP']) {
+    expect((await request('PATCH', path, 'STORE_MANAGER', { status })).status).toBe(200);
+  }
+  const ready = await fixture.db.order.findUniqueOrThrow({ where: { id } });
+  expect(ready.captainId).toBeNull(); expect(ready.dispatchCaptainId).toBeNull(); expect(ready.captainHandoffCode).toBeNull();
+  expect((await request('PATCH', path, 'CAPTAIN', { status: 'DELIVERED' })).status).toBeGreaterThanOrEqual(400);
+  expect((await request('PATCH', path, 'ADMIN', { status: 'ON_THE_WAY' })).status).toBeGreaterThanOrEqual(400);
+  const completion = await request<OrderDetail>('PATCH', path, 'STORE_MANAGER', { status: 'DELIVERED' });
+  expect(completion.status, JSON.stringify(completion.error)).toBe(200);
+  expect(completion.data.status).toBe('DELIVERED');
+  const ledgerCount = await fixture.db.ledgerEntry.count();
+  const repeated = await request('PATCH', path, 'STORE_MANAGER', { status: 'DELIVERED' });
+  expect(repeated.status).toBeGreaterThanOrEqual(400);
+  expect(await fixture.db.ledgerEntry.count()).toBe(ledgerCount);
+  expect(await fixture.db.orderStatusHistory.count({ where: { orderId: id, status: 'DELIVERED' } })).toBe(1);
+});
