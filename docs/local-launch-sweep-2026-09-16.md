@@ -88,7 +88,11 @@ A concurrent attempt can be rejected by existing pressure/assignment policy and 
 
 Additive migration `20260916140000_session_push_activation` must run before the new API. Existing GitHub production workflow performs migrations before Render and frontend deployment. No reset, seed, bulk token deletion, password change, order deletion or coordinate overwrite was used. New account-switch protection requires the updated frontend/APK; old installed APKs do not acquire new JavaScript automatically. Signed iOS distribution remains separate through Codemagic.
 
-Final workflow IDs and smoke outcomes will be appended after deployment verification. Download/install the newly built Android pilot package for field retests rather than relying on an old APK.
+Application release `17573de` was pushed to `master`. [CI 35104181461](https://github.com/Itsizz22/Samou-Go/actions/runs/35104181461) succeeded, including the separate PostgreSQL job. [Production deployment 35104181659](https://github.com/Itsizz22/Samou-Go/actions/runs/35104181659) succeeded in 5m 11s, including migrations, Render and Vercel.
+
+Post-deployment smoke at 2026-09-16 16:53 +03:00: `/health`, `/ready`, public `/api/v1/stores` and customer `/home` all returned HTTP 200. The served customer asset `/assets/index-DqhB8dDc.js` contains both `activatePush` and `previousRefreshToken`, confirming the new client activation boundary is deployed. The production Yafa catalogue rendered product names, prices and option controls. These checks did not create orders or messages.
+
+New Android pilot build: local `outputs/launch-validation/samou-pilot-17573de.apk` (20,003,375 bytes, debug build). Install it for field retests rather than relying on an old APK. It has not been installed or physically tested by this audit. Documentation-only follow-up commits do not change this deployed application release.
 
 ## Remaining blockers / recommendation
 
