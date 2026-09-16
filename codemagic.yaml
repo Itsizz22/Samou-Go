@@ -10,7 +10,7 @@ workflows:
       node: 22
       xcode: "26.6"
       groups:
-        - samou_ios_release
+        - ios_credentials
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.samougo.customer

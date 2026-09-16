@@ -36,7 +36,7 @@ Push Notifications and Background Modes are declared on the App target. Existing
 3. Create/verify the app record in App Store Connect for that bundle. Record its numeric Apple ID (not the bundle ID). Resolve outstanding agreements in Apple's portal.
 4. In Codemagic team integrations, add App Store Connect integration named exactly **`samou-go-app-store-connect`** using an operator-provided Issuer ID, Key ID and `.p8` API key with sufficient app upload and signing access. Keep the private key out of Git and chat.
 5. In Codemagic code signing identities, generate or upload an **Apple Distribution** certificate and private key for the team. Fetch or upload a matching **App Store** provisioning profile, created after Push Notifications was enabled. Automatic profile selection in YAML uses these managed identities; it does not magically create a missing distribution identity.
-6. Add environment group **`samou_ios_release`**, enable access for this application, and set the variables below.
+6. Add environment group **`ios_credentials`**, enable access for this application, and set the variables below.
 7. For native Firebase push, independently verify that Firebase's iOS Cloud Messaging settings have the correct APNs authentication key/team/key ID. An App Store Connect API key is not an APNs key. Do not overwrite existing working APNs credentials.
 
 ### Secure integration / variables
@@ -46,7 +46,7 @@ Push Notifications and Background Modes are declared on the App target. Existing
 | `APP_STORE_CONNECT_ISSUER_ID` | Supplied through the named Codemagic Apple integration |
 | `APP_STORE_CONNECT_KEY_IDENTIFIER` | Supplied through that integration |
 | `APP_STORE_CONNECT_PRIVATE_KEY` | Supplied securely through that integration |
-| `APP_STORE_APPLE_ID` | Numeric app record ID, in `samou_ios_release` |
+| `APP_STORE_APPLE_ID` | Numeric app record ID, in `ios_credentials` |
 | `FIREBASE_IOS_PLIST_BASE64` | Base64 of the provided customer plist; mark secure |
 | `VITE_MAPBOX_ACCESS_TOKEN` | Existing production public `pk.` token; never a Mapbox secret token |
 

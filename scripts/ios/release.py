@@ -37,7 +37,7 @@ def check_firebase(data):
 
 
 def install_firebase(encoded, path=CONFIG):
-    require(bool(encoded), 'Missing FIREBASE_IOS_PLIST_BASE64 in samou_ios_release')
+    require(bool(encoded), 'Missing FIREBASE_IOS_PLIST_BASE64 in ios_credentials')
     try:
         raw = base64.b64decode(''.join(encoded.split()), validate=True)
         data = plistlib.loads(raw.removeprefix(b'\xef\xbb\xbf'))
