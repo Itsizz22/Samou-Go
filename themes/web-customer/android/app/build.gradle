@@ -5,7 +5,7 @@ android {
     namespace = "com.samougo.customer"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.samouquick.customer"
+        applicationId "com.samougo.customer"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode = (System.getenv("SAMOU_VERSION_CODE") ?: "9").toInteger()
