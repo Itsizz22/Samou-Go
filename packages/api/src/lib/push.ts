@@ -123,7 +123,7 @@ async function deliverPushToUser(
   if (!msg) return { sent: 0, failed: 0, skipped: "DISABLED" };
 
   const tokens = await prisma.deviceToken.findMany({
-    where: { userId, refreshSession: { is: { userId, revokedAt: null, expiresAt: { gt: new Date() } } } },
+    where: { userId, refreshSession: { is: { userId, revokedAt: null, pushEnabled: true, expiresAt: { gt: new Date() } } } },
     select: { id: true, token: true, platform: true, refreshTokenId: true },
   });
 

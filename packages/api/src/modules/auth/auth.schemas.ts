@@ -82,6 +82,8 @@ export const otpVerifySchema = z.object({
 /** POST /auth/refresh — exchange a refresh token for a fresh pair. */
 export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(20, "رمز غير صالح / Invalid token"),
+  previousRefreshToken: z.string().min(20).max(512).optional(),
+  activatePush: z.boolean().optional(),
 });
 
 /** POST /auth/password/reset — an OTP is the proof of account ownership. */

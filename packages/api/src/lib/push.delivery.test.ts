@@ -75,5 +75,5 @@ it('allows order alerts while promotional notifications are disabled', async () 
 
 it('selects only registrations owned by a live, unexpired recipient session', async () => {
   await sendPushToUser('recipient', { title: 'Order', body: 'Ready' });
-  expect(mocks.findMany).toHaveBeenCalledWith({ where: { userId: 'recipient', refreshSession: { is: { userId: 'recipient', revokedAt: null, expiresAt: { gt: expect.any(Date) } } } }, select: { id: true, token: true, platform: true, refreshTokenId: true } });
+  expect(mocks.findMany).toHaveBeenCalledWith({ where: { userId: 'recipient', refreshSession: { is: { userId: 'recipient', revokedAt: null, pushEnabled: true, expiresAt: { gt: expect.any(Date) } } } }, select: { id: true, token: true, platform: true, refreshTokenId: true } });
 });

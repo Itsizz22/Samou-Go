@@ -683,6 +683,13 @@ it('tracks only assigned active deliveries, changes destination and hides stale 
   const beforePickup = await request<Snapshot>('GET', '/platform/orders/' + id + '/tracking', 'STORE_MANAGER');
   expect(beforePickup.status).toBe(200); expect(beforePickup.data.stage).toBe('store');
   expect(beforePickup.data.distanceMeters).toBeGreaterThan(0);
+  await request('PATCH', '/platform/settings', 'ADMIN', { gpsCaptureEnabled: false });
+  expect((await request('GET', `/platform/orders/${id}/location`, 'CUSTOMER')).data).toBeNull();
+  await request('PATCH', '/platform/settings', 'ADMIN', { gpsCaptureEnabled: true });
+  await fixture.db.order.update({ where: { id }, data: { fulfillmentType: 'PICKUP' } });
+  expect((await request('GET', `/platform/orders/${id}/location`, 'CUSTOMER')).data).toBeNull();
+  expect((await request('PUT', '/platform/captains/me/location', 'CAPTAIN', { orderId: id, lat: 31.395, lng: 35.065 })).status).toBe(403);
+  await fixture.db.order.update({ where: { id }, data: { fulfillmentType: 'DELIVERY' } });
   await fixture.db.order.update({ where: { id }, data: { status: 'ON_THE_WAY' } });
   expect((await request<Snapshot>('GET', '/platform/orders/' + id + '/tracking', 'CUSTOMER')).data.stage).toBe('customer');
   await fixture.db.captainLocation.update({ where: { captainId: 'CAPTAIN' }, data: { updatedAt: new Date(Date.now() - 120000) } });
@@ -1460,6 +1467,30 @@ it('scopes push ownership to the live device session across logout, refresh and 
   expect((await fixture.db.deviceToken.findUnique({ where: { token: 'pilot-device-one' } }))?.userId).toBe('ADMIN');
   await request('POST', '/auth/logout', undefined, { refreshToken: second });
   await request('POST', '/auth/logout', undefined, { refreshToken: third });
+});
+
+it('suspends the previous device session before an account switch even without new FCM registration', async () => {
+  const { issueRefreshToken, rotateRefreshToken } = await import('../auth/refresh-token');
+  const { registerDeviceToken } = await import('../devices/devices.service');
+  const first = await issueRefreshToken('STORE_MANAGER');
+  const otherDevice = await issueRefreshToken('STORE_MANAGER');
+  const customer = await issueRefreshToken('CUSTOMER');
+  await registerDeviceToken('STORE_MANAGER', { refreshToken: first, token: 'switch-device', platform: 'web' });
+  await registerDeviceToken('STORE_MANAGER', { refreshToken: otherDevice, token: 'switch-other-device', platform: 'web' });
+  const switched = await request<{ refreshToken: string }>('POST', '/auth/refresh', undefined, {
+    refreshToken: customer, previousRefreshToken: first, activatePush: true,
+  });
+  expect(switched.status).toBe(200);
+  expect(await fixture.db.deviceToken.findUnique({ where: { token: 'switch-device' } })).toBeNull();
+  expect(await fixture.db.deviceToken.findUnique({ where: { token: 'switch-other-device' } })).not.toBeNull();
+  await expect(registerDeviceToken('STORE_MANAGER', { refreshToken: first, token: 'late-switch', platform: 'web' })).rejects.toThrow();
+  const background = await rotateRefreshToken(first);
+  await expect(registerDeviceToken('STORE_MANAGER', { refreshToken: background.raw, token: 'late-refresh-switch', platform: 'web' })).rejects.toThrow();
+  const back = await request<{ refreshToken: string }>('POST', '/auth/refresh', undefined, {
+    refreshToken: background.raw, previousRefreshToken: switched.data.refreshToken, activatePush: true,
+  });
+  expect(back.status).toBe(200);
+  await expect(registerDeviceToken('STORE_MANAGER', { refreshToken: back.data.refreshToken, token: 'switch-device', platform: 'web' })).resolves.toBeDefined();
 });
 
 it('customer pickup can be completed by its store without a captain and settles only once', async () => {

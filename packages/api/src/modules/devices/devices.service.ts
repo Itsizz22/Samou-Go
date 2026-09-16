@@ -22,10 +22,10 @@ export async function registerDeviceToken(
 ): Promise<{ id: string; upserted: boolean }> {
   return prisma.$transaction(async tx => {
     const session = await tx.refreshToken.findUnique({ where: { tokenHash: hashRefreshToken(body.refreshToken) } });
-    if (!session || session.userId !== userId || session.revokedAt || session.expiresAt <= new Date()) throw unauthorized('Session expired');
+    if (!session || session.userId !== userId || session.revokedAt || session.pushEnabled === false || session.expiresAt <= new Date()) throw unauthorized('Session expired or inactive for push');
     // Lock the session against logout/rotation before binding. A delayed registration
     // can never resurrect ownership after the session was revoked.
-    const live = await tx.refreshToken.updateMany({ where: { id: session.id, userId, revokedAt: null, expiresAt: { gt: new Date() } }, data: { expiresAt: session.expiresAt } });
+    const live = await tx.refreshToken.updateMany({ where: { id: session.id, userId, revokedAt: null, pushEnabled: true, expiresAt: { gt: new Date() } }, data: { expiresAt: session.expiresAt } });
     if (!live.count) throw unauthorized('Session expired');
     const existing = await tx.deviceToken.findUnique({ where: { token: body.token }, select: { id: true } });
     // A refreshed FCM token replaces only this session's previous token.

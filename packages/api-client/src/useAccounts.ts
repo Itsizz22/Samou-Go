@@ -6,10 +6,9 @@
  * profile of whatever account was just activated so the caller can commit it
  * through the auth instance (`auth.setUser(profile)`).
  *
- * `switchTo` does the full restore dance: activate the snapshot, then
- * `GET /auth/me`; if the stored access token is stale the request layer (or
- * the explicit refresh fallback) mints a fresh one using the account's
- * refresh token.
+ * `switchTo` confirms server-side push isolation and refreshes the destination
+ * session before publishing it locally. Failed activation retains the current
+ * identity so offline switching cannot leave old-account push ownership behind.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -20,12 +19,11 @@ import {
   getSavedAccounts,
   removeAccount,
   subscribeAccountsChange,
-  switchAccount,
   type VaultAccount,
   type VaultSessionInput,
   MAX_VAULT_ACCOUNTS,
 } from './accountVault';
-import { getRefreshToken, logoutRefreshToken, me, refreshAccessToken } from './api';
+import { activateSavedSession, logoutRefreshToken } from './api';
 
 export interface AccountRemovalResult {
   /**
@@ -54,25 +52,6 @@ export interface UseAccountsResult {
   remove: (accountId: string) => Promise<AccountRemovalResult>;
 }
 
-/** Resolves the CURRENT live session's profile, refreshing if stale. */
-async function resolveLiveProfile(): Promise<PublicUser | null> {
-  try {
-    return await me();
-  } catch {
-    // The access snapshot may be expired; `me()` failing already let the
-    // request layer try a silent refresh. As a backstop, refresh explicitly
-    // with whatever refresh token the (now active) session holds.
-    const refresh = getRefreshToken();
-    if (!refresh) return null;
-    try {
-      await refreshAccessToken(refresh);
-      return await me();
-    } catch {
-      return null;
-    }
-  }
-}
-
 export function useAccounts(): UseAccountsResult {
   const [accounts, setAccounts] = useState<VaultAccount[]>(() => getSavedAccounts());
   const [activeId, setActiveId] = useState<string | null>(() => getActiveAccountId());
@@ -88,11 +67,11 @@ export function useAccounts(): UseAccountsResult {
   const addSession = useCallback((session: VaultSessionInput) => addAccount(session), []);
 
   const switchTo = useCallback(async (accountId: string): Promise<PublicUser | null> => {
-    const account = switchAccount(accountId);
-    if (!account) return null;
+    const account = getSavedAccounts().find(entry => entry.id === accountId);
+    if (!account?.refreshToken) return null;
     setBusyId(accountId);
     try {
-      const profile = await resolveLiveProfile();
+      const { user: profile } = await activateSavedSession(account.refreshToken);
       // Never commit a different identity from a stale saved snapshot.
       return profile?.id === accountId ? profile : null;
     } finally {
@@ -113,7 +92,7 @@ export function useAccounts(): UseAccountsResult {
         // An inactive account was dropped — the live session is untouched.
         return { nextProfile: null, changedSession: false };
       }
-      const nextProfile = next ? await resolveLiveProfile() : null;
+      const nextProfile = next?.refreshToken ? (await activateSavedSession(next.refreshToken)).user : null;
       return { nextProfile, changedSession: true };
     } finally {
       setBusyId(null);

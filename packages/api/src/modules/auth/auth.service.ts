@@ -99,7 +99,7 @@ export async function login(body: LoginBody): Promise<AuthResponse> {
 
 /** POST /auth/refresh — swap a refresh token for a fresh session pair. */
 export async function refreshSession(body: RefreshTokenBody): Promise<AuthResponse> {
-  const { raw: nextRefreshToken, userId } = await rotateRefreshToken(body.refreshToken);
+  const { raw: nextRefreshToken, userId } = await rotateRefreshToken(body.refreshToken, body.activatePush === true, body.previousRefreshToken);
 
   const user = await prisma.user.findUnique({ include: assignedStoresInclude, where: { id: userId } });
   if (!user) throw unauthorized('الحساب غير موجود / Account no longer exists');

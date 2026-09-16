@@ -29,6 +29,24 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+it('keeps the current account when server-side push transfer fails', async () => {
+  const api = await signedIn();
+  vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>().mockResolvedValue(failure(503)));
+  await expect(api.activateSavedSession('saved-target-refresh')).rejects.toThrow();
+  expect(api.getToken()).toBe('initial-access');
+  expect(api.getRefreshToken()).toBe('initial-refresh');
+});
+
+it('confirms previous-session push suspension before activating a saved account', async () => {
+  const api = await signedIn();
+  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(success(session));
+  vi.stubGlobal('fetch', fetch);
+  await api.activateSavedSession('saved-target-refresh');
+  expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({ refreshToken: 'saved-target-refresh', previousRefreshToken: 'initial-refresh', activatePush: true });
+  expect(api.getRefreshToken()).toBe(session.refreshToken);
+  expect(api.getToken()).toBe(session.accessToken);
+});
+
 async function signedIn() {
   const api = await import('../src/api');
   api.setToken('initial-access');

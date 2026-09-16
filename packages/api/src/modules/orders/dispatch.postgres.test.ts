@@ -24,6 +24,7 @@ vi.mock('../../lib/prisma', async original => ({ ...await original<typeof import
 vi.mock('../../lib/push', () => ({ sendPushToUser: vi.fn(async () => ({ sent: 1, failed: 0 })), sendPushToMany: vi.fn(async () => ({ totalSent: 1, totalFailed: 0 })), isPushEnabled: () => false }));
 import { reserveOrder } from './orders.service';
 import { registerDeviceToken } from '../devices/devices.service';
+import { issueRefreshToken, rotateRefreshToken } from '../auth/refresh-token';
 
 beforeAll(async () => {
   if (!fixture) return;
@@ -47,7 +48,7 @@ async function scenario(prefix: string, count: number, fleet: number) {
   for (let i=0; i<count; i++) orders.push(await db.order.create({ data: { orderNumber: `${prefix}-${i}`, customerId: 'CUSTOMER', storeId: prefix, status: 'PREPARING', customerAddressText: 'TEST ONLY', subtotal: 10, deliveryFee: 0, totalAmount: 10 } }));
   return { captainIds, orders };
 }
-for (const count of [10,25,50]) it.skipIf(!fixture)(`PostgreSQL ${count} simultaneous assignments keep capacity and ownership`, async () => {
+for (const count of [5,10,20,30]) it.skipIf(!fixture)(`PostgreSQL ${count} simultaneous assignments keep capacity and ownership`, async () => {
   const { captainIds, orders } = await scenario(`load${count}`, count, Math.ceil(count / 3));
   const started = performance.now();
   const latencies: number[] = [];
@@ -75,6 +76,17 @@ it.skipIf(!fixture)('PostgreSQL two captains race for the same order', async () 
   expect(await fixture!.db.orderStatusHistory.count({ where: { orderId: orders[0]!.id } })).toBe(1);
 });
 it.skipIf(!fixture)('PostgreSQL twenty simultaneous first device registrations create one token', async () => {
-  await Promise.all(Array.from({ length: 20 }, () => registerDeviceToken('CUSTOMER', { token: 'local-test-token', platform: 'web' })));
+  const refreshToken = await issueRefreshToken('CUSTOMER');
+  await Promise.all(Array.from({ length: 20 }, () => registerDeviceToken('CUSTOMER', { refreshToken, token: 'local-test-token', platform: 'web' })));
   expect(await fixture!.db.deviceToken.count({ where: { token: 'local-test-token' } })).toBe(1);
+});
+it.skipIf(!fixture)('PostgreSQL account activation excludes delayed previous-account push registrations', async () => {
+  const previous = await issueRefreshToken('STORE_MANAGER');
+  const target = await issueRefreshToken('CUSTOMER');
+  const outcomes = await Promise.allSettled([
+    ...Array.from({ length: 5 }, () => registerDeviceToken('STORE_MANAGER', { refreshToken: previous, token: 'switch-race-token', platform: 'web' })),
+    rotateRefreshToken(target, true, previous),
+  ]);
+  expect(outcomes.at(-1)?.status).toBe('fulfilled');
+  expect(await fixture!.db.deviceToken.count({ where: { token: 'switch-race-token' } })).toBe(0);
 });

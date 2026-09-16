@@ -55,7 +55,7 @@ export interface RotatedToken {
  * Rejects when the token is unknown, revoked, or expired. Any rejection is a
  * 401 so the client can fall back to a clean sign-in.
  */
-export async function rotateRefreshToken(raw: string): Promise<RotatedToken> {
+export async function rotateRefreshToken(raw: string, activatePush = false, previousRefreshToken?: string): Promise<RotatedToken> {
   const invalid = unauthorized('الجلسة منتهية، يرجى تسجيل الدخول مجدداً / Session expired — please sign in again');
 
   const stored = await prisma.refreshToken.findUnique({
@@ -83,10 +83,25 @@ export async function rotateRefreshToken(raw: string): Promise<RotatedToken> {
       data: { revokedAt: new Date(), replacedByHash: nextHash },
     });
     if (revocation.count === 0) return false;
+    // Read after the row lock: a concurrent switch may have suspended this session.
+    const locked = await tx.refreshToken.findUniqueOrThrow({ where: { id: stored.id } });
+    if (activatePush && previousRefreshToken && previousRefreshToken !== raw) {
+      let hash: string | null = hashRefreshToken(previousRefreshToken);
+      // Follow rotation descendants, just as logout does, without revoking saved login.
+      while (hash && hash !== stored.tokenHash && hash !== nextHash) {
+        const previous: { id: string } | null = await tx.refreshToken.findUnique({ where: { tokenHash: hash }, select: { id: true } });
+        if (!previous) break;
+        await tx.refreshToken.update({ where: { id: previous.id }, data: { pushEnabled: false } });
+        await tx.deviceToken.deleteMany({ where: { refreshTokenId: previous.id } });
+        const current: { replacedByHash: string | null } = await tx.refreshToken.findUniqueOrThrow({ where: { id: previous.id }, select: { replacedByHash: true } });
+        hash = current.replacedByHash;
+      }
+    }
     const replacement = await tx.refreshToken.create({
       data: {
         tokenHash: nextHash,
         userId: stored.userId,
+        pushEnabled: activatePush || locked.pushEnabled,
         expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
       },
     });

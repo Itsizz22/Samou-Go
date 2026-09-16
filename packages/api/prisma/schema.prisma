@@ -197,6 +197,7 @@ model OtpRequest {
 /// Refresh tokens rotate on use; an old token is revoked the moment its
 /// replacement is minted, so replay of a stolen token fails.
 model RefreshToken {
+  pushEnabled    Boolean   @default(true)
   id             String    @id @default(cuid())
   /// SHA-256 hex of the raw token. Never store the raw token.
   tokenHash      String    @unique

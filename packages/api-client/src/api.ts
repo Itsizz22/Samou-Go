@@ -1031,6 +1031,21 @@ export function removeFavorite(
  * /api/v1/auth
  * ------------------------------------------------------------------------- */
 
+/** Switch push ownership on the server before exposing a different identity locally. */
+export async function activateSavedSession(refreshToken: string, signal?: AbortSignal): Promise<AuthResponse> {
+  if (refreshInFlight) await refreshInFlight.promise;
+  const previousRefreshToken = getRefreshToken();
+  const auth = await request<AuthResponse>('POST', '/auth/refresh', {
+    body: { refreshToken, activatePush: true, ...(previousRefreshToken ? { previousRefreshToken } : {}) },
+    signal, bypassRefreshRetry: true,
+  });
+  if (getRefreshToken() !== previousRefreshToken) throw sessionChangedError();
+  setRefreshToken(auth.refreshToken ?? null);
+  setToken(auth.accessToken);
+  addAccount({ user: auth.user, accessToken: auth.accessToken, refreshToken: auth.refreshToken ?? null });
+  return auth;
+}
+
 /** Signs in and stores the bearer + refresh tokens for every later call. */
 export async function login(
   input: LoginInput,
@@ -1040,8 +1055,9 @@ export async function login(
     body: input,
     signal,
   });
-  setToken(auth.accessToken);
+  if (getRefreshToken() && auth.refreshToken) return activateSavedSession(auth.refreshToken, signal);
   setRefreshToken(auth.refreshToken ?? null);
+  setToken(auth.accessToken);
   // Record the session in the Multi-Account Vault and make it the active one,
   // so a previous account on this device is kept, not forgotten.
   addAccount({
@@ -1101,8 +1117,9 @@ export async function verifyOtp(
     body: input,
     signal,
   });
-  setToken(auth.accessToken);
+  if (getRefreshToken() && auth.refreshToken) return activateSavedSession(auth.refreshToken, signal);
   setRefreshToken(auth.refreshToken ?? null);
+  setToken(auth.accessToken);
   addAccount({
     user: auth.user,
     accessToken: auth.accessToken,

@@ -33,8 +33,8 @@ export interface SettleResult {
 
 export async function updateCaptainLocation(captainId: string, body: LocationBody) {
   if (!(await getPlatformSettings()).gpsCaptureEnabled) throw forbidden('التتبع متوقف / Tracking disabled');
-  const order = await prisma.order.findUnique({ where: { id: body.orderId }, select: { captainId: true, status: true } });
-  if (!order || order.captainId !== captainId || !['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'ON_THE_WAY'].includes(order.status)) throw forbidden('مشاركة الموقع متاحة للطلب المسند النشط فقط / Active assigned order required');
+  const order = await prisma.order.findUnique({ where: { id: body.orderId }, select: { captainId: true, status: true, fulfillmentType: true } });
+  if (!order || order.fulfillmentType === 'PICKUP' || order.captainId !== captainId || !['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'ON_THE_WAY'].includes(order.status)) throw forbidden('مشاركة الموقع متاحة للطلب المسند النشط فقط / Active assigned order required');
   if (body.capturedAt !== undefined && (Date.now() - body.capturedAt > 30000 || body.capturedAt > Date.now() + 5000)) throw badRequest('قراءة الموقع قديمة؛ أرسل قراءة جديدة / Stale location sample');
   const { orderId: _orderId, capturedAt: _capturedAt, accuracy: _accuracy, ...coordinates } = body;
   return prisma.captainLocation.upsert({
@@ -47,13 +47,13 @@ export async function updateCaptainLocation(captainId: string, body: LocationBod
 export async function getOrderLocation(auth: JwtPayload, orderId: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { captainId: true, customerId: true, storeId: true, status: true, store: { select: { managerId: true } } },
+    select: { captainId: true, customerId: true, storeId: true, status: true, fulfillmentType: true, store: { select: { managerId: true } } },
   });
   if (!order) throw notFound('الطلب غير موجود / Order not found');
   if (!isOrderPartyMember(auth, order)) {
     throw forbidden();
   }
-  return !["DELIVERED", "CANCELLED"].includes(order.status) && order.captainId
+  return (await getPlatformSettings()).gpsCaptureEnabled && order.fulfillmentType !== 'PICKUP' && !["DELIVERED", "CANCELLED", "REJECTED"].includes(order.status) && order.captainId
     ? prisma.captainLocation.findUnique({ where: { captainId: order.captainId } })
     : null;
 }
