@@ -16,7 +16,7 @@ APP = IOS / 'App'
 PROJECT = IOS / 'App.xcodeproj/project.pbxproj'
 CONFIG = APP / 'Firebase/GoogleService-Info.plist'
 BUNDLE = 'com.samougo.customer'
-TEAM = 'XY75ZT4PUS'
+TEAM = 'XYZ5ZT4PUS'
 APP_ID = '1:949776098795:ios:a083362604fa1db9a2a5ae'
 
 

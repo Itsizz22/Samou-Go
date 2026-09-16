@@ -16,7 +16,7 @@ Repository preparation is complete; no signed Xcode archive, IPA, TestFlight upl
 | Native dependency manager | Swift Package Manager; no standalone CocoaPods workspace |
 | Firebase configuration | `themes/web-customer/ios/App/App/Firebase/GoogleService-Info.plist` |
 | Bundle ID (Debug and Release) | `com.samougo.customer` |
-| Apple team | `XY75ZT4PUS` |
+| Apple team | `XYZ5ZT4PUS` |
 | Firebase project / iOS app | `samou-go` / `1:949776098795:ios:a083362604fa1db9a2a5ae` |
 | Workflow | root `codemagic.yaml`, `ios-testflight` |
 | Runner | `mac_mini_m2`, Xcode **26.6**, macOS **26.5.1** image |
@@ -32,7 +32,7 @@ Push Notifications and Background Modes are declared on the App target. Existing
 ## One-time setup without a local Mac
 
 1. Make this branch's changes available in GitHub, connect the repository to Codemagic, and choose repository YAML configuration.
-2. Use an active Apple Developer membership for team `XY75ZT4PUS`. Verify the explicit App ID `com.samougo.customer` has Push Notifications enabled. Do not create a different bundle ID.
+2. Use an active Apple Developer membership for team `XYZ5ZT4PUS`. Verify the explicit App ID `com.samougo.customer` has Push Notifications enabled. Do not create a different bundle ID.
 3. Create/verify the app record in App Store Connect for that bundle. Record its numeric Apple ID (not the bundle ID). Resolve outstanding agreements in Apple's portal.
 4. In Codemagic team integrations, add App Store Connect integration named exactly **`samou-go-app-store-connect`** using an operator-provided Issuer ID, Key ID and `.p8` API key with sufficient app upload and signing access. Keep the private key out of Git and chat.
 5. In Codemagic code signing identities, generate or upload an **Apple Distribution** certificate and private key for the team. Fetch or upload a matching **App Store** provisioning profile, created after Push Notifications was enabled. Automatic profile selection in YAML uses these managed identities; it does not magically create a missing distribution identity.
@@ -71,10 +71,10 @@ npm run build --workspace @samou-go/shared-types
 npm run cap:build:ios --workspace @samou-go/web-customer
 python3 scripts/ios/release.py source
 xcodebuild -resolvePackageDependencies -project themes/web-customer/ios/App/App.xcodeproj -scheme App
-xcode-project use-profiles --project themes/web-customer/ios/App/App.xcodeproj --custom-export-options='{"teamID":"XY75ZT4PUS","method":"app-store-connect"}'
+xcode-project use-profiles --project themes/web-customer/ios/App/App.xcodeproj --custom-export-options='{"teamID":"XYZ5ZT4PUS","method":"app-store-connect"}'
 python3 scripts/ios/release.py signing
 python3 scripts/ios/release.py version
-xcode-project build-ipa --project themes/web-customer/ios/App/App.xcodeproj --scheme App --config Release --no-show-build-settings --archive-directory build/ios/xcarchive --ipa-directory build/ios/ipa --archive-xcargs "DEVELOPMENT_TEAM=XY75ZT4PUS"
+xcode-project build-ipa --project themes/web-customer/ios/App/App.xcodeproj --scheme App --config Release --no-show-build-settings --archive-directory build/ios/xcarchive --ipa-directory build/ios/ipa --archive-xcargs "DEVELOPMENT_TEAM=XYZ5ZT4PUS"
 python3 scripts/ios/release.py ipa
 ```
 
@@ -136,7 +136,7 @@ The original invocation was:
 ```sh
 xcode-project use-profiles \
   --project themes/web-customer/ios/App/App.xcodeproj \
-  --custom-export-options='{"teamID":"XY75ZT4PUS","method":"app-store-connect"}'
+  --custom-export-options='{"teamID":"XYZ5ZT4PUS","method":"app-store-connect"}'
 ```
 
 The CLI ExportOptions ArchiveMethod enum accepts `app-store`, not
@@ -179,3 +179,20 @@ References:
 - https://docs.codemagic.io/yaml-code-signing/signing-ios/
 - https://github.com/codemagic-ci-cd/cli-tools/blob/master/docs/xcode-project/use-profiles.md
 - https://github.com/codemagic-ci-cd/cli-tools/blob/master/src/codemagic/models/export_options.py
+
+## Confirmed Apple Team correction (2026-09-16)
+
+The local provisioning profile `Samou_Quick_App_Store_Profile.mobileprovision`
+has UUID `cc3f3104-b43d-4482-b376-9160903aa71a`, matching the profile UUID in
+Codemagic build `6aaaef82430e800ece455560`. Its TeamIdentifier is
+`XYZ5ZT4PUS`, its com.apple.developer.team-identifier is `XYZ5ZT4PUS`, and its
+embedded Apple Distribution certificate subject OU is `XYZ5ZT4PUS`.
+The earlier expected team contained a transcription error (third character 7
+instead of Z). YAML, release.py and both Xcode target configurations now use the
+confirmed team consistently. Bundle ID and Firebase are unchanged.
+
+Build `6aaaf316ddccb1eb55785656` confirms the explicit profile and certificate
+references were used. Its keychain import log reports an Unable to decode warning
+followed by one key and one certificate imported. Exact runner identity matching
+remains a preflight gate; this local profile inspection does not prove the
+referenced P12 identity passes it. No new build was started for this correction.
