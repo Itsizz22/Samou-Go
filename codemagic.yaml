@@ -15,9 +15,9 @@ workflows:
         # Explicit references are mutually exclusive with type/bundle selectors.
         # App Store distribution is enforced by preflight and --archive-method.
         certificates:
-          - samou-quick-app-store-distribution1
+          - samou-quick-distribution-final
         provisioning_profiles:
-          - profile: samou-quick-app-store-profile
+          - profile: samou-quick-profile-final
             environment_variable: SAMOU_IOS_PROFILE_PATH
       vars:
         BUNDLE_ID: com.samougo.customer
