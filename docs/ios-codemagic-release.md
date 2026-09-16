@@ -125,3 +125,57 @@ Still required: configure Codemagic/Apple integration and secure values, managed
 - https://docs.codemagic.io/yaml-publishing/app-store-connect/
 - https://docs.codemagic.io/specs-macos/xcode-26-6/
 - https://developer.apple.com/news/?id=ueeok6yw
+
+## Signing failure follow-up (2026-09-16)
+
+Build `6aaaef82430e800ece455560` found the real App project and assigned profile
+`Samou Quick App Store Profile` (UUID `cc3f3104-b43d-4482-b376-9160903aa71a`)
+to Debug and Release, then failed before reporting generated export options.
+The original invocation was:
+
+```sh
+xcode-project use-profiles \
+  --project themes/web-customer/ios/App/App.xcodeproj \
+  --custom-export-options='{"teamID":"XY75ZT4PUS","method":"app-store-connect"}'
+```
+
+The CLI ExportOptions ArchiveMethod enum accepts `app-store`, not
+`app-store-connect`. The unsupported override is removed; profile inference and
+`--archive-method app-store` retain App Store distribution. This is a verified
+configuration incompatibility consistent with the failure location, not a claim
+that the unavailable runner traceback was inspected.
+
+The workflow now selects only `samou-quick-app-store-distribution1` and
+`samou-quick-app-store-profile`. Codemagic forbids combining explicit references
+with `distribution_type`/`bundle_identifier` selectors, so those selectors are
+replaced (not changed to development). The bundle/team are retained in vars,
+Xcode, preflight and exported IPA verification. SAMOU_IOS_PROFILE_PATH is injected
+by the profile reference; do not add it manually as an environment secret.
+
+Before use-profiles, signing_preflight.py checks the decoded profile on the Mac,
+App Store type, expiration, exact bundle/team, production APNs, requested Release
+entitlements, and an exact profile certificate fingerprint against valid
+certificate/private-key identities in the keychain. It also checks certificate
+expiration and distribution subject. Only public metadata is printed. No private
+key is exported. Reference names alone do not prove this check passes.
+
+The command targets the absolute CM_BUILD_DIR App project, enables supported
+verbose signing diagnostics and preserves failure status through pipefail while
+saving build/ios/logs/signing.log as an artifact. The CLI has no Release-only
+use-profiles switch; its transient Debug assignment is retained, while the
+archive explicitly builds Release. Source Debug entitlements remain development.
+
+Codemagic UI showed two production certificates and one app_store profile, all
+expiring September 16, 2027; the profile showed a green certificate indicator.
+That confirms an available matching certificate, not which of the two references
+matches. Exact intended identity/private-key matching must still be confirmed
+on the runner or through Codemagic/Apple public certificate metadata before
+starting the next build. No build was triggered and no signing assets deleted.
+If the intended certificate is not in the profile, update/re-fetch the profile
+using that certificate, retaining the same reference. Do not delete certificates
+based only on their names.
+
+References:
+- https://docs.codemagic.io/yaml-code-signing/signing-ios/
+- https://github.com/codemagic-ci-cd/cli-tools/blob/master/docs/xcode-project/use-profiles.md
+- https://github.com/codemagic-ci-cd/cli-tools/blob/master/src/codemagic/models/export_options.py
