@@ -1530,6 +1530,12 @@ it('paginates the full food catalogue deterministically and keeps store filters 
   expect(first.data.items).toHaveLength(12);
   expect(second.data.items).toHaveLength(3);
   expect(first.data.items).toEqual(repeated.data.items);
+  const shuffledFirst = await request<Page>('GET', `${route}&page=1&shuffleSeed=session-test`);
+  const shuffledSecond = await request<Page>('GET', `${route}&page=2&shuffleSeed=session-test`);
+  const shuffledAgain = await request<Page>('GET', `${route}&page=1&shuffleSeed=session-test`);
+  expect(shuffledFirst.data.items).toEqual(shuffledAgain.data.items);
+  expect(new Set([...shuffledFirst.data.items, ...shuffledSecond.data.items].map(item => item.id)).size).toBe(15);
+
   expect(new Set([...first.data.items, ...second.data.items].map(item => item.id)).size).toBe(15);
   expect([...first.data.items, ...second.data.items].every(item => item.storeId === 'catalogue-pages')).toBe(true);
   await fixture.db.product.create({ data: { id: 'catalogue-drink', storeId: 'catalogue-pages', nameAr: 'عصير برتقال', price: 8 } });

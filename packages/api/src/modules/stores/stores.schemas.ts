@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { StoreStatus, StoreType } from '@samou-go/shared-types';
 
 export const productSearchQuerySchema = z.object({
+  shuffleSeed: z.string().min(1).max(80).optional(),
   storeId: z.string().min(1).optional(),
   foodStoresOnly: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
   dishSection: z.enum(['all', 'discovery', 'featured']).default('all'),

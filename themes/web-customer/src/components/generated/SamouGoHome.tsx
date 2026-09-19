@@ -256,19 +256,6 @@ export function SamouGoHome() {
           {recommended.loading ? [0,1,2].map(i => <StoreCardSkeleton key={i} featured />) : featured.map((card, index) => <FeaturedStoreCard key={card.store.id} card={card} freeDelivery={freeDeliveryEnabled} eager={index === 0} favorite={favorites.isFavorite(card.store.id)} pending={favorites.pending.includes(card.store.id)} onFavorite={() => { void toggleLike(card.store.id); }} />)}
         </div>
       </section>}
-      <FeaturedProductsShowcase products={dishProducts} loading={popular.loading} onAdd={handlePopularAdd} />
-      <CravingShortcuts />
-
-      <PromoBannerSlider />
-
-
-
-
-
-      <DiscoverySections onAdd={handlePopularAdd} featuredProducts={dishProducts} />
-      <PromoBannerSlider kind="product" />
-      <VideoAdCarousel />
-
       {/* Store Ads & Offers Feed */}
       {(offers.loading || activeOffers.length > 0) && <section className="mx-auto max-w-md px-5 pt-7" id="exclusive-offers" aria-labelledby="offers-title">
         <div className="mb-4 flex items-end justify-between">
@@ -329,6 +316,20 @@ export function SamouGoHome() {
           </div>
         )}
       </section>}
+      <FeaturedProductsShowcase products={dishProducts} loading={popular.loading} onAdd={handlePopularAdd} />
+      <CravingShortcuts />
+
+      <PromoBannerSlider />
+
+
+
+
+
+      <DiscoverySections onAdd={handlePopularAdd} featuredProducts={dishProducts} />
+      <PromoBannerSlider kind="product" />
+      <VideoAdCarousel />
+
+
 
 </div>}
       {stores.error && <section className="mx-auto max-w-md px-5 pt-8" aria-live="assertive">

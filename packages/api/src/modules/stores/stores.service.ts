@@ -1,3 +1,4 @@
+import { mixCatalogue, dailyCatalogueSeed } from './catalogue-mix';
 import { validateProductDiscount } from './product-discount';
 import { dishProductIds, dishStoreIds } from './dish-stores';
 import { deliveryEstimates } from './delivery-estimates';
@@ -684,6 +685,10 @@ export async function getNewProducts(limit: number, dishesOnly = false, section:
   const popular = recent.length < limit ? await prisma.orderItem.groupBy({ by: ['productId'], where: { product: where, order: { status: 'DELIVERED' } }, _sum: { quantity: true }, orderBy: [{ _sum: { quantity: 'desc' } }, { productId: 'asc' }], take: limit }) : [];
   const remaining = recent.length < limit ? await prisma.product.findMany({ where, select: { id: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], take: limit }) : [];
   const ids = [...new Set([...recent.map(row => row.id), ...popular.flatMap(row => row.productId ? [row.productId] : []), ...remaining.map(row => row.id)])].slice(0, limit);
+  if (dishesOnly) {
+    const candidates = await prisma.product.findMany({ where, select: { id: true, storeId: true } });
+    ids.splice(0, ids.length, ...mixCatalogue(candidates, dailyCatalogueSeed()).slice(0, limit).map(item => item.id));
+  }
   const rows = await prisma.product.findMany({ where: { ...where, id: { in: ids } }, include: { store: { select: { nameAr: true, logoUrl: true } }, optionGroups: { orderBy: { sortOrder: 'asc' }, include: { items: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } } } } });
   const byId = new Map(rows.map(row => [row.id, row]));
   return ids.flatMap(id => {
@@ -694,7 +699,7 @@ export async function getNewProducts(limit: number, dishesOnly = false, section:
 }
 
 /** Search the whole public catalogue with stable pagination, including empty queries. */
-export async function searchProducts(search: string, page: number, dishesOnly = false, section: 'all' | 'discovery' | 'featured' = 'all', storeId?: string, foodStoresOnly = false) {
+export async function searchProducts(search: string, page: number, dishesOnly = false, section: 'all' | 'discovery' | 'featured' = 'all', storeId?: string, foodStoresOnly = false, shuffleSeed?: string) {
   const pageSize = 12;
   const where: Prisma.ProductWhereInput = {
     ...(foodStoresOnly ? { storeId: { in: (await dishStoreIds()).filter(id => !storeId || id === storeId) } } : storeId ? { storeId } : {}),
@@ -704,11 +709,14 @@ export async function searchProducts(search: string, page: number, dishesOnly = 
     ...(search ? { nameAr: caseInsensitiveContains(search) } : {}),
   };
   const total = await prisma.product.count({ where });
+  const mixedIds = shuffleSeed ? mixCatalogue(await prisma.product.findMany({ where, select: { id: true, storeId: true } }), shuffleSeed).slice((page - 1) * pageSize, page * pageSize).map(item => item.id) : undefined;
+
   const rows = await prisma.product.findMany({
-    where,
-    skip: (page - 1) * pageSize, take: pageSize,
+    where: { ...where, ...(mixedIds ? { id: { in: mixedIds } } : {}) },
+    skip: mixedIds ? 0 : (page - 1) * pageSize, take: pageSize,
     orderBy: [{ nameAr: 'asc' }, { id: 'asc' }],
     include: { store: { select: { nameAr: true, logoUrl: true } }, optionGroups: { orderBy: { sortOrder: 'asc' }, include: { items: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } } } },
   });
+  if (mixedIds) rows.sort((a, b) => mixedIds.indexOf(a.id) - mixedIds.indexOf(b.id));
   return { items: rows.map(row => { const product = toProduct(row); return { ...product, storeNameAr: row.store.nameAr, storeLogoUrl: row.store.logoUrl, hasOptions: Boolean(product.optionGroups?.length), totalSold: 0 }; }), total, page, pageSize };
 }

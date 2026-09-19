@@ -1,3 +1,4 @@
+import { mixCatalogue, dailyCatalogueSeed } from './catalogue-mix';
 import { dishProductIds, isFoodDish } from './dish-stores';
 import { isDishStore } from '@samou-go/shared-types';
 import { prisma } from "../../lib/prisma";
@@ -38,13 +39,7 @@ export async function listFeaturedProducts() {
         store: { isActive: true, isApproved: true, isAcceptingOrders: true, storeStatus: { not: 'CLOSED' } } },
       select: { id: true, storeId: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
     });
-    const buckets = new Map<string, string[]>();
-    for (const item of candidates) {
-      const bucket = buckets.get(item.storeId) ?? [];
-      if (bucket.length < 2) bucket.push(item.id);
-      buckets.set(item.storeId, bucket);
-    }
-    const ids = [0, 1].flatMap(index => [...buckets.values()].flatMap(bucket => bucket[index] ? [bucket[index]!] : [])).slice(0, 24);
+    const ids = mixCatalogue(candidates, dailyCatalogueSeed(), 2).slice(0, 24).map(item => item.id);
     const automatic = await prisma.product.findMany({
       where: { id: { in: ids } },
       include: { store: { select: { nameAr: true, logoUrl: true } }, optionGroups: { orderBy: { sortOrder: 'asc' }, include: { items: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } } } },
@@ -52,7 +47,7 @@ export async function listFeaturedProducts() {
     automatic.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
     rows.push(...automatic);
   }
-  return rows.map((raw) => {
+  return mixCatalogue(rows, dailyCatalogueSeed()).map((raw) => {
     const product = toProduct(raw);
     return {
       ...product,

@@ -85,7 +85,7 @@ export function FeaturedProductsSettings() {
     setMessage('');
     try {
       setSelected(await saveFeaturedSelection(selected.map(p => p.id)));
-      setMessage('تم حفظ ترتيب المنتجات المميزة.');
+      setMessage('تم حفظ المنتجات المميزة؛ ستظهر بترتيب متنوع بين المتاجر.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'تعذر الحفظ');
     } finally {
@@ -99,7 +99,7 @@ export function FeaturedProductsSettings() {
     >
       <h3 className="font-bold">أطباق مميزة اخترناها لك</h3>
       <p className="text-sm text-ink-muted">
-        اختر حتى 24 طبقًا بصورة من المطاعم والمقاهي والحلويات والمخابز، ثم رتب ظهورها. المنتج المغلق أو غير المتاح يختفي من عرض العميل
+        اختر حتى 24 طبقًا بصورة من المطاعم والمقاهي والحلويات والمخابز، وستتنوع في العرض بين المتاجر. المنتج المغلق أو غير المتاح يختفي من عرض العميل
         تلقائيًا. إذا لم تحدد أطباقًا، تظهر اقتراحات مصوّرة تلقائيًا من المتاجر المؤهلة.
       </p>
       <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto" aria-label="اختر المتجر">
