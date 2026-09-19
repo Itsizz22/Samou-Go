@@ -1,4 +1,3 @@
-import { StoreDiscoveryMap } from '@/components/StoreDiscoveryMap';
 import { FeaturedStoreCard, StoreCard, StoreCardSkeleton } from '@/components/home/StoreCards';
 import { usePlatformSettings } from '@samou-go/api-client';
 import type { HomeCategory } from '@samou-go/shared-types';
@@ -68,7 +67,7 @@ const CATEGORY_ICONS: Record<StoreCategoryKey, LucideIcon> = {
 };
 
 /** How many stores head the horizontal strip before the full list repeats them. */
-const FEATURED_COUNT = 5;
+const FEATURED_COUNT = 12;
 
 /** Long enough to finish typing an Arabic word, short enough to feel live. */
 const SEARCH_DEBOUNCE_MS = 350;
@@ -111,6 +110,8 @@ export function SamouGoHome() {
     pageSize: 24,
 
   });
+
+  const recommended = useStores({ activeOnly: true, recommendedOnly: true, pageSize: FEATURED_COUNT });
 
   const freeDeliveryEnabled = appearance.data?.freeDeliveryEnabled === true;
 
@@ -170,7 +171,7 @@ export function SamouGoHome() {
     void hapticConfirm();
   };
 
-  const featured = cards.slice(0, FEATURED_COUNT);
+  const featured = (recommended.data?.items ?? []).filter(store => store.isRecommended).map(toStoreCardModel);
   const showEmpty = !stores.loading && !stores.error && cards.length === 0;
 
   // The customer's notification center: one row per recent order, keyed by
@@ -249,6 +250,12 @@ export function SamouGoHome() {
         </div>
       </section>
       {!searchTerm.trim() && <div className="market-more">
+      {!recommended.error && (recommended.loading || featured.length > 0) && <section className="market-section" aria-labelledby="featured-title" aria-busy={recommended.loading}>
+        <div className="market-section-heading"><div><h2 id="featured-title">{t('المتاجر المميزة', 'Featured stores')}</h2><p>{t('اكتشف متاجر السموع', 'Discover local stores')}</p></div><a href="#home-results" className="market-text-action">{t('عرض الكل', 'See all')}</a></div>
+        <div data-swipe-back="off" className="market-featured-track">
+          {recommended.loading ? [0,1,2].map(i => <StoreCardSkeleton key={i} featured />) : featured.map((card, index) => <FeaturedStoreCard key={card.store.id} card={card} freeDelivery={freeDeliveryEnabled} eager={index === 0} favorite={favorites.isFavorite(card.store.id)} pending={favorites.pending.includes(card.store.id)} onFavorite={() => { void toggleLike(card.store.id); }} />)}
+        </div>
+      </section>}
       <FeaturedProductsShowcase products={dishProducts} loading={popular.loading} onAdd={handlePopularAdd} />
       <CravingShortcuts />
 
@@ -343,12 +350,7 @@ export function SamouGoHome() {
           </div>
         </section>}
 
-      {!stores.error && (stores.loading || featured.length > 0) && <section className="market-section" aria-labelledby="featured-title" aria-busy={stores.loading}>
-        <div className="market-section-heading"><div><h2 id="featured-title">{t('المتاجر المميزة', 'Featured stores')}</h2><p>{t('اكتشف متاجر السموع', 'Discover local stores')}</p></div><a href="#home-results" className="market-text-action">{t('عرض الكل', 'See all')}</a></div>
-        <div data-swipe-back="off" className="market-featured-track">
-          {stores.loading ? [0,1,2].map(i => <StoreCardSkeleton key={i} featured />) : featured.map((card, index) => <FeaturedStoreCard key={card.store.id} card={card} freeDelivery={freeDeliveryEnabled} eager={index === 0} favorite={favorites.isFavorite(card.store.id)} pending={favorites.pending.includes(card.store.id)} onFavorite={() => { void toggleLike(card.store.id); }} />)}
-        </div>
-      </section>}
+
 
       </>}
       {/* Product Options Sheet (for popular products with addons) */}
@@ -381,10 +383,7 @@ export function SamouGoHome() {
 
 
       </>}
-      {!searchTerm.trim() && <>
 
-      </>}
-      <StoreDiscoveryMap />
       {!searchTerm.trim() && !stores.error && <section id="home-results" aria-live="polite" className="scroll-mt-4 mx-auto max-w-md px-5 pt-8" aria-labelledby="nearby-title" aria-busy={stores.loading}>
         <div className="mb-4 flex items-end justify-between"><div><h2 id="nearby-title" className="text-lg font-extrabold">{t('كل المتاجر', "All stores in Al-Samou'")}</h2></div>{stores.refreshing ? <Loader2 size={16} className="animate-spin text-brand" aria-label="Refreshing" /> : <ChevronLeft size={18} className="text-ink-subtle" />}</div>
         <div className="market-filters" aria-label={t('تصفية حسب حالة المتجر', 'Store availability')}>

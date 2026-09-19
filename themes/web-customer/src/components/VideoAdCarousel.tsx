@@ -71,6 +71,16 @@ export function VideoAdCarousel() {
   const section = useRef<HTMLElement>(null);
   const [active, setActive] = useState(0);
   const [visible, setVisible] = useState(false);
+  const [railHeight, setRailHeight] = useState<number>();
+  useEffect(() => {
+    const slide = rail.current?.children[active];
+    if (!(slide instanceof HTMLElement)) return;
+    const updateHeight = () => setRailHeight(slide.getBoundingClientRect().height);
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(slide);
+    return () => observer.disconnect();
+  }, [active, signature]);
   useEffect(() => {
     const root = section.current;
     if (!root) return;
@@ -90,7 +100,7 @@ export function VideoAdCarousel() {
   if (!ads.length) return null;
   return <section ref={section} className="video-ad-section mx-auto max-w-md px-5 pt-5" aria-label={t('إعلانات الفيديو', 'Video advertisements')}>
     <div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-lg font-extrabold">{t('شاهد الجديد', 'See what’s new')}</h2><span className="text-xs text-ink-muted">{t('إعلانات', 'Advertisements')}</span></div>
-    <div ref={rail} dir="ltr" data-swipe-back="off" className="relative flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain scrollbar-none" onScroll={() => {
+    <div ref={rail} dir="ltr" data-swipe-back="off" style={{ height: railHeight }} className="relative flex items-start snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain scrollbar-none" onScroll={() => {
       const element = rail.current; if (!element) return;
       const index = Math.round(element.scrollLeft / (element.clientWidth + 12));
       setActive(Math.max(0, Math.min(ads.length - 1, index)));

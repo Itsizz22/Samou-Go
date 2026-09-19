@@ -168,6 +168,7 @@ export interface JwtPayload {
  * ------------------------------------------------------------------------- */
 
 export interface StoreListQuery extends PaginationQuery {
+  recommendedOnly?: boolean;
   sort?: "newest" | "rating";
   limit?: number;
   /** Substring match against `nameAr` / `nameEn`. */

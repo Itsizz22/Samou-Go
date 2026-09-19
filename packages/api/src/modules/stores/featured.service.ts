@@ -1,4 +1,3 @@
-import { getNewProducts } from './stores.service';
 import { dishProductIds, isFoodDish } from './dish-stores';
 import { isDishStore } from '@samou-go/shared-types';
 import { prisma } from "../../lib/prisma";
@@ -20,7 +19,7 @@ export async function listFeaturedProducts() {
       },
     },
     orderBy: [{ featuredRank: "asc" }, { id: "asc" }],
-    take: 12,
+    take: 24,
     include: {
       store: { select: { nameAr: true, logoUrl: true } },
       optionGroups: {
@@ -32,7 +31,27 @@ export async function listFeaturedProducts() {
     },
   });
   // Keep the showcase useful before an admin selects featured dishes.
-  if (!rows.length) return getNewProducts(12, true, 'featured');
+  if (!rows.length) {
+    // Select lightweight IDs first, round-robin across stores before hydration.
+    const candidates = await prisma.product.findMany({
+      where: { id: { in: await dishProductIds('featured') }, isAvailable: true,
+        store: { isActive: true, isApproved: true, isAcceptingOrders: true, storeStatus: { not: 'CLOSED' } } },
+      select: { id: true, storeId: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+    });
+    const buckets = new Map<string, string[]>();
+    for (const item of candidates) {
+      const bucket = buckets.get(item.storeId) ?? [];
+      if (bucket.length < 2) bucket.push(item.id);
+      buckets.set(item.storeId, bucket);
+    }
+    const ids = [0, 1].flatMap(index => [...buckets.values()].flatMap(bucket => bucket[index] ? [bucket[index]!] : [])).slice(0, 24);
+    const automatic = await prisma.product.findMany({
+      where: { id: { in: ids } },
+      include: { store: { select: { nameAr: true, logoUrl: true } }, optionGroups: { orderBy: { sortOrder: 'asc' }, include: { items: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } } } },
+    });
+    automatic.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+    rows.push(...automatic);
+  }
   return rows.map((raw) => {
     const product = toProduct(raw);
     return {

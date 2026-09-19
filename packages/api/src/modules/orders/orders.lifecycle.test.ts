@@ -1515,3 +1515,48 @@ it('customer pickup can be completed by its store without a captain and settles 
   expect(await fixture.db.ledgerEntry.count()).toBe(ledgerCount);
   expect(await fixture.db.orderStatusHistory.count({ where: { orderId: id, status: 'DELIVERED' } })).toBe(1);
 });
+
+
+it('paginates the full food catalogue deterministically and keeps store filters isolated', async () => {
+  await fixture.db.store.create({ data: { id: 'catalogue-pages', managerId: 'STORE_MANAGER', nameAr: 'مطعم صفحات', nameEn: 'Catalogue pages', phone: '0598877001', storeType: 'RESTAURANT', isActive: true, isApproved: true, isAcceptingOrders: true, storeStatus: 'OPEN' } });
+  for (let index = 0; index < 15; index += 1) await fixture.db.product.create({ data: { id: `page-item-${index}`, storeId: 'catalogue-pages', nameAr: `منتج ${String(index).padStart(2, '0')}`, price: 10, imageUrl: 'https://example.com/product.jpg' } });
+  const route = '/stores/search-products?foodStoresOnly=true&storeId=catalogue-pages';
+  type Page = { items: { id: string; storeId: string }[]; total: number };
+  const first = await request<Page>('GET', `${route}&page=1`);
+  const second = await request<Page>('GET', `${route}&page=2`);
+  const repeated = await request<Page>('GET', `${route}&page=1`);
+  expect(first.status).toBe(200);
+  expect(first.data.total).toBe(15);
+  expect(first.data.items).toHaveLength(12);
+  expect(second.data.items).toHaveLength(3);
+  expect(first.data.items).toEqual(repeated.data.items);
+  expect(new Set([...first.data.items, ...second.data.items].map(item => item.id)).size).toBe(15);
+  expect([...first.data.items, ...second.data.items].every(item => item.storeId === 'catalogue-pages')).toBe(true);
+  await fixture.db.product.create({ data: { id: 'catalogue-drink', storeId: 'catalogue-pages', nameAr: 'عصير برتقال', price: 8 } });
+  const drinks = await request<Page>('GET', `${route}&search=عصير`);
+  expect(drinks.data.items.map(item => item.id)).toContain('catalogue-drink');
+  await fixture.db.store.update({ where: { id: 'catalogue-pages' }, data: { isActive: false } });
+  expect((await request<Page>('GET', route)).data.items).toHaveLength(0);
+  await fixture.db.store.update({ where: { id: 'catalogue-pages' }, data: { isActive: true } });
+});
+
+it('caps automatic featured dishes at two per store and protects featured-store controls', async () => {
+  await request('PATCH', '/platform/settings', 'ADMIN', { featuredCategoryIds: null });
+  expect((await request('PUT', '/stores/featured-selection', 'CUSTOMER', { productIds: [] })).status).toBe(403);
+  expect((await request('PUT', '/stores/featured-selection', 'ADMIN', { productIds: [] })).status).toBe(200);
+  const result = await request<{ id: string; storeId: string }[]>('GET', '/stores/featured-products');
+  expect(result.status).toBe(200);
+  expect(result.data.length).toBeGreaterThan(0);
+  const counts = new Map<string, number>();
+  for (const product of result.data) counts.set(product.storeId, (counts.get(product.storeId) ?? 0) + 1);
+  expect([...counts.values()].every(count => count <= 2)).toBe(true);
+  expect(result.data).toHaveLength(new Set(result.data.map(product => product.id)).size);
+  const id = 'catalogue-pages';
+  expect((await request('PATCH', `/stores/${id}/recommend`, 'CUSTOMER', { isRecommended: true })).status).toBe(403);
+  expect((await request('PATCH', `/stores/${id}/recommend`, 'ADMIN', { isRecommended: true })).status).toBe(200);
+  const stores = await request<{ items: { id: string; isRecommended: boolean }[] }>('GET', '/stores?recommendedOnly=true');
+  expect(stores.data.items.some(store => store.id === id)).toBe(true);
+  expect(stores.data.items.every(store => store.isRecommended)).toBe(true);
+  await request('PATCH', `/stores/${id}/recommend`, 'ADMIN', { isRecommended: false });
+  expect((await request<{ items: { id: string }[] }>('GET', '/stores?recommendedOnly=true')).data.items.some(store => store.id === id)).toBe(false);
+});

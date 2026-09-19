@@ -1,5 +1,5 @@
 import { validateProductDiscount } from './product-discount';
-import { dishProductIds } from './dish-stores';
+import { dishProductIds, dishStoreIds } from './dish-stores';
 import { deliveryEstimates } from './delivery-estimates';
 import type { Prisma } from '../../lib/prisma-types';
 import type {
@@ -131,6 +131,7 @@ export async function listStores(
   const canSeeInactive = canSeeInactiveStores(auth) && !query.activeOnly;
   const isAdminFullList = auth?.role === UserRoleEnum.ADMIN && !query.activeOnly;
   const where: Prisma.StoreWhereInput = {
+    ...(query.recommendedOnly ? { isRecommended: true } : {}),
     ...(isAdminFullList ? {} : { isApproved: true }),
     // `activeOnly` only relaxes the filter for staff. Customers are always
     // pinned to live, approved shops — a disabled store is invisible to them.
@@ -692,33 +693,22 @@ export async function getNewProducts(limit: number, dishesOnly = false, section:
   });
 }
 
-/** Search the whole public catalogue; an empty query samples eligible products. */
-export async function searchProducts(search: string, page: number, dishesOnly = false, section: 'all' | 'discovery' | 'featured' = 'all') {
+/** Search the whole public catalogue with stable pagination, including empty queries. */
+export async function searchProducts(search: string, page: number, dishesOnly = false, section: 'all' | 'discovery' | 'featured' = 'all', storeId?: string, foodStoresOnly = false) {
   const pageSize = 12;
   const where: Prisma.ProductWhereInput = {
+    ...(foodStoresOnly ? { storeId: { in: (await dishStoreIds()).filter(id => !storeId || id === storeId) } } : storeId ? { storeId } : {}),
     ...(dishesOnly ? { id: { in: await dishProductIds(section) } } : {}),
     isAvailable: true,
     store: { isActive: true, isApproved: true, storeStatus: { not: 'CLOSED' } },
     ...(search ? { nameAr: caseInsensitiveContains(search) } : {}),
   };
   const total = await prisma.product.count({ where });
-  let ids: string[] | undefined;
-  if (!search) {
-    // Sample IDs only, then hydrate twelve cards including their live options.
-    const candidates = await prisma.product.findMany({ where, select: { id: true } });
-    for (let i = candidates.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const item = candidates[i]!; candidates[i] = candidates[j]!; candidates[j] = item;
-    }
-    ids = candidates.slice(0, pageSize).map(item => item.id);
-  }
   const rows = await prisma.product.findMany({
-    where: { ...where, ...(ids ? { id: { in: ids } } : {}) },
-    skip: search ? (page - 1) * pageSize : 0, take: pageSize,
+    where,
+    skip: (page - 1) * pageSize, take: pageSize,
     orderBy: [{ nameAr: 'asc' }, { id: 'asc' }],
     include: { store: { select: { nameAr: true, logoUrl: true } }, optionGroups: { orderBy: { sortOrder: 'asc' }, include: { items: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } } } },
   });
-  const sampledIds = ids;
-  if (sampledIds) rows.sort((a, b) => sampledIds.indexOf(a.id) - sampledIds.indexOf(b.id));
   return { items: rows.map(row => { const product = toProduct(row); return { ...product, storeNameAr: row.store.nameAr, storeLogoUrl: row.store.logoUrl, hasOptions: Boolean(product.optionGroups?.length), totalSold: 0 }; }), total, page, pageSize };
 }

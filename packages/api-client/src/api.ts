@@ -2214,8 +2214,8 @@ export function getNewProducts(limit = 12, signal?: AbortSignal, dishesOnly = fa
   return request("GET", "/stores/new-products", { query: { limit: String(limit), sort: "newest", dishesOnly: String(dishesOnly) }, signal });
 }
 
-export function searchProducts(search = '', page = 1, signal?: AbortSignal, dishesOnly = false, dishSection: 'all' | 'discovery' | 'featured' = 'all'): Promise<{ items: import('@samou-go/shared-types').PopularProduct[]; total: number; page: number; pageSize: number }> {
-  return request('GET', '/stores/search-products', { query: { search, page: String(page), dishesOnly: String(dishesOnly), dishSection }, signal });
+export function searchProducts(search = '', page = 1, signal?: AbortSignal, dishesOnly = false, dishSection: 'all' | 'discovery' | 'featured' = 'all', options: { storeId?: string; foodStoresOnly?: boolean } = {}): Promise<{ items: import('@samou-go/shared-types').PopularProduct[]; total: number; page: number; pageSize: number }> {
+  return request('GET', '/stores/search-products', { query: { search, page: String(page), dishesOnly: String(dishesOnly), dishSection, storeId: options.storeId, foodStoresOnly: String(options.foodStoresOnly ?? false) }, signal });
 }
 
 export function updatePricingSettings(input: Pick<UpdatePlatformSettingsInput, 'freeDeliveryEnabled' | 'autoPricingEnabled' | 'baseDeliveryFee' | 'perKmFee' | 'captainSharePercentage'>): Promise<PlatformSettings> {

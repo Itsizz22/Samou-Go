@@ -43,7 +43,7 @@ storesRouter.get('/dish-category-options', authenticate, authorize(UserRole.ADMI
 storesRouter.get('/featured-products', asyncHandler(async (_req, res) => { ok(res, await listFeaturedProducts()); }));
 storesRouter.get('/featured-selection', authenticate, authorize(UserRole.ADMIN), asyncHandler(async (_req, res) => { ok(res, await getFeaturedSelection()); }));
 storesRouter.put('/featured-selection', authenticate, authorize(UserRole.ADMIN), asyncHandler(async (req, res) => {
-  const body = parseWith(z.object({ productIds: z.array(z.string().min(1)).max(12).refine(ids => new Set(ids).size === ids.length, 'لا تكرر المنتج') }), req.body);
+  const body = parseWith(z.object({ productIds: z.array(z.string().min(1)).max(24).refine(ids => new Set(ids).size === ids.length, 'لا تكرر المنتج') }), req.body);
   ok(res, await saveFeaturedProducts(body.productIds));
 }));
 storesRouter.get('/:storeId', optionalAuthenticate, asyncHandler(controller.getStoreHandler));

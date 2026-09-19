@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { StoreStatus, StoreType } from '@samou-go/shared-types';
 
 export const productSearchQuerySchema = z.object({
+  storeId: z.string().min(1).optional(),
+  foodStoresOnly: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
   dishSection: z.enum(['all', 'discovery', 'featured']).default('all'),
   dishesOnly: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
   search: z.string().trim().max(120).default(''),
@@ -15,6 +17,7 @@ export const paginationSchema = z.object({
 });
 
 export const storeListQuerySchema = paginationSchema.extend({
+  recommendedOnly: z.enum(['true', 'false']).optional().transform(v => v === 'true'),
   sort: z.enum(["newest", "rating"]).optional(),
   limit: z.coerce.number().int().min(1).max(24).optional(),
   search: z.string().trim().min(1).max(120).optional(),
