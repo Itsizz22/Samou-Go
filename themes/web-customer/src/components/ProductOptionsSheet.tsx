@@ -1,6 +1,6 @@
 import { MotionValue } from '@/components/MotionValue';
 import { useAndroidOverlayBack } from '@/lib/androidBack';
-import { normalizeOptionGroups } from '@samou-go/shared-types';
+import { normalizeOptionGroups, activeOptionGroups } from '@samou-go/shared-types';
 /**
  * Bottom sheet for selecting product options/addons before adding to cart.
  * Appears when a product has optionGroups — shows checkboxes/radios for each
@@ -66,9 +66,11 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
     });
   }, []);
 
+  const visibleGroups = useMemo(() => activeOptionGroups(groups, Object.entries(selections).flatMap(([groupId, ids]) => [...ids].map(optionId => ({ groupId, optionId })))), [groups, selections]);
+
   const optionsExtra = useMemo(() => {
     let total = 0;
-    for (const group of groups) {
+    for (const group of visibleGroups) {
       const selected = selections[group.id];
       if (!selected) continue;
       for (const item of group.items) {
@@ -76,13 +78,13 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
       }
     }
     return total;
-  }, [groups, selections]);
+  }, [visibleGroups, selections]);
 
   const unitTotal = Math.round((product.price + optionsExtra) * 100) / 100;
   const grandTotal = unitTotal * quantity;
 
   const isValid = useMemo(() => {
-    for (const group of groups) {
+    for (const group of visibleGroups) {
       const count = group.items.filter(
         item => item.isActive && selections[group.id]?.has(item.id)
       ).length;
@@ -94,11 +96,11 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
         return false;
     }
     return true;
-  }, [groups, selections]);
+  }, [visibleGroups, selections]);
 
   const selectedOptions = useMemo(() => {
     const result: { groupId: string; optionId: string }[] = [];
-    for (const group of groups) {
+    for (const group of visibleGroups) {
       const selected = selections[group.id];
       if (!selected) continue;
       for (const optionId of selected) {
@@ -107,9 +109,9 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
       }
     }
     return result;
-  }, [groups, selections]);
+  }, [visibleGroups, selections]);
 
-  const firstIncomplete = groups.find(group => {
+  const firstIncomplete = visibleGroups.find(group => {
     const count = group.items.filter(
       item => item.isActive && selections[group.id]?.has(item.id)
     ).length;
@@ -240,7 +242,7 @@ export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }
 
           {/* Option groups */}
           <div className="space-y-6 bg-canvas px-4 py-5">
-            {groups.map(group => (
+            {visibleGroups.map(group => (
               <div
                 key={group.id}
                 data-option-group={group.id}

@@ -1,3 +1,4 @@
+import { activeOptionGroups } from '@samou-go/shared-types';
 import { effectiveProductAvailability } from '../stores/availability';
 import { validateScheduledStart } from './scheduling';
 import { deliveryTransaction } from './delivery-transaction';
@@ -298,14 +299,15 @@ async function priceBasket(
 
       const selectedIds = new Set<string>();
       const requested = [...(offerItem?.selectedOptions ?? [])];
-      for (const group of groups.filter(g => g.kind === 'FIXED')) for (const item of group.items) if (!requested.some(s => s.optionId === item.id)) requested.push({groupId:group.id,optionId:item.id});
+      const activeGroups = activeOptionGroups(groups, requested);
+      for (const group of activeGroups.filter(g => g.kind === 'FIXED')) for (const item of group.items) if (!requested.some(s => s.optionId === item.id)) requested.push({groupId:group.id,optionId:item.id});
       for (const sel of requested) {
         if (selectedIds.has(sel.optionId)) {
           throw unprocessable('DUPLICATE_OPTION', 'Cannot select the same option more than once');
         }
         selectedIds.add(sel.optionId);
         // Validate the group belongs to this product.
-        if (!groupIds.has(sel.groupId)) {
+        if (!groupIds.has(sel.groupId) || !activeGroups.some(group => group.id === sel.groupId)) {
           throw unprocessable(
             'INVALID_OPTION_GROUP',
             `مجموعة الخيارات غير صالحة لهذا المنتج / Invalid option group for this product: ${sel.groupId}`
@@ -326,7 +328,7 @@ async function priceBasket(
       }
 
       // Validate min/max constraints per group.
-      for (const group of groups) {
+      for (const group of activeGroups) {
         if (!group.required && !resolvedOptions.some(o => o.groupId === group.id)) continue;
         const count = resolvedOptions.filter(o => o.groupId === group.id).length;
         const minimum = group.required ? Math.max(1, group.minSelect) : group.minSelect;
@@ -344,7 +346,7 @@ async function priceBasket(
         }
       }
 
-      for (const group of groups.filter(g => g.kind === 'INGREDIENT')) for (const item of group.items) if (item.isDefault && !selectedIds.has(item.id)) resolvedOptions.push({id:item.id,groupId:group.id,name:'بدون ' + item.name,priceDelta:0,excluded:true});
+      for (const group of activeGroups.filter(g => g.kind === 'INGREDIENT')) for (const item of group.items) if (item.isDefault && !selectedIds.has(item.id)) resolvedOptions.push({id:item.id,groupId:group.id,name:'بدون ' + item.name,priceDelta:0,excluded:true});
       basePrice = Math.round((basePrice + optionsTotal) * 100) / 100;
     }
 

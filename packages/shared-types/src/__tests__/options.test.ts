@@ -35,3 +35,24 @@ it('prices full sizes with the same product discount and handles smaller sizes',
  expect(sizeOptionPriceDelta(10,15,20)).toBe(-7.5);
  expect(sizeOptionPriceDelta(40,20)).toBe(20);
 });
+
+describe('conditional included vegetables', () => {
+ const groups = [
+  { ...group, id: 'addons', items: [{ id: 'veg', name: 'Vegetables', priceDelta: 5, isActive: true }] },
+  { ...group, id: 'ingredients', kind: 'INGREDIENT', dependsOnOptionId: 'veg', items: [{ id: 'olive', name: 'Olives', priceDelta: 0, isActive: true, isDefault: true }] },
+ ];
+ it('omits ingredient selections and exclusions without the paid addon', () => {
+  expect(resolveSelectedOptions(groups, [])).toEqual([]);
+  expect(resolveSelectedOptions(groups, [{ groupId: 'ingredients', optionId: 'olive' }])).toEqual([]);
+ });
+ it('records removals only while the paid addon is selected', () => {
+  expect(resolveSelectedOptions(groups, [{ groupId: 'addons', optionId: 'veg' }])).toEqual([
+   { id: 'veg', groupId: 'addons', name: 'Vegetables', priceDelta: 5 },
+   { id: 'olive', groupId: 'ingredients', name: 'بدون Olives', priceDelta: 0, excluded: true },
+  ]);
+ });
+ it('does not activate for an inactive parent or a forged group ID', () => {
+  expect(resolveSelectedOptions(groups, [{ groupId: 'wrong', optionId: 'veg' }])).toEqual([]);
+  expect(resolveSelectedOptions([{ ...groups[0], items: [{ id: 'veg', name: 'Vegetables', priceDelta: 5, isActive: false }] }, groups[1]], [{ groupId: 'addons', optionId: 'veg' }])).toEqual([]);
+ });
+});

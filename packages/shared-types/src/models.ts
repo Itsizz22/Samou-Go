@@ -128,6 +128,7 @@ export interface ProductOptionItem {
 /** A product option group (e.g. "الإضافات", "الحجم", "الصلصات"). */
 export interface ProductOptionGroup {
   templateId?: string | null;
+  dependsOnOptionId?: string | null;
   linkedProductCount?: number;
   kind?: 'ADDON' | 'SIZE' | 'INGREDIENT' | 'FIXED';
   id: string;

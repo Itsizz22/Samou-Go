@@ -116,3 +116,19 @@ describe('pickup with a saved delivery zone', () => {
  const quote=await quoteOrder({...body,items:[{productId:'product-1',quantity:1}]});expect(quote.subtotal).toBe(15);
  });
  });
+
+describe('conditional ingredients server validation', () => {
+ const ingredients = { id: 'ingredients', productId: 'product-1', name: 'Vegetables', kind: 'INGREDIENT', dependsOnOptionId: 'option-1', required: false, minSelect: 0, maxSelect: 1, items: [{ id: 'olive', name: 'Olives', price: 0, isDefault: true, isActive: true }] };
+ beforeEach(() => { h.db.productOptionGroup.findMany.mockResolvedValue([{ ...h.group, required: false, items: h.group.items.map(i => ({ ...i, isActive: true })) }, ingredients]); });
+ it('rejects ingredients submitted without selecting their addon', async () => {
+  await expect(quoteOrder({ ...body, items: [{ productId: 'product-1', quantity: 1, selectedOptions: [{ groupId: 'ingredients', optionId: 'olive' }] }] })).rejects.toMatchObject({ code: 'INVALID_OPTION_GROUP' });
+ });
+ it('charges the addon once and accepts included ingredient choices', async () => {
+  const quote = await quoteOrder({ ...body, items: [{ productId: 'product-1', quantity: 1, selectedOptions: [selection, { groupId: 'ingredients', optionId: 'olive' }] }] });
+  expect(quote.subtotal).toBe(17);
+ });
+ it('leaves the original pizza price unchanged without vegetables', async () => {
+  const quote = await quoteOrder({ ...body, items: [{ productId: 'product-1', quantity: 1 }] });
+  expect(quote.subtotal).toBe(15);
+ });
+});

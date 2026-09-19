@@ -1423,6 +1423,7 @@ export function deleteProduct(
 /* ---- Product option groups --------------------------------------------- */
 
 export interface OptionGroupInput {
+  dependsOnOptionId?: string | null;
   applyToLinked?: boolean;
   kind?: 'ADDON' | 'SIZE' | 'INGREDIENT' | 'FIXED';
   name: string;

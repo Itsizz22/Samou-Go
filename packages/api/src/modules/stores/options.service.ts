@@ -24,6 +24,7 @@ const itemSchema = z.object({
 });
 const schema = z.object({
   applyToLinked: z.boolean().optional(),
+  dependsOnOptionId: z.string().min(1).nullable().optional(),
   name: z.string().trim().min(1).max(120).optional(),
   kind: z.enum(["ADDON", "SIZE", "INGREDIENT", "FIXED"]).optional(),
   required: z.boolean().optional(),
@@ -37,6 +38,7 @@ function mapGroup(g: Group): ProductOptionGroup {
   return {
     id: g.id,
     templateId: g.templateId ?? null,
+    dependsOnOptionId: g.dependsOnOptionId ?? null,
     productId: g.productId,
     name: g.name,
     kind: g.kind as ProductOptionGroup["kind"],
@@ -154,9 +156,11 @@ export async function createOptionGroup(
       }))
     )
       throw unprocessable("DUPLICATE_SIZE", "توجد مجموعة أحجام لهذا المنتج");
+    await validateDependency(tx, productId, body.dependsOnOptionId, config.kind);
     const g = await tx.productOptionGroup.create({
       data: {
         productId,
+        dependsOnOptionId: body.dependsOnOptionId,
         name: body.name!,
         ...config,
         sortOrder: body.sortOrder ?? 0,
@@ -183,11 +187,13 @@ export async function updateOptionGroup(
     });
     if (!g || (productId !== undefined && g.productId !== productId)) throw notFound("المجموعة غير موجودة");
     if (g.product.storeId !== storeId) throw forbidden("غير مصرح");
+    if (g.templateId && body.dependsOnOptionId) throw unprocessable("CONDITIONAL_TEMPLATE", "أنشئ نسخة مستقلة قبل ربط المكونات بخيار");
     if (g.templateId) {
       if (!body.applyToLinked) throw unprocessable('SHARED_CONFIRMATION', 'هذا قالب مشترك؛ أكد تطبيق التعديل على المنتجات المرتبطة أو أنشئ نسخة مستقلة');
       return updateSharedTemplate(tx, storeId, g, body);
     }
     const config = rules(body, g);
+    await validateDependency(tx, g.productId, body.dependsOnOptionId === undefined ? g.dependsOnOptionId : body.dependsOnOptionId, config.kind, g.id);
     if (
       config.kind === "SIZE" &&
       (await tx.productOptionGroup.findFirst({
@@ -215,6 +221,7 @@ export async function updateOptionGroup(
       where: { id: groupId },
       data: {
         ...config,
+        ...(body.dependsOnOptionId !== undefined ? { dependsOnOptionId: body.dependsOnOptionId } : {}),
         ...(body.name ? { name: body.name } : {}),
         ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
       },
@@ -268,6 +275,7 @@ export async function promoteOptionTemplate(actor: Actor, storeId: string, produ
     const lock = await tx.productOptionGroup.updateMany({ where: { id: groupId, productId, templateId: null, product: { storeId } }, data: { updatedAt: new Date() } });
     if (!lock.count) throw unprocessable('ALREADY_SHARED', 'المجموعة غير موجودة أو مرتبطة بقالب بالفعل');
     const group = await tx.productOptionGroup.findUniqueOrThrow({ where: { id: groupId }, include: { items: true } });
+    if (group.dependsOnOptionId) throw unprocessable("CONDITIONAL_TEMPLATE", "المكونات المشروطة خاصة بهذا المنتج");
     const template = await tx.productOptionTemplate.create({ data: { storeId, name: group.name, configuration: JSON.stringify(configuration(group)) } });
     await tx.productOptionGroup.update({ where: { id: groupId }, data: { templateId: template.id } });
     for (const item of group.items) await tx.productOptionItem.update({ where: { id: item.id }, data: { templateItemId: item.id } });
@@ -341,4 +349,12 @@ export async function deleteOptionTemplate(actor: Actor, storeId: string, templa
     await tx.productOptionGroup.updateMany({ where: { templateId }, data: { templateId: null } });
     await tx.productOptionTemplate.delete({ where: { id: templateId } });
   });
+}
+
+async function validateDependency(tx: Prisma.TransactionClient, productId: string, optionId: string | null | undefined, kind: string, groupId?: string) {
+  if (!optionId) return;
+  if (kind !== 'INGREDIENT') throw unprocessable('INVALID_DEPENDENCY', 'الشرط متاح للمكونات القابلة للإزالة فقط');
+  const item = await tx.productOptionItem.findUnique({ where: { id: optionId }, include: { group: true } });
+  if (!item || !item.isActive || item.group.productId !== productId || item.groupId === groupId || item.group.dependsOnOptionId)
+    throw unprocessable('INVALID_DEPENDENCY', 'اختر إضافة متاحة من مجموعة أخرى في نفس المنتج');
 }

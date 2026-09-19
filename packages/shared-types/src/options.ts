@@ -12,6 +12,7 @@ export function normalizeOptionGroups(value: unknown): ProductOptionGroup[] {
     const required = group.required === true;
     return [{
       kind: group.kind === 'SIZE' || group.kind === 'INGREDIENT' || group.kind === 'FIXED' ? group.kind : 'ADDON',
+      dependsOnOptionId: identifier(group.dependsOnOptionId) ? group.dependsOnOptionId : null,
       id: groupId, productId: typeof group.productId === 'string' ? group.productId : '',
       name: typeof group.name === 'string' ? group.name : '', required,
       minSelect: finite(group.minSelect) ? Math.max(0, group.minSelect) : required ? 1 : 0,
@@ -35,7 +36,7 @@ export function normalizeSelectedOptions(value: unknown): SelectedOption[] {
 
 /** Resolve only live selections; never invent a zero-priced addon for a missing item. */
 export function resolveSelectedOptions(groups: unknown, selections: { groupId: string; optionId: string }[]): SelectedOption[] {
-  const normalized = normalizeOptionGroups(groups);
+  const normalized = activeOptionGroups(normalizeOptionGroups(groups), selections);
   const selected = selections.flatMap(selection => {
     const group = normalized.find(group => group.id === selection.groupId);
     const item = group?.items.find(item => item.id === selection.optionId && item.isActive);
@@ -48,4 +49,11 @@ export function resolveSelectedOptions(groups: unknown, selections: { groupId: s
 export function sizeOptionPriceDelta(sizePrice: number, productPrice: number, originalPrice?: number | null): number {
   const ratio = originalPrice && originalPrice > productPrice ? productPrice / originalPrice : 1;
   return Math.round((sizePrice * ratio - productPrice) * 100) / 100;
+}
+
+/** Conditional ingredients depend on an active selection from an unconditional group. */
+export function activeOptionGroups<T extends { id: string; dependsOnOptionId?: string | null; items: { id: string; isActive: boolean }[] }>(groups: T[], selections: { groupId: string; optionId: string }[]): T[] {
+  return groups.filter(group => !group.dependsOnOptionId || groups.some(parent =>
+    !parent.dependsOnOptionId && parent.id !== group.id && parent.items.some(item =>
+      item.isActive && item.id === group.dependsOnOptionId && selections.some(selection => selection.groupId === parent.id && selection.optionId === item.id))));
 }

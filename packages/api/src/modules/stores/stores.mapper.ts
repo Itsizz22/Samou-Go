@@ -73,6 +73,7 @@ export function toProduct(product: ProductWithOptions): Product {
       optionGroups: product.optionGroups.map(group => ({
         id: group.id, productId: group.productId, name: group.name,
         kind: group.kind as ProductOptionGroup["kind"], required: group.required, minSelect: group.minSelect, maxSelect: group.maxSelect,
+        dependsOnOptionId: group.dependsOnOptionId,
         sortOrder: group.sortOrder,
         items: group.items.map(item => ({ id: item.id, groupId: group.id, name: item.name,
           imageUrl: item.imageUrl, isDefault: item.isDefault, priceDelta: group.kind === "SIZE" ? sizeOptionPriceDelta(item.price, Number(product.price), product.originalPrice == null ? null : Number(product.originalPrice)) : item.price, sortOrder: item.sortOrder, isActive: item.isActive })),
