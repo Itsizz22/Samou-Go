@@ -27,6 +27,7 @@ import {
   createCategory,
   createProduct,
   deleteProduct,
+  permanentlyDeleteProduct,
   removeCurrentImage,
   updateProduct,
   useStoreManager,
@@ -243,6 +244,25 @@ export function ProductCataloguePanel({ storeId }: Props) {
     }
   };
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deleteLock = useRef(false);
+  const handleDelete = async (product: Product) => {
+    if (deleteLock.current) return;
+    if (!window.confirm(t(`حذف «${product.nameAr}» نهائياً؟ لا يمكن التراجع عن الحذف.`, `Permanently delete "${product.nameAr}"? This cannot be undone.`))) return;
+    deleteLock.current = true;
+    setDeletingId(product.id);
+    try {
+      await permanentlyDeleteProduct(storeId, product.id);
+      toast.success('تم حذف المنتج', 'Product deleted');
+      await catalogue.reload();
+    } catch (error) {
+      toast.error('تعذّر حذف المنتج', error instanceof Error ? error.message : String(error));
+    } finally {
+      deleteLock.current = false;
+      setDeletingId(null);
+    }
+  };
+
   /* ---- Inline toggle availability --------------------------------------- */
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
@@ -372,7 +392,7 @@ export function ProductCataloguePanel({ storeId }: Props) {
 
       {!catalogue.loading && visibleProducts.length > 0 && (
         <CatalogueProductList products={visibleProducts} togglingId={togglingId} deactivatingId={deactivatingId}
-          onEdit={openEdit} onToggle={product => void handleToggleAvailability(product)} onDeactivate={handleDeactivate}
+          onEdit={openEdit} onToggle={product => void handleToggleAvailability(product)} onDeactivate={handleDeactivate} onDelete={handleDelete} deletingId={deletingId}
           formatPrice={price => formatCurrency(price, { unit: 'symbol' })} />
       )}
 

@@ -1406,8 +1406,7 @@ export function updateProduct(
 
 /**
  * Soft-deactivates a product (sets isAvailable = false).
- * Hard delete is intentionally unsupported — products with order history cannot
- * be removed without breaking the audit trail.
+ * Use permanentlyDeleteProduct for products without order history or offer links.
  */
 export function deleteProduct(
   storeId: string,
@@ -2311,3 +2310,8 @@ export function deleteOptionTemplate(storeId: string, templateId: string): Promi
 
 /** Admin-only pilot snapshot; never cache in local storage. */
 export const getPilotOrderDiagnostics = (orderId: string, signal?: AbortSignal) => request<unknown>('GET', `/admin/pilot/orders/${encodeURIComponent(orderId)}`, { auth: true, signal });
+
+/** Permanently remove a product that has no orders or offer links. */
+export function permanentlyDeleteProduct(storeId: string, productId: string): Promise<void> {
+  return request<void>('DELETE', `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}/permanent`, { auth: true });
+}

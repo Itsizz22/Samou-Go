@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Archive, Expand, Loader2, Package, Pencil, X } from 'lucide-react';
+import { Archive, Trash2, Expand, Loader2, Package, Pencil, X } from 'lucide-react';
 import type { Product } from '@samou-go/shared-types';
 import { useLanguage } from '../lib/LanguageProvider';
 import { ImageWithFallback } from './ImageWithFallback';
@@ -11,10 +11,12 @@ interface Props {
   onEdit: (product: Product) => void;
   onToggle: (product: Product) => void;
   onDeactivate: (product: Product) => void;
+  onDelete?: (product: Product) => void;
+  deletingId?: string | null;
   formatPrice: (price: number) => string;
 }
 
-export function CatalogueProductList({ products, togglingId, deactivatingId, onEdit, onToggle, onDeactivate, formatPrice }: Props) {
+export function CatalogueProductList({ products, togglingId, deactivatingId, onEdit, onToggle, onDeactivate, onDelete, deletingId, formatPrice }: Props) {
   const { t } = useLanguage();
   const [failedImages, setFailedImages] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<Product | null>(null);
@@ -40,6 +42,9 @@ export function CatalogueProductList({ products, togglingId, deactivatingId, onE
           <span>{product.isAvailable ? t('متاح', 'Available') : t('غير متاح', 'Unavailable')}</span>
         </button>
         <div className="sq-catalogue-tools">
+          {onDelete && <button type="button" onClick={() => onDelete(product)} disabled={deletingId != null || togglingId === product.id || deactivatingId === product.id} className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-bold text-danger disabled:opacity-50" aria-label={`${t('حذف', 'Delete')} ${product.nameAr}`}>
+            {deletingId === product.id ? <Loader2 size={16} className="animate-spin"/> : <Trash2 size={16}/>}{t('حذف', 'Delete')}
+          </button>}
           <button type="button" onClick={() => onEdit(product)} className="sq-catalogue-edit"><Pencil size={15}/>{t('تعديل', 'Edit')}</button>
           <button type="button" onClick={() => onDeactivate(product)} disabled={deactivatingId === product.id} className="sq-catalogue-archive" aria-label={`${t('إيقاف', 'Deactivate')} ${product.nameAr}`} title={t('إيقاف المنتج', 'Deactivate product')}>{deactivatingId === product.id ? <Loader2 size={16} className="animate-spin"/> : <Archive size={16}/>}</button>
         </div>

@@ -168,3 +168,11 @@ export async function searchProductsHandler(req: Request, res: Response): Promis
   const query = parseWith(productSearchQuerySchema, req.query);
   ok(res, await storesService.searchProducts(query.search, query.page, query.dishesOnly, query.dishSection, query.storeId, query.foodStoresOnly, query.shuffleSeed));
 }
+
+export async function permanentlyDeleteProductHandler(req: Request, res: Response): Promise<void> {
+  const auth = requireAuth(req);
+  const { storeId, productId } = parseWith(productIdParamsSchema, req.params);
+  await storesService.assertStoreAccess(storeId, auth.sub, auth.role);
+  await storesService.permanentlyDeleteProduct(storeId, productId);
+  res.status(204).end();
+}

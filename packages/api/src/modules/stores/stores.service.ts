@@ -720,3 +720,15 @@ export async function searchProducts(search: string, page: number, dishesOnly = 
   if (mixedIds) rows.sort((a, b) => mixedIds.indexOf(a.id) - mixedIds.indexOf(b.id));
   return { items: rows.map(row => { const product = toProduct(row); return { ...product, storeNameAr: row.store.nameAr, storeLogoUrl: row.store.logoUrl, hasOptions: Boolean(product.optionGroups?.length), totalSold: 0 }; }), total, page, pageSize };
 }
+
+/** Remove unused catalogue products without damaging order history or offers. */
+export async function permanentlyDeleteProduct(storeId: string, productId: string): Promise<void> {
+  const existing = await prisma.product.findUnique({ where: { id: productId }, select: { storeId: true } });
+  if (!existing) throw notFound('المنتج غير موجود / Product not found');
+  if (existing.storeId !== storeId) throw forbidden('المنتج لا ينتمي لهذا المتجر / Product does not belong to this store');
+  // The relation filters protect against concurrent attachments as well as stale UI data.
+  const result = await prisma.product.deleteMany({ where: {
+    id: productId, storeId, orderItems: { none: {} }, offerProducts: { none: {} },
+  } });
+  if (result.count !== 1) throw conflict('لا يمكن حذف منتج مرتبط بطلبات أو عروض. يمكنك إيقافه مؤقتاً، أو إزالته من العروض أولاً / Product is linked to orders or offers');
+}

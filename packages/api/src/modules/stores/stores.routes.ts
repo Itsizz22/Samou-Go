@@ -207,3 +207,6 @@ storesRouter.post('/:storeId/products/:productId/options/:groupId/template', aut
 storesRouter.post('/:storeId/products/:productId/options/:groupId/detach', authenticate, authorize(UserRole.STORE_MANAGER, UserRole.ADMIN), asyncHandler(optionsController.detachOptionTemplateHandler));
 
 storesRouter.delete('/:storeId/option-templates/:templateId', authenticate, authorize(UserRole.STORE_MANAGER, UserRole.ADMIN), asyncHandler(optionsController.deleteOptionTemplateHandler));
+
+storesRouter.delete('/:storeId/products/:productId/permanent', authenticate,
+  authorize(UserRole.STORE_MANAGER, UserRole.ADMIN), asyncHandler(controller.permanentlyDeleteProductHandler));
