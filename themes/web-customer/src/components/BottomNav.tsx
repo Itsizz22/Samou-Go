@@ -99,7 +99,7 @@ export function BottomNav() {
                 <span className={`sq-nav-icon relative ${isActive || (to === '/menu' && menuActive) ? 'sq-tab-active' : ''}`}>
                   <Icon
                     key={to === '/cart' ? cartFeedback : to}
-                    size={22}
+                    size={24}
                     strokeWidth={isActive || (to === '/menu' && menuActive) ? 2.5 : 1.8}
                     fill="none"
                     className={`${
@@ -116,7 +116,7 @@ export function BottomNav() {
                     </span>
                   )}
                 </span>
-                <span className="relative text-[11px] leading-4 truncate w-full text-center">{t(labelAr, labelEn)}</span>
+                <span className="relative text-xs leading-5 w-full text-center">{t(labelAr, labelEn)}</span>
               </>
             )}
           </NavLink>

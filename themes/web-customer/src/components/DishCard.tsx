@@ -14,7 +14,7 @@ export function DishCard({ product, onAdd }: { product: PopularProduct; onAdd: (
       <ImageWithFallback src={product.imageUrl ?? undefined} fallback={<ProductPhotoFallback />} alt={product.nameAr} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 motion-safe:group-hover:scale-105 motion-reduce:transition-none" />
     </Link>
     <div className="flex flex-1 flex-col gap-3 p-3 sm:p-4">
-      <h3 className="line-clamp-2 min-h-12 text-base font-extrabold leading-6"><Link to={href} className="focus-visible:ring-2 focus-visible:ring-brand">{product.nameAr}</Link></h3>
+      <h3 className="line-clamp-2 min-h-14 text-lg font-extrabold leading-7"><Link to={href} className="focus-visible:ring-2 focus-visible:ring-brand">{product.nameAr}</Link></h3>
       <Link to={`/stores/${encodeURIComponent(product.storeId)}`} className="flex min-h-11 items-center gap-2 text-sm text-ink-muted focus-visible:ring-2 focus-visible:ring-brand">
         <ImageWithFallback src={product.storeLogoUrl ?? undefined} alt="" className="size-7 shrink-0 rounded-full object-contain" fallbackText={product.storeNameAr.slice(0, 1)} />
         <span className="line-clamp-2">{product.storeNameAr}</span>

@@ -354,3 +354,71 @@
 @media (hover: hover) { .sq-store-carousel-slide:hover .sq-store-carousel-image { transform: scale(1.025); } .sq-store-hero-action:hover { background: rgb(10 18 20 / .8); } }
 @media (min-width: 768px) { .sq-store-hero-identity { padding-block: 10px 32px; } .sq-store-hero-logo { width: 112px; height: 112px; } }
 @media (prefers-reduced-motion: reduce) { .sq-store-carousel-image, .sq-store-hero-action { transition: none; } }
+
+/* Keep interactive chrome below the iPhone status bar, including standalone PWA. */
+.customer-home .home-header {
+  padding-block-start: calc(16px + env(safe-area-inset-top, 0px));
+}
+.sq-page-header {
+  padding-block-start: calc(12px + env(safe-area-inset-top, 0px));
+  padding-block-end: 12px;
+}
+/* WebKit zooms focused small editors; retain user pinch zoom for accessibility. */
+@supports (-webkit-touch-callout: none) {
+  @media (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    textarea, select { font-size: max(16px, 1rem); }
+  }
+}
+
+/* Scrolled content must not show through the system status bar. */
+body::before {
+  content: '';
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  block-size: env(safe-area-inset-top, 0px);
+  background: var(--color-surface);
+  z-index: 10000;
+  pointer-events: none;
+}
+
+/* Readable app scale: enlarge rem-based text and controls together, without viewport zoom. */
+@theme {
+  --text-xs: 0.825rem;
+  --text-xs--line-height: 1.6;
+  --text-sm: 0.95rem;
+  --text-sm--line-height: 1.6;
+  --text-base: 1rem;
+  --text-base--line-height: 1.65;
+  --text-caption: 0.95rem;
+  --text-micro: 0.825rem;
+}
+html { font-size: 106.25%; }
+
+/* Legacy compact labels are still used by customer and embedded staff screens. */
+.text-\[10px\], .text-\[11px\], .text-\[12px\], .text-\[13px\] {
+  font-size: var(--text-xs);
+  line-height: 1.6;
+}
+.market-subtitle, .market-section-heading p,
+.market-identity p, .market-store-copy > p,
+.market-meta, .market-meta p, .market-recommended,
+.sq-store-hero-facts { font-size: var(--text-xs); line-height: 1.65; }
+.market-text-action, .market-category, .market-filters button,
+.market-featured-footer .market-status { font-size: var(--text-sm); }
+.market-category, .market-filters button { min-height: 48px; }
+.market-identity h3, .market-store-copy h3 { font-size: 1.0625rem; }
+.market-featured-card .market-identity h3 { font-size: 1.125rem; }
+.market-section-heading h2 { font-size: 1.375rem; line-height: 1.5; }
+.sq-bottom-nav .sq-nav-link { min-height: 4rem; }
+.sq-bottom-nav .sq-nav-badge { min-width: 22px; height: 22px; font-size: 12px; }
+.sq-catalogue-name { font-size: 1rem; }
+.sq-catalogue-category, .sq-catalogue-count, .sq-catalogue-availability,
+.sq-catalogue-edit, .sq-catalogue-title p { font-size: var(--text-xs); }
+.sq-catalogue-add, .sq-catalogue-filter, .sq-staff-status-choice,
+.sq-captain-glass-status { font-size: var(--text-sm); }
+.dish-card button { min-height: 48px; padding-block: 8px; flex-wrap: wrap; }
+@media (max-width: 359px) {
+  .sq-dish-grid { grid-template-columns: minmax(0, 1fr); }
+}

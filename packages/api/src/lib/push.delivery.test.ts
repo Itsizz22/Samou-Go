@@ -77,3 +77,11 @@ it('selects only registrations owned by a live, unexpired recipient session', as
   await sendPushToUser('recipient', { title: 'Order', body: 'Ready' });
   expect(mocks.findMany).toHaveBeenCalledWith({ where: { userId: 'recipient', refreshSession: { is: { userId: 'recipient', revokedAt: null, pushEnabled: true, expiresAt: { gt: expect.any(Date) } } } }, select: { id: true, token: true, platform: true, refreshTokenId: true } });
 });
+
+it('records per-device APNs authentication failures and preserves valid tokens', async () => {
+  mocks.findMany.mockResolvedValue([{ id: 'ios-device', token: 'private-token', platform: 'ios', refreshTokenId: 'session' }]);
+  mocks.send.mockResolvedValue({ responses: [{ success: false, error: { code: 'messaging/third-party-auth-error' } }] });
+  await expect(sendPushToUser('user', { title: 'Order', body: 'Ready' }, { dataOnly: true })).resolves.toEqual({ sent: 0, failed: 1 });
+  expect(mocks.auditUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'FAILED', errorCode: 'messaging/third-party-auth-error' }) }));
+  expect(mocks.deleteMany).not.toHaveBeenCalled();
+});

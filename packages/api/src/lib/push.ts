@@ -118,7 +118,7 @@ async function deliverPushToUser(
   userId: string,
   payload: PushPayload,
   options?: SendPushOptions
-): Promise<{ sent: number; failed: number; skipped?: string }> {
+): Promise<{ sent: number; failed: number; skipped?: string; errorCode?: string }> {
   const msg = await getMessaging();
   if (!msg) return { sent: 0, failed: 0, skipped: "DISABLED" };
 
@@ -187,6 +187,7 @@ async function deliverPushToUser(
 
   let sent = 0;
   let failed = 0;
+  const failureCodes = new Set<string>();
   const staleRegistrations: Array<{ id: string; token: string; refreshTokenId: string | null }> = [];
 
   const perToken = response.responses as Array<{ success: boolean; error?: { code: string } }>;
@@ -197,6 +198,11 @@ async function deliverPushToUser(
       continue;
     }
     failed++;
+    // APNs credential failures arrive per device; never log token-bearing messages.
+    const code = resp?.error?.code;
+    const safeCode = code && /^[a-zA-Z0-9_/-]{1,100}$/.test(code) ? code : 'SEND_FAILED';
+    failureCodes.add(safeCode);
+    console.warn(JSON.stringify({ event: 'push.device_failed', platform: tokens[i]?.platform, code: safeCode }));
     // Token is no longer valid — mark for removal so we never retry it.
     if (tokens[i] && isStaleTokenCode(resp?.error?.code)) {
       const device = tokens[i]!;
@@ -213,7 +219,7 @@ async function deliverPushToUser(
     console.warn(JSON.stringify({ event: 'push.invalid_tokens_removed', count: staleRegistrations.length, severity: 'Warning' }));
   }
 
-  return { sent, failed };
+  return { sent, failed, ...(failureCodes.size ? { errorCode: [...failureCodes].sort().join(",").slice(0, 100) } : {}) };
 }
 
 /**
@@ -266,6 +272,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload, optio
     if (audit) await prisma.notificationDelivery.update({ where: { id: audit.id }, data: {
       status: result.skipped ?? (result.failed ? (result.sent ? 'PARTIAL' : 'FAILED') : 'ACCEPTED'),
       sentCount: result.sent, failedCount: result.failed,
+      errorCode: result.errorCode ?? null,
       providerAcceptedAt: result.sent ? new Date() : null,
     } }).catch(() => console.error('[push-audit] Could not record provider result'));
     return { sent: result.sent, failed: result.failed };

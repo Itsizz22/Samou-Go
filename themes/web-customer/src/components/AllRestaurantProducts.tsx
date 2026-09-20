@@ -13,7 +13,7 @@ export function AllRestaurantProducts({ onAdd }: { onAdd: (product: PopularProdu
   return <section className="mt-5 space-y-4" aria-label={t('جميع المنتجات', 'All products')} aria-busy={busy}>
     <p className="text-sm text-ink-muted">{t('جميع المنتجات المتاحة من المطاعم والمقاهي والمخابز والحلويات', 'All available products from restaurants, cafes and bakeries')}</p>
     {products.error ? <button className="min-h-11 text-brand" onClick={products.refresh}>{t('تعذر التحميل — أعد المحاولة', 'Unable to load — retry')}</button> : busy ? <p role="status">{t('جارٍ تحميل المنتجات…', 'Loading products…')}</p> : <>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">{products.data?.items.map(product => <DishCard key={product.id} product={product} onAdd={onAdd} />)}</div>
+      <div className="sq-dish-grid grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">{products.data?.items.map(product => <DishCard key={product.id} product={product} onAdd={onAdd} />)}</div>
       {!products.data?.items.length && <p>{t('لا توجد منتجات متاحة حاليًا', 'No products currently available')}</p>}
     </>}
     <nav aria-label={t('صفحات المنتجات', 'Product pages')} className="flex items-center justify-between gap-3">

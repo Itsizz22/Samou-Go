@@ -18,8 +18,9 @@
  */
 
 import { useState, type FormEvent } from 'react';
-import { AlertTriangle, Check, Info, Loader2, LogOut, UserPlus } from 'lucide-react';
+import { AlertTriangle, Check, Info, Loader2, LogOut, Trash2, UserPlus } from 'lucide-react';
 import type { Auth } from './useAuth';
+import { ApiError } from './api';
 import { useAccounts } from './useAccounts';
 import { useToast } from './useToast';
 import { useAppLanguage } from './language';
@@ -66,8 +67,12 @@ export function AccountSwitcher({ auth, compact = false }: AccountSwitcherProps)
         setAdding(true);
         setFormError('انتهت صلاحية الجلسة؛ سجّل الدخول مجدداً / Please sign in again');
       }
-    } catch {
-      toast.error('تعذّر التبديل', 'Switch failed');
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.isAuthError) {
+        setPhone(accounts.find(account => account.id === accountId)?.phone ?? '');
+        setAdding(true);
+        setFormError('انتهت صلاحية الجلسة؛ سجّل الدخول مجدداً / Please sign in again');
+      } else toast.error('تعذّر التبديل', 'Switch failed');
     }
   };
 
@@ -85,7 +90,7 @@ export function AccountSwitcher({ auth, compact = false }: AccountSwitcherProps)
         toast.info('تمت إزالة الحساب', 'Account removed');
       }
     } catch {
-      toast.error('تعذّرت إزالة الحساب', 'Could not remove that account');
+      toast.error('تعذر تأكيد تسجيل الخروج. تحقق من الاتصال وأعد المحاولة لإيقاف إشعارات الحساب.', 'Could not confirm sign-out. Check your connection and retry to stop account notifications.');
     }
   };
 
@@ -131,7 +136,7 @@ export function AccountSwitcher({ auth, compact = false }: AccountSwitcherProps)
 
       <ul className={compact ? "mt-2 space-y-2" : "mt-4 space-y-2"}>
         {accounts.map((account) => {
-          const active = account.id === activeId;
+          const active = Boolean(auth.user) && account.id === activeId;
           const busy = busyId === account.id;
           return (
             <li
@@ -171,7 +176,7 @@ export function AccountSwitcher({ auth, compact = false }: AccountSwitcherProps)
                     type="button"
                     aria-label={isArabic ? 'تسجيل الخروج من الحساب الحالي' : 'Sign out of the active account'}
                     onClick={() => void handleRemove(account.id)}
-                    disabled={busy}
+                    disabled={Boolean(busyId)}
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted transition hover:bg-danger-tint hover:text-danger-ink disabled:opacity-50"
                   >
                     {busy ? (
@@ -196,6 +201,12 @@ export function AccountSwitcher({ auth, compact = false }: AccountSwitcherProps)
                     )}
                   </button>
                 )}
+                {!active && <button type="button" disabled={Boolean(busyId)}
+                  aria-label={isArabic ? `إزالة ${account.name} من هذا الجهاز` : `Remove ${account.name} from this device`}
+                  onClick={() => void handleRemove(account.id)}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-danger-ink disabled:opacity-50">
+                  <Trash2 size={16} />
+                </button>}
               </div>
             </li>
           );

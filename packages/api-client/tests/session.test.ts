@@ -311,3 +311,39 @@ describe('confirmed device logout', () => {
     expect(api.getToken()).toBe('other-access');
   });
 });
+
+
+describe('saved account removal', () => {
+  async function prepare() {
+    const api = await signedIn();
+    const vault = await import('../src/accountVault');
+    vault.addAccount({ user: { ...user, id: 'expired-other', role: 'CUSTOMER' }, accessToken: 'expired-access', refreshToken: 'expired-refresh' });
+    vault.addAccount({ user: { ...user, role: 'CUSTOMER' }, accessToken: 'initial-access', refreshToken: 'initial-refresh' });
+    const { removeSavedSession } = await import('../src/removeSavedSession');
+    return { api, vault, removeSavedSession };
+  }
+  it('removes the active account without trying the other expired session', async () => {
+    const { api, vault, removeSavedSession } = await prepare();
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(success({}));
+    vi.stubGlobal('fetch', fetch);
+    expect(await removeSavedSession(user.id)).toEqual({ nextProfile: null, changedSession: true });
+    expect(api.getToken()).toBeNull();
+    expect(vault.getSavedAccounts().map(a => a.id)).toEqual(['expired-other']);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(fetch.mock.calls[0]?.[0])).toContain('/auth/logout');
+  });
+  it('preserves credentials when revocation fails so push logout can be retried', async () => {
+    const { api, vault, removeSavedSession } = await prepare();
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>().mockResolvedValue(failure(503)));
+    await expect(removeSavedSession(user.id)).rejects.toThrow();
+    expect(api.getToken()).toBe('initial-access');
+    expect(vault.getSavedAccounts()).toHaveLength(2);
+  });
+  it('removes an inactive login without changing the live identity', async () => {
+    const { api, vault, removeSavedSession } = await prepare();
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>().mockResolvedValue(success({})));
+    expect((await removeSavedSession('expired-other')).changedSession).toBe(false);
+    expect(api.getToken()).toBe('initial-access');
+    expect(vault.getSavedAccounts().map(a => a.id)).toEqual([user.id]);
+  });
+});

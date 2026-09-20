@@ -71,6 +71,7 @@ export interface CartState {
   setNote: (productId: string, note: string) => void;
   setQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
+  replaceLine: (key: string, product: Product, selectedOptions: SelectedOption[], quantity: number) => void;
   clear: () => void;
   /** Find a line by productId (first match across stores). */
   lineFor: (productId: string) => CartLine | undefined;
@@ -157,6 +158,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
     persistLines(lines);
   }, [lines]);
+
+  const replaceLine = useCallback((key: string, product: Product, selectedOptions: SelectedOption[], quantity: number) => {
+    setLines(current => current.map(line => cartLineKey(line) === key
+      ? { ...line, product, productId: product.id, selectedOptions, quantity }
+      : line));
+  }, []);
 
   const setStore = useCallback((_storeId: string, _storeNameAr: string) => {
     // Single-store context setter — used by reorder. For multi-store, the
@@ -325,6 +332,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       isMultiStore: storeGroups.length > 1,
       storeId: firstGroup?.storeId ?? null,
       storeNameAr: firstGroup?.storeNameAr ?? '',
+      replaceLine,
       setStore,
       addItem,
       addOfferItem,
@@ -335,7 +343,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       lineFor,
       setFulfillmentType,
     };
-  }, [lines, fulfillmentTypes, setStore, addItem, addOfferItem, setNote, setQuantity, removeItem, clear, lineFor, setFulfillmentType]);
+  }, [lines, fulfillmentTypes, replaceLine, setStore, addItem, addOfferItem, setNote, setQuantity, removeItem, clear, lineFor, setFulfillmentType]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

@@ -22,7 +22,7 @@ export function DiscoverySections({ onAdd, featuredProducts = [] }: { onAdd: (pr
       <div className="mb-3"><h2 className="text-xl font-extrabold">{t('اكتشف طبقك اليوم', 'Discover your next dish')}</h2><p className="mt-1 text-sm text-ink-muted">{t('نكهات جديدة تستحق التجربة', 'Find a new favourite')}</p></div>
       {products.loading && !products.data && <div className="skeleton h-72 rounded-2xl" aria-label={t('جارٍ التحميل', 'Loading')} />}
       {products.error && <button type="button" onClick={products.refresh} className="min-h-11 text-sm font-bold text-brand">{t('تعذّر تحميل الأطباق — أعد المحاولة', 'Could not load dishes — retry')}</button>}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+      <div className="sq-dish-grid grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
         {dishes.slice(0, 20).map(product => <div key={product.id} className="min-w-0"><DishCard product={product} onAdd={onAdd} /></div>)}
       </div>
       <button type="button" onClick={() => setShowAll(value => !value)} aria-expanded={showAll} className="mt-4 min-h-11 w-full rounded-xl border border-line bg-surface px-4 font-bold text-brand">{showAll ? t('إخفاء جميع المنتجات', 'Hide all products') : t('عرض جميع المنتجات', 'View all products')}</button>

@@ -3,14 +3,14 @@ import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { useLanguage } from '../lib';
 
-type Option = { value: string; label: string; disabled: boolean };
+type Option = { value: string; label: string; disabled: boolean; hidden: boolean };
 function textOf(node: ReactNode): string {
   return Children.toArray(node).map(child => isValidElement<{ children?: ReactNode }>(child) ? textOf(child.props.children) : String(child)).join('');
 }
 function readOptions(children: ReactNode, disabled = false): Option[] {
   return Children.toArray(children).flatMap(child => {
-    if (!isValidElement<{ children?: ReactNode; value?: string | number; label?: string; disabled?: boolean }>(child)) return [];
-    if (child.type === 'option') return [{ value: String(child.props.value ?? textOf(child.props.children)), label: child.props.label ?? textOf(child.props.children), disabled: disabled || !!child.props.disabled }];
+    if (!isValidElement<{ children?: ReactNode; value?: string | number; label?: string; disabled?: boolean; hidden?: boolean }>(child)) return [];
+    if (child.type === 'option') return [{ value: String(child.props.value ?? textOf(child.props.children)), label: child.props.label ?? textOf(child.props.children), disabled: disabled || !!child.props.disabled, hidden: !!child.props.hidden }];
     return readOptions(child.props.children, disabled || !!child.props.disabled);
   });
 }
@@ -29,7 +29,7 @@ export function AppSelect({ children, className, style, onChange, onInvalid, ...
   const options = readOptions(children);
   const value = String(props.value ?? localValue);
   const selected = options.find(option => option.value === value) ?? options[0];
-  const filtered = options.filter(option => option.label.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
+  const filtered = options.filter(option => !option.hidden && option.label.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   const title = props['aria-label'] ?? (fieldLabel || t('اختر من القائمة', 'Choose an option'));
 
   function close() { setOpen(false); trigger.current?.focus(); }

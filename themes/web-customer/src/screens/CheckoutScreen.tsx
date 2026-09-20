@@ -1,3 +1,4 @@
+import { CartOptionsRecovery, isCartOptionsError } from '@/components/CartOptionsRecovery';
 import { OrderSchedulePicker } from '@/components/OrderSchedulePicker';
 import { storeTimeToIso } from '@/lib/store-time';
 import { AppSelect } from '@samou-go/ui';
@@ -909,7 +910,7 @@ export function CheckoutScreen() {
                     {quotePending ? <Loader2 size={14} className="animate-spin" /> : 'تطبيق'}
                   </button>
                 </div>
-                {quoteError && (
+                {quoteError && !isCartOptionsError(quoteError.code) && (
                   <p className="mt-2 flex items-start gap-1.5 text-[11px] font-semibold text-danger-ink">
                     <AlertTriangle size={13} className="mt-0.5 shrink-0" />
                     {isArabic ? quoteError.message : quoteError.localizedMessage}
@@ -943,7 +944,7 @@ export function CheckoutScreen() {
               </div>
             ))}
             {quotePending && <p role="status" className="mt-3 text-sm">جارٍ حساب أسعار المتاجر…</p>}
-            {quoteError && <p role="alert" className="mt-3 text-sm text-danger-ink">{quoteError.message}<button type="button" onClick={() => setQuoteRevision(v => v + 1)} className="ms-2 min-h-11 underline">إعادة المحاولة</button></p>}
+            {quoteError && !isCartOptionsError(quoteError.code) && <p role="alert" className="mt-3 text-sm text-danger-ink">{quoteError.message}<button type="button" onClick={() => setQuoteRevision(v => v + 1)} className="ms-2 min-h-11 underline">إعادة المحاولة</button></p>}
             {quote?.autoPricingEnabled && <div className="mt-3 space-y-2 rounded-xl bg-canvas p-3"><p className="flex justify-between"><span>مجموع رسوم التوصيل</span><span dir="ltr">{formatCurrency(quote.deliveryFee)}</span></p><p className="flex justify-between font-bold"><span>الإجمالي</span><span dir="ltr">{formatCurrency(quote.totalAmount)}</span></p></div>}
             {/* Split-delivery notice for multi-store orders */}
             {!quote?.autoPricingEnabled && <>
@@ -1001,7 +1002,7 @@ export function CheckoutScreen() {
                   <span dir="ltr" className="font-extrabold text-brand-dark"><RollingAmount value={quote.autoPricingEnabled ? (fulfillmentType === 'PICKUP' ? quote.subtotal - quote.discount : quote.totalAmount) : quote.subtotal - quote.discount} /></span>
                 </div>
               </>
-            ) : quoteError ? (
+            ) : quoteError && isCartOptionsError(quoteError.code) ? (<p className="mt-3 text-sm text-danger-ink">راجع خيارات المنتجات أدناه لإكمال الطلب.</p>) : quoteError ? (
               <div className="mt-3 flex items-center justify-between gap-2 text-xs text-danger-ink">
                 <span>{isArabic ? quoteError.message : quoteError.localizedMessage}</span>
                 <button
@@ -1017,6 +1018,8 @@ export function CheckoutScreen() {
             )}
           </section>
           )}
+
+          {(isCartOptionsError(quoteError?.code) || isCartOptionsError(submitError?.code)) && <CartOptionsRecovery onUpdated={() => { setSubmitError(null); setQuoteRevision(v => v + 1); }} />}
 
           {fieldError && (
             <p className="flex items-start gap-2 rounded-xl bg-danger-tint p-3 text-[11px] font-semibold text-danger-ink" role="alert">
@@ -1034,7 +1037,7 @@ export function CheckoutScreen() {
             </div>
           )}
 
-          {submitError && (
+          {submitError && !isCartOptionsError(submitError.code) && (
             <p className="flex items-start gap-2 rounded-xl bg-danger-tint p-3 text-[11px] font-semibold text-danger-ink" role="alert">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {isArabic ? submitError.message : submitError.localizedMessage}
             </p>

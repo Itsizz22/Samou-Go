@@ -1,7 +1,7 @@
 import { OrderChat } from '@samou-go/api-client';
 import { OrderContactCard } from '@samou-go/ui';
 import { FEATURE_FLAGS, getLiveOrderTracking } from '@samou-go/api-client';
-import { LiveTrackingCard } from '@samou-go/ui/map';
+import { LiveTrackingCard, PickupDirections } from '@samou-go/ui/map';
 import { appUrl, buildSsoUrl } from '@samou-go/api-client';
 /**
  * Samou' Go — live order tracking.
@@ -418,7 +418,8 @@ export const LiveOrderTracking = () => {
           </section>
         )}
 
-        {detail && FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <LiveTrackingCard orderId={detail.id} load={getLiveOrderTracking} />}
+        {detail?.fulfillmentType === 'PICKUP' && <PickupDirections store={detail.store} />}
+        {detail && detail.fulfillmentType !== 'PICKUP' && FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <LiveTrackingCard orderId={detail.id} load={getLiveOrderTracking} />}
         {detail && timeline.length > 0 && (
           <section
             aria-labelledby="timeline-heading"

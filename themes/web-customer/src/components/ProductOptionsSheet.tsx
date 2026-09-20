@@ -16,18 +16,19 @@ import { formatCurrency } from '@/lib/delivery';
 interface Props {
   product: Product;
   storeNameAr: string;
+  initialQuantity?: number;
   onClose: () => void;
   onConfirm: (options: { groupId: string; optionId: string }[], quantity: number) => void;
 }
 
-export function ProductOptionsSheet({ product, storeNameAr, onClose, onConfirm }: Props) {
+export function ProductOptionsSheet({ product, storeNameAr, initialQuantity = 1, onClose, onConfirm }: Props) {
   useAndroidOverlayBack(true, onClose);
   const { t } = useLanguage();
   const dragControls = useDragControls();
   const reduced = useReducedMotion();
   const panel = useRef<HTMLDivElement>(null);
   const groups = useMemo(() => normalizeOptionGroups(product.optionGroups), [product.optionGroups]);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(initialQuantity);
   useEffect(() => {
     const previous = document.body.style.overflow;
     const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;

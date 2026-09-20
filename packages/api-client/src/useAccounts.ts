@@ -17,13 +17,13 @@ import {
   addAccount,
   getActiveAccountId,
   getSavedAccounts,
-  removeAccount,
   subscribeAccountsChange,
   type VaultAccount,
   type VaultSessionInput,
   MAX_VAULT_ACCOUNTS,
 } from './accountVault';
-import { activateSavedSession, logoutRefreshToken } from './api';
+import { activateSavedSession } from './api';
+import { removeSavedSession } from './removeSavedSession';
 
 export interface AccountRemovalResult {
   /**
@@ -80,20 +80,9 @@ export function useAccounts(): UseAccountsResult {
   }, []);
 
   const remove = useCallback(async (accountId: string): Promise<AccountRemovalResult> => {
-    const activeBefore = getActiveAccountId();
-    const victim = getSavedAccounts().find((entry) => entry.id === accountId);
-
     setBusyId(accountId);
     try {
-      // Do not discard the credential needed to retry a failed revocation.
-      if (victim?.refreshToken) await logoutRefreshToken(victim.refreshToken);
-      const next = removeAccount(accountId);
-      if (activeBefore !== accountId) {
-        // An inactive account was dropped — the live session is untouched.
-        return { nextProfile: null, changedSession: false };
-      }
-      const nextProfile = next?.refreshToken ? (await activateSavedSession(next.refreshToken)).user : null;
-      return { nextProfile, changedSession: true };
+      return await removeSavedSession(accountId);
     } finally {
       setBusyId(null);
     }

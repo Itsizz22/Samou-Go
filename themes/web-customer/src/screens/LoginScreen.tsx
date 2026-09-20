@@ -1,3 +1,4 @@
+import { AccountSwitcher } from '@samou-go/api-client';
 import { LoginIntroAnimation } from '@/components/login/LoginIntroAnimation';
 import { AuthSupportContact } from '@/components/AuthSupportContact';
 import { useState } from 'react';
@@ -44,6 +45,8 @@ export function LoginScreen() {
               {t('أهلاً بك مجدداً! يرجى إدخال بياناتك للمتابعة', 'Welcome back! Enter your details to continue.')}
             </p>
           </div>
+
+          {auth.ready && <AccountSwitcher auth={auth} compact />}
 
           {resetComplete && (
             <p role="status" className="rounded-xl bg-brand-surface px-3 py-2 text-sm text-brand-deep">

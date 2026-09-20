@@ -177,7 +177,7 @@ export function ZoneSelector({ compact = false }: { compact?: boolean }) {
         onChange={event => zone.selectZone(event.target.value)}
         disabled={zone.loading}
       >
-        <option value="">{zone.loading ? 'جارٍ تحميل المناطق...' : 'اختر منطقتك'}</option>
+        <option value="" disabled hidden>{zone.loading ? 'جارٍ تحميل المناطق...' : 'اختر منطقتك'}</option>
         {zone.zones.map(item => (
           <option key={item.id} value={item.id}>
             {item.nameAr}

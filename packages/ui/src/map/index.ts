@@ -4,3 +4,5 @@ export { LiveTrackingCard, OrderTrackingToggle } from './LiveTrackingCard';
 export * from './BaseMap';
 
 export { StoreLocationEditor } from './StoreLocationEditor';
+
+export { PickupDirections } from './PickupDirections';

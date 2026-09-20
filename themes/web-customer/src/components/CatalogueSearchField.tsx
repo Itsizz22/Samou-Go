@@ -9,7 +9,7 @@ export function CatalogueSearchField({ value, onChange, onSearch }: { value: str
       <Search aria-hidden="true" className="ms-2 size-5 shrink-0 text-brand" />
       <input ref={input} id={id} value={value} onChange={event => onChange(event.target.value)} maxLength={120} enterKeyHint="search" autoComplete="off"
         placeholder="ابحث عن طبقك أو مطعمك المفضل…" aria-label="ابحث عن متجر أو منتج"
-        className="min-h-11 min-w-0 flex-1 border-0 bg-transparent text-sm text-ink outline-none ring-0 placeholder:text-ink-muted focus:outline-none focus:ring-0" />
+        className="min-h-11 min-w-0 flex-1 border-0 bg-transparent text-base text-ink outline-none ring-0 placeholder:text-ink-muted focus:outline-none focus:ring-0" />
       {value && <button type="button" aria-label="مسح البحث" onClick={() => { onChange(''); input.current?.focus(); }} className="flex size-11 shrink-0 items-center justify-center rounded-xl text-ink-muted hover:bg-canvas focus-visible:ring-2 focus-visible:ring-brand"><X size={18} /></button>}
       <button type="submit" className="min-h-11 shrink-0 rounded-xl bg-brand px-3 text-sm font-bold text-white hover:bg-brand-dark focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2">بحث</button>
     </div>
