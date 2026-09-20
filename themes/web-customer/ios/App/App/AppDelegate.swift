@@ -59,3 +59,27 @@ class AppDelegate: UIResponder, UIApplicationDelegate, MessagingDelegate {
         ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
 }
+
+// Keep the entire web viewport below system chrome, including fixed overlays
+// and keyboard-driven scrolling. CSS safe-area env values alone can be zero
+// while the full-screen WKWebView still overlaps the iPhone status bar.
+@objc(SamouBridgeViewController)
+class SamouBridgeViewController: CAPBridgeViewController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        guard let webView = webView else { return }
+
+        let container = UIView()
+        container.backgroundColor = .systemBackground
+        view = container
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(webView)
+        NSLayoutConstraint.activate([
+            webView.topAnchor.constraint(equalTo: container.safeAreaLayoutGuide.topAnchor),
+            webView.leadingAnchor.constraint(equalTo: container.safeAreaLayoutGuide.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: container.safeAreaLayoutGuide.trailingAnchor),
+            // Retain the web bottom safe area for the home indicator and sheets.
+            webView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+        ])
+    }
+}

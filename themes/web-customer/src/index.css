@@ -363,14 +363,16 @@
   padding-block-start: calc(12px + env(safe-area-inset-top, 0px));
   padding-block-end: 12px;
 }
-/* WebKit zooms focused small editors; retain user pinch zoom for accessibility. */
-@supports (-webkit-touch-callout: none) {
-  @media (pointer: coarse) {
-    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-    textarea, select { font-size: max(16px, 1rem); }
+/* iOS focus zoom uses the effective editor font size. Do not depend on
+   pointer: coarse: WKWebView/iPad pointer capabilities can differ. Keep this
+   above component/utility styles without disabling accessible pinch zoom. */
+@media screen {
+  html { -webkit-text-size-adjust: 100%; }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea, select, [contenteditable="true"] {
+    font-size: max(16px, 1rem) !important;
   }
 }
-
 /* Scrolled content must not show through the system status bar. */
 body::before {
   content: '';
@@ -421,4 +423,37 @@ html { font-size: 106.25%; }
 .dish-card button { min-height: 48px; padding-block: 8px; flex-wrap: wrap; }
 @media (max-width: 359px) {
   .sq-dish-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Scrollable incoming-order screen, including small phones and landscape. */
+.sq-incoming-order {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: 100%;
+  border: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sq-incoming-layout {
+  box-sizing: border-box;
+  min-height: 100%;
+  width: min(100%, 480px);
+  margin-inline: auto;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 24px calc(20px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.sq-incoming-content { margin-block: auto; padding-block: 12px; text-align: center; }
+.sq-incoming-icon { width: 104px; height: 104px; border-radius: 38px; display: grid; place-items: center; margin-inline: auto; }
+.sq-incoming-action { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 60px; padding: 14px 16px; border-radius: 20px; font-size: 1rem; font-weight: 700; }
+.sq-incoming-action:focus-visible { outline: 3px solid var(--color-brand-deep); outline-offset: 3px; }
+@media (max-height: 650px) {
+  .sq-incoming-layout { gap: 16px; }
+  .sq-incoming-icon { width: 76px; height: 76px; border-radius: 28px; }
 }

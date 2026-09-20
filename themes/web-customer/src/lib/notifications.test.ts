@@ -72,7 +72,8 @@ it('iOS dismissal never opens an order, and taps open the incoming-order screen'
   Reflect.apply(action, null, [{ actionId: 'SAMOU_DISMISS', notification }]);
   expect(mocks.navigate).not.toHaveBeenCalled();
   Reflect.apply(action, null, [{ actionId: 'SAMOU_VIEW_ORDER', notification }]);
-  expect(mocks.navigate).not.toHaveBeenCalled();
+  expect(mocks.navigate).toHaveBeenLastCalledWith('/orders/order');
+  Reflect.apply(action, null, [{ actionId: 'tap', notification }]);
   const incoming = await import('./incomingOrder');
   expect(incoming.getIncomingOrder()).toEqual({ orderId: 'order', title: 'طلب جديد', body: 'متجر الاختبار' });
   Reflect.apply(action, null, [{ actionId: 'SAMOU_DISMISS', notification }]);

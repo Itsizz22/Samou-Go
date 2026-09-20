@@ -55,7 +55,9 @@ function ensureListeners(): Promise<void> {
         if (action.actionId === 'SAMOU_DISMISS' || action.actionId === 'dismiss') { dismissIncomingOrder(); return; }
         const auditId: unknown = action.notification.data?.notificationLogId;
         if (typeof auditId === 'string') recordOpen(auditId);
-        if (Capacitor.getPlatform() === 'ios' && presentIncomingOrder(action.notification)) return;
+        // The explicit lock-screen action must open details directly, not another alert.
+        if (action.actionId === 'SAMOU_VIEW_ORDER') dismissIncomingOrder();
+        else if (Capacitor.getPlatform() === 'ios' && presentIncomingOrder(action.notification)) return;
         if (action.notification.data?.screen === 'custom-requests') {
           globalNavigate(action.notification.data?.audience === 'store' ? '/store-manager/orders?tab=custom-requests&storeId=' + encodeURIComponent(String(action.notification.data?.storeId ?? '')) : '/custom-requests'); return;
         }

@@ -173,7 +173,8 @@ async function deliverPushToUser(
         aps: {
           alert: { title: payload.title, body: payload.body },
           badge: payload.badge,
-          sound: 'default',
+          // Bundled, non-critical ringtone: respects iOS mute/Focus settings.
+          sound: ['NEW_ORDER', 'NEW_ORDER_ALERT', 'CAPTAIN_ASSIGN'].includes(payload.data?.type ?? '') ? 'order_alarm.wav' : 'default',
           ...(['NEW_ORDER', 'NEW_ORDER_ALERT', 'CAPTAIN_ASSIGN'].includes(payload.data?.type ?? '')
             ? { category: 'SAMOU_NEW_ORDER' } : {}),
         },

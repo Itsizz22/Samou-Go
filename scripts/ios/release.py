@@ -64,6 +64,13 @@ def check_source():
     require('CODE_SIGN_ENTITLEMENTS = App/App.Release.entitlements;' in text, 'Release entitlement file not bound')
     require(plist(APP / 'App.Release.entitlements').get('aps-environment') == 'production', 'Release requires production APNs')
     require(plist(APP / 'App.entitlements').get('aps-environment') == 'development', 'Debug APNs unexpectedly changed')
+    # APNs silently falls back to the default tone if the bundled sound is absent.
+    import wave
+    with wave.open(str(APP / 'order_alarm.wav'), 'rb') as sound:
+        require(sound.getcomptype() == 'NONE' and 0 < sound.getnframes() / sound.getframerate() < 30,
+                'Order ringtone must be PCM and shorter than 30 seconds')
+    require('path = order_alarm.wav;' in text and 'A20000000000000000000001,' in resources,
+            'Order ringtone must be included in iOS Resources')
     require('remote-notification' in plist(APP / 'Info.plist').get('UIBackgroundModes', []), 'Remote notifications mode missing')
     require('com.apple.Push = { enabled = 1; };' in text, 'Push capability missing')
     delegate = (APP / 'AppDelegate.swift').read_text(encoding='utf-8-sig')
@@ -157,6 +164,7 @@ def ipa():
         require(configs == [app / 'Firebase/GoogleService-Info.plist'], 'Missing or duplicate Firebase plist inside IPA')
         check_firebase(plist(configs[0]))
         require(plist(configs[0]) == plist(CONFIG), 'Exported Firebase configuration differs from supplied file')
+        require((app / 'order_alarm.wav').read_bytes() == (APP / 'order_alarm.wav').read_bytes(), 'Exported order ringtone missing or changed')
         info = plist(app / 'Info.plist')
         require(info.get('CFBundleIdentifier') == BUNDLE, 'Exported app bundle ID mismatch')
         subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)

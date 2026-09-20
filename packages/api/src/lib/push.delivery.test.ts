@@ -45,7 +45,7 @@ it('keeps staff alerts visible on iOS while Android remains data-only', async ()
   expect(message).not.toHaveProperty('notification');
   expect(message.android).not.toHaveProperty('notification');
   expect(message.apns.headers).toEqual({ 'apns-push-type': 'alert', 'apns-priority': '10' });
-  expect(message.apns.payload.aps).toMatchObject({ alert: { title: 'طلب جديد للمتجر', body: 'رقم الطلب: SQ-10' }, sound: 'default', category: 'SAMOU_NEW_ORDER' });
+  expect(message.apns.payload.aps).toMatchObject({ alert: { title: 'طلب جديد للمتجر', body: 'رقم الطلب: SQ-10' }, sound: 'order_alarm.wav', category: 'SAMOU_NEW_ORDER' });
 });
 
 it('records provider acceptance without claiming the device opened the notification', async () => {
@@ -84,4 +84,14 @@ it('records per-device APNs authentication failures and preserves valid tokens',
   await expect(sendPushToUser('user', { title: 'Order', body: 'Ready' }, { dataOnly: true })).resolves.toEqual({ sent: 0, failed: 1 });
   expect(mocks.auditUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'FAILED', errorCode: 'messaging/third-party-auth-error' }) }));
   expect(mocks.deleteMany).not.toHaveBeenCalled();
+});
+
+
+it.each(['NEW_ORDER', 'NEW_ORDER_ALERT', 'CAPTAIN_ASSIGN'])('uses the bundled normal ringtone for %s', async type => {
+  await sendPushToUser('staff', { title: 'Order', body: 'Incoming', data: { type } }, { dataOnly: true });
+  expect(mocks.send.mock.calls[0]?.[0].apns.payload.aps.sound).toBe('order_alarm.wav');
+});
+it('keeps ordinary customer updates on the default sound', async () => {
+  await sendPushToUser('customer', { title: 'Order', body: 'Delivered', data: { type: 'ORDER_STATUS' } });
+  expect(mocks.send.mock.calls[0]?.[0].apns.payload.aps.sound).toBe('default');
 });
