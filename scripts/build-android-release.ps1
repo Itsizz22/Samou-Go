@@ -1,6 +1,12 @@
-param([int]$VersionCode = 4, [string]$VersionName = '1.0.3', [string]$JdkHome = (Join-Path $env:USERPROFILE '.jdks/jbr-21.0.11'))
+param([int]$VersionCode = 11, [string]$VersionName = '1.0.10', [string]$JdkHome = (Join-Path $env:USERPROFILE '.jdks/jbr-21.0.11'))
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
+$firebaseFile = Join-Path $projectRoot 'themes/web-customer/android/app/google-services.json'
+if (!(Test-Path -LiteralPath $firebaseFile)) { throw 'Missing Android Firebase configuration.' }
+$firebaseConfig = Get-Content -LiteralPath $firebaseFile -Raw | ConvertFrom-Json
+$firebaseClient = @($firebaseConfig.client | Where-Object { $_.client_info.android_client_info.package_name -eq 'com.samouquick.customer' })
+if ($firebaseConfig.project_info.project_id -ne 'samou-go' -or $firebaseClient.Count -ne 1) { throw 'Firebase configuration must target samou-go / com.samouquick.customer.' }
+if ($VersionCode -lt 11 -or [string]::IsNullOrWhiteSpace($VersionName)) { throw 'Use versionCode 11 or higher and a nonempty versionName.' }
 $signingDir = Join-Path $env:USERPROFILE '.samou-quick-signing'
 $storeFile = Join-Path $signingDir 'release.jks'
 $passwordFile = Join-Path $signingDir 'password.dpapi'
