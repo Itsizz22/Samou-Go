@@ -1,12 +1,13 @@
 import { prisma } from '../lib/prisma';
 import { env } from '../config/env';
+import { randomUUID } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Transform } from 'node:stream';
 import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { badRequest, payloadTooLarge } from '../lib/http-error';
+import { badRequest, payloadTooLarge, serviceUnavailable } from '../lib/http-error';
 import { uploadConfig, uploadDirs, MAX_AUDIO_BYTES, MAX_VIDEO_BYTES } from './uploads.config';
 
 /**
@@ -79,7 +80,14 @@ export class LocalStorageAdapter implements StorageAdapter {
   async writeFinal(finalKey: string, data: Buffer): Promise<void> {
     const target = resolveWithin(uploadDirs.finalDir, finalKey);
     await mkdir(path.dirname(target), { recursive: true });
-    await writeFile(target, data);
+    // Static readers must never observe a partially written image/video.
+    const temporary = `${target}.${randomUUID()}.tmp`;
+    try {
+      await writeFile(temporary, data);
+      await rename(temporary, target);
+    } finally {
+      await rm(temporary, { force: true });
+    }
   }
 
   async readFinal(finalKey: string): Promise<Buffer | null> {
@@ -109,6 +117,11 @@ export class LocalStorageAdapter implements StorageAdapter {
 
 /** Production writes must reach durable storage before an upload can be finalized. */
 export class PersistentStorageAdapter extends LocalStorageAdapter {
+  private readonly pendingReads = new Map<string, Promise<Buffer | null>>();
+  // Bound cold-cache database/blob pressure; identical requests share one read.
+  private readonly maxConcurrentRestores = 4;
+  private activeRestores = 0;
+  private readonly waitingRestores: Array<() => void> = [];
   override async writeFinal(finalKey: string, data: Buffer): Promise<void> {
     resolveWithin(uploadDirs.finalDir, finalKey);
     await prisma.storedUpload.upsert({
@@ -122,14 +135,40 @@ export class PersistentStorageAdapter extends LocalStorageAdapter {
 
   override async readFinal(finalKey: string): Promise<Buffer | null> {
     resolveWithin(uploadDirs.finalDir, finalKey);
-    const stored = await prisma.storedUpload.findUnique({ where: { key: finalKey } });
-    if (!stored) return null;
-    const data = Buffer.from(stored.content);
-    await super.writeFinal(finalKey, data).catch(() => undefined);
-    return data;
+    const pending = this.pendingReads.get(finalKey);
+    if (pending) return pending;
+    if (this.pendingReads.size >= this.maxConcurrentRestores + 32) {
+      throw serviceUnavailable('MEDIA_BUSY', 'الصور قيد التحميل، يرجى المحاولة بعد قليل / Media temporarily busy, please retry shortly');
+    }
+    const read = this.restoreFinal(finalKey);
+    this.pendingReads.set(finalKey, read);
+    try { return await read; }
+    finally { this.pendingReads.delete(finalKey); }
+  }
+
+  private async restoreFinal(finalKey: string): Promise<Buffer | null> {
+    if (this.activeRestores >= this.maxConcurrentRestores) {
+      await new Promise<void>(resolve => { this.waitingRestores.push(resolve); });
+    } else {
+      this.activeRestores++;
+    }
+    try {
+      const stored = await prisma.storedUpload.findUnique({ where: { key: finalKey } });
+      if (!stored) return null;
+      const data = Buffer.from(stored.content);
+      await super.writeFinal(finalKey, data).catch(() => undefined);
+      return data;
+    } finally {
+      const next = this.waitingRestores.shift();
+      if (next) next();
+      else this.activeRestores--;
+    }
   }
 
   override async removeFinal(finalKey: string): Promise<void> {
+    resolveWithin(uploadDirs.finalDir, finalKey);
+    // An already-running restore must finish before removing its cached copy.
+    await this.pendingReads.get(finalKey)?.catch(() => undefined);
     await super.removeFinal(finalKey);
     await prisma.storedUpload.deleteMany({ where: { key: finalKey } });
   }

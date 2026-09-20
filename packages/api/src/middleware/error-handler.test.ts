@@ -279,3 +279,19 @@ describe("429 retry hint", () => {
     expect(res.headers["Retry-After"]).toBeUndefined();
   });
 });
+
+
+describe("database overload", () => {
+  it.each(["P2024", "P2037"])("returns retryable 503 for %s without database details", code => {
+    h.env.isProduction = true;
+    try {
+      const { res } = run(new Prisma.PrismaClientKnownRequestError("private connection details", {
+        code, clientVersion: "6.19.3", meta: { connection_limit: 5 },
+      }));
+      expect(res.statusCode).toBe(503);
+      expect(res.headers["Retry-After"]).toBe("5");
+      expect(res.body).toMatchObject({ success: false, error: { code: "DATABASE_BUSY" } });
+      expect(JSON.stringify(res.body)).not.toContain("private connection");
+    } finally { h.env.isProduction = false; }
+  });
+});

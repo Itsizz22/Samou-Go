@@ -1,7 +1,25 @@
 import { recordPilotEvent } from '../lib/pilot-telemetry';
 import rateLimit from "express-rate-limit";
+import type { Request } from "express";
 import type { ApiFailure } from "@samou-go/shared-types";
 import { env } from "../config/env";
+
+// Must run after authenticate/optionalAuthenticate; never trust client-supplied IDs.
+const customerKey = (req: Request): string =>
+  req.auth ? `user:${req.auth.sub}` : `ip:${req.ip ?? req.socket.remoteAddress ?? 'unknown'}`;
+
+/** Keep session renewal separate from password-attempt quotas. */
+export const refreshLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 120,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skip: () => env.isTest,
+  message: {
+    success: false,
+    error: { code: "TOO_MANY_REQUESTS", message: "طلبات كثيرة، يرجى المحاولة بعد قليل / Too many requests, please wait" },
+  } satisfies ApiFailure,
+});
 
 /**
  * Applied to `POST /auth/login` and `POST /auth/register`.
@@ -58,6 +76,7 @@ export const otpIpLimiter = rateLimit({
  * prevents script abuse that could flood the kitchen with fake orders.
  */
 export const orderLimiter = rateLimit({
+  keyGenerator: customerKey,
   windowMs: 10 * 60 * 1_000, // 10 minutes
   max: env.isDevelopment ? 1000 : 5,
   standardHeaders: "draft-7",
@@ -81,6 +100,7 @@ export const orderLimiter = rateLimit({
  * times; 30 quotes in 5 minutes is more than enough.
  */
 export const quoteLimiter = rateLimit({
+  keyGenerator: customerKey,
   windowMs: 5 * 60 * 1_000, // 5 minutes
   max: env.isDevelopment ? 1000 : 30,
   standardHeaders: "draft-7",

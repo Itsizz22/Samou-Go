@@ -9,7 +9,7 @@ import {
   authenticate,
   optionalAuthenticate,
 } from "../../middleware/authenticate";
-import { authLimiter } from "../../middleware/rate-limit";
+import { authLimiter, refreshLimiter } from "../../middleware/rate-limit";
 import * as controller from "./auth.controller";
 
 export const authRouter: Router = Router();
@@ -30,7 +30,7 @@ authRouter.post(
   authLimiter,
   asyncHandler(controller.resetPasswordHandler),
 );
-authRouter.post("/refresh", authLimiter, asyncHandler(controller.refreshHandler));
+authRouter.post("/refresh", refreshLimiter, asyncHandler(controller.refreshHandler));
 authRouter.post("/logout", asyncHandler(controller.logoutHandler));
 authRouter.get("/me", authenticate, asyncHandler(controller.meHandler));
 authRouter.patch(

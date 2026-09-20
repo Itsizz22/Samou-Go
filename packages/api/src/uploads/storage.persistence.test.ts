@@ -56,3 +56,32 @@ describe('durable processed media', () => {
     expect(h.findUnique).not.toHaveBeenCalled();
   });
 });
+
+
+describe('cold media pressure', () => {
+  it('coalesces 100 simultaneous requests for one missing disk file', async () => {
+    const key = 'product/stress/md.webp';
+    const bytes = Buffer.from('complete media');
+    h.rows.set(key, bytes);
+    const adapter = new PersistentStorageAdapter();
+    const results = await Promise.all(Array.from({ length: 100 }, () => adapter.readFinal(key)));
+    expect(results.every(value => value?.equals(bytes))).toBe(true);
+    expect(h.findUnique).toHaveBeenCalledTimes(1);
+    expect(await readFile(path.join(h.root, 'final', key))).toEqual(bytes);
+  });
+  it('bounds distinct restores and releases capacity after failure', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    h.findUnique.mockImplementationOnce(async () => { await gate; throw new Error('offline'); });
+    for (let i = 0; i < 3; i++) h.findUnique.mockImplementationOnce(async () => { await gate; return null; });
+    const adapter = new PersistentStorageAdapter();
+    const pending = Array.from({ length: 36 }, (_, i) => adapter.readFinal(`product/${i}/md.webp`));
+    const settled = Promise.allSettled(pending);
+    await expect(adapter.readFinal('product/excess/md.webp')).rejects.toMatchObject({ statusCode: 503, code: 'MEDIA_BUSY' });
+    expect(h.findUnique).toHaveBeenCalledTimes(4);
+    release();
+    await settled;
+    expect(await adapter.readFinal('product/retry/md.webp')).toBeNull();
+    expect(h.findUnique).toHaveBeenCalledTimes(37);
+  });
+});

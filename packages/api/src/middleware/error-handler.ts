@@ -68,6 +68,14 @@ function normalise(error: unknown): Normalised {
 
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     switch (error.code) {
+      case "P2024":
+      case "P2037":
+        return {
+          statusCode: 503,
+          code: "DATABASE_BUSY",
+          message: "الخدمة مشغولة مؤقتًا، يرجى المحاولة بعد قليل / Service temporarily busy, please retry shortly",
+          unexpected: true,
+        };
       case "P2002": {
         const target = error.meta?.["target"];
         const field = Array.isArray(target)
@@ -148,6 +156,8 @@ export function errorHandler(
   const { statusCode, code, message, details, unexpected } = normalise(error);
 
   if (unexpected || statusCode >= 500) recordServerFailure(code);
+
+  if (statusCode === 503) res.setHeader("Retry-After", "5");
 
   // 429s from the OTP limiter carry a "when can I retry?" hint for the client.
   if (

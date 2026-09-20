@@ -1,12 +1,14 @@
 name: Deploy Production
 
 on:
-  push:
-    branches:
-      - master
+  workflow_run:
+    workflows: [CI]
+    branches: [master]
+    types: [completed]
 
 env:
   NODE_VERSION: 22
+  RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
 
 concurrency:
   group: production-deploy
@@ -17,6 +19,11 @@ permissions:
 
 jobs:
   deploy:
+    # Deploy only the exact master push that passed every CI job, including PostgreSQL regressions.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     name: Build & Deploy Production
     runs-on: ubuntu-latest
 
@@ -26,6 +33,18 @@ jobs:
       # ============================================================
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Reject superseded release
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_head=$(git ls-remote origin refs/heads/master | cut -f1)
+          if [ "$current_head" != "$RELEASE_SHA" ]; then
+            echo "A newer master commit exists; refusing to deploy an older release."
+            exit 1
+          fi
 
       # ============================================================
       # 2. Node.js
@@ -157,7 +176,7 @@ jobs:
           response=$(curl --fail --silent --show-error --request POST \
             --header "Authorization: Bearer ${RENDER_API_KEY}" \
             --header "Content-Type: application/json" \
-            --data "{\"commitId\":\"${GITHUB_SHA}\"}" \
+            --data "{\"commitId\":\"${RELEASE_SHA}\"}" \
             "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys")
           deploy_id=$(printf '%s' "$response" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
           echo "Waiting for Render deployment $deploy_id"
