@@ -1,3 +1,6 @@
+import { withJobLease } from '../../lib/job-lease';
+import { cleanupSharedRateLimits } from '../../lib/shared-rate-limit';
+import { env } from '../../config/env';
 import { expireAvailabilityTimers } from '../stores/availability';
 import { OrderStatus } from '@samou-go/shared-types';
 import { prisma } from '../../lib/prisma';
@@ -6,7 +9,7 @@ import { dispatchAvailableOrders } from './automatic-dispatch';
 
 const preparing = [OrderStatus.ACCEPTED, OrderStatus.PREPARING];
 /** Durable due time and lease survive process restarts and coordinate multiple API replicas. */
-export async function dispatchPreparationReminders(now = new Date()): Promise<void> {
+export async function dispatchPreparationReminders(now = new Date(), assertActive: () => void = () => undefined): Promise<void> {
   const settings = await prisma.platformSettings.findUnique({ where: { id: 'platform' }, select: { preparationReminderMinutes: true } });
   const lead = settings?.preparationReminderMinutes ?? 5;
   const orders = await prisma.order.findMany({ where: {
@@ -15,6 +18,7 @@ export async function dispatchPreparationReminders(now = new Date()): Promise<vo
     OR: [{ prepReminderLeaseUntil: null }, { prepReminderLeaseUntil: { lt: now } }],
   }, orderBy: { estimatedReadyAt: 'asc' }, take: 100, select: { id: true, estimatedReadyAt: true, captainId: true } });
   for (const candidate of orders) {
+    assertActive();
     const lease = new Date(now.getTime() + 120_000);
     const version = { id: candidate.id, estimatedReadyAt: candidate.estimatedReadyAt, captainId: candidate.captainId };
     const claimed = await prisma.order.updateMany({ where: {
@@ -30,6 +34,7 @@ export async function dispatchPreparationReminders(now = new Date()): Promise<vo
       if (minutes <= 0) continue;
       const recipients = order.captainId ? [order.captainId] : [];
       if (!recipients.length) continue;
+      assertActive();
       const result = await sendPushToMany(recipients, {
         title: order.captainId ? 'اقترب موعد استلام طلبك ⏱️' : 'طلب متاح يقترب من الجاهزية ⏱️',
         body: `طلب #${order.orderNumber} من ${order.store.nameAr} — متبقي نحو ${minutes} دقائق حسب تقدير المتجر${order.captainId ? '' : '، يمكنك حجز التوصيل'}`,
@@ -47,33 +52,61 @@ export async function dispatchPreparationReminders(now = new Date()): Promise<vo
 
 export function startPreparationReminderScheduler(): () => Promise<void> {
   let stopped = false;
+  let lastCleanup = 0;
   let running: Promise<void> | null = null;
+  let wakeup: (() => void) | undefined;
   const tick = () => {
     if (stopped || running) return;
-    running = (async () => {
-      const id = 'preparation-reminders';
-      await prisma.backgroundJobHeartbeat.upsert({ where: { id }, create: { id, lastStartedAt: new Date() }, update: { lastStartedAt: new Date() } });
-      try {
-        await expireAvailabilityTimers();
-        await dispatchScheduledReminders();
-        await dispatchAvailableOrders();
-        await dispatchPreparationReminders();
-        await dispatchUnclaimedAlerts();
-        await prisma.backgroundJobHeartbeat.update({ where: { id }, data: { lastSucceededAt: new Date() } });
-      } catch (error) {
-        await prisma.backgroundJobHeartbeat.update({ where: { id }, data: { lastFailedAt: new Date() } });
-        throw error;
+    running = withJobLease('order-scheduler', async checkLease => {
+      const assertActive = () => {
+        checkLease();
+        if (stopped) throw new Error('Scheduler stopping');
+      };
+      // The leader keeps its renewable lease between scans; followers do no scans.
+      while (!stopped) {
+        checkLease();
+        const id = 'preparation-reminders';
+        try {
+          await prisma.backgroundJobHeartbeat.upsert({ where: { id }, create: { id, lastStartedAt: new Date() }, update: { lastStartedAt: new Date() } });
+          if (env.isProduction && Date.now() - lastCleanup >= 60_000) {
+            await cleanupSharedRateLimits();
+            lastCleanup = Date.now();
+          }
+          assertActive();
+          await expireAvailabilityTimers();
+          assertActive();
+          await dispatchScheduledReminders(new Date(), assertActive);
+          assertActive();
+          await dispatchAvailableOrders(new Date(), assertActive);
+          assertActive();
+          await dispatchPreparationReminders(new Date(), assertActive);
+          assertActive();
+          await dispatchUnclaimedAlerts(new Date(), assertActive);
+          assertActive();
+          await prisma.backgroundJobHeartbeat.update({ where: { id }, data: { lastSucceededAt: new Date() } });
+        } catch (error) {
+          if (stopped) break;
+          checkLease();
+          await prisma.backgroundJobHeartbeat.update({ where: { id }, data: { lastFailedAt: new Date() } });
+          console.error('[preparation-reminder] Scan failed', error);
+        }
+        if (stopped) break;
+        await new Promise<void>(resolve => {
+          const pause = setTimeout(() => { wakeup = undefined; resolve(); }, 5_000);
+          pause.unref();
+          wakeup = () => { clearTimeout(pause); wakeup = undefined; resolve(); };
+        });
       }
-    })().catch(error => console.error('[preparation-reminder] Scan failed', error)).finally(() => { running = null; });
+    }).then(() => undefined).catch(error => console.error('[preparation-reminder] Leadership failed', error)).finally(() => { running = null; });
   };
   const timer = setInterval(tick, 5_000);
   timer.unref();
   tick();
-  return async () => { stopped = true; clearInterval(timer); await running; };
+  return async () => { stopped = true; clearInterval(timer); wakeup?.(); await running; };
 }
 
 /** Lease-like timestamp permits retries after failure, without duplicate concurrent sends. */
-export async function dispatchScheduledReminders(now = new Date()): Promise<void> {
+export async function dispatchScheduledReminders(now = new Date(), assertActive: () => void = () => undefined): Promise<void> {
   const due = { status: OrderStatus.PENDING, scheduledFor: { lte: now }, scheduledReminderAt: null,
     OR: [{ scheduledReminderLeaseUntil: null }, { scheduledReminderLeaseUntil: { lte: now } }] };
   const orders = await prisma.order.findMany({
@@ -82,6 +115,7 @@ export async function dispatchScheduledReminders(now = new Date()): Promise<void
     orderBy: { scheduledFor: 'asc' },
   });
   for (const order of orders) {
+    assertActive();
     const lease = new Date(now.getTime() + 5 * 60_000);
     const claimed = await prisma.order.updateMany({
       where: { ...due, id: order.id },
@@ -89,6 +123,7 @@ export async function dispatchScheduledReminders(now = new Date()): Promise<void
     });
     if (!claimed.count) continue;
     try {
+      assertActive();
       const result = await sendPushToMany([order.store.managerId], {
         title: 'حان موعد الطلب المجدول', body: `راجع الطلب ${order.orderNumber} واقبله لبدء التحضير.`,
         data: { type: 'NEW_ORDER', orderId: order.id, storeId: order.storeId, screen: 'order' },
@@ -104,14 +139,15 @@ export async function dispatchScheduledReminders(now = new Date()): Promise<void
 }
 
 /** Escalate once when a delivery has remained without a captain for ten minutes. */
-export async function dispatchUnclaimedAlerts(now = new Date()): Promise<void> {
+export async function dispatchUnclaimedAlerts(now = new Date(), assertActive: () => void = () => undefined): Promise<void> {
   const where = { captainId: null, fulfillmentType: 'DELIVERY' as const, status: { in: [OrderStatus.ACCEPTED, OrderStatus.PREPARING, OrderStatus.READY_FOR_PICKUP] }, unclaimedAlertAt: null, OR: [{ preparationStartedAt: { lte: new Date(now.getTime()-10*60_000) } }, { preparationStartedAt: null, createdAt: { lte: new Date(now.getTime()-10*60_000) } }] };
   const waiting = await prisma.order.findMany({ where, take:100, orderBy:{ createdAt:'asc' }, select:{id:true,orderNumber:true,storeId:true,store:{select:{managerId:true}}} });
   if (!waiting.length) return;
   const admins = await prisma.user.findMany({ where:{role:'ADMIN',isActive:true},select:{id:true} });
   for(const order of waiting) {
+    assertActive();
     if(!(await prisma.order.updateMany({where:{...where,id:order.id},data:{unclaimedAlertAt:now}})).count)continue;
-    try { await sendPushToMany([...new Set([...admins.map(u=>u.id), order.store.managerId])],{ title:'طلب ينتظر كابتناً', body:`لم يُحجز الطلب ${order.orderNumber} بعد؛ راجع توفر الكباتن`,data:{type:'UNCLAIMED_ORDER',orderId:order.id,storeId:order.storeId} }); }
+    try { assertActive(); await sendPushToMany([...new Set([...admins.map(u=>u.id), order.store.managerId])],{ title:'طلب ينتظر كابتناً', body:`لم يُحجز الطلب ${order.orderNumber} بعد؛ راجع توفر الكباتن`,data:{type:'UNCLAIMED_ORDER',orderId:order.id,storeId:order.storeId} }); }
     catch(error) { await prisma.order.updateMany({where:{id:order.id,unclaimedAlertAt:now},data:{unclaimedAlertAt:null}});throw error; }
   }
 }

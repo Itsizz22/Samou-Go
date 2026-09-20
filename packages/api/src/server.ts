@@ -62,12 +62,13 @@ async function shutdown(signal: string): Promise<void> {
   }, 10_000);
   forceExit.unref();
 
+  const schedulerStopped = stopPreparationReminders();
   server.close(async closeError => {
     if (closeError) {
       // eslint-disable-next-line no-console
       console.error('Error closing HTTP server:', closeError);
     }
-    await stopPreparationReminders();
+    await schedulerStopped;
     await disconnectPrisma();
     clearTimeout(forceExit);
     process.exit(closeError ? 1 : 0);

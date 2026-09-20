@@ -967,3 +967,20 @@ model ProductOptionTemplate {
   @@index([storeId])
   @@map("product_option_templates")
 }
+
+/// Shared fixed-window counters. Keys are hashed; expired rows are periodically removed.
+model SharedRateLimit {
+  id String @id
+  hits Int
+  resetAt DateTime @map("reset_at")
+  @@index([resetAt])
+  @@map("shared_rate_limits")
+}
+
+/// Renewable, owner-fenced scheduler coordination across replicas.
+model BackgroundJobLease {
+  id String @id
+  owner String
+  expiresAt DateTime @map("expires_at")
+  @@map("background_job_leases")
+}

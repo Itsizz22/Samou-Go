@@ -1,3 +1,4 @@
+import { sharedRateLimitStore } from '../lib/shared-rate-limit';
 import { recordPilotEvent } from '../lib/pilot-telemetry';
 import rateLimit from "express-rate-limit";
 import type { Request } from "express";
@@ -10,6 +11,7 @@ const customerKey = (req: Request): string =>
 
 /** Keep session renewal separate from password-attempt quotas. */
 export const refreshLimiter = rateLimit({
+  store: sharedRateLimitStore("refresh"),
   windowMs: 60_000,
   max: 120,
   standardHeaders: "draft-7",
@@ -30,6 +32,7 @@ export const refreshLimiter = rateLimit({
  * Skipped entirely in test mode so the smoke tests are not throttled.
  */
 export const authLimiter = rateLimit({
+  store: sharedRateLimitStore("auth"),
   windowMs: 15 * 60 * 1_000, // 15 minutes
   max: env.isDevelopment ? 1000 : 10,
   standardHeaders: "draft-7", // RateLimit-* headers (RFC draft)
@@ -43,8 +46,7 @@ export const authLimiter = rateLimit({
         "طلبات كثيرة جداً، يرجى المحاولة بعد 15 دقيقة / Too many attempts — try again in 15 minutes",
     },
   } satisfies ApiFailure,
-  // Store defaults to in-memory. For a multi-instance deployment, swap to
-  // a Redis store (ioredis-based `rate-limit-redis`). Single-node for now.
+  // Production counters are shared in PostgreSQL; dev/test use memory.
 });
 
 /**
@@ -54,6 +56,7 @@ export const authLimiter = rateLimit({
  * phone number and enforced against the database so it survives restarts.
  */
 export const otpIpLimiter = rateLimit({
+  store: sharedRateLimitStore("otpIp"),
   windowMs: 5 * 60 * 1_000, // 5 minutes
   max: env.isDevelopment ? 1000 : 20,
   standardHeaders: "draft-7",
@@ -76,6 +79,7 @@ export const otpIpLimiter = rateLimit({
  * prevents script abuse that could flood the kitchen with fake orders.
  */
 export const orderLimiter = rateLimit({
+  store: sharedRateLimitStore("order"),
   keyGenerator: customerKey,
   windowMs: 10 * 60 * 1_000, // 10 minutes
   max: env.isDevelopment ? 1000 : 5,
@@ -100,6 +104,7 @@ export const orderLimiter = rateLimit({
  * times; 30 quotes in 5 minutes is more than enough.
  */
 export const quoteLimiter = rateLimit({
+  store: sharedRateLimitStore("quote"),
   keyGenerator: customerKey,
   windowMs: 5 * 60 * 1_000, // 5 minutes
   max: env.isDevelopment ? 1000 : 30,
@@ -118,9 +123,10 @@ export const quoteLimiter = rateLimit({
 
 /** Broad API protection before parsing bodies. Allows normal staff polling and
  * several users behind one NAT; endpoint-specific limits remain stricter.
- * Memory store is per process: configure an edge/shared limiter before scaling.
+ * Production quotas are shared between replicas.
  */
 export const apiLimiter = rateLimit({
+  store: sharedRateLimitStore("api"),
   windowMs: 60_000,
   max: 1200,
   standardHeaders: "draft-7",
@@ -138,6 +144,7 @@ export const apiLimiter = rateLimit({
 
 /** Bound CPU-intensive image decoding independently of lightweight API polling. */
 export const uploadProcessingLimiter = rateLimit({
+  store: sharedRateLimitStore("uploadProcessing"),
   windowMs: 60_000,
   max: 60,
   standardHeaders: "draft-7",
@@ -154,8 +161,9 @@ export const uploadProcessingLimiter = rateLimit({
 });
 
 /** Authenticated captain identity avoids penalizing shared mobile carrier IPs.
- * Per-process, matching the existing single-instance limiter infrastructure. */
+ * The quota is shared by all production replicas. */
 export const captainLocationLimiter = rateLimit({
+  store: sharedRateLimitStore("captainLocation"),
   windowMs: 60_000,
   max: 20,
   keyGenerator: req => req.auth!.sub,

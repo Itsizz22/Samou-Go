@@ -43,7 +43,7 @@ export function dispatchDistance(store: Coordinate, customer: Coordinate, locati
 }
 
 /** Persisted exclusive offers survive restarts; shared user locks prevent competing assignments. */
-export async function dispatchAvailableOrders(now = new Date()): Promise<void> {
+export async function dispatchAvailableOrders(now = new Date(), assertActive: () => void = () => undefined): Promise<void> {
   const waiting = await prisma.order.findMany({
     where: {
       captainId: null,
@@ -59,6 +59,7 @@ export async function dispatchAvailableOrders(now = new Date()): Promise<void> {
     },
   });
   for (const order of waiting) {
+    assertActive();
     const ids = await eligibleCaptainIds(order.storeId);
     if (!ids.length) continue;
     const offeredElsewhere = await prisma.order.findMany({
@@ -100,6 +101,7 @@ export async function dispatchAvailableOrders(now = new Date()): Promise<void> {
       );
     });
     for (const captain of captains) {
+      assertActive();
       try {
         const offered = await deliveryTransaction(async (tx) => {
           await lockCaptainCapacity(tx, captain.id, order.id);
@@ -118,6 +120,7 @@ export async function dispatchAvailableOrders(now = new Date()): Promise<void> {
             })
           )
             return false;
+          assertActive();
           const updated = await tx.order.updateMany({
             where: {
               id: order.id,
@@ -151,6 +154,7 @@ export async function dispatchAvailableOrders(now = new Date()): Promise<void> {
         });
         if (!offered) continue;
         recordPilotEvent({ kind: 'dispatch', orderId: order.id, captainId: captain.id, result: 'OFFERED', activeOrders: captain.captainOrders.length, policy: pressure.active ? 'PRESSURE_LOAD_THEN_DISTANCE' : 'DISTANCE_THEN_LOAD' });
+        assertActive();
         await sendPushToMany(
           [captain.id],
           {

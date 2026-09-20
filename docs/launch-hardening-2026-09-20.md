@@ -22,7 +22,7 @@
 
 ## Remaining operational limits
 
-- Rate-limit counters and media admission are per process. Before horizontal scaling, configure shared/edge rate limiting and check scheduler ownership. Do not assume these counters span instances.
+- Follow-up: production rate-limit counters now use PostgreSQL and the scheduler uses a renewable leader lease; see shared-coordination.md. Media admission remains a per-process resource budget. Other replica concerns (raw-upload routing and Socket.IO transport) still need validation before horizontal scaling.
 - Production capacity depends on the actual Render tier, Postgres pool and data size. A staging soak test with production-like resources is still required before promising a throughput target. No billing changes were made.
 - Supercode server transport remains operator-approved HTTP as documented in supercode-activation.md. This carries OTP/phone data without transport encryption; move to provider-supported HTTPS (and disable SMS_SUPERCODE_ALLOW_HTTP) before treating privacy/security hardening as complete. Do not silently break the live OTP provider.
 - Staff accounts that still use phone numbers/default passwords need strong unique passwords. Existing accounts were not reset or locked.

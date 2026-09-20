@@ -90,3 +90,46 @@ it.skipIf(!fixture)('PostgreSQL account activation excludes delayed previous-acc
   expect(outcomes.at(-1)?.status).toBe('fulfilled');
   expect(await fixture!.db.deviceToken.count({ where: { token: 'switch-race-token' } })).toBe(0);
 });
+
+
+it.skipIf(!fixture)('PostgreSQL independent replica counters increment atomically and expire together', async () => {
+  const { PrismaClient } = await import('../../../generated/prisma-postgres');
+  const { PostgresRateLimitStore } = await import('../../lib/shared-rate-limit');
+  const peer = new PrismaClient({ datasourceUrl: fixture!.url });
+  const a = new PostgresRateLimitStore('validation-rate', fixture!.db, 'test-shared-secret');
+  const b = new PostgresRateLimitStore('validation-rate', peer, 'test-shared-secret');
+  try {
+    const results = await Promise.all(Array.from({ length: 100 }, (_, i) => (i % 2 ? a : b).increment('same-client')));
+    expect(results.map(r => r.totalHits).sort((x,y) => x-y)).toEqual(Array.from({ length: 100 }, (_, i) => i+1));
+    expect(new Set(results.map(r => r.resetTime!.getTime())).size).toBe(1);
+    expect((await new PostgresRateLimitStore('other-policy', peer, 'test-shared-secret').increment('same-client')).totalHits).toBe(1);
+    await fixture!.db.$executeRaw`UPDATE shared_rate_limits SET reset_at = statement_timestamp() - interval '1 second' WHERE id LIKE 'validation-rate:%'`;
+    expect((await b.increment('same-client')).totalHits).toBe(1);
+    expect((await a.increment('same-client')).totalHits).toBe(2);
+    const rows = await fixture!.db.$queryRaw<Array<{ id: string }>>`SELECT id FROM shared_rate_limits`;
+    expect(rows.every(row => !row.id.includes('same-client'))).toBe(true);
+  } finally { await peer.$disconnect(); }
+});
+
+it.skipIf(!fixture)('PostgreSQL one scheduler wins; an expired owner cannot renew or release its successor', async () => {
+  const { PrismaClient } = await import('../../../generated/prisma-postgres');
+  const { PostgresJobLease } = await import('../../lib/job-lease');
+  const peer = new PrismaClient({ datasourceUrl: fixture!.url });
+  const a = new PostgresJobLease(fixture!.db);
+  const b = new PostgresJobLease(peer);
+  try {
+    const owners = Array.from({ length: 20 }, (_, i) => `owner-${i}`);
+    const results = await Promise.all(owners.map((owner, i) => (i % 2 ? a : b).acquire('validation-job', owner)));
+    expect(results.filter(Boolean)).toHaveLength(1);
+    const winner = owners[results.indexOf(true)]!;
+    expect(await b.acquire('validation-job', 'successor')).toBe(false);
+    expect(await a.renew('validation-job', winner)).toBe(true);
+    await fixture!.db.$executeRaw`UPDATE background_job_leases SET expires_at = statement_timestamp() - interval '1 second' WHERE id = 'validation-job'`;
+    expect(await b.acquire('validation-job', 'successor')).toBe(true);
+    expect(await a.renew('validation-job', winner)).toBe(false);
+    await a.release('validation-job', winner);
+    expect(await b.renew('validation-job', 'successor')).toBe(true);
+    await b.release('validation-job', 'successor');
+    expect(await a.acquire('validation-job', 'after-clean-stop')).toBe(true);
+  } finally { await peer.$disconnect(); }
+});
