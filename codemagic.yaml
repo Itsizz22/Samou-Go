@@ -4,7 +4,7 @@ workflows:
     name: Samou Quick iOS Release
     instance_type: mac_mini_m2
     max_build_duration: 90
-    environment:
+    environment: &ios_release_environment
       node: 22
       xcode: "26.6"
       groups:
@@ -16,7 +16,7 @@ workflows:
         provisioning_profiles:
           - profile: samou-quick-app-store-profile
             environment_variable: SAMOU_IOS_PROFILE_PATH
-      vars:
+      vars: &ios_release_vars
         BUNDLE_ID: com.samougo.customer
         EXPECTED_APPLE_TEAM_NAME: Qais Amro
         IOS_BUILD_NUMBER_BASE: "1000"
@@ -26,6 +26,9 @@ workflows:
         script: |
           set -euo pipefail
           mkdir -p build/ios/logs
+          if [ "${SAMOU_ASC_PREFLIGHT:-false}" = "true" ]; then
+            node scripts/ios/asc-preflight.cjs 2>&1 | tee build/ios/logs/asc-preflight.log
+          fi
           npm ci 2>&1 | tee build/ios/logs/npm.log
           git diff --exit-code -- package-lock.json
           python3 -m unittest discover -s scripts/ios -p 'test_*.py'
@@ -135,6 +138,11 @@ workflows:
   ios-testflight:
     <<: *ios_release
     name: Samou Quick iOS TestFlight
+    environment:
+      <<: *ios_release_environment
+      vars:
+        <<: *ios_release_vars
+        SAMOU_ASC_PREFLIGHT: "true"
     integrations:
       app_store_connect: Samou Quick
     publishing:
@@ -142,3 +150,23 @@ workflows:
         auth: integration
         submit_to_testflight: true
         submit_to_app_store: false
+
+  ios-auth-check:
+    name: Samou Quick Apple Authentication Check
+    instance_type: mac_mini_m2
+    max_build_duration: 10
+    integrations:
+      app_store_connect: Samou Quick
+    environment:
+      node: 22
+      xcode: "26.6"
+      groups:
+        - ios_credentials
+    scripts:
+      - name: Verify runner integration against Apple without building or uploading
+        script: |
+          set -euo pipefail
+          mkdir -p build/ios/logs
+          node scripts/ios/asc-preflight.cjs 2>&1 | tee build/ios/logs/asc-preflight.log
+    artifacts:
+      - build/ios/logs/asc-preflight.log

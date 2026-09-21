@@ -141,3 +141,20 @@ to YAML or the repository. Upload success and device behavior still require the
 actual cloud run and current-build device test.
 
 Reference: https://docs.codemagic.io/yaml-publishing/app-store-connect/
+
+## Diagnose publishing HTTP 401
+
+Run **Samou Quick Apple Authentication Check** on master for a read-only check
+without npm install, signing, an archive or upload. It uses the same integration
+and ios_credentials group as TestFlight. The preflight compares the runner's
+Issuer ID, Key ID and public-key fingerprint to the locally verified credentials,
+then requests the expected app from Apple using a short-lived JWT. No private key
+or JWT is logged or committed. TestFlight also runs this check before npm install.
+
+A metadata or fingerprint mismatch isolates different runner credentials; inspect
+integration settings and duplicate APP_STORE_CONNECT_* environment variables.
+HTTP 401 with matching credentials requires inspecting runner time and Apple's
+response. A pass followed by altool 401 isolates the remaining issue to the upload
+path; it does not prove upload authorization or cure that failure. Keep the
+Publishing log for that case. Intentional API key rotation requires updating the
+expected public fingerprint and IDs in scripts/ios/asc-preflight.cjs.
