@@ -88,3 +88,24 @@ Errors are explicit: missing/ambiguous reference must be corrected in Codemagic;
 - https://github.com/codemagic-ci-cd/cli-tools/blob/master/docs/xcode-project/build-ipa.md
 - https://codemagic.io/codemagic-schema.json
 - https://capacitorjs.com/docs/updating/8-0
+
+## Browser App Preview
+
+Use **Start new build -> master -> Samou Quick iOS Preview (`ios-preview`)**.
+This separate workflow builds the shared App scheme for the generic iOS Simulator
+with Debug configuration and signing disabled. It uses the same Vite assets and
+Firebase/Mapbox input group, without importing distribution identities or calling
+App Store Connect. Swift packages resolve as part of xcodebuild.
+
+After a successful build, click **Quick Launch** beside the simulator `App.app`
+artifact. The existing App Store `App.ipa` cannot be used for this preview and old
+build results will not gain a preview button. If Codemagic requires App Preview
+activation for the team, enable it from the App Preview page after reviewing its
+trial/billing terms. No paid feature is enabled automatically by this workflow.
+
+Use this for layout, header, search focus and navigation checks. It is not proof
+of production APNs delivery or locked-device notification behavior; those still
+require the signed build on a physical iPhone. Preview uses the production API,
+so use designated test accounts for actions that create orders.
+
+Reference: https://docs.codemagic.io/yaml-distributing/app-preview/

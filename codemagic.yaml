@@ -86,3 +86,48 @@ workflows:
       - build/ios/xcarchive/**/*.dSYM
       - build/ios/logs/*.log
       - /tmp/xcodebuild_logs/*.log
+
+  ios-preview:
+    name: Samou Quick iOS Preview
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      node: 22
+      xcode: "26.6"
+      groups:
+        - ios_credentials
+      vars:
+        BUNDLE_ID: com.samougo.customer
+        VITE_API_URL: https://samou-go.onrender.com/api/v1
+    scripts:
+      - name: Install dependencies and Firebase configuration
+        script: |
+          set -euo pipefail
+          mkdir -p build/ios-preview/logs
+          npm ci 2>&1 | tee build/ios-preview/logs/npm.log
+          git diff --exit-code -- package-lock.json
+          python3 scripts/ios/release.py prepare
+      - name: Build Vite assets and sync Capacitor iOS
+        script: |
+          set -euo pipefail
+          npm run build --workspace @samou-go/shared-types
+          npm run cap:build:ios --workspace @samou-go/web-customer \
+            2>&1 | tee build/ios-preview/logs/web-capacitor.log
+      - name: Build unsigned iOS simulator app for App Preview
+        script: |
+          set -euo pipefail
+          xcodebuild build \
+            -project themes/web-customer/ios/App/App.xcodeproj \
+            -scheme App -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$CM_BUILD_DIR/build/ios-preview/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            2>&1 | tee build/ios-preview/logs/simulator.log
+          test -d build/ios-preview/DerivedData/Build/Products/Debug-iphonesimulator/App.app
+          test -f build/ios-preview/DerivedData/Build/Products/Debug-iphonesimulator/App.app/public/index.html
+          test -f build/ios-preview/DerivedData/Build/Products/Debug-iphonesimulator/App.app/Firebase/GoogleService-Info.plist
+    artifacts:
+      - build/ios-preview/DerivedData/Build/Products/Debug-iphonesimulator/*.app
+      - build/ios-preview/logs/*.log
