@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
 IOS = ROOT / 'themes/web-customer/ios/App'
@@ -16,13 +17,18 @@ APP = IOS / 'App'
 PROJECT = IOS / 'App.xcodeproj/project.pbxproj'
 CONFIG = APP / 'Firebase/GoogleService-Info.plist'
 BUNDLE = 'com.samougo.customer'
-TEAM = 'XYZ5ZT4PUS'
 APP_ID = '1:949776098795:ios:a083362604fa1db9a2a5ae'
 
 
 def require(condition, message):
     if not condition:
         raise ValueError(message)
+
+
+def signing_team():
+    team = os.environ.get('APPLE_TEAM_ID', '')
+    require(bool(re.fullmatch(r'[A-Z0-9]{10}', team)), 'Missing validated APPLE_TEAM_ID; run signing_preflight first')
+    return team
 
 
 def plist(path):
@@ -33,6 +39,7 @@ def check_firebase(data):
     require(data.get('BUNDLE_ID') == BUNDLE, 'Firebase bundle ID mismatch')
     require(data.get('PROJECT_ID') == 'samou-go', 'Firebase project mismatch')
     require(data.get('GOOGLE_APP_ID') == APP_ID, 'Firebase iOS app ID mismatch')
+    require(data.get('IS_GCM_ENABLED') is True, 'Firebase Cloud Messaging disabled in supplied plist')
     require(bool(data.get('API_KEY')) and data.get('GCM_SENDER_ID') == '949776098795', 'Firebase configuration incomplete')
 
 
@@ -55,7 +62,9 @@ def check_source():
     require(list(APP.rglob('GoogleService-Info.plist')) == [CONFIG], 'Duplicate Firebase plist in app resources')
     text = PROJECT.read_text(encoding='utf-8-sig')
     require(re.findall(r'PRODUCT_BUNDLE_IDENTIFIER = ([^;]+);', text) == [BUNDLE, BUNDLE], 'Debug/Release bundle ID mismatch')
-    require(re.findall(r'DEVELOPMENT_TEAM = ([^;]+);', text) == [TEAM, TEAM], 'Debug/Release signing team mismatch')
+    require(re.findall(r'DEVELOPMENT_TEAM = ([^;]+);', text) == [signing_team()] * 2, 'Debug/Release signing team mismatch')
+    capacitor = (ROOT / 'themes/web-customer/capacitor.config.ts').read_text(encoding='utf-8-sig')
+    require(re.search(r"appId:\s*'" + re.escape(BUNDLE) + "'", capacitor), 'Capacitor bundle ID mismatch')
     resources = text.split('/* Begin PBXResourcesBuildPhase section */')[1].split('/* End PBXResourcesBuildPhase section */')[0]
     require(resources.count('A10000000000000000000003') == 1, 'Firebase must be in Resources exactly once')
     require('fileRef = A10000000000000000000004;' in text and 'lastKnownFileType = folder; path = Firebase;' in text, 'Firebase folder resource reference missing')
@@ -75,24 +84,31 @@ def check_source():
     require('com.apple.Push = { enabled = 1; };' in text, 'Push capability missing')
     delegate = (APP / 'AppDelegate.swift').read_text(encoding='utf-8-sig')
     require('inDirectory: "Firebase"' in delegate and delegate.count('FirebaseApp.configure(') == 1, 'Firebase initialization lookup mismatch')
+    require(plist(APP / 'Info.plist').get('FirebaseAppDelegateProxyEnabled') is False, 'Manual FCM delegate requires Firebase swizzling disabled')
+    require('Messaging.messaging().apnsToken = deviceToken' in delegate and 'Messaging.messaging().token' in delegate
+            and 'object: token' in delegate, 'APNs to FCM token registration bridge missing')
+    require('productName = FirebaseMessaging;' in text, 'FirebaseMessaging native dependency missing')
     require((APP / 'public/index.html').is_file(), 'Capacitor web assets missing; run cap:build:ios')
     swift = (IOS / 'CapApp-SPM/Package.swift').read_text(encoding='utf-8-sig')
     for relative in re.findall(r'path: "([^"]+)"', swift):
         require('\\' not in relative and not Path(relative).is_absolute(), 'Local-only Swift package path')
         require((IOS / 'CapApp-SPM' / relative / 'Package.swift').is_file(), 'Swift dependency missing after npm ci')
     require((IOS / 'App.xcodeproj/xcshareddata/xcschemes/App.xcscheme').is_file(), 'Shared App scheme missing')
+    scheme = ET.parse(IOS / 'App.xcodeproj/xcshareddata/xcschemes/App.xcscheme').getroot()
+    require(scheme.find('ArchiveAction').get('buildConfiguration') == 'Release', 'Archive scheme must use Release')
+    for reference in scheme.iter('BuildableReference'):
+        require(reference.get('BlueprintName') == 'App' and reference.get('BlueprintIdentifier') == '504EC3031FED79650016851F'
+                and reference.get('ReferencedContainer') == 'container:App.xcodeproj', 'Unexpected shared scheme target')
     if sys.platform == 'darwin':
         subprocess.run(['plutil', '-lint', str(PROJECT)], check=True)
     print('PASS: iOS source configuration, target resources, capabilities and assets')
 
 
 def prepare():
-    names = ['APP_STORE_CONNECT_ISSUER_ID', 'APP_STORE_CONNECT_KEY_IDENTIFIER',
-             'APP_STORE_CONNECT_PRIVATE_KEY', 'APP_STORE_APPLE_ID', 'VITE_MAPBOX_ACCESS_TOKEN']
+    names = ['VITE_MAPBOX_ACCESS_TOKEN', 'FIREBASE_IOS_PLIST_BASE64']
     missing = [name for name in names if not os.environ.get(name)]
     require(not missing, 'Missing Codemagic variables/integration: ' + ', '.join(missing))
-    require(os.environ.get('BUNDLE_ID') == BUNDLE and os.environ.get('APPLE_TEAM_ID') == TEAM, 'Workflow bundle/team mismatch')
-    require(os.environ['APP_STORE_APPLE_ID'].isdigit(), 'APP_STORE_APPLE_ID must be numeric')
+    require(os.environ.get('BUNDLE_ID') == BUNDLE, 'Workflow bundle mismatch')
     require(os.environ['VITE_MAPBOX_ACCESS_TOKEN'].startswith('pk.'), 'Mapbox must use a public pk. token, never a secret token')
     require(os.environ.get('VITE_API_URL') == 'https://samou-go.onrender.com/api/v1', 'Unexpected production API')
     require(not os.environ.get('VITE_API_BASE_URL'), 'Remove VITE_API_BASE_URL override from this workflow')
@@ -102,33 +118,27 @@ def prepare():
 
 def signing():
     options = plist(Path.home() / 'export_options.plist')
-    require(options.get('teamID') == TEAM, 'Export signing team mismatch')
+    require(options.get('teamID') == signing_team(), 'Export signing team mismatch')
     require(options.get('method') in ('app-store', 'app-store-connect'), 'App Store distribution export required')
     require(bool(options.get('provisioningProfiles', {}).get(BUNDLE)), 'App Store provisioning profile missing for bundle ID')
+    selected = plistlib.loads(subprocess.check_output(['security', 'cms', '-D', '-i', os.environ['SAMOU_IOS_PROFILE_PATH']]))
+    require(options['provisioningProfiles'][BUNDLE] in (selected.get('UUID'), selected.get('Name')), 'Export selected a different profile')
+    require(options.get('signingCertificate') == os.environ['IOS_SIGNING_IDENTITY'], 'Export certificate mismatch')
+    require(options.get('destination') == 'export', 'Build-only workflow must not upload')
+    require(options.get('manageAppVersionAndBuildNumber') is False, 'Export must preserve the CI build number')
     print('PASS: export profile mapping and distribution team')
 
 
-def next_build(latest, counter):
-    require(latest.strip().isdigit(), 'App Store returned no numeric build number; inspect app record/access, do not assume zero on failure')
-    require(counter.isdigit(), 'PROJECT_BUILD_NUMBER missing/invalid')
-    result = max(int(latest.strip()) + 1, int(counter) + 1)
+def next_build(base, counter):
+    require(bool(re.fullmatch(r'[0-9]+', base)), 'IOS_BUILD_NUMBER_BASE missing/invalid')
+    require(bool(re.fullmatch(r'[0-9]+', counter)), 'PROJECT_BUILD_NUMBER missing/invalid')
+    result = int(base) + int(counter) + 1
     require(0 < result < 10000, 'Review versioning: build number exceeds supported four-digit range')
     return result
 
 
-def latest_build_number(app_id):
-    result = subprocess.run(
-        ['app-store-connect', 'get-latest-build-number', app_id, '--all-versions', '--no-color'],
-        text=True, capture_output=True, check=True)
-    if not result.stdout.strip():
-        require(f'Did not find any builds for app {app_id}' in result.stderr,
-                'Empty build lookup without confirmed first-upload response')
-        return '0'
-    return result.stdout.strip()
-
 def version():
-    latest = latest_build_number(os.environ['APP_STORE_APPLE_ID'])
-    number = next_build(latest, os.environ.get('PROJECT_BUILD_NUMBER', ''))
+    number = next_build(os.environ.get('IOS_BUILD_NUMBER_BASE', ''), os.environ.get('PROJECT_BUILD_NUMBER', ''))
     text = PROJECT.read_text(encoding='utf-8-sig')
     text, count = re.subn(r'CURRENT_PROJECT_VERSION = [^;]+;', f'CURRENT_PROJECT_VERSION = {number};', text)
     require(count == 2, 'Expected Debug and Release build versions')
@@ -137,12 +147,13 @@ def version():
 
 
 def validate_entitlements(ent, profile):
-    expected = TEAM + '.' + BUNDLE
+    team = signing_team()
+    expected = team + '.' + BUNDLE
     require(ent.get('application-identifier') == expected, 'Signed bundle identifier mismatch')
-    require(ent.get('com.apple.developer.team-identifier') == TEAM, 'Signed team mismatch')
+    require(ent.get('com.apple.developer.team-identifier') == team, 'Signed team mismatch')
     require(ent.get('aps-environment') == 'production', 'Signed IPA lacks production push entitlement')
     require(ent.get('get-task-allow') is False, 'IPA is development/debug signed')
-    require(profile.get('TeamIdentifier') == [TEAM], 'Provisioning profile team mismatch')
+    require(profile.get('TeamIdentifier') == [team], 'Provisioning profile team mismatch')
     require(not profile.get('ProvisionedDevices') and not profile.get('ProvisionsAllDevices'), 'Profile is not App Store distribution')
     profile_ent = profile.get('Entitlements', {})
     require(profile_ent.get('application-identifier') == expected and profile_ent.get('aps-environment') == 'production', 'App Store profile bundle/push mismatch')
@@ -171,6 +182,10 @@ def ipa():
         ent = plistlib.loads(subprocess.check_output(['codesign', '-d', '--entitlements', ':-', str(app)], stderr=subprocess.DEVNULL))
         profile = plistlib.loads(subprocess.check_output(['security', 'cms', '-D', '-i', str(app / 'embedded.mobileprovision')]))
         validate_entitlements(ent, profile)
+        selected = plistlib.loads(subprocess.check_output(['security', 'cms', '-D', '-i', os.environ['SAMOU_IOS_PROFILE_PATH']]))
+        require(profile.get('UUID') == selected.get('UUID'), 'IPA embeds a different provisioning profile')
+        require(str(info.get('CFBundleVersion')) == str(next_build(os.environ['IOS_BUILD_NUMBER_BASE'], os.environ['PROJECT_BUILD_NUMBER'])),
+                'Exported build number differs from CI number')
     print('PASS: signed IPA, exactly one Firebase plist, correct team/bundle and production APNs; physical push NOT tested')
 
 

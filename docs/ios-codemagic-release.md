@@ -1,198 +1,90 @@
-# Samou Quick: Codemagic iOS / TestFlight release
+# Samou Quick: Codemagic iOS release (build only)
 
-## Status and scope
+Updated 2026-09-21. Workflow `ios-release` creates a signed App Store IPA and retains the archive and logs. It does not publish, fetch signing assets from Apple, create certificates/profiles, or call App Store Connect for version numbers. The user starts the cloud build.
 
-Repository preparation is complete; no signed Xcode archive, IPA, TestFlight upload or physical iPhone validation has been performed. Windows can build web assets and sync Capacitor, but cannot run Xcode. Codemagic supplies the Mac. The workflow is manual and does not replace GitHub deployments, Android, Render, Vercel, migrations or backups.
+## Project inspection
 
-## Discovered project
-
-| Item | Value |
+| Item | Verified repository value |
 | --- | --- |
-| Customer frontend | `themes/web-customer` (`@samou-go/web-customer`) |
-| Capacitor configuration | `themes/web-customer/capacitor.config.ts` |
-| Web output | `themes/web-customer/dist`, copied to `ios/App/App/public` |
-| Xcode project | `themes/web-customer/ios/App/App.xcodeproj` |
-| Target / shared scheme | `App` / `App` |
-| Native dependency manager | Swift Package Manager; no standalone CocoaPods workspace |
-| Firebase configuration | `themes/web-customer/ios/App/App/Firebase/GoogleService-Info.plist` |
-| Bundle ID (Debug and Release) | `com.samougo.customer` |
-| Apple team | `XYZ5ZT4PUS` |
-| Firebase project / iOS app | `samou-go` / `1:949776098795:ios:a083362604fa1db9a2a5ae` |
-| Workflow | root `codemagic.yaml`, `ios-testflight` |
-| Runner | `mac_mini_m2`, Xcode **26.6**, macOS **26.5.1** image |
-| Package manager / runtime | npm with root `package-lock.json`; Node **22** in Codemagic |
-| Version | marketing version `1.0`; CI updates only iOS build number |
+| Package manager | npm; root `package-lock.json`, npm workspaces |
+| Frontend | `themes/web-customer`, React + TypeScript + Vite |
+| Web build | `npm run build --workspace @samou-go/shared-types`, then `npm run cap:build:ios --workspace @samou-go/web-customer` |
+| Build wrapper | Builds shared UI, runs `tsc -b && vite build`, then `cap:sync:ios` |
+| Capacitor sync | Prepares the existing SPM compatibility patch, runs `cap sync ios`, normalizes Swift paths |
+| Capacitor | 8; Node 22 and Xcode 26.6 in CI |
+| iOS project | `themes/web-customer/ios/App/App.xcodeproj` |
+| Shared scheme | `App`, from `App.xcodeproj/xcshareddata/xcschemes/App.xcscheme` |
+| Target | `App`, native target ID `504EC3031FED79650016851F` |
+| Archive configuration | Release |
+| Workspace | No standalone `.xcworkspace`; the nested `App.xcodeproj/project.xcworkspace` is internal Xcode metadata |
+| Native dependencies | Swift Package Manager, including FirebaseMessaging; no Podfile, no `pod install` required |
+| Bundle ID | `com.samougo.customer` in Capacitor and both Xcode configurations |
+| Apple owner | Qais Amro; numeric TeamIdentifier is read and validated from the selected profile on the runner |
+| Marketing version | Existing Xcode `1.0` preserved; build number is incremented separately |
 
-Node 22 matches the production deployment runtime; older existing GitHub CI uses Node 20 and is not changed. Local verification used Node 26.7.0. The Xcode image is pinned to a stable Codemagic image with an iOS 26 SDK, not a beta or an obsolete SDK.
+Do not add `pod install` or use an assumed `App.xcworkspace`. A guard stops the workflow if a Podfile is introduced, requiring the native build configuration to be reviewed rather than silently ignoring Pods.
 
-The Firebase directory is an Xcode folder resource included exactly once in App's Resources phase. AppDelegate explicitly loads `Firebase/GoogleService-Info.plist`, so do not move it to the bundle root. The local supplied file matches the intended app. It remains ignored according to repository policy and is injected securely on each runner. Firebase initialization code and the existing APNs-to-FCM registration implementation are unchanged. Runtime initialization remains unverified.
+## Codemagic manual settings
 
-Push Notifications and Background Modes are declared on the App target. Existing `remote-notification` and location background modes are retained. Debug uses `App.entitlements` (development APNs); Release uses `App.Release.entitlements` (production APNs). No new background behavior is introduced.
+1. Use the Codemagic team containing the uploaded signing assets and give this application access to them.
+2. Select repository `codemagic.yaml` configuration. Use the branch containing this change.
+3. Under Code signing identities, the selected **Reference names** must be exactly:
+   - certificate: `samou-quick-app-store-distribution` (Apple Distribution, with private key)
+   - profile: `samou-quick-app-store-profile` (App Store, explicit bundle `com.samougo.customer`, Qais Amro, matching certificate)
+4. These are reference names, not merely certificate subject/profile display names. User reports duplicate entries and validity until 2027-09-21. Those live assets have not been independently inspected in this session. Ensure only the intended copy has each exact reference; rename the unused duplicate reference if necessary. Do not revoke any certificate. If only display names are duplicated but references differ, no cleanup is required. YAML lists one certificate and one profile only. Identical certificate duplicates are deduplicated by fingerprint; different matching identities cause an explicit error rather than an arbitrary choice.
+5. Create/restore environment group `ios_credentials`, shared with this application, containing:
+   - `FIREBASE_IOS_PLIST_BASE64`: secure base64 of the **iOS** `GoogleService-Info.plist` for the existing Firebase app below. Android `google-services.json` cannot replace it.
+   - `VITE_MAPBOX_ACCESS_TOKEN`: the existing public production `pk.` token. Never put a Mapbox secret `sk.` token into Vite.
+6. No App Store Connect integration, API key, `APP_STORE_APPLE_ID`, manual `APPLE_TEAM_ID`, or certificate password in YAML is needed. Certificate passwords remain in Codemagic's uploaded identity storage. Codemagic exports `SAMOU_IOS_PROFILE_PATH` automatically; preflight exports the validated team and identity via `CM_ENV`.
+7. Check `IOS_BUILD_NUMBER_BASE: "1000"` before the first build: base + `PROJECT_BUILD_NUMBER` + 1 must exceed the last uploaded build. Increase the base if needed. Do not lower it, reset the project counter, or use a different Codemagic app without reviewing numbering. CI stops above 9999. No Apple API is consulted.
 
-## One-time setup without a local Mac
+`environment.ios_signing` automatically initializes the keychain and imports the explicitly referenced uploaded signing files. Running `keychain initialize` again would be redundant. `xcode-project use-profiles` then applies only the selected profile, and the verified certificate fingerprint is pinned for archive/export. Hardcoded legacy Team ID and inherited `iPhone Developer` identities were removed from Xcode. Local Xcode users must select their development team locally.
 
-1. Make this branch's changes available in GitHub, connect the repository to Codemagic, and choose repository YAML configuration.
-2. Use an active Apple Developer membership for team `XYZ5ZT4PUS`. Verify the explicit App ID `com.samougo.customer` has Push Notifications enabled. Do not create a different bundle ID.
-3. Create/verify the app record in App Store Connect for that bundle. Record its numeric Apple ID (not the bundle ID). Resolve outstanding agreements in Apple's portal.
-4. In Codemagic team integrations, add App Store Connect integration named exactly **`samou-go-app-store-connect`** using an operator-provided Issuer ID, Key ID and `.p8` API key with sufficient app upload and signing access. Keep the private key out of Git and chat.
-5. In Codemagic code signing identities, generate or upload an **Apple Distribution** certificate and private key for the team. Fetch or upload a matching **App Store** provisioning profile, created after Push Notifications was enabled. Automatic profile selection in YAML uses these managed identities; it does not magically create a missing distribution identity.
-6. Add environment group **`ios_credentials`**, enable access for this application, and set the variables below.
-7. For native Firebase push, independently verify that Firebase's iOS Cloud Messaging settings have the correct APNs authentication key/team/key ID. An App Store Connect API key is not an APNs key. Do not overwrite existing working APNs credentials.
+## Build steps and outputs
 
-### Secure integration / variables
+1. `npm ci` and release guard tests; fail if the root lockfile changes.
+2. Validate production inputs and securely install Firebase plist.
+3. Build shared types, shared UI and Vite, then sync the existing Capacitor iOS project.
+4. Resolve Swift packages against the real App project/scheme.
+5. Decode the selected profile; validate owner/team, exact bundle, App Store type, expiration, production APNs, Release entitlements and one matching certificate/private-key identity. Derive Team ID from that profile.
+6. Validate source resources/Capacitor/scheme, apply uploaded signing, verify export options and set CI build number in Debug and Release.
+7. Archive Release for device and export IPA using Codemagic `xcode-project build-ipa`. Export destination is explicitly `export`; export does not alter build number.
+8. Verify code signature, embedded profile UUID, exact bundle/team, CI build number, production APNs, Firebase plist location/content and bundled notification ringtone.
 
-| Name | Source / purpose |
-| --- | --- |
-| `APP_STORE_CONNECT_ISSUER_ID` | Supplied through the named Codemagic Apple integration |
-| `APP_STORE_CONNECT_KEY_IDENTIFIER` | Supplied through that integration |
-| `APP_STORE_CONNECT_PRIVATE_KEY` | Supplied securely through that integration |
-| `APP_STORE_APPLE_ID` | Numeric app record ID, in `ios_credentials` |
-| `FIREBASE_IOS_PLIST_BASE64` | Base64 of the provided customer plist; mark secure |
-| `VITE_MAPBOX_ACCESS_TOKEN` | Existing production public `pk.` token; never a Mapbox secret token |
-
-The YAML supplies the fixed bundle ID, team and production API URL. Do not add `VITE_API_BASE_URL` overrides. The API URL remains `https://samou-go.onrender.com/api/v1`.
-
-To copy the plist as one base64 value on Windows without printing it:
-
-```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\Users\Admin\Downloads\GoogleService-Info.plist')) | Set-Clipboard
-```
-
-Paste into the secure Codemagic variable and clear the clipboard. The runner validates IDs before writing the file. Never add `.p8`, `.p12`, `.mobileprovision` or service account credentials to the repository.
-
-## Build sequence
-
-Run from repository root. YAML contains the complete commands, signing and export arguments.
-
-```sh
-python3 scripts/ios/release.py prepare
-npm ci
-npm run build --workspace @samou-go/shared-types
-npm run cap:build:ios --workspace @samou-go/web-customer
-python3 scripts/ios/release.py source
-xcodebuild -resolvePackageDependencies -project themes/web-customer/ios/App/App.xcodeproj -scheme App
-xcode-project use-profiles --project themes/web-customer/ios/App/App.xcodeproj --custom-export-options='{"teamID":"XYZ5ZT4PUS","method":"app-store-connect"}'
-python3 scripts/ios/release.py signing
-python3 scripts/ios/release.py version
-xcode-project build-ipa --project themes/web-customer/ios/App/App.xcodeproj --scheme App --config Release --no-show-build-settings --archive-directory build/ios/xcarchive --ipa-directory build/ios/ipa --archive-xcargs "DEVELOPMENT_TEAM=XYZ5ZT4PUS"
-python3 scripts/ios/release.py ipa
-```
-
-`cap:build:ios` builds shared UI, builds customer assets and runs `cap:sync:ios`. Sync runs the iOS-only dependency compatibility check, `cap sync ios`, and the existing Windows-path normalization script. The lockfile is checked for changes after `npm ci`.
-
-The installed background-geolocation 1.2.26 npm package declares Capacitor 7 in its Swift manifest while this application uses Capacitor 8. `prepare-ios-spm.cjs` reproducibly adjusts only that package's iOS Swift requirement to 8. It checks the package version and expected input and fails on unfamiliar versions. This replaces a previously local-only modification. Actual native compilation still needs the first cloud build. Android and PWA configuration are untouched.
-
-Swift dependencies use the existing project version constraints (including Firebase 12.x). Transitive Swift resolution is not yet frozen by a verified `Package.resolved`; retain and review the first successful cloud resolution before choosing to commit it. Do not claim bit-for-bit reproducibility before that validation.
-
-## Versioning, signing and artifacts
-
-The workflow reads the highest build number across App Store and TestFlight, then uses `max(latest + 1, PROJECT_BUILD_NUMBER + 1)`. A successful explicit no-builds response supports the first upload. Failed API calls and unexplained empty responses stop the workflow. Existing dotted build numbers or numbers beyond the guarded four-digit range require a reviewed versioning change. Marketing version and Android versioning are unchanged. Run releases serially and wait for Apple processing before starting another to avoid number collisions.
-
-Codemagic installs managed signing assets; `use-profiles` applies them and generates `~/export_options.plist`. Checks require the intended team, bundle mapping and App Store export method. The Release archive is a signed device build, not a simulator.
-
-Artifacts are retained under:
+Artifacts:
 
 - `build/ios/ipa/*.ipa`
 - `build/ios/xcarchive/*.xcarchive`
 - `build/ios/xcarchive/**/*.dSYM`
-- `build/ios/logs/*.log` and `/tmp/xcodebuild_logs/*.log`
+- `build/ios/logs/*.log`
+- `/tmp/xcodebuild_logs/*.log`
 
-The exported IPA is unpacked with macOS `ditto` to preserve executable modes/symlinks. The workflow verifies its code signature, bundle ID, exactly one matching Firebase plist, signing team, production APNs entitlement, disabled debugging, and App Store provisioning profile before publishing.
+Start: Codemagic application -> **Start new build** -> branch with this YAML -> **Samou Quick iOS Release (`ios-release`)** -> Start. Download the artifacts after all steps pass. There are no automatic triggers or publishing blocks. An App Store IPA is not an ad hoc installation package; later TestFlight/App Store upload is a separate step.
 
-## Start a release / retrieve the result
+The geolocation 1.2.26 SPM compatibility repair is retained. Swift resolution uses the existing version constraints, including Firebase 12.x; a verified `Package.resolved` is not yet committed. Archive compilation must still run on the cloud Mac.
 
-In Codemagic choose the branch containing this configuration, select **Samou Quick iOS TestFlight**, and Start new build. There are no automatic triggers. Download the IPA, archive, dSYMs and logs from the build's Artifacts section. Publishing uses `auth: integration`, `submit_to_testflight: true`, `submit_to_app_store: false`. No public App Review submission or automatic external beta group distribution is configured. Apple processing/export compliance or beta review can still require operator action before testers can install.
+## Firebase checks and remaining device test
 
-## Diagnostics
+Expected Firebase project: `samou-go` (sender `949776098795`). Existing iOS Firebase app: `1:949776098795:ios:a083362604fa1db9a2a5ae`, bundle `com.samougo.customer`.
 
-- Missing Firebase: set the base64 variable using the supplied file; inspect the safe ID-mismatch message. Do not print the decoded file.
-- Missing signing identity/profile: inspect Codemagic's identities; ensure Apple Distribution, correct team and exact bundle ID. Regenerate the App Store profile after enabling Push Notifications if necessary.
-- Apple API access failure: check integration name, API role, numeric app ID and agreements; never bypass a failed lookup with zero.
-- Swift resolution failure: inspect `spm.log`, confirm clean `npm ci` and sync completed, then review package compatibility. Do not remove Firebase or change platform identities to bypass it.
-- Archive/export failure: download archive/export and Xcode logs. Missing credentials cannot be fixed by changing application code.
-- Firebase/APNs runtime failure: check device logs for Firebase initialization, the bundled plist, signed push entitlement, Firebase APNs credentials and server token ownership. A successful archive proves none of the actual delivery paths.
+The supplied local iOS plist was validated against these IDs and Cloud Messaging is enabled. The runner refuses a wrong/missing plist. It must remain at `App/Firebase/GoogleService-Info.plist`, included exactly once as an Xcode folder resource; AppDelegate explicitly loads that location. Manual Firebase registration maps APNs device token to FCM registration token; Firebase delegate swizzling is disabled. Production APNs is required both in the selected profile and the signed IPA. None of the plist/private signing files is committed.
 
-## Validation performed and remaining gates
+For real delivery, Firebase -> Project settings -> Cloud Messaging -> the iOS app must have a valid APNs production authentication key/certificate for the same Apple team. This APNs key is separate from the broken App Store Connect API key; disabling publishing does not disable FCM. The backend must use the same Firebase project and the logged-in account's current FCM token/session.
 
-Local clean `npm ci`, customer/UI build, Capacitor iOS sync, source/resource checks, nine release-guard tests and Codemagic official JSON-schema validation passed. Vite reports an existing large-chunk warning. Local npm 26 reports blocked Prisma/Firebase install scripts; customer build and sync passed without relaxing repository policy. No existing GitHub workflow was modified; this is scope compatibility, not a newly executed full CI run.
+Live Firebase console verification was blocked: the browser's signed-in account reported that the project does not exist or the account lacks access. This does not establish that the project was deleted. No keys or Firebase settings were changed. APNs credentials and production delivery therefore remain unverified until access/device testing is available.
 
-Still required: configure Codemagic/Apple integration and secure values, managed certificate/profile, execute the first signed cloud archive/export/upload, confirm Firebase initializes on device, and install via TestFlight on a physical iPhone. Test notification permission/grant/deny, FCM registration, foreground/background/terminated delivery, tap routing, logout/token ownership, GPS/location permissions, network recovery and a complete test order. PWA push and native APNs are separate validation paths. No physical iOS push success is claimed.
+After installing the cloud build through TestFlight: log into a test store/captain, grant notifications, lock the phone and send one test order; verify notification, sound under normal sound settings and correct order details on tapping. Also test foreground, logout/login and the customer role. A successful archive or unit test does not prove delivery on a physical iPhone.
+
+## Verification and errors
+
+Passed locally: official Codemagic JSON schema validation; Bash syntax for every YAML script; 18 Python release/signing guard tests; 18 API push tests; 6 frontend notification tests; shared/UI/customer build; Capacitor iOS sync; source/resource/Firebase validation with a synthetic signing team on a temporary project copy. Vite's existing large-map-chunk warning remains non-blocking. macOS-only signing and IPA checks execute in Codemagic; no signed IPA from this updated workflow is claimed yet.
+
+Errors are explicit: missing/ambiguous reference must be corrected in Codemagic; wrong profile owner/bundle, expired identity, missing private key or production push capability require the correct already-uploaded matching pair. Missing environment values require restoring the group. The workflow never creates or revokes identities and never bypasses validation to produce an incorrectly signed app.
 
 ## Official references
 
 - https://docs.codemagic.io/yaml-code-signing/signing-ios/
-- https://docs.codemagic.io/yaml-quick-start/building-a-native-ios-app/
-- https://docs.codemagic.io/yaml-publishing/app-store-connect/
-- https://docs.codemagic.io/specs-macos/xcode-26-6/
-- https://developer.apple.com/news/?id=ueeok6yw
-
-## Signing failure follow-up (2026-09-16)
-
-Build `6aaaef82430e800ece455560` found the real App project and assigned profile
-`Samou Quick App Store Profile` (UUID `cc3f3104-b43d-4482-b376-9160903aa71a`)
-to Debug and Release, then failed before reporting generated export options.
-The original invocation was:
-
-```sh
-xcode-project use-profiles \
-  --project themes/web-customer/ios/App/App.xcodeproj \
-  --custom-export-options='{"teamID":"XYZ5ZT4PUS","method":"app-store-connect"}'
-```
-
-The CLI ExportOptions ArchiveMethod enum accepts `app-store`, not
-`app-store-connect`. The unsupported override is removed; profile inference and
-`--archive-method app-store` retain App Store distribution. This is a verified
-configuration incompatibility consistent with the failure location, not a claim
-that the unavailable runner traceback was inspected.
-
-The workflow now selects only `samou-quick-app-store-distribution1` and
-`samou-quick-app-store-profile`. Codemagic forbids combining explicit references
-with `distribution_type`/`bundle_identifier` selectors, so those selectors are
-replaced (not changed to development). The bundle/team are retained in vars,
-Xcode, preflight and exported IPA verification. SAMOU_IOS_PROFILE_PATH is injected
-by the profile reference; do not add it manually as an environment secret.
-
-Before use-profiles, signing_preflight.py checks the decoded profile on the Mac,
-App Store type, expiration, exact bundle/team, production APNs, requested Release
-entitlements, and an exact profile certificate fingerprint against valid
-certificate/private-key identities in the keychain. It also checks certificate
-expiration and distribution subject. Only public metadata is printed. No private
-key is exported. Reference names alone do not prove this check passes.
-
-The command targets the absolute CM_BUILD_DIR App project, enables supported
-verbose signing diagnostics and preserves failure status through pipefail while
-saving build/ios/logs/signing.log as an artifact. The CLI has no Release-only
-use-profiles switch; its transient Debug assignment is retained, while the
-archive explicitly builds Release. Source Debug entitlements remain development.
-
-Codemagic UI showed two production certificates and one app_store profile, all
-expiring September 16, 2027; the profile showed a green certificate indicator.
-That confirms an available matching certificate, not which of the two references
-matches. Exact intended identity/private-key matching must still be confirmed
-on the runner or through Codemagic/Apple public certificate metadata before
-starting the next build. No build was triggered and no signing assets deleted.
-If the intended certificate is not in the profile, update/re-fetch the profile
-using that certificate, retaining the same reference. Do not delete certificates
-based only on their names.
-
-References:
-- https://docs.codemagic.io/yaml-code-signing/signing-ios/
 - https://github.com/codemagic-ci-cd/cli-tools/blob/master/docs/xcode-project/use-profiles.md
-- https://github.com/codemagic-ci-cd/cli-tools/blob/master/src/codemagic/models/export_options.py
-
-## Confirmed Apple Team correction (2026-09-16)
-
-The local provisioning profile `Samou_Quick_App_Store_Profile.mobileprovision`
-has UUID `cc3f3104-b43d-4482-b376-9160903aa71a`, matching the profile UUID in
-Codemagic build `6aaaef82430e800ece455560`. Its TeamIdentifier is
-`XYZ5ZT4PUS`, its com.apple.developer.team-identifier is `XYZ5ZT4PUS`, and its
-embedded Apple Distribution certificate subject OU is `XYZ5ZT4PUS`.
-The earlier expected team contained a transcription error (third character 7
-instead of Z). YAML, release.py and both Xcode target configurations now use the
-confirmed team consistently. Bundle ID and Firebase are unchanged.
-
-Build `6aaaf316ddccb1eb55785656` confirms the explicit profile and certificate
-references were used. Its keychain import log reports an Unable to decode warning
-followed by one key and one certificate imported. Exact runner identity matching
-remains a preflight gate; this local profile inspection does not prove the
-referenced P12 identity passes it. No new build was started for this correction.
+- https://github.com/codemagic-ci-cd/cli-tools/blob/master/docs/xcode-project/build-ipa.md
+- https://codemagic.io/codemagic-schema.json
+- https://capacitorjs.com/docs/updating/8-0
