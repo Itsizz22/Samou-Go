@@ -114,14 +114,16 @@ Reference: https://docs.codemagic.io/yaml-distributing/app-preview/
 
 The separate manual workflow **Samou Quick iOS TestFlight (`ios-testflight`)**
 inherits every release build, signing, Firebase validation and artifact step via
-a YAML anchor. It adds App Store Connect publishing using the existing integration
-named exactly **Samou Quick**. The original `ios-release` and `ios-preview`
+a YAML anchor. It adds App Store Connect publishing using three secret variables in
+`ios_credentials`: `APP_STORE_CONNECT_PRIVATE_KEY`,
+`APP_STORE_CONNECT_KEY_IDENTIFIER`, and `APP_STORE_CONNECT_ISSUER_ID`.
+The publisher references these explicitly, without the legacy team integration. The original `ios-release` and `ios-preview`
 workflows remain available without publishing.
 
-1. In this Codemagic team's integrations, ensure **Samou Quick** is accessible to
-   this application and its App Store Connect API key has App Manager permission
-   and access to the app with bundle `com.samougo.customer`. A green integration
-   indicator alone does not prove that uploading is authorized.
+1. Store the original PEM private key and matching Key ID/Issuer ID as secret
+   variables in `ios_credentials`. The key requires App Manager permission and
+   access to `com.samougo.customer`. Do not also select a team integration for
+   these workflows, which would introduce a second credential source.
 2. Start new build -> **master** -> **Samou Quick iOS TestFlight** -> Start.
 3. Confirm archive validation and **Publishing** both succeed. If publishing fails,
    inspect its log for authentication, app access, metadata or duplicate build
@@ -145,8 +147,8 @@ Reference: https://docs.codemagic.io/yaml-publishing/app-store-connect/
 ## Diagnose publishing HTTP 401
 
 Run **Samou Quick Apple Authentication Check** on master for a read-only check
-without npm install, signing, an archive or upload. It uses the same integration
-and ios_credentials group as TestFlight. The preflight compares the runner's
+without npm install, signing, an archive or upload. It uses the same explicit credentials in
+the ios_credentials group as TestFlight. The preflight compares the runner's
 Issuer ID, Key ID and public-key fingerprint to the locally verified credentials,
 then requests the expected app from Apple using a short-lived JWT. No private key
 or JWT is logged or committed. TestFlight also runs this check before npm install.
