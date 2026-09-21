@@ -1,6 +1,6 @@
-# Manual App Store IPA build. No App Store Connect API or publishing required.
+# Manual iOS workflows: build-only release, simulator preview, and TestFlight upload.
 workflows:
-  ios-release:
+  ios-release: &ios_release
     name: Samou Quick iOS Release
     instance_type: mac_mini_m2
     max_build_duration: 90
@@ -131,3 +131,14 @@ workflows:
     artifacts:
       - build/ios-preview/DerivedData/Build/Products/Debug-iphonesimulator/*.app
       - build/ios-preview/logs/*.log
+
+  ios-testflight:
+    <<: *ios_release
+    name: Samou Quick iOS TestFlight
+    integrations:
+      app_store_connect: Samou Quick
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
