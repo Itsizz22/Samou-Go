@@ -232,6 +232,7 @@ export async function setAvailability(
 
 export async function listUsers(query: UserListQuery): Promise<Paginated<PublicUser>> {
   const where: Prisma.UserWhereInput = {
+    id: { not: 'system-deleted-accounts' },
     ...(query.role !== undefined ? { role: query.role } : {}),
     ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
     ...(query.search
@@ -268,6 +269,7 @@ export async function adminUpdateUser(
   targetId: string,
   body: AdminUpdateUserBody
 ): Promise<PublicUser> {
+  if (targetId === 'system-deleted-accounts') throw forbidden('هذا سجل معاملات مجهول وليس حسابًا / Anonymous transaction identity is not an account');
   const user = await prisma.user.findUnique({ include: assignedStoresInclude, where: { id: targetId } });
   if (!user) throw notFound('المستخدم غير موجود / User not found');
   let storeIds = await validateCaptainStores(body);

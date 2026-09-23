@@ -15,6 +15,11 @@ function Conversation({ orderId }: { orderId: string }) {
   const [visible, setVisible] = useState(false);
   const root = useRef<HTMLElement>(null);
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('chat') === '1') {
+      root.current?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [orderId]);
+  useEffect(() => {
     const openConversation = (event: Event) => {
       const detail: unknown = event instanceof CustomEvent ? event.detail : null;
       if (!detail || typeof detail !== 'object' || !('orderId' in detail) || detail.orderId !== orderId || !('peerId' in detail) || typeof detail.peerId !== 'string') return;

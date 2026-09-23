@@ -25,7 +25,7 @@ beforeEach(() => {
   mocks.token = 'account-a'; mocks.permission = 'granted'; mocks.platform = 'android';
   mocks.fetch.mockResolvedValue({ ok: true, status: 200 });
   vi.stubGlobal('fetch', mocks.fetch);
-  vi.stubGlobal('window', { addEventListener: vi.fn(), setTimeout, clearTimeout });
+  vi.stubGlobal('window', { addEventListener: vi.fn(), dispatchEvent: vi.fn(), setTimeout, clearTimeout });
   vi.stubGlobal('navigator', { userAgent: 'Android QA' });
 });
 
@@ -96,4 +96,15 @@ it('opens the private conversation from a chat notification without trusting arb
   await registerForPushNotifications('account-a');
   Reflect.apply(mocks.listeners.get('pushNotificationActionPerformed')!, null, [{ notification: { data: { type: 'CHAT_MESSAGE', orderId: 'order/1', senderId: 'store/1', path: 'https://untrusted.example' } } }]);
   expect(mocks.navigate).toHaveBeenLastCalledWith('/orders/order%2F1?chat=1&peer=store%2F1');
+});
+
+it.each(['ios', 'android'])('opens status and chat details on %s without presenting a new-order alarm', async platform => {
+  mocks.platform = platform;
+  const { registerForPushNotifications } = await import('./notifications');
+  await registerForPushNotifications('account-a');
+  const action = mocks.listeners.get('pushNotificationActionPerformed')!;
+  Reflect.apply(action, null, [{ actionId: 'tap', notification: { data: { type: 'ORDER_STATUS', orderId: 'accepted-order', status: 'ACCEPTED' } } }]);
+  expect(mocks.navigate).toHaveBeenLastCalledWith('/orders/accepted-order');
+  Reflect.apply(action, null, [{ actionId: 'tap', notification: { data: { type: 'CHAT_MESSAGE', orderId: 'order', senderId: 'peer' } } }]);
+  expect(mocks.navigate).toHaveBeenLastCalledWith('/orders/order?chat=1&peer=peer');
 });

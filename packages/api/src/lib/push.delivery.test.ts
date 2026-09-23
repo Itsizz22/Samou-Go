@@ -95,3 +95,23 @@ it('keeps ordinary customer updates on the default sound', async () => {
   await sendPushToUser('customer', { title: 'Order', body: 'Delivered', data: { type: 'ORDER_STATUS' } });
   expect(mocks.send.mock.calls[0]?.[0].apns.payload.aps.sound).toBe('default');
 });
+
+it.each(['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'ON_THE_WAY', 'DELIVERED', 'CANCELLED'])('sends an audible visible iOS alert and Android notification for %s', async status => {
+  mocks.findMany.mockResolvedValue([
+    { id: 'ios', token: 'ios-token', platform: 'ios', refreshTokenId: 'ios-session' },
+    { id: 'android', token: 'android-token', platform: 'android', refreshTokenId: 'android-session' },
+  ]);
+  mocks.send.mockResolvedValue({ responses: [{ success: true }, { success: true }] });
+  await expect(sendPushToUser('customer', { title: 'Order update', body: status, data: { type: 'ORDER_STATUS', status, orderId: 'order' } })).resolves.toEqual({ sent: 2, failed: 0 });
+  const message = mocks.send.mock.calls[0]?.[0];
+  expect(message.apns.headers).toMatchObject({ 'apns-push-type': 'alert', 'apns-priority': '10' });
+  expect(message.apns.payload.aps).toMatchObject({ alert: { title: 'Order update', body: status }, sound: 'default' });
+  expect(message.notification).toBeDefined(); expect(message.android.priority).toBe('high');
+});
+it('chat remains an audible APNs alert while Android renders its own conversation notification', async () => {
+  await sendPushToUser('recipient', { title: 'Chat', body: 'New message', data: { type: 'CHAT_MESSAGE', senderId: 'sender', orderId: 'order' } }, { dataOnly: true });
+  const message = mocks.send.mock.calls[0]?.[0];
+  expect(message.apns.payload.aps).toMatchObject({ sound: 'default', alert: { title: 'Chat', body: 'New message' } });
+  expect(message).not.toHaveProperty('notification');
+  expect(message.data).toMatchObject({ type: 'CHAT_MESSAGE', senderId: 'sender', orderId: 'order' });
+});

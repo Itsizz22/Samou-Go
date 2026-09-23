@@ -16,6 +16,7 @@ import { notFoundHandler } from './middleware/not-found';
 import { apiRouter } from './routes';
 import { apiLimiter } from './middleware/rate-limit';
 import { uploadDirs } from './uploads/uploads.config';
+import { prisma } from './lib/prisma';
 
 export const API_PREFIX = '/api/v1';
 
@@ -47,6 +48,15 @@ export function createApp(): Application {
   // seven frontends live on other ports and load these images from here.
   app.use(
     '/uploads',
+    asyncHandler(async (req, res, next) => {
+      // Other API instances may still have cached personal media after erasure.
+      // Check its owner before serving either the local cache or durable storage.
+      const owner = /^\/(?:user|audio|video)\/([^/]+)\//.exec(req.path)?.[1];
+      if (owner && !await prisma.user.findUnique({ where: { id: owner }, select: { id: true } })) {
+        res.status(404).end(); return;
+      }
+      next();
+    }),
     (_req, res, next) => {
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       next();

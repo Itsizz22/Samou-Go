@@ -66,7 +66,7 @@ async function getMessaging(): Promise<Messaging | null> {
     return firebaseMessaging;
   } catch (err) {
     console.error(JSON.stringify({ event: 'push.initialization_failed', severity: 'High' }));
-    initialised = true;
+    initialised = false;
     return null;
   }
 }

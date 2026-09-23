@@ -382,6 +382,7 @@ export function ProfileScreen() {
         <button type="button" onClick={() => navigate('/settings')} className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl border border-brand/20 bg-brand-tint px-4 text-base font-extrabold text-brand shadow-card transition-transform active:scale-95"><Settings size={16} />{t('إعدادات الحساب', 'Account settings')}</button>
 
         <AccountSwitcher auth={auth} />
+        <button type="button" onClick={() => navigate('/delete-account')} className="min-h-12 w-full rounded-xl border border-line px-4 font-bold text-danger-ink">{t('حذف الحساب نهائيًا', 'Permanently delete account')}</button>
       </div>
 <MapPicker isOpen={Boolean(mapAddressId)} initialLat={addresses.find(entry => entry.id === mapAddressId)?.lat} initialLng={addresses.find(entry => entry.id === mapAddressId)?.lng} onClose={() => setMapAddressId(null)} onPick={(lat,lng) => { const next = addresses.map(entry => entry.id === mapAddressId ? { ...entry,lat,lng } : entry); setAddresses(next); writeSavedAddresses(next, auth.user?.id); }} />
     </ScreenShell>

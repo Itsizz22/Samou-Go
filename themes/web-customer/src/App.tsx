@@ -1,3 +1,4 @@
+import { DeleteAccountScreen } from './screens/DeleteAccountScreen';
 import { LegalScreen } from './screens/LegalScreen';
 import { MenuScreen } from './screens/MenuScreen';
 import { CartAddedNotice } from '@/components/CartAddedNotice';
@@ -265,7 +266,8 @@ function StartupRoutes({ auth }: { auth: Auth }) {
       <Route path="/custom-requests" element={<ProtectedRoute auth={auth}><CustomRequestsScreen /></ProtectedRoute>} />
       <Route path="/privacy" element={<LegalScreen kind="privacy" />} />
       <Route path="/terms" element={<LegalScreen kind="terms" />} />
-      <Route path="/delete-account" element={<LegalScreen kind="deletion" />} />
+      <Route path="/delete-account" element={<DeleteAccountScreen />} />
+      <Route path="/account-deleted" element={<DeleteAccountScreen completed />} />
       <Route path="/support" element={<ProtectedRoute auth={auth} allowStaff><SupportScreen /></ProtectedRoute>} />
       <Route path="/login" element={<AuthRoute auth={auth}><LoginScreen /></AuthRoute>} />
       <Route path="/verify-phone" element={<AuthRoute auth={auth}><PhoneVerificationScreen /></AuthRoute>} />

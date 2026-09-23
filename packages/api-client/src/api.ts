@@ -1174,6 +1174,18 @@ export async function logout(opts?: { signal?: AbortSignal; deviceToken?: string
   }
 }
 
+/** Permanent server deletion, followed by removal from this device's account vault. */
+export async function deleteMyAccount(password: string): Promise<void> {
+  const accountId = getActiveAccountId();
+  const access = getToken();
+  await request<{ deleted: true }>('DELETE', '/auth/me', { auth: true, body: { password, confirm: true }, signal: AbortSignal.timeout(30000) });
+  if (accountId) forgetSignedOutAccount(accountId);
+  if (getToken() === access || getActiveAccountId() === null) {
+    setLogoutDeviceToken(null);
+    clearTokens();
+  }
+}
+
 /**
  * Revokes a SPECIFIC refresh token server-side without touching the live
  * session. Used by the Multi-Account Vault when an account is removed, so a

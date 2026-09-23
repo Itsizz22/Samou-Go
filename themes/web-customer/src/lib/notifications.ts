@@ -67,6 +67,9 @@ function ensureListeners(): Promise<void> {
           const suffix = action.notification.data?.type === 'CHAT_MESSAGE' && typeof senderId === 'string'
             ? `?chat=1&peer=${encodeURIComponent(senderId)}` : '';
           globalNavigate(`/orders/${encodeURIComponent(orderId)}${suffix}`);
+          // React Router may keep the same order screen mounted when only the
+          // query changes. Explicitly open the new peer in that existing chat.
+          if (suffix && typeof senderId === 'string') window.dispatchEvent(new CustomEvent('samou:open-order-chat', { detail: { orderId, peerId: senderId } }));
         }
       }));
       const { App } = await import('@capacitor/app');

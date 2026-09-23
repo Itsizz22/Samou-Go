@@ -67,6 +67,8 @@ export async function writeChat(orderId: string, auth: Auth, raw: unknown) {
     if (!retry || retry.orderId !== orderId || retry.recipientId !== body.recipientId || retry.message !== body.message) throw e;
     return retry;
   }
-  void sendPushToUser(body.recipientId, { title: 'رسالة جديدة — Samou Quick', body: `لديك رسالة بخصوص الطلب ${order.orderNumber}`, data: { type: 'CHAT_MESSAGE', orderId, senderId: auth.sub, path: `/orders/${orderId}?chat=1&peer=${encodeURIComponent(auth.sub)}`, messageId: row.id } }).catch(() => {});
+  // Android's native service preserves the conversation-specific notification ID
+  // and tap intent; iOS still receives an APNs alert with sound for data-only sends.
+  void sendPushToUser(body.recipientId, { title: 'رسالة جديدة — Samou Quick', body: `لديك رسالة بخصوص الطلب ${order.orderNumber}`, data: { type: 'CHAT_MESSAGE', orderId, senderId: auth.sub, path: `/orders/${orderId}?chat=1&peer=${encodeURIComponent(auth.sub)}`, messageId: row.id } }, { dataOnly: true }).catch(() => { console.error('[chat] Push delivery failed; see notification delivery audit'); });
   return row;
 }

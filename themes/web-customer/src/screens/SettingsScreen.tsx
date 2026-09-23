@@ -284,7 +284,7 @@ export function SettingsScreen() {
         <nav aria-label="الخصوصية والحساب" className="grid gap-3 rounded-2xl border border-line bg-surface p-4">
           <Link className="flex min-h-11 items-center font-bold text-brand-dark" to="/privacy">{t("سياسة الخصوصية", "Privacy policy")}</Link>
           <Link className="flex min-h-11 items-center font-bold text-brand-dark" to="/terms">{t("شروط الاستخدام", "Terms of use")}</Link>
-          <Link className="flex min-h-11 items-center font-bold text-brand-dark" to="/delete-account">{t("طلب حذف الحساب والبيانات", "Request account and data deletion")}</Link>
+          <Link className="flex min-h-11 items-center font-bold text-brand-dark" to="/delete-account">{t("حذف الحساب نهائيًا", "Permanently delete account")}</Link>
         </nav>
         <AccountSwitcher auth={auth} />
       </div>

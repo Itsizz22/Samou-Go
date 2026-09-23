@@ -11,6 +11,7 @@ import {
 } from "../../middleware/authenticate";
 import { authLimiter, refreshLimiter } from "../../middleware/rate-limit";
 import * as controller from "./auth.controller";
+import { deleteOwnAccount } from './account-deletion';
 
 export const authRouter: Router = Router();
 authRouter.post("/otp/request", authLimiter, optionalAuthenticate, asyncHandler(controller.requestOtpHandler));
@@ -33,6 +34,10 @@ authRouter.post(
 authRouter.post("/refresh", refreshLimiter, asyncHandler(controller.refreshHandler));
 authRouter.post("/logout", asyncHandler(controller.logoutHandler));
 authRouter.get("/me", authenticate, asyncHandler(controller.meHandler));
+authRouter.delete('/me', authenticate, authLimiter, asyncHandler(async (req, res) => {
+  const body = parseWith(z.object({ password: z.string().min(1).max(128), confirm: z.literal(true) }).strict(), req.body);
+  ok(res, await deleteOwnAccount(requireAuth(req).sub, body.password));
+}));
 authRouter.patch(
   "/me",
   authenticate,
