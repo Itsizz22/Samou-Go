@@ -1,5 +1,12 @@
 # Account deletion and transactional notifications — 24 September 2026
 
+## Release status
+- Application changes: commit `1f7a44a`, deployed to the production API and packaged as iOS **1.0 (1021)**.
+- Apple processed build 1021 successfully. Its TestFlight beta review submission is **WAITING_FOR_REVIEW**.
+- Codemagic's post-processing initially stopped because export compliance was unset. The existing uploaded build was updated through the Apple API to declare no non-exempt encryption, and the beta review submission succeeded without another upload.
+- `Info.plist` now includes the same encryption exemption setting for future builds. App transport uses platform HTTPS/TLS; no proprietary encryption is included.
+- The App Store rejection response still needs the physical-device recording described below; submitting for TestFlight review does not resubmit the public App Store version.
+
 ## Account deletion
 - Both native apps use the shared `/delete-account` screen.
 - Customer: Account → Permanently delete account, or Settings → Permanently delete account.

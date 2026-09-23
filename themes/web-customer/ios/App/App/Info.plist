@@ -3,6 +3,8 @@
 <plist version="1.0">
 <dict>
 <key>FirebaseAppDelegateProxyEnabled</key><false/>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
     <key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
