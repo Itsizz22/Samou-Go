@@ -32,6 +32,32 @@ public class SettingsPlugin extends Plugin {
 
     private static final String TAG = "SettingsPlugin";
 
+    @PluginMethod
+    public void getFullScreenAlertPermission(PluginCall call) {
+        android.app.NotificationManager manager = getContext().getSystemService(android.app.NotificationManager.class);
+        JSObject result = new JSObject();
+        result.put("enabled", android.os.Build.VERSION.SDK_INT < 34 || (manager != null && manager.canUseFullScreenIntent()));
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void openFullScreenAlertSettings(PluginCall call) {
+        try {
+            android.content.Intent intent;
+            if (android.os.Build.VERSION.SDK_INT >= 34) {
+                intent = new android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+                    android.net.Uri.parse("package:" + getContext().getPackageName()));
+            } else {
+                intent = new android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, getContext().getPackageName());
+            }
+            getActivity().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Could not open notification settings", e);
+        }
+    }
+
     private SharedPreferences getPrefs() {
         return getContext().getSharedPreferences(
             FirebaseMyMessagingService.PREFS_NAME,

@@ -217,6 +217,7 @@ export async function claimOrderHandler(req: Request, res: Response): Promise<vo
     ...(body.handoffCode !== undefined ? { handoffCode: body.handoffCode } : {}),
   });
   emitOrderStatus(orderId, { status: result.status, orderId, timestamp: new Date().toISOString() });
+  void notifyStatusChange(result, orderId, result.status);
   ok(res, result);
 }
 
@@ -244,7 +245,7 @@ export async function updateOrderStatusHandler(req: Request, res: Response): Pro
   emitOrderStatus(orderId, { status: result.status, orderId, timestamp: new Date().toISOString() });
 
   // Push: notify the relevant party about the status change.
-  void notifyStatusChange(result, orderId, body.status);
+  void notifyStatusChange(result, orderId, result.status);
 
   ok(res, result);
 }
@@ -318,8 +319,8 @@ async function notifyStatusChange(
         // Store accepted → notify the customer.
         await sendPushToUser(order.customerId, {
           title: 'تم قبول الطلب ✅',
-          body: `متجر ${order.store.nameAr} قبول طلبك #${order.orderNumber}`,
-          data: { orderId, screen: 'tracking' },
+          body: `قبل متجر ${order.store.nameAr} طلبك #${order.orderNumber}`,
+          data: { orderId, type: 'ORDER_STATUS', status: newStatus, screen: 'tracking' },
         });
         break;
       }
@@ -328,7 +329,7 @@ async function notifyStatusChange(
         await sendPushToUser(order.customerId, {
           title: 'جاري التحضير 👨‍🍳',
           body: `طلبك #${order.orderNumber} قيد التحضير`,
-          data: { orderId, screen: 'tracking' },
+          data: { orderId, type: 'ORDER_STATUS', status: newStatus, screen: 'tracking' },
         });
         break;
       }
@@ -336,8 +337,8 @@ async function notifyStatusChange(
         // Ready → notify the customer + all available captains.
         await sendPushToUser(order.customerId, {
           title: 'جاهز للاستلام 📦',
-          body: `طلبك #${order.orderNumber} جاهز — في انتظار الكابتن`,
-          data: { orderId, screen: 'tracking' },
+          body: order.fulfillmentType === 'PICKUP' ? `طلبك #${order.orderNumber} جاهز لاستلامه من المتجر` : `طلبك #${order.orderNumber} جاهز — في انتظار الكابتن`,
+          data: { orderId, type: 'ORDER_STATUS', status: newStatus, screen: 'tracking' },
         });
         // Notify the assigned captain; unassigned orders use the exclusive dispatcher.
         // Uses data-only payloads so Android can route to the correct
@@ -358,11 +359,11 @@ async function notifyStatusChange(
       }
       case OrderStatus.ON_THE_WAY: {
         // Captain picked up → notify the customer.
-        if (order.customerId && order.captainId) {
+        if (order.customerId) {
           await sendPushToUser(order.customerId, {
             title: 'في الطريق إليك 🚗',
             body: `طلبك #${order.orderNumber} في الطريق — الكابتن في الطريق`,
-            data: { orderId, screen: 'tracking' },
+            data: { orderId, type: 'ORDER_STATUS', status: newStatus, screen: 'tracking' },
           });
         }
         break;
@@ -370,13 +371,18 @@ async function notifyStatusChange(
       case OrderStatus.DELIVERED: {
         // Delivered → notify the customer.
         await sendPushToUser(order.customerId, {
-          title: 'تم التوصيل 🎉',
-          body: `طلبك #${order.orderNumber} تم توصيله — بالعافية!`,
-          data: { orderId, screen: 'tracking' },
+          title: order.fulfillmentType === 'PICKUP' ? 'تم استلام الطلب ✅' : 'تم التوصيل 🎉',
+          body: `طلبك #${order.orderNumber} مكتمل — بالعافية!`,
+          data: { orderId, type: 'ORDER_STATUS', status: newStatus, screen: 'tracking' },
         });
         break;
       }
       case OrderStatus.CANCELLED: {
+        await sendPushToUser(order.customerId, {
+          title: 'تم إلغاء الطلب ❌',
+          body: `طلب #${order.orderNumber} تم إلغاؤه`,
+          data: { orderId, type: 'ORDER_STATUS', status: newStatus, screen: 'tracking' },
+        });
         // Cancelled → notify the other party.
         // If customer cancelled, notify store manager. If store cancelled, notify customer.
         if (order.captainId) {
@@ -386,11 +392,6 @@ async function notifyStatusChange(
             data: { orderId, screen: 'order' },
           });
         }
-        await sendPushToUser(order.customerId, {
-          title: 'تم إلغاء الطلب ❌',
-          body: `طلب #${order.orderNumber} تم إلغاؤه`,
-          data: { orderId, screen: 'orders' },
-        });
         break;
       }
     }

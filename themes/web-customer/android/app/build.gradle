@@ -5,11 +5,11 @@ android {
     namespace = "com.samougo.customer"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.samouquick.customer"
+        applicationId "com.samougo.customer"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode = (System.getenv("SAMOU_VERSION_CODE") ?: "11").toInteger()
-        versionName = (System.getenv("SAMOU_VERSION_NAME") ?: "1.0.10")
+        versionCode = (System.getenv("SAMOU_VERSION_CODE") ?: "38").toInteger()
+        versionName = (System.getenv("SAMOU_VERSION_NAME") ?: "1.0.37")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

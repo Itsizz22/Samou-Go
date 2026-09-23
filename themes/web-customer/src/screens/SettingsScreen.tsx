@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { NotificationPreferences } from '@/components/NotificationPreferences';
+import { FullScreenAlertSettings } from '@/components/FullScreenAlertSettings';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 /**
  * Samou' Go — `/settings`.
@@ -245,6 +246,7 @@ export function SettingsScreen() {
         )}
 
         <NotificationPreferences />
+        {(user?.role === 'STORE_MANAGER' || user?.role === 'CAPTAIN') && <FullScreenAlertSettings />}
 
         <SettingsRow
           icon={Phone}
