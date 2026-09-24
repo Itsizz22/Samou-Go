@@ -42,8 +42,19 @@ function revealOnScroll(root = document) {
   }
 }
 revealOnScroll();
+// An illustrative journey, played once. It never represents a live order.
+const journeyDemo = document.querySelector('.tracking-demo');
+const journeyObserver = journeyDemo && !reducedMotion.matches && 'IntersectionObserver' in window
+  ? new IntersectionObserver(entries => {
+    if (entries.some(entry => entry.isIntersecting)) {
+      journeyDemo.classList.add('journey-played');
+      journeyObserver.disconnect();
+    }
+  }, { threshold: 0.35 }) : null;
+journeyObserver?.observe(journeyDemo);
 reducedMotion.addEventListener('change', () => {
   if (reducedMotion.matches) {
+    journeyObserver?.disconnect();
     revealObserver?.disconnect();
     document.querySelectorAll('.reveal-pending').forEach(element => element.classList.remove('reveal-pending'));
   }

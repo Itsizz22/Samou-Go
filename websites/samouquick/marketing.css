@@ -74,4 +74,35 @@
 @media(max-width:1000px){.header-nav{gap:16px;font-size:14px}.header-inner{gap:16px}.about-strip{gap:28px}}
 @media(max-width:700px){.hero-copy .eyebrow{font-size:12px;margin-block-end:16px}.tech-visual .hero-orbit{width:94%}.tech-visual:before{inset-inline:0;transform:rotate(4deg)}.about-strip{grid-template-columns:1fr;gap:20px;padding-block-start:24px;margin-block-start:24px}.about-message h3{font-size:23px}.about-strip .trust{gap:8px 16px}.header-nav a:after{display:none}}
 
+/* Catalogue accents frame the real screen without hiding its controls. */
+.hero-product{position:absolute;width:132px;background:var(--white);padding:6px;border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 28px rgb(20 63 52 / .12);z-index:2;margin:0}
+.hero-product img{width:100%;height:auto;aspect-ratio:1;object-fit:cover;border-radius:12px;display:block}
+.hero-product figcaption{padding:8px 3px 3px;font-size:15px;font-weight:800;text-align:center}
+.hero-food{inset-inline-end:0;inset-block-start:18%;transform:rotate(-7deg)}
+.hero-coffee{inset-inline-start:0;inset-block-end:20%;transform:rotate(7deg);width:112px}
+.hero-visual{padding-block-end:64px}
+.hero-visual .visual-caption{inset-block-end:0;inset-inline-end:50%;transform:translateX(-50%);white-space:nowrap}
+.screen-gallery figcaption small{display:block;font-size:15px;line-height:1.7;font-weight:400;color:var(--muted);max-width:27ch;margin:10px auto 0}
+.button>span[aria-hidden],.text-link>span[aria-hidden]{display:inline-block;transition:transform .2s ease}
+.button:hover>span[aria-hidden],.button:focus-visible>span[aria-hidden]{transform:translate(-3px,2px)}
+.text-link:hover>span[aria-hidden]{transform:translate(2px,-2px)}
+.button:active{transform:translateY(2px);box-shadow:none}
+.journey li:not(:last-child):after{content:'';position:absolute;inset-inline-start:21px;top:48px;bottom:4px;width:2px;background:var(--brand);transform-origin:top}
+@media(prefers-reduced-motion:no-preference){
+  .hero-product{animation:catalogue-enter .65s cubic-bezier(.2,.7,.3,1) both}
+  .hero-food{animation-delay:.12s}.hero-coffee{animation-delay:.24s}
+  .hero-phone{animation:phone-enter .65s ease-out both}
+  .journey-played li:not(:last-child):after{animation:journey-line .7s ease-out both}
+  .journey-played li:nth-child(2):after{animation-delay:.65s}
+  .journey-played .journey-icon{animation:journey-node .5s ease-out both}
+  .journey-played li:nth-child(2) .journey-icon{animation-delay:.65s}
+  .journey-played li:nth-child(3) .journey-icon{animation-delay:1.3s}
+}
+@keyframes catalogue-enter{from{opacity:0;translate:0 18px}to{opacity:1;translate:0 0}}
+@keyframes phone-enter{from{opacity:0;translate:0 12px}to{opacity:1;translate:0 0}}
+@keyframes journey-line{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes journey-node{from{box-shadow:0 0 0 0 rgb(0 119 93 / .2)}to{box-shadow:0 0 0 10px transparent}}
+@media(max-width:1100px) and (min-width:701px){.hero-product{width:105px}.hero-coffee{width:95px}}
+@media(max-width:700px){.hero-product{width:98px;border-radius:14px;padding:4px}.hero-coffee{width:85px;inset-block-end:22%}.hero-food{inset-block-start:14%}.hero-product figcaption{font-size:13px;padding-block:6px 2px}.hero-visual{padding-block-end:58px}.screen-gallery figcaption small{font-size:14px;margin-inline:0}}
+@media(max-width:350px){.hero-product{width:83px}.hero-coffee{width:76px}.screen-gallery figcaption small{font-size:13px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}.hero-phone{transform:none}.reveal-pending{opacity:1;transform:none}}
