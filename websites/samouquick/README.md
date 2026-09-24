@@ -1,51 +1,44 @@
 # Samou Quick public website
 
-Static, Arabic RTL download landing page at https://samouquick.com. This directory is independent of the mobile app, API, database and staff dashboards. Vercel project: `samou-go/samouquick-download`; project root directory: `websites/samouquick`; no install/build command; output `.`.
+Public Arabic RTL marketing site: https://www.samouquick.com. This is a standalone HTML/CSS/vanilla JS site; application logic remains in the monorepo workspaces.
 
-## Content and maintenance
+## Current state — 24 September 2026
 
-- `index.html`: coverage, hero, category discovery, benefits, five ordering steps, genuine UI screenshots (clearly labeled demo catalogue), existing supplied banners, Android download and footer.
-- `content/categories.json`: category names/descriptions and optional verified store names. `stores` is deliberately empty: do not invent partners or publish test businesses as real stores. Add only approved public store names as `{ "name": "..." }`.
-- Run `node websites/samouquick/scripts/render-categories.mjs` from the repo root after updating categories, then format the HTML. This produces static accessible disclosure cards; visitors make no API requests.
-- `privacy.html`, `terms.html`, `delete-account.html`: existing policy content, clearer navigation and page-specific metadata. Update policy text only after checking the applicable product behavior and approved wording.
-- `assets/app-home.webp` and `app-products.webp`: actual UI captures. Product screenshot uses demo data, disclosed next to the images. Replace with approved genuine merchant screenshots when available.
-- `assets/download-qr.svg`: standard QR for `https://samouquick.com/#download`. Keeps working when the APK changes. Desktop users scan it; mobile users get a direct download CTA.
-- Fonts are self-hosted Tajawal WOFF2, converted from the existing licensed TTF files. License: `assets/Tajawal-OFL.txt`.
+- Public downloads remain **closed by owner instruction**. `/downloads/:path*` redirects to `/#download`. No APK is included in deployment staging. Opening downloads requires an explicit release decision; the displayed launch date does not open them automatically.
+- Android and iPhone both display only “قريبًا” (coming soon). Public downloads remain closed.
+- `index.html` + `marketing.css` + `site.js` provide the homepage. Existing legal styles remain for legal pages.
+- A small representative store sample is derived from the anonymous public catalogue. No total store/coordinate counts, ratings or invented metrics are published.
+- `api/public-stores.js` is a website-only read adapter. It calls a fixed public GET endpoint without authentication. Projection permits only public name/type/logo/store URL/store coordinates. It accepts GET/HEAD, rejects mutations, has an 8-second shared timeout, and uses CDN caching (5 minutes + 10-minute stale window).
+- `content/stores.json` and generated HTML provide a genuine snapshot for crawlers/no-JS/failure. Runtime failures explicitly label it as a saved sample. Open/closed badges are omitted because cached data is not a reliable live opening-hours guarantee.
+- `content/map-config.json` is ignored by Git and generated during the Vercel build by `scripts/prepare-public-config.cjs` from the website project environment variable `VITE_MAPBOX_ACCESS_TOKEN`. It contains only the existing public `pk.` browser token, never a secret `sk.` token. Mapbox GL JS 3.30.0 and its CSS load only after the map button is pressed. Public store coordinates only; no geolocation, private pins, route API or tracking is called. An accessible store list remains available.
+- Real UI screenshots come from `outputs/public-showcase-2026-09-23`, captured from the application web UI. Website files are compressed WebP. No synthetic basket/tracking screens were added.
+- No advertising analytics or new tracking SDK is installed. Therefore there are no fictitious conversion-event integrations to claim.
 
-## Android download
+## Update public catalogue
 
-Existing artifact: version **1.0.32**, build **33**, package `com.samougo.customer`, approximately **13 MB**. Website-only edits do not rebuild or modify it. Replace the APK, version labels and filename together for future releases. iPhone is explicitly marked unavailable; no fake store badges or download links.
+With repository dependencies installed (Sharp is already available):
 
-## Interaction and security
+```powershell
+node websites/samouquick/scripts/sync-catalogue.cjs
+node --test websites/samouquick/tests/catalogue.test.cjs
+node --check websites/samouquick/site.js
+```
 
-Native category disclosure controls and screenshot scrolling work without JavaScript. Repeated carousel content has been consolidated into the screenshots/ordering journey and a compact forthcoming-parcels card. A native FAQ answers coverage, tracking, contact and iPhone questions. Reduced motion is respected; content is never hidden pending JavaScript. `style.css` retains the original design; `refinements.css` contains the focused landing-page improvements.
-
-The homepage has a mobile-only fixed download bar; reserved bottom space and scroll padding keep the footer reachable. Support hours confirmed by the owner: 10 AM to midnight.
-
-The existing Vercel CSP, HTTPS/security headers and download throttling remain in place. There are no forms, tracking cookies, API connections or third-party runtime scripts. Social, WhatsApp and phone links are explicit. Public legal pages stay on this domain.
+The sync reads public data, selects a small category-diverse sample, optimizes approved store logos, and updates the static HTML/snapshot. It fails without overwriting the snapshot if the catalogue is unavailable. Live updates use cached local logos only when the upstream logo URL is unchanged.
 
 ## Deployment
 
-Git deployment uses the repository root and the configured project root above. For CLI staging, copy public files into a staging root containing `websites/samouquick/`, and deploy that root with the existing Vercel project IDs. Do not deploy this folder as if it were the repository root, and do not upload unrelated repository files or secrets.
+Existing Vercel project: `samou-go/samouquick-download`, root directory `websites/samouquick`, framework Other, output `.`, no application build/install command. Keep that project root. Prepare a fresh isolated staging directory so unrelated repository files, APKs and secrets are never uploaded:
 
-## Verification
+```powershell
+node websites/samouquick/scripts/stage-release.cjs artifacts/marketing-release-next
+npx vercel --prod --yes --cwd artifacts/marketing-release-next --scope samou-go
+```
 
-See `AUDIT.md` for the review and local validation scope. Production verification must cover apex/www, legal links, optimized assets, QR and the unchanged APK download.
+The staging script requires the existing ignored `.vercel/project.json`. It never deletes/replaces a non-empty staging directory.
 
-## Launch countdown (current public state)
-The public download box is temporarily a coming-soon countdown. Launch instant: `2026-09-26T13:13:17Z`, fixed at fourteen days from the owner's request. All public APK CTA links now go to `/#download`; the existing APK artifact remains unchanged. The timer derives remaining time from the absolute timestamp on every tick, clamps at zero, and does not automatically publish a release. To change the date, edit `data-launch-at` and the visible date together in index.html. Countdown rendering has no external dependencies or backend calls.
+Keep `vercel.json` CSP and JSON-LD hash synchronized if editing the Organization data. `tests/catalogue.test.cjs` validates the hash. Mapbox is the only permitted remote script/style host. Existing HTTPS/frame/private-permission protections remain.
 
+## QA and report
 
-## Cinematic redesign — 13 September 2026 (published)
-The homepage now uses `cinematic.css`; the older stylesheets remain for the unchanged legal pages. The existing category renderer and category source remain compatible. Header, phone story, FAQ, footer, QR, and absolute launch countdown are retained/refined.
-
-`assets/hero-story.webm` is an eight-second, silent VP9 motion composition of the existing `hero.webp` asset (921,644 bytes), not new live delivery footage. The same image is the poster. Browsers without video support, reduced-motion users, and connections indicating data saving/2G/3G get the poster. A labeled pause/resume control is available; hidden/offscreen video pauses. Only this video is loaded. No new external tracking/animation libraries are used. CSP permits same-origin media only; other security restrictions remain.
-
-The current brief requests Android download functionality: the existing APK is linked again without changing/rebuilding the binary. Its exact size is 13,592,625 bytes. The official launch countdown still targets 26 September 2026 and does not automatically change availability. iPhone remains coming soon. No app-store badges or fabricated merchant/tracking data were added. The phone images remain the two genuine, clearly disclosed demo captures.
-
-Local QA passed at widths 320, 360, 375, 390, 430, 768, 1366, 1440 and 1920. Checked overflow, header transition, FAQ, countdown, APK HEAD, legal routes, console/network errors, video play/pause/offscreen behavior, reduced motion/save-data zero video requests, and no-JavaScript content/FAQ/download. Screenshots and check results are under ignored `artifacts/site-*` and `artifacts/cinematic-*`. Production TLS warning on other devices remains unconfirmed pending the user's warning screenshot; this redesign does not claim to fix it.
-
-Website-only production deployment: `dpl_4SonMgx7aanv1np3fRC4Eeq5bFSt`, deployed from an isolated public-files staging directory. Verified apex HTTPS 200, www HTTP 308 to HTTPS, and browser QA on production at 320/390/1440px: legal pages, FAQ, media policy, download HEAD, countdown and no console errors. Application code, API/schema changes and APK binary were not deployed or rebuilt.
-
-## Current release gate — 13 September 2026 correction
-Public downloads are CLOSED until the owner explicitly authorizes launch. All CTAs lead to the fixed countdown. No APK file is included in the deployed staging directory, and `/downloads/:path*` redirects temporarily to `/#download`. Do not include the local downloads directory in staging. The mistaken deployment `dpl_4SonMgx7aanv1np3fRC4Eeq5bFSt` was deleted. Correct production deployment: `dpl_5ceJZdoVCrdtNpVxz4S64v1VAtVt`. Apex and www verified: countdown present, no APK link, old APK URL returns 307. At the owner's request, the FAQ states iPhone will be available at launch; this is launch copy, not verification of an iOS release.
+See `REPORT-2026-09-24.md` for the complete before/after report, deployment ID, verification and remaining limits. Browser QA evidence and screenshots are in ignored `artifacts/marketing-qa/`.

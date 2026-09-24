@@ -1,104 +1,128 @@
-// Public-site enhancements. No app/API state or external requests.
-const motion = matchMedia('(prefers-reduced-motion: reduce)');
-const header = document.querySelector('.site-header');
-let scrollFrame = 0;
-function updateHeader() {
-  if (scrollFrame) return;
-  scrollFrame = requestAnimationFrame(() => {
-    header?.classList.toggle('scrolled', scrollY > 40);
-    scrollFrame = 0;
-  });
+// Public marketing only. No auth, ordering, tracking or application state.
+document.documentElement.classList.add('js');
+const nav = document.querySelector('#main-nav');
+const menu = document.querySelector('.menu-toggle');
+if (menu && nav) {
+  menu.hidden = false;
+  const closeMenu = () => { nav.classList.remove('open'); menu.setAttribute('aria-expanded', 'false'); };
+  menu.addEventListener('click', () => { const open = menu.getAttribute('aria-expanded') !== 'true'; menu.setAttribute('aria-expanded', String(open)); nav.classList.toggle('open', open); });
+  nav.addEventListener('click', event => { if (event.target.closest('a')) closeMenu(); });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && nav.classList.contains('open')) { closeMenu(); menu.focus(); } });
+  document.addEventListener('click', event => { if (!event.target.closest('.site-header')) closeMenu(); });
 }
-window.addEventListener('scroll', updateHeader, { passive: true });
-updateHeader();
-if ('IntersectionObserver' in window) {
-  document.body.classList.add('motion-ready');
-  const reveal = new IntersectionObserver(entries => {
-    for (const entry of entries) if (entry.isIntersecting) {
-      entry.target.classList.remove('pending'); reveal.unobserve(entry.target);
+const sticky = document.querySelector('.mobile-download');
+if (sticky && 'IntersectionObserver' in window) {
+  let atDownload = false, atFooter = false;
+  const observer = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (entry.target.id === 'download') atDownload = entry.isIntersecting;
+      else atFooter = entry.isIntersecting;
     }
-  }, { threshold: 0.08 });
-  if (!motion.matches) document.querySelectorAll('.reveal').forEach(el => {
-    el.classList.add('pending'); reveal.observe(el);
-  });
-  const phone = document.querySelector('.story-phone-wrap');
-  const steps = new IntersectionObserver(entries => {
-    for (const entry of entries) if (entry.isIntersecting && phone) phone.dataset.active = entry.target.dataset.step;
-  }, { rootMargin: '-25% 0px -25% 0px', threshold: 0.15 });
-  document.querySelectorAll('.story-step').forEach(el => steps.observe(el));
-  const stickyDownload = document.querySelector('.mobile-download');
-  const download = document.querySelector('#download');
-  if (download && stickyDownload) new IntersectionObserver(entries => {
-    stickyDownload.classList.toggle('is-hidden', entries[0].isIntersecting);
-  }, { threshold: 0.1 }).observe(download);
+    sticky.hidden = atDownload || atFooter;
+  }, { threshold: 0, rootMargin: '0px 0px 100px 0px' });
+  observer.observe(document.querySelector('#download'));
+  observer.observe(document.querySelector('.site-footer'));
+  sticky.hidden = false;
 }
-
-const video = document.querySelector('.hero-video');
-const toggle = document.querySelector('.motion-control');
-const connection = navigator.connection;
-let heroVisible = true;
-let userPaused = false;
-const conserve = () => motion.matches || connection?.saveData || ['slow-2g', '2g', '3g'].includes(connection?.effectiveType);
-function syncVideo() {
-  if (!video) return;
-  if (conserve()) {
-    video.pause(); video.removeAttribute('src'); video.load();
-    if (toggle) toggle.hidden = true;
-    return;
+const grid = document.querySelector('#store-grid');
+const filters = document.querySelector('.category-strip');
+const catalogueStatus = document.querySelector('#catalogue-status');
+let selectedCategory = 'all';
+let catalogue;
+function applyFilter() {
+  for (const card of grid.querySelectorAll('.store-card')) card.hidden = selectedCategory !== 'all' && card.dataset.category !== selectedCategory;
+  for (const button of filters.querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.filter === selectedCategory));
+}
+filters.hidden = false;
+filters.addEventListener('click', event => { const button = event.target.closest('[data-filter]'); if (button) { selectedCategory = button.dataset.filter; applyFilter(); } });
+function externalLink(href, text) { const a = document.createElement('a'); a.href = href; a.textContent = text; a.target = '_blank'; a.rel = 'noopener noreferrer'; return a; }
+function safeStore(s) {
+  return s && /^[a-zA-Z0-9_-]{1,100}$/.test(s.id) && typeof s.name === 'string' && typeof s.category === 'string' && s.href === `https://samou-go-customer.vercel.app/stores/${s.id}`;
+}
+function renderCatalogue(data, snapshot) {
+  catalogue = data.stores.filter(safeStore).slice(0, 6);
+  const fragment = document.createDocumentFragment();
+  for (const s of catalogue) {
+    const a = externalLink(s.href, ''); a.className = 'store-card'; a.dataset.category = s.category; a.dataset.store = s.id;
+    const logo = document.createElement('span'); logo.className = 'store-logo'; logo.textContent = s.name.slice(0,1);
+    // The server projection allowlists this origin; never trust arbitrary URLs.
+    const imagePath = /^\/assets\/stores\/[\w-]+\.webp$/.test(s.localLogo || '') ? s.localLogo : s.logo;
+    if (imagePath && (imagePath.startsWith('/assets/stores/') || imagePath.startsWith('https://samou-go.onrender.com/uploads/store/'))) {
+      const img = new Image(80, 80); img.alt = ''; img.loading = 'lazy'; img.decoding = 'async'; img.src = imagePath;
+      img.addEventListener('error', () => { logo.textContent = s.name.slice(0,1); }, { once:true }); logo.replaceChildren(img);
+    }
+    const copy = document.createElement('span'); copy.className='store-copy';
+    const title = document.createElement('strong'); title.textContent=s.name;
+    const category = document.createElement('span'); category.textContent=s.category; copy.append(title,category);
+    const arrow = document.createElement('span'); arrow.className='store-arrow'; arrow.textContent='↗'; arrow.setAttribute('aria-hidden','true');
+    const hint = document.createElement('span'); hint.className='sr-only'; hint.textContent=' — استعرض المتجر في التطبيق، يفتح في نافذة جديدة';
+    a.append(logo,copy,arrow,hint); fragment.append(a);
   }
-  if (!video.getAttribute('src')) video.src = video.dataset.source;
-  if (document.hidden || !heroVisible || userPaused) { video.pause(); return; }
-  video.play().then(() => { if (toggle) toggle.hidden = false; }).catch(() => { if (toggle) toggle.hidden = true; });
+  grid.replaceChildren(fragment);
+  const cats = ['all',...new Set(catalogue.map(s=>s.category))];
+  if(!cats.includes(selectedCategory)) selectedCategory='all';
+  filters.replaceChildren(...cats.map(c => { const b=document.createElement('button'); b.type='button';b.dataset.filter=c;b.textContent=c==='all'?'الكل':c;return b; }));
+  filters.hidden=catalogue.length===0;
+  applyFilter();
+  catalogueStatus.textContent = !catalogue.length ? 'لا توجد متاجر متاحة للعرض الآن. جرّب لاحقًا أو تواصل مع الدعم.' : snapshot ? 'عينة محفوظة من الكتالوج العام؛ راجع التطبيق لمعرفة المتاح الآن.' : 'عينة من الكتالوج العام؛ راجع التطبيق لمعرفة المتاح والأسعار الحالية.';
+  const list=document.querySelector('#map-store-list'); list.replaceChildren();
+  for(const s of locatedStores()) { const li=document.createElement('li');li.append(externalLink(s.href,s.name));list.append(li); }
+  if(!list.children.length){const li=document.createElement('li');li.textContent='لا تتوفر مواقع مسجلة لهذه العينة حاليًا.';list.append(li);}
 }
-if (video) {
-  // Poster is the complete fallback when motion/data saving/autoplay prevents video.
-  if ('IntersectionObserver' in window) new IntersectionObserver(entries => {
-    heroVisible = entries[0].isIntersecting; syncVideo();
-  }, { threshold: 0.05 }).observe(video);
-  video.addEventListener('error', () => { if (toggle) toggle.hidden = true; });
-  toggle?.addEventListener('click', () => {
-    userPaused = !userPaused;
-    toggle.textContent = userPaused ? 'تشغيل الحركة' : 'إيقاف الحركة';
-    toggle.setAttribute('aria-label', userPaused ? 'تشغيل حركة الخلفية' : 'إيقاف حركة الخلفية');
-    syncVideo();
+function locatedStores() { return (catalogue || []).filter(s=>Array.isArray(s.position) && s.position.length===2 && s.position.every(Number.isFinite) && s.position[0]>=35.01 && s.position[0]<=35.13 && s.position[1]>=31.34 && s.position[1]<=31.46); }
+async function readJSON(url) { const res=await fetch(url,{credentials:'omit',signal:AbortSignal.timeout(12000)});if(!res.ok)throw Error('Unavailable');return res.json(); }
+// Live updates preserve a crawlable, genuine snapshot when a connection fails.
+const catalogueReady = (async()=> {
+  try { const data = await readJSON('/api/public-stores'); if(!Array.isArray(data.stores))throw Error('Invalid response'); renderCatalogue(data,false); }
+  catch { try { renderCatalogue(await readJSON('/content/stores.json'),true); } catch { catalogueStatus.textContent='تعذر تحديث المتاجر؛ القائمة محفوظة من الكتالوج العام.'; } }
+})();
+const loadMap = document.querySelector('#load-map');
+const mapStatus = document.querySelector('#map-status');
+const mapPlaceholder = document.querySelector('.map-placeholder');
+let map;
+function loadMapLibrary() {
+  if(window.mapboxgl)return Promise.resolve();
+  return new Promise((resolve,reject)=>{
+    const css=document.createElement('link');css.rel='stylesheet';css.href='https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.css';document.head.append(css);
+    const script=document.createElement('script');script.src='https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.js';script.async=true;script.onload=resolve;script.onerror=()=>{script.remove();css.remove();reject(Error('Library unavailable'));};document.head.append(script);
   });
-  document.addEventListener('visibilitychange', syncVideo);
-  motion.addEventListener('change', () => {
-    if (motion.matches) document.querySelectorAll('.reveal.pending').forEach(el => el.classList.remove('pending'));
-    syncVideo();
-  });
-  connection?.addEventListener('change', syncVideo);
-  syncVideo();
 }
-
-// One fixed launch instant for every visitor; reloads never restart the timer.
-const launchCard = document.querySelector("[data-launch-at]");
-if (launchCard) {
-  const deadline = Date.parse(launchCard.dataset.launchAt);
-  let timer;
-  const renderCountdown = () => {
-    const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-    const values = {
-      days: Math.floor(remaining / 86400),
-      hours: Math.floor(remaining / 3600) % 24,
-      minutes: Math.floor(remaining / 60) % 60,
-      seconds: remaining % 60,
-    };
-    for (const [unit, value] of Object.entries(values))
-      launchCard.querySelector(`[data-unit="${unit}"]`).textContent = String(
-        value,
-      ).padStart(2, "0");
-    if (remaining === 0) {
-      launchCard.querySelector(".launch-status").textContent =
-        "وصلنا إلى موعد الإطلاق. تابع صفحاتنا لمعرفة آخر إعلان.";
-      launchCard.querySelector("h3").textContent = "حان موعدنا";
-      clearInterval(timer);
+loadMap.addEventListener('click',async()=>{
+  loadMap.disabled=true;mapStatus.textContent='جارٍ تحميل الخريطة…';
+  try {
+    await catalogueReady;
+    const stores=locatedStores();if(!stores.length)throw Error('No public positions');
+    const config=await readJSON('/content/map-config.json');if(!/^pk\./.test(config.publicToken || ''))throw Error('No public token');
+    await loadMapLibrary();
+    if(!window.mapboxgl.supported())throw Error('WebGL unavailable');
+    const mb=window.mapboxgl;
+    if(mb.getRTLTextPluginStatus()==='unavailable')mb.setRTLTextPlugin('https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js',undefined,true);
+    const host=document.querySelector('#store-map');host.replaceChildren();
+    map=new mb.Map({container:host,accessToken:config.publicToken,style:'mapbox://styles/mapbox/streets-v12',center:stores[0].position,zoom:14,attributionControl:false,scrollZoom:false,cooperativeGestures:true,locale:{'NavigationControl.ZoomIn':'تكبير','NavigationControl.ZoomOut':'تصغير','Map.Title':'خريطة متاجر السموع','Popup.Close':'إغلاق معلومات المتجر','AttributionControl.ToggleAttribution':'إظهار مصادر الخريطة','TouchPanBlocker.Message':'استخدم إصبعين لتحريك الخريطة'}});
+    map.addControl(new mb.AttributionControl({compact:true}),'bottom-right');
+    map.addControl(new mb.NavigationControl({showCompass:false}),'top-left');
+    const bounds=new mb.LngLatBounds();
+    let activePopup;
+    for(const s of stores){
+      bounds.extend(s.position);
+      const pin=document.createElement('button');pin.type='button';pin.className='store-pin';pin.textContent=s.name.slice(0,1);pin.setAttribute('aria-label',s.name);
+      const content=document.createElement('div');const title=document.createElement('strong');title.textContent=s.name;content.append(title,externalLink(s.href,'استعرض المتجر ↗'));
+      const popup=new mb.Popup({offset:26,focusAfterOpen:true}).setDOMContent(content);
+      popup.on('open',()=>{
+        if(activePopup && activePopup !== popup)activePopup.remove();activePopup=popup;
+        popup.getElement()?.querySelector('.mapboxgl-popup-close-button')?.setAttribute('aria-label','إغلاق معلومات المتجر');
+      });
+      new mb.Marker({element:pin,anchor:'center'}).setLngLat(s.position).setPopup(popup).addTo(map);
     }
-    return remaining;
-  };
-  if (Number.isFinite(deadline) && renderCountdown() > 0)
-    timer = setInterval(renderCountdown, 1000);
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) renderCountdown();
-  });
-}
+    map.fitBounds(bounds,{padding:55,maxZoom:15,duration:0});
+    map.on('load',()=>{
+      mapStatus.textContent='مواقع المتاجر المسجلة؛ اضغط علامة المتجر لاستعراضه.';
+    });
+    map.on('error',()=>{mapStatus.textContent='تعذر تحميل جزء من الخريطة. أسماء المتاجر وروابطها متاحة بجانبها.';});
+  } catch {
+    map?.remove(); map = undefined;
+    document.querySelector('#store-map').replaceChildren(mapPlaceholder);
+    mapStatus.textContent='تعذر عرض الخريطة الآن. يمكنك تصفح المتاجر وروابطها أو المحاولة مجددًا.';loadMap.disabled=false;
+  }
+});
+// No analytics SDK or tracking cookies are introduced.
