@@ -8,10 +8,10 @@ Public Arabic RTL marketing site: https://www.samouquick.com. This is a standalo
 - Android and iPhone both display only “قريبًا” (coming soon). Public downloads remain closed.
 - `index.html` + `marketing.css` + `site.js` provide the homepage. Existing legal styles remain for legal pages.
 - A small representative store sample is derived from the anonymous public catalogue. No total store/coordinate counts, ratings or invented metrics are published.
-- `api/public-stores.js` is a website-only read adapter. It calls a fixed public GET endpoint without authentication. Projection permits only public name/type/logo/store URL/store coordinates. It accepts GET/HEAD, rejects mutations, has an 8-second shared timeout, and uses CDN caching (5 minutes + 10-minute stale window).
+- `api/public-stores.js` is a website-only read adapter. It calls a fixed public GET endpoint without authentication. Projection permits only public store data; internal app destinations are excluded. Cards are non-navigating articles. It accepts GET/HEAD, rejects mutations, has an 8-second shared timeout, and uses CDN caching (5 minutes + 10-minute stale window).
 - `content/stores.json` and generated HTML provide a genuine snapshot for crawlers/no-JS/failure. Runtime failures explicitly label it as a saved sample. Open/closed badges are omitted because cached data is not a reliable live opening-hours guarantee.
-- `content/map-config.json` is ignored by Git and generated during the Vercel build by `scripts/prepare-public-config.cjs` from the website project environment variable `VITE_MAPBOX_ACCESS_TOKEN`. It contains only the existing public `pk.` browser token, never a secret `sk.` token. Mapbox GL JS 3.30.0 and its CSS load only after the map button is pressed. Public store coordinates only; no geolocation, private pins, route API or tracking is called. An accessible store list remains available.
-- Real UI screenshots come from `outputs/public-showcase-2026-09-23`, captured from the application web UI. Website files are compressed WebP. No synthetic basket/tracking screens were added.
+- The public map was removed by owner request. No Mapbox scripts, map configuration or map credentials are shipped. Existing application maps are unaffected.
+- Real UI screenshots come from `outputs/public-showcase-2026-09-23`, captured from the application web UI. Website files are compressed WebP. The tracking illustration uses the existing product timeline concept and is labelled illustrative; it contains no order, route, ETA or personal data.
 - No advertising analytics or new tracking SDK is installed. Therefore there are no fictitious conversion-event integrations to claim.
 
 ## Update public catalogue
@@ -42,3 +42,11 @@ Keep `vercel.json` CSP and JSON-LD hash synchronized if editing the Organization
 ## QA and report
 
 See `REPORT-2026-09-24.md` for the complete before/after report, deployment ID, verification and remaining limits. Browser QA evidence and screenshots are in ignored `artifacts/marketing-qa/`.
+
+## Final polish and owner clarifications
+
+- Keep every screenshot and category visible without horizontal swiping. Mobile screenshots stack vertically.
+- Keep launch/download closed and show “قريبًا” for both platforms.
+- Do not expose or link internal deployment domains in HTML, JS or catalogue responses.
+- Use small one-time scroll reveals with IntersectionObserver; respect reduced motion and keyboard focus. No continuous motion.
+- See `POLISH-REPORT-2026-09-24.md` for verification and final deployment.

@@ -23,7 +23,6 @@ const root = path.resolve(__dirname, '..');
   html=html.replace(/<!-- STORES:START -->[\s\S]*?<!-- STORES:END -->/,`<!-- STORES:START -->\n${catalogue.stores.map(storeMarkup).join('\n')}\n<!-- STORES:END -->`);
   const categories=[...new Set(catalogue.stores.map(s=>s.category))];
   html=html.replace(/<!-- FILTERS:START -->[\s\S]*?<!-- FILTERS:END -->/,`<!-- FILTERS:START --><button type="button" data-filter="all" aria-pressed="true">الكل</button>${categories.map(c=>`<button type="button" data-filter="${escapeHtml(c)}" aria-pressed="false">${escapeHtml(c)}</button>`).join('')}<!-- FILTERS:END -->`);
-  html=html.replace(/<!-- MAPLIST:START -->[\s\S]*?<!-- MAPLIST:END -->/,`<!-- MAPLIST:START -->${catalogue.stores.filter(s=>s.position).map(s=>`<li><a href="${escapeHtml(s.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.name)}</a></li>`).join('')}<!-- MAPLIST:END -->`);
   await fs.writeFile(path.join(root,'index.html'),html);
   console.log(`Public catalogue synced: ${catalogue.stores.length} stores; ${catalogue.stores.filter(s=>s.position).length} public map locations.`);
 })().catch(e=>{console.error(e.message);process.exitCode=1});

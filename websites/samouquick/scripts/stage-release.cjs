@@ -15,8 +15,6 @@ for (const file of ['index.html','marketing.css','fonts.css','site.js','privacy.
   fs.copyFileSync(path.join(root,file),path.join(dest,file));
 }
 for (const dir of ['api','lib','content']) fs.cpSync(path.join(root,dir),path.join(dest,dir),{recursive:true,filter:source=>path.basename(source)!=='map-config.json'});
-fs.mkdirSync(path.join(dest,'scripts'),{recursive:true});
-fs.copyFileSync(path.join(root,'scripts/prepare-public-config.cjs'),path.join(dest,'scripts/prepare-public-config.cjs'));
 fs.mkdirSync(path.join(dest,'assets'),{recursive:true});
 for (const file of fs.readdirSync(path.join(root,'assets'))) {
   if (/\.(webp|woff2|svg|txt)$/.test(file)) fs.copyFileSync(path.join(root,'assets',file),path.join(dest,'assets',file));

@@ -3,7 +3,7 @@ const {test}=require('node:test');
 const {projectStore,selectSample,fetchCatalogue,storeMarkup}=require('../lib/catalogue.cjs');
 test('public projection never includes identity, contact, private tracking or ratings',()=>{
  const s=projectStore({id:'real-store',nameAr:'متجر',storeType:'CAFE',latitude:31.39,longitude:35.07,logoUrl:'https://samou-go.onrender.com/uploads/store/real-store/logo.webp',managerId:'private',phone:'secret',captainLocation:[1,2],rating:5});
- assert.deepEqual(Object.keys(s).sort(),['category','href','id','logo','name','position']);assert.deepEqual(s.position,[35.07,31.39]);
+ assert.deepEqual(Object.keys(s).sort(),['category','id','logo','name','position']);assert.deepEqual(s.position,[35.07,31.39]);
 });
 test('invalid coordinates and unsafe media cannot become map pins or scripts',()=>{
  for(const position of [[null,null],[0,0],[31.39,1],[NaN,35.07],['31.39','35.07']])assert.equal(projectStore({id:'store',nameAr:'متجر',latitude:position[0],longitude:position[1],logoUrl:'javascript:alert(1)'}).position,null);
@@ -36,4 +36,12 @@ test('homepage has closed download gate, real routes and no fabricated stores',(
  const schema=html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1];
  const hash=require('node:crypto').createHash('sha256').update(schema).digest('base64');
  assert.ok(config.headers[0].headers.find(h=>h.key==='Content-Security-Policy').value.includes(hash));
+});
+
+test('public website never exposes internal deployment destinations',()=>{
+ const fs=require('node:fs');const path=require('node:path');const root=path.resolve(__dirname,'..');
+ for(const name of ['index.html','site.js','delete-account.html','content/stores.json','lib/catalogue.cjs'])assert.ok(!fs.readFileSync(path.join(root,name),'utf8').includes('vercel.app'),name);
+ const projected=projectStore({id:'real',nameAr:'متجر',href:'https://private.example',url:'https://private.example'});
+ assert.equal(projected.href,undefined);assert.equal(projected.url,undefined);
+ assert.ok(!storeMarkup({...projected,href:'https://private.example'}).includes('href='));
 });

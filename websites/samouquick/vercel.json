@@ -5,7 +5,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'none'; script-src 'self' https://api.mapbox.com 'sha256-Q1WWk9xIZLUq5Ya29zRWpm5JpHfNkpWDmjCgTRlsfEc='; style-src 'self' https://api.mapbox.com 'unsafe-inline'; img-src 'self' data: blob: https://samou-go.onrender.com https://api.mapbox.com; font-src 'self'; connect-src 'self' https://api.mapbox.com https://events.mapbox.com; media-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests; object-src 'none'; frame-src 'none'; worker-src blob:; manifest-src 'self'"
+          "value": "default-src 'none'; script-src 'self' 'sha256-Q1WWk9xIZLUq5Ya29zRWpm5JpHfNkpWDmjCgTRlsfEc='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://samou-go.onrender.com; font-src 'self'; connect-src 'self'; media-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests; object-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'self'"
         },
         {
           "key": "X-Content-Type-Options",
@@ -63,6 +63,5 @@
       "destination": "/support",
       "permanent": false
     }
-  ],
-  "buildCommand": "node scripts/prepare-public-config.cjs"
+  ]
 }
