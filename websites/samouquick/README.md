@@ -50,3 +50,11 @@ See `REPORT-2026-09-24.md` for the complete before/after report, deployment ID, 
 - Do not expose or link internal deployment domains in HTML, JS or catalogue responses.
 - Use small one-time scroll reveals with IntersectionObserver; respect reduced motion and keyboard focus. No continuous motion.
 - See `POLISH-REPORT-2026-09-24.md` for verification and final deployment.
+
+## One-page direction — 24 September 2026
+
+The owner's subsequent prompt selected a single-page experience. The 25 supplied styles were sampled with Node `crypto.randomInt(25)`; zero-based result 18 selected **Tech Forward**. `DESIGN-PROMPT.md` contains the adapted brief in exactly three paragraphs. Branding, actual screenshots and existing product claims remain unchanged.
+
+Implemented restrained geometric framing, precise button/navigation details, an inline about block, and in-page navigation to stores, how it works, about and contact. No separate about/services/contact marketing pages were published. The no-map, no-horizontal-swipe, no-internal-app-links and closed-download constraints remain in effect.
+
+Validation: eight existing catalogue/privacy/launch tests passed; CSS parsed successfully. Responsive checks at 320, 390, 768, 1024 and 1440px found no horizontal overflow or missing anchor targets. No application workspaces were modified by this website change.
