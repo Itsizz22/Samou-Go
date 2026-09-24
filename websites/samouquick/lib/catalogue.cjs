@@ -3,13 +3,11 @@ const API = 'https://samou-go.onrender.com/api/v1/stores';
 const labels = { RESTAURANT: 'مطاعم', CAFE: 'كافيهات', BAKERY_SWEETS: 'حلويات ومخابز', STORE: 'متاجر' };
 function projectStore(row) {
   if (!row || typeof row.id !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(row.id) || typeof row.nameAr !== 'string' || !row.nameAr.trim()) return null;
-  const store = { id: row.id, name: row.nameAr.slice(0,120), category: labels[row.storeType] || 'متاجر', logo: null, position: null };
+  const store = { id: row.id, name: row.nameAr.slice(0,120), category: labels[row.storeType] || 'متاجر', logo: null };
   try {
     const url = new URL(row.logoUrl);
     if (url.origin === 'https://samou-go.onrender.com' && url.pathname.startsWith('/uploads/store/')) store.logo = url.href;
   } catch { /* An absent image gets a typographic fallback. */ }
-  // A local map, never arbitrary coordinates or personal locations.
-  if (typeof row.latitude === 'number' && typeof row.longitude === 'number' && row.latitude >= 31.34 && row.latitude <= 31.46 && row.longitude >= 35.01 && row.longitude <= 35.13) store.position = [row.longitude, row.latitude];
   return store;
 }
 async function fetchCatalogue(fetcher = fetch) {

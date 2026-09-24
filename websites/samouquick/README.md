@@ -4,6 +4,8 @@ Public Arabic RTL marketing site: https://www.samouquick.com. This is a standalo
 
 ## Current state — 24 September 2026
 
+- Category discovery filters the real store sample in-page. Pickup has a dedicated explanation and merchant/captain recruitment uses separate messages to the existing WhatsApp support number. All public catalogue coordinates are omitted. See `FEATURE-REPORT-2026-09-24.md` for verification details.
+
 - Public downloads remain **closed by owner instruction**. `/downloads/:path*` redirects to `/#download`. No APK is included in deployment staging. Opening downloads requires an explicit release decision; the displayed launch date does not open them automatically.
 - Android and iPhone both display only “قريبًا” (coming soon). Public downloads remain closed.
 - `index.html` + `marketing.css` + `site.js` provide the homepage. Existing legal styles remain for legal pages.

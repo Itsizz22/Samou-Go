@@ -24,5 +24,5 @@ const root = path.resolve(__dirname, '..');
   const categories=[...new Set(catalogue.stores.map(s=>s.category))];
   html=html.replace(/<!-- FILTERS:START -->[\s\S]*?<!-- FILTERS:END -->/,`<!-- FILTERS:START --><button type="button" data-filter="all" aria-pressed="true">الكل</button>${categories.map(c=>`<button type="button" data-filter="${escapeHtml(c)}" aria-pressed="false">${escapeHtml(c)}</button>`).join('')}<!-- FILTERS:END -->`);
   await fs.writeFile(path.join(root,'index.html'),html);
-  console.log(`Public catalogue synced: ${catalogue.stores.length} stores; ${catalogue.stores.filter(s=>s.position).length} public map locations.`);
+  console.log(`Public catalogue synced: ${catalogue.stores.length} stores.`);
 })().catch(e=>{console.error(e.message);process.exitCode=1});

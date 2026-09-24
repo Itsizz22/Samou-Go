@@ -6,7 +6,6 @@
       "name": "اللوتس للعطور",
       "category": "متاجر",
       "logo": "https://samou-go.onrender.com/uploads/store/cmtys06vp000iqp2sbclyr78n/9da463b5-33cf-46fe-bd2d-c55c66b90331.webp",
-      "position": null,
       "localLogo": "/assets/stores/cmtys06vp000iqp2sbclyr78n.webp"
     },
     {
@@ -14,10 +13,6 @@
       "name": "بيتزا العائلة",
       "category": "مطاعم",
       "logo": "https://samou-go.onrender.com/uploads/store/cmtys1xv2000oqp2s0711e130/c0e37707-2a15-4f85-ba62-1919b395da18-responsive.webp",
-      "position": [
-        35.073293,
-        31.3916005
-      ],
       "localLogo": "/assets/stores/cmtys1xv2000oqp2s0711e130.webp"
     },
     {
@@ -25,10 +20,6 @@
       "name": "بُص كافيه",
       "category": "كافيهات",
       "logo": "https://samou-go.onrender.com/uploads/store/cmu77xenn008qmc2ta58fnziv/b43bf7bb-6037-4bb7-94d9-6b96d2a2abcc-responsive.webp",
-      "position": [
-        35.0707802836786,
-        31.39100755283395
-      ],
       "localLogo": "/assets/stores/cmu77xenn008qmc2ta58fnziv.webp"
     },
     {
@@ -36,10 +27,6 @@
       "name": "حلويات الملكي",
       "category": "حلويات ومخابز",
       "logo": "https://samou-go.onrender.com/uploads/store/cmu75ojws008fmc2t3t2rufko/cdbcb6f4-43d9-464b-a861-0a5e2489ce95-responsive.webp",
-      "position": [
-        35.07058605706845,
-        31.39539593799574
-      ],
       "localLogo": "/assets/stores/cmu75ojws008fmc2t3t2rufko.webp"
     },
     {
@@ -47,7 +34,6 @@
       "name": "ايكون موبايل",
       "category": "متاجر",
       "logo": "https://samou-go.onrender.com/uploads/store/cmtyrw5p6000cqp2s98kkhayk/7f1f8219-3102-4c73-b50c-2d5fdfb0327f.webp",
-      "position": null,
       "localLogo": "/assets/stores/cmtyrw5p6000cqp2s98kkhayk.webp"
     },
     {
@@ -55,10 +41,6 @@
       "name": "شاورما علي",
       "category": "مطاعم",
       "logo": "https://samou-go.onrender.com/uploads/store/cmu9vez970079ko2saf0waoof/f3591896-aee5-432d-af7a-d7dbbcf8bda3-responsive.webp",
-      "position": [
-        35.06692327628517,
-        31.40217761068985
-      ],
       "localLogo": "/assets/stores/cmu9vez970079ko2saf0waoof.webp"
     }
   ]
