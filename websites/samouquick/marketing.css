@@ -191,11 +191,9 @@ body{font-size:18px}
   .button:hover { transform: translateY(-3px); box-shadow: 0 12px 22px -16px var(--deep); }
   .steps>li:hover>span { color: var(--brand); transform: translateY(-4px); }
 }
-.khayal-ad { display:grid; grid-template-columns:1fr minmax(0,360px); align-items:center; gap:40px; max-width:850px; margin:0 auto 64px; padding:32px; border-radius:24px; background:var(--paper, #fff); border:1px solid var(--line, #d5dfd7); }
-.khayal-ad h3 { font-size:clamp(28px,4vw,42px); line-height:1.4; margin-block:12px; }
-.khayal-ad p { line-height:1.9; }
-.khayal-ad video { display:block; width:100%; height:auto; aspect-ratio:9/16; max-height:620px; object-fit:contain; background:#111; border-radius:18px; }
-@media(max-width:700px) { .khayal-ad { grid-template-columns:1fr; gap:22px; padding:20px; } .khayal-ad video { max-width:360px; margin-inline:auto; } }
+.khayal-ad { width:100%; max-width:850px; margin:0 auto 64px; padding:0; overflow:hidden; border-radius:22px; outline:1px solid var(--line); box-shadow:0 18px 42px -24px rgb(20 63 52 / .4); }
+.khayal-ad video { display:block; width:100%; height:auto; aspect-ratio:14/9; object-fit:contain; }
+@media(max-width:700px) { .khayal-ad { margin-block-end:40px; border-radius:14px; } }
 @keyframes product-settle { 0%,100%{translate:0 0} 50%{translate:0 -14px} }
 @media(max-width:700px) {
   .coffee-showcase { padding-block: 42px; }
