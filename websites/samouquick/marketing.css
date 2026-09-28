@@ -187,7 +187,6 @@ body{font-size:18px}
   .coffee-products figure:hover img { transform: translateY(-8px); box-shadow: 0 22px 35px -24px var(--deep); }
   .coffee-cover:hover img { transform: scale(1.025); }
   .screen-gallery figure:hover .phone { transform: translateY(-8px) rotate(1deg); }
-  .store-card:hover { transform: translateY(-5px); box-shadow: 0 16px 28px -24px var(--deep); }
   .button:hover { transform: translateY(-3px); box-shadow: 0 12px 22px -16px var(--deep); }
   .steps>li:hover>span { color: var(--brand); transform: translateY(-4px); }
 }
@@ -253,10 +252,26 @@ body{font-size:18px}
   .liquid-glass :is(.store-card,.join-card) {
     transition: transform .35s ease, box-shadow .35s ease;
   }
-  .liquid-glass :is(.store-card,.join-card):hover {
+  .liquid-glass .join-card:hover {
     transform: translateY(-4px);
     box-shadow: inset 0 1px 0 var(--white), 0 18px 34px -24px rgb(20 63 52 / .45);
   }
+}
+/* Audit follow-up: descriptive cards are not links; downloads are the primary action. */
+.liquid-glass .store-card:hover,.liquid-glass .store-card:active {
+  transform: none;
+  border-color: var(--glass-edge);
+}
+.status-tag,.mobile-download small { font-size:14px; line-height:1.6; }
+.download-copy>img { box-sizing:content-box; padding:10px; background:var(--paper); border-radius:16px; }
+.download-copy .text-link { color:var(--white); }
+.platforms .button { margin-block-start:18px; background:var(--white); color:var(--deep); }
+.platforms .button:hover { background:var(--mint); }
+.download-layout { gap:64px; }
+@media(max-width:700px) {
+  .download-layout { gap:32px; }
+  .platforms .button { width:100%; }
+  .hero-description { max-width:34ch; }
 }
 @media(max-width:700px) {
   .liquid-glass { --glass-fill: rgb(255 255 255 / .94); }

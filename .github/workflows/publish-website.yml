@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
-      - name: Stage public files with downloads closed
+      - name: Stage public files and explicitly linked APK releases
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
@@ -41,15 +41,19 @@ jobs:
             }
           }
           const config = JSON.parse(fs.readFileSync(source + '/vercel.json', 'utf8'));
+          const html = fs.readFileSync(source + '/index.html', 'utf8');
+          for (const [, name] of html.matchAll(/href="\/downloads\/([A-Za-z0-9._-]+\.apk)"/g)) {
+            fs.mkdirSync(output + '/static/downloads', { recursive: true });
+            fs.copyFileSync(source + '/downloads/' + name, output + '/static/downloads/' + name);
+          }
           const routes = config.headers.map(rule => ({ src: rule.source, headers: Object.fromEntries(rule.headers.map(h => [h.key, h.value])), continue: true }));
-          routes.push({ src: '/downloads(?:/.*)?', status: 307, headers: { Location: '/#download' } });
+          routes.push({ src: '/contact', status: 307, headers: { Location: '/support' } });
           routes.push({ handle: 'filesystem' });
-          routes.push({ src: '/(privacy|terms|delete-account)', dest: '/$1.html' });
+          routes.push({ src: '/(privacy|terms|delete-account|support)', dest: '/$1.html' });
           fs.writeFileSync(output + '/config.json', JSON.stringify({ version: 3, routes }));
           fs.writeFileSync('.vercel/project.json', JSON.stringify({ projectId: 'prj_3YWYttPml1X8myscKDodRlaLkAmF', orgId: process.env.VERCEL_ORG_ID }));
-          if (fs.existsSync(output + '/static/downloads')) throw Error('Downloads must remain closed');
           const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
-          if (walk(output + '/static').some(file => /\.(apk|aab)$/i.test(file))) throw Error('Do not publish mobile binaries');
+          if (walk(output + '/static').some(file => /\.(aab|p8|p12|mobileprovision)$/i.test(file))) throw Error('Private or non-installable files must not be published');
           NODE
       - name: Publish to Vercel
         env:

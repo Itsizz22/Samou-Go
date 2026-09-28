@@ -1,0 +1,35 @@
+name: Open ordering at launch
+on:
+  schedule:
+    # 13:00 Palestine (UTC+3), with idempotent retries if the scheduler is delayed.
+    - cron: '0,5,10,15 10 3 10 *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: launch-ordering-gate
+  cancel-in-progress: false
+jobs:
+  resume:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Check launch date
+        id: date
+        run: echo "ready=$([ "$(date -u +%Y-%m-%d)" = '2026-10-03' ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        if: steps.date.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+        if: steps.date.outputs.ready == 'true'
+      - name: Generate production client
+        if: steps.date.outputs.ready == 'true'
+        run: npx prisma generate --schema packages/api/prisma/schema.prisma
+      - name: Restore pre-launch store availability
+        if: steps.date.outputs.ready == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node ops/launch-ordering-gate.cjs resume

@@ -26,10 +26,16 @@ test('anonymous catalogue pagination does not forward credentials',async()=>{
 test('upstream failure does not masquerade as an empty live catalogue',async()=>{
  await assert.rejects(fetchCatalogue(async()=>({ok:false})),/unavailable/);
 });
-test('homepage has closed download gate, real routes and no fabricated stores',()=>{
+test('homepage serves the authorized APK, App Store link and real public routes',()=>{
  const fs=require('node:fs');const path=require('node:path');const root=path.resolve(__dirname,'..');
  const html=fs.readFileSync(root+'/index.html','utf8');const config=JSON.parse(fs.readFileSync(root+'/vercel.json','utf8'));
- assert.ok(!/href="[^"]*\.(apk|aab)"/.test(html));assert.ok(config.redirects.some(r=>r.source==='/downloads/:path*'));
+ const binary=html.match(/href="(\/downloads\/[A-Za-z0-9._-]+\.apk)"/)[1];
+ assert.ok(fs.existsSync(root+binary));
+ assert.ok(!config.redirects.some(r=>r.source.startsWith('/downloads')));
+ assert.ok(html.includes('https://apps.apple.com/app/id6812869733'));
+ const workflow=fs.readFileSync(path.resolve(root,'../../.github/workflows/publish-website.yml'),'utf8');
+ assert.ok(!workflow.includes("src: '/downloads(?:/.*)?'"));
+ assert.ok(workflow.includes("'/static/downloads/' + name"));
  for(const name of ['privacy','terms','delete-account','support'])assert.ok(fs.existsSync(root+'/'+name+'.html'));
  const stores=JSON.parse(fs.readFileSync(root+'/content/stores.json','utf8')).stores;
  assert.ok(stores.length<=6);for(const s of stores)assert.ok(html.includes(`data-store="${s.id}"`));
