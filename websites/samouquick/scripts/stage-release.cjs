@@ -20,4 +20,14 @@ for (const file of fs.readdirSync(path.join(root,'assets'))) {
   if (/\.(webp|woff2|svg|txt)$/.test(file)) fs.copyFileSync(path.join(root,'assets',file),path.join(dest,'assets',file));
 }
 fs.cpSync(path.join(root,'assets/stores'),path.join(dest,'assets/stores'),{recursive:true});
-console.log('Public marketing staging ready. Downloads and private environment/signing files excluded.');
+// Fail before deployment when a local image, stylesheet, font or script is missing.
+for (const file of fs.readdirSync(dest).filter(name => /\.(html|css)$/.test(name))) {
+  const content = fs.readFileSync(path.join(dest, file), 'utf8');
+  const refs = [...content.matchAll(/(?:src|href)=["'](\/[^"'#?]+)|url\(["']?(\/[^"')?#]+)/g)];
+  for (const match of refs) {
+    const asset = match[1] || match[2];
+    if (!/\.(webp|png|jpe?g|svg|css|js|woff2?)$/.test(asset)) continue;
+    if (!fs.existsSync(path.join(dest, asset))) throw new Error(`Missing public asset in ${file}: ${asset}`);
+  }
+}
+console.log('Public marketing staging ready. Referenced assets verified. Downloads and private environment/signing files excluded.');
