@@ -17,7 +17,7 @@ for (const file of ['index.html','marketing.css','fonts.css','site.js','privacy.
 for (const dir of ['api','lib','content']) fs.cpSync(path.join(root,dir),path.join(dest,dir),{recursive:true,filter:source=>path.basename(source)!=='map-config.json'});
 fs.mkdirSync(path.join(dest,'assets'),{recursive:true});
 for (const file of fs.readdirSync(path.join(root,'assets'))) {
-  if (/\.(webp|woff2|svg|txt)$/.test(file)) fs.copyFileSync(path.join(root,'assets',file),path.join(dest,'assets',file));
+  if (/\.(webp|png|woff2|svg|txt)$/.test(file)) fs.copyFileSync(path.join(root,'assets',file),path.join(dest,'assets',file));
 }
 fs.cpSync(path.join(root,'assets/stores'),path.join(dest,'assets/stores'),{recursive:true});
 // Fail before deployment when a local image, stylesheet, font or script is missing.
