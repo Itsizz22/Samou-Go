@@ -161,7 +161,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const replaceLine = useCallback((key: string, product: Product, selectedOptions: SelectedOption[], quantity: number) => {
     setLines(current => current.map(line => cartLineKey(line) === key
-      ? { ...line, product, productId: product.id, selectedOptions, quantity }
+      ? { ...line, product, productId: product.id, selectedOptions, quantity: Math.max(product.minimumQuantity ?? 1, Math.min(99, quantity)) }
       : line));
   }, []);
 
@@ -172,6 +172,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addItem = useCallback((product: Product, quantity = 1, note = '', storeNameAr?: string, selectedOptions?: SelectedOption[]): void => {
+    quantity = Math.max(product.minimumQuantity ?? 1, Math.min(99, quantity));
     void hapticConfirm();
     flyToCart(product.nameAr);
     setLines(current => {
@@ -266,7 +267,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       quantity <= 0
         ? current.filter(line => !matchesLine(line, productId))
         : current.map(line =>
-            matchesLine(line, productId) ? { ...line, quantity: Math.min(99, quantity) } : line,
+            matchesLine(line, productId) ? { ...line, quantity: Math.max(line.product.minimumQuantity ?? 1, Math.min(99, quantity)) } : line,
           ),
     );
   }, []);

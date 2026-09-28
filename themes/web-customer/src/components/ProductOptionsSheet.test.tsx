@@ -4,12 +4,17 @@ import { expect, it, vi } from 'vitest';
 import type { Product } from '@samou-go/shared-types';
 import { ProductOptionsSheet } from './ProductOptionsSheet';
 vi.mock('@samou-go/ui', () => ({ useLanguage: () => ({ t: (ar: string) => ar }) }));
-function render(options: unknown) {
+function render(options: unknown, minimumQuantity = 1) {
   const product: Product = { id: 'p', nameAr: 'Test product', price: 10, description: null, imageUrl: null, isAvailable: true, categoryId: null, storeId: 's' };
-  Object.assign(product, { optionGroups: options });
+  Object.assign(product, { optionGroups: options, minimumQuantity });
   return renderToString(createElement(ProductOptionsSheet, { product, storeNameAr: 'Store', onClose: () => {}, onConfirm: () => {} }));
 }
 it('renders the modal without option groups', () => { expect(render(undefined)).toContain('Test product'); });
+it('starts at the minimum quantity and disables decrement at that limit', () => {
+  const html = render(undefined, 5);
+  expect(html).toContain('الحد الأدنى 5 قطع');
+  expect(html).toMatch(/aria-label="إنقاص الكمية"[^>]*disabled/);
+});
 it('renders undefined groups and empty item arrays without crashing', () => {
   expect(render([undefined, { id: 'g', name: 'Empty', items: [] }, { id: 'g2', name: 'Missing' }])).toContain('Empty');
 });

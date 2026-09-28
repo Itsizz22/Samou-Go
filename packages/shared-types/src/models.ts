@@ -155,6 +155,8 @@ export interface SelectedOption {
 }
 
 export interface Product {
+  /** Minimum number of units per order line; omitted by older servers. */
+  minimumQuantity?: number;
   unavailableUntil?: string | null;
   id: string;
   nameAr: string;

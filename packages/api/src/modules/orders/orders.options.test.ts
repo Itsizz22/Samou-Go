@@ -40,6 +40,17 @@ beforeEach(() => {
 });
 
 describe('server option validation', () => {
+  it('rejects quantities below the product minimum and prices five or six individual pieces', async () => {
+    h.db.product.findMany.mockResolvedValueOnce([{ id: 'product-1', nameAr: 'فشافيش', price: 1, isAvailable: true, minimumQuantity: 5 }]);
+    h.db.productOptionGroup.findMany.mockResolvedValueOnce([]);
+    await expect(quoteOrder({ ...body, items: [{ productId: 'product-1', quantity: 4 }] })).rejects.toMatchObject({ code: 'PRODUCT_MINIMUM_QUANTITY' });
+    for (const quantity of [5, 6]) {
+      h.db.product.findMany.mockResolvedValueOnce([{ id: 'product-1', nameAr: 'فشافيش', price: 1, isAvailable: true, minimumQuantity: 5 }]);
+      h.db.productOptionGroup.findMany.mockResolvedValueOnce([]);
+      const quote = await quoteOrder({ ...body, items: [{ productId: 'product-1', quantity }] });
+      expect(quote.subtotal).toBe(quantity);
+    }
+  });
   it.each([undefined, []])('rejects missing required options: %j', async selectedOptions => {
     await expect(quoteOrder({
       ...body, items: [{ productId: 'product-1', quantity: 1, selectedOptions }],

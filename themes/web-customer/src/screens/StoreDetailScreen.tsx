@@ -104,7 +104,7 @@ export function StoreDetailScreen() {
   const handleAdd = useCallback((productId: string, product: (typeof products)[number]) => {
     if (!current?.isAcceptingOrders || current.storeStatus === StoreStatus.CLOSED) return;
     // If the product has option groups, open the options sheet instead.
-    if (normalizeOptionGroups(product.optionGroups).length > 0) {
+    if (normalizeOptionGroups(product.optionGroups).length > 0 || (product.minimumQuantity ?? 1) > 1) {
       setOptionsProduct(product);
       return;
     }

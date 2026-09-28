@@ -28,7 +28,8 @@ export function ProductOptionsSheet({ product, storeNameAr, initialQuantity = 1,
   const reduced = useReducedMotion();
   const panel = useRef<HTMLDivElement>(null);
   const groups = useMemo(() => normalizeOptionGroups(product.optionGroups), [product.optionGroups]);
-  const [quantity, setQuantity] = useState(initialQuantity);
+  const minimumQuantity = product.minimumQuantity ?? 1;
+  const [quantity, setQuantity] = useState(Math.max(minimumQuantity, initialQuantity));
   useEffect(() => {
     const previous = document.body.style.overflow;
     const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -357,13 +358,15 @@ export function ProductOptionsSheet({ product, storeNameAr, initialQuantity = 1,
           </p>
         )}
         <div className="shrink-0 border-t border-line liquid-glass px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          {minimumQuantity > 1 && <p className="mb-2 text-sm text-ink-muted">{t(`الحد الأدنى ${minimumQuantity} قطع. الزيادة قطعة واحدة.`, `Minimum ${minimumQuantity} pieces. Increase one at a time.`)}</p>}
           <div className="flex flex-col-reverse items-stretch justify-between gap-2 min-[360px]:flex-row min-[360px]:items-center">
             {/* Quantity stepper */}
             <div className="flex items-center justify-center gap-1 rounded-full bg-canvas px-1 py-1">
               <button
                 type="button"
                 aria-label={t('إنقاص الكمية', 'Decrease quantity')}
-                onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                disabled={quantity <= minimumQuantity}
+                onClick={() => setQuantity(q => Math.max(minimumQuantity, q - 1))}
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 transition active:scale-90"
               >
                 <Minus size={14} />

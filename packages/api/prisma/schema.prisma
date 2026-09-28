@@ -304,6 +304,7 @@ model Category {
 /// A sellable item. `price` is the *current* price; an order captures its own
 /// `unitPrice` so repricing never rewrites history.
 model Product {
+  minimumQuantity Int @default(1)
   featuredRank Int?
 
   id          String   @id @default(cuid())

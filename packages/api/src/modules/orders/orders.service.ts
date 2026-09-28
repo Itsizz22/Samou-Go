@@ -236,7 +236,7 @@ async function priceBasket(
 
   const products = await db.product.findMany({
     where: { id: { in: [...new Set(items.map(item => item.productId))] }, storeId },
-    select: { id: true, nameAr: true, price: true, originalPrice: true, optionsEnabled: true, isAvailable: true, unavailableUntil: true },
+    select: { id: true, nameAr: true, price: true, originalPrice: true, optionsEnabled: true, isAvailable: true, unavailableUntil: true, minimumQuantity: true },
   });
 
   const byId = new Map(products.map(product => [product.id, product]));
@@ -286,6 +286,9 @@ async function priceBasket(
       );
     }
 
+    if (quantity < (product.minimumQuantity ?? 1)) {
+      throw unprocessable('PRODUCT_MINIMUM_QUANTITY', `الحد الأدنى لطلب ${product.nameAr} هو ${product.minimumQuantity} قطع`);
+    }
     let basePrice = Number(product.price);
     let resolvedOptions: PricedLine['selectedOptions'] = undefined;
 

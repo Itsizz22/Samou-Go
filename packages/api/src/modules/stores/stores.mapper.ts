@@ -64,6 +64,7 @@ type ProductWithOptions = PrismaProduct & Partial<Pick<Prisma.ProductGetPayload<
 
 export function toProduct(product: ProductWithOptions): Product {
   return {
+    minimumQuantity: product.minimumQuantity ?? 1,
     id: product.id, nameAr: product.nameAr, description: product.description,
     price: decimalToNumber(product.price), originalPrice: product.originalPrice == null ? null : decimalToNumber(product.originalPrice), imageUrl: product.imageUrl,
     unavailableUntil: product.unavailableUntil?.toISOString() ?? null,
