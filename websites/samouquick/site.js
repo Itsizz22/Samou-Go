@@ -32,9 +32,9 @@ function enter(element, delay = 0) {
   if (reducedMotion.matches || !element.animate || animatedElements.has(element)) return;
   animatedElements.add(element);
   const animation = element.animate([
-    { opacity: .35, translate: '0 36px' },
+    { opacity: .35, translate: '0 16px' },
     { opacity: 1, translate: '0 0' }
-  ], { duration: 850, delay, easing: 'cubic-bezier(.16,1,.3,1)' });
+  ], { duration: 420, delay, easing: 'cubic-bezier(.16,1,.3,1)' });
   activeAnimations.add(animation);
   animation.finished.catch(() => {}).finally(() => activeAnimations.delete(animation));
 }
@@ -47,25 +47,16 @@ const revealObserver = 'IntersectionObserver' in window ? new IntersectionObserv
 }, { threshold: .12 }) : null;
 function revealOnScroll(root = document) {
   if (!revealObserver || reducedMotion.matches) return;
-  root.querySelectorAll('.store-card, .screen-gallery figure, .section-heading, .tracking-demo, .closing-action, .steps>li, .coffee-cover, .coffee-products figure, .pickup-panel, .join-card')
+  root.querySelectorAll('.store-card, .journey-screens .phone, .section-heading, .closing-action, .stories-grid figure, .pickup-panel, .join-card')
     .forEach(element => revealObserver.observe(element));
 }
 revealOnScroll();
 document.querySelectorAll('.hero-copy > *').forEach((element, index) => enter(element, index * 110));
-// An illustrative journey, played once. It never represents a live order.
-const journeyDemo = document.querySelector('.tracking-demo');
-const journeyObserver = journeyDemo && !reducedMotion.matches && 'IntersectionObserver' in window
-  ? new IntersectionObserver(entries => {
-    if (entries.some(entry => entry.isIntersecting)) {
-      journeyDemo.classList.add('journey-played');
-      journeyObserver.disconnect();
-    }
-  }, { threshold: 0.35 }) : null;
-journeyObserver?.observe(journeyDemo);
+
 reducedMotion.addEventListener('change', () => {
   if (reducedMotion.matches) {
     activeAnimations.forEach(animation => animation.cancel());
-    journeyObserver?.disconnect();
+
     revealObserver?.disconnect();
     document.querySelectorAll('.reveal-pending').forEach(element => element.classList.remove('reveal-pending'));
   }
@@ -80,12 +71,31 @@ const filters = document.querySelector('.category-strip');
 const catalogueStatus = document.querySelector('#catalogue-status');
 let selectedCategory = 'all';
 let catalogue;
-function applyFilter() {
+let filterAnimations = [];
+function reserveGridSpace() {
+  const cards = [...grid.querySelectorAll('.store-card')];
+  cards.forEach(card => { card.hidden = false; });
+  grid.style.minHeight = '';
+  grid.style.minHeight = grid.getBoundingClientRect().height + 'px';
+  applyFilter();
+}
+function applyFilter(animate = false) {
+  filterAnimations.forEach(animation => animation.cancel());
+  filterAnimations = [];
   for (const card of grid.querySelectorAll('.store-card')) card.hidden = selectedCategory !== 'all' && card.dataset.category !== selectedCategory;
+  if (animate && !reducedMotion.matches) {
+    grid.querySelectorAll('.store-card:not([hidden])').forEach((card, index) => {
+      if (!card.animate) return;
+      const animation = card.animate([{opacity:.4,translate:'0 6px'},{opacity:1,translate:'0 0'}],{duration:200,delay:index*25,easing:'ease-out'});
+      filterAnimations.push(animation);
+      activeAnimations.add(animation);
+      animation.finished.catch(() => {}).finally(() => activeAnimations.delete(animation));
+    });
+  }
   for (const button of filters.querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.filter === selectedCategory));
 }
 filters.hidden = false;
-filters.addEventListener('click', event => { const button = event.target.closest('[data-filter]'); if (button) { selectedCategory = button.dataset.filter; applyFilter(); document.querySelector('#stores').scrollIntoView({ behavior: reducedMotion.matches ? 'instant' : 'smooth', block: 'start' }); } });
+filters.addEventListener('click', event => { const button = event.target.closest('[data-filter]'); if (button) { selectedCategory = button.dataset.filter; applyFilter(true); } });
 function safeStore(s) {
   return s && /^[a-zA-Z0-9_-]{1,100}$/.test(s.id) && typeof s.name === 'string' && typeof s.category === 'string';
 }
@@ -112,7 +122,7 @@ function renderCatalogue(data, snapshot) {
   if(!cats.includes(selectedCategory)) selectedCategory='all';
   filters.replaceChildren(...cats.map(c => { const b=document.createElement('button'); b.type='button';b.dataset.filter=c;b.textContent=c==='all'?'الكل':c;return b; }));
   filters.hidden=catalogue.length===0;
-  applyFilter();
+  reserveGridSpace();
   catalogueStatus.textContent = !catalogue.length ? 'لا توجد متاجر متاحة للعرض الآن. جرّب لاحقًا أو تواصل مع الدعم.' : snapshot ? 'عينة محفوظة من الكتالوج العام؛ راجع التطبيق لمعرفة المتاح الآن.' : 'عينة من الكتالوج العام؛ راجع التطبيق لمعرفة المتاح والأسعار الحالية.';
 }
 async function readJSON(url) { const res=await fetch(url,{credentials:'omit',signal:AbortSignal.timeout(12000)});if(!res.ok)throw Error('Unavailable');return res.json(); }
@@ -122,3 +132,15 @@ const catalogueReady = (async()=> {
   catch { try { renderCatalogue(await readJSON('/content/stores.json'),true); } catch { catalogueStatus.textContent='تعذر تحديث المتاجر؛ القائمة محفوظة من الكتالوج العام.'; } }
 })();
 // No analytics SDK or tracking cookies are introduced.
+
+reserveGridSpace();
+if ('ResizeObserver' in window) {
+  let previousWidth = grid.clientWidth;
+  new ResizeObserver(() => {
+    if (grid.clientWidth !== previousWidth) {
+      previousWidth = grid.clientWidth;
+      reserveGridSpace();
+    }
+  }).observe(grid);
+}
+document.fonts?.ready.then(reserveGridSpace);

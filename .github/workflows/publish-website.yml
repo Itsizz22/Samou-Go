@@ -23,6 +23,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
+      - name: Build and verify public website
+        run: |
+          node websites/samouquick/scripts/build.cjs
+          node --test websites/samouquick/tests/*.test.cjs
       - name: Stage public files and explicitly linked APK releases
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

@@ -1,4 +1,5 @@
 // Prepare only the public marketing project for its existing Vercel root directory.
+require('./build.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
