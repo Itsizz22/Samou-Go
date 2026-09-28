@@ -11,6 +11,8 @@ const dest = path.join(target, 'websites/samouquick');
 fs.mkdirSync(dest, { recursive: true });
 fs.mkdirSync(path.join(target, '.vercel'), { recursive: true });
 fs.copyFileSync(path.join(root, '.vercel/project.json'), path.join(target, '.vercel/project.json'));
+// The CLI runs at the staging root; use the same routing configuration there.
+fs.copyFileSync(path.join(root, 'vercel.json'), path.join(target, 'vercel.json'));
 for (const file of ['index.html','marketing.css','fonts.css','site.js','privacy.html','terms.html','delete-account.html','support.html','style.css','refinements.css','design-finish.css','vercel.json','robots.txt','sitemap.xml']) {
   fs.copyFileSync(path.join(root,file),path.join(dest,file));
 }
