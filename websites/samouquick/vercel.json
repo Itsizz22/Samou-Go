@@ -54,11 +54,6 @@
   "cleanUrls": true,
   "redirects": [
     {
-      "source": "/downloads/:path*",
-      "destination": "/#download",
-      "permanent": false
-    },
-    {
       "source": "/contact",
       "destination": "/support",
       "permanent": false

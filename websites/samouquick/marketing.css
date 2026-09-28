@@ -160,3 +160,45 @@ body{font-size:18px}
 }
 @media(max-width:350px){.screen-gallery>figure{grid-template-columns:minmax(0,1fr);gap:16px}.screen-gallery .phone,.screen-gallery>figure:nth-child(2) .phone{width:190px}.screen-gallery figcaption{text-align:center}.screen-gallery figcaption small{margin-inline:auto}.store-copy strong{font-size:18px}.store-card{padding:12px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}.hero-phone{transform:none}.reveal-pending{opacity:1;transform:none}}
+
+
+/* September refresh: current catalogue photography and visible, bounded motion. */
+.coffee-showcase { padding-block: 64px 80px; }
+.coffee-showcase .section-heading { max-width: 700px; }
+.coffee-cover { overflow: hidden; border-radius: 24px; margin-block-end: 24px; }
+.coffee-cover img { width: 100%; aspect-ratio: 16/9; object-fit: cover; }
+.coffee-products { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; }
+.coffee-products figure { min-width: 0; }
+.coffee-products img { width: 100%; border-radius: 18px; aspect-ratio: 1; object-fit: cover; }
+.coffee-products figcaption { padding-block: 18px 24px; }
+.coffee-products figcaption span { color: var(--muted); font-size: 16px; }
+.coffee-products h3 { margin-block-start: 6px; font-size: clamp(22px,2.5vw,30px); }
+.coffee-showcase > .caption { border-block-start: 1px solid var(--line); padding-block-start: 18px; }
+.site-header { background: rgb(246 247 242 / .95); backdrop-filter: blur(14px); }
+@media (prefers-reduced-motion:no-preference) {
+  .hero-phone { animation: phone-enter 1s ease-out both; }
+  .hero-product { animation: catalogue-enter 1s cubic-bezier(.16,1,.3,1) both, product-settle 3s ease-in-out 1s; }
+  .hero-coffee { animation-delay: .2s,1.2s; }
+  .coffee-products img,.coffee-cover img,.screen-gallery .phone { transition: transform .6s cubic-bezier(.16,1,.3,1),box-shadow .6s; }
+  .store-card,.button { transition: transform .3s,background .3s,box-shadow .3s; }
+  .steps>li>span { transition: color .3s,transform .3s; display: inline-block; }
+}
+@media (hover:hover) and (prefers-reduced-motion:no-preference) {
+  .coffee-products figure:hover img { transform: translateY(-8px); box-shadow: 0 22px 35px -24px var(--deep); }
+  .coffee-cover:hover img { transform: scale(1.025); }
+  .screen-gallery figure:hover .phone { transform: translateY(-8px) rotate(1deg); }
+  .store-card:hover { transform: translateY(-5px); box-shadow: 0 16px 28px -24px var(--deep); }
+  .button:hover { transform: translateY(-3px); box-shadow: 0 12px 22px -16px var(--deep); }
+  .steps>li:hover>span { color: var(--brand); transform: translateY(-4px); }
+}
+@keyframes product-settle { 0%,100%{translate:0 0} 50%{translate:0 -14px} }
+@media(max-width:700px) {
+  .coffee-showcase { padding-block: 42px; }
+  .coffee-cover { border-radius: 16px; margin-block-end: 22px; }
+  .coffee-products { grid-template-columns: 1fr; gap: 26px; }
+  .coffee-products figure { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(0,1fr); gap: 18px; align-items: center; }
+  .coffee-products figcaption { padding: 0; }
+  .coffee-products h3 { font-size: 24px; line-height: 1.4; }
+  .coffee-products figcaption span { font-size: 15px; }
+  .coffee-showcase>.caption { margin-block-start: 24px; }
+}

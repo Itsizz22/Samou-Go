@@ -24,24 +24,34 @@ if (sticky && 'IntersectionObserver' in window) {
   observer.observe(document.querySelector('.site-footer'));
   sticky.hidden = false;
 }
-// Reveal below-the-fold content once; never hide content without observer support.
+// Motion is progressive enhancement: content stays visible if JS or animation fails.
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const animatedElements = new WeakSet();
+const activeAnimations = new Set();
+function enter(element, delay = 0) {
+  if (reducedMotion.matches || !element.animate || animatedElements.has(element)) return;
+  animatedElements.add(element);
+  const animation = element.animate([
+    { opacity: .35, translate: '0 36px' },
+    { opacity: 1, translate: '0 0' }
+  ], { duration: 850, delay, easing: 'cubic-bezier(.16,1,.3,1)' });
+  activeAnimations.add(animation);
+  animation.finished.catch(() => {}).finally(() => activeAnimations.delete(animation));
+}
 const revealObserver = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
-  for (const entry of entries) if (entry.isIntersecting) {
-    entry.target.classList.remove('reveal-pending');
+  const visible = entries.filter(entry => entry.isIntersecting);
+  visible.forEach((entry, index) => {
+    enter(entry.target, Math.min(index * 85, 340));
     revealObserver.unobserve(entry.target);
-  }
-}, { threshold: 0.08, rootMargin: '0px 0px -24px 0px' }) : null;
+  });
+}, { threshold: .12 }) : null;
 function revealOnScroll(root = document) {
   if (!revealObserver || reducedMotion.matches) return;
-  const elements = root.querySelectorAll('.store-card, .screen-gallery figure, .section-heading, .tracking-demo, .closing-action');
-  for (const element of elements) {
-    if (element.getBoundingClientRect().top < window.innerHeight) continue;
-    element.classList.add('scroll-reveal', 'reveal-pending');
-    revealObserver.observe(element);
-  }
+  root.querySelectorAll('.store-card, .screen-gallery figure, .section-heading, .tracking-demo, .closing-action, .steps>li, .coffee-cover, .coffee-products figure, .pickup-panel, .join-card')
+    .forEach(element => revealObserver.observe(element));
 }
 revealOnScroll();
+document.querySelectorAll('.hero-copy > *').forEach((element, index) => enter(element, index * 110));
 // An illustrative journey, played once. It never represents a live order.
 const journeyDemo = document.querySelector('.tracking-demo');
 const journeyObserver = journeyDemo && !reducedMotion.matches && 'IntersectionObserver' in window
@@ -54,6 +64,7 @@ const journeyObserver = journeyDemo && !reducedMotion.matches && 'IntersectionOb
 journeyObserver?.observe(journeyDemo);
 reducedMotion.addEventListener('change', () => {
   if (reducedMotion.matches) {
+    activeAnimations.forEach(animation => animation.cancel());
     journeyObserver?.disconnect();
     revealObserver?.disconnect();
     document.querySelectorAll('.reveal-pending').forEach(element => element.classList.remove('reveal-pending'));

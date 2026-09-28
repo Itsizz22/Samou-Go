@@ -20,6 +20,12 @@ for (const file of fs.readdirSync(path.join(root,'assets'))) {
   if (/\.(webp|png|woff2|svg|txt)$/.test(file)) fs.copyFileSync(path.join(root,'assets',file),path.join(dest,'assets',file));
 }
 fs.cpSync(path.join(root,'assets/stores'),path.join(dest,'assets/stores'),{recursive:true});
+// Ship only APK releases explicitly linked from the public page.
+const page = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+for (const [, name] of page.matchAll(/href="\/downloads\/([A-Za-z0-9._-]+\.apk)"/g)) {
+  fs.mkdirSync(path.join(dest, 'downloads'), { recursive: true });
+  fs.copyFileSync(path.join(root, 'downloads', name), path.join(dest, 'downloads', name));
+}
 // Fail before deployment when a local image, stylesheet, font or script is missing.
 for (const file of fs.readdirSync(dest).filter(name => /\.(html|css)$/.test(name))) {
   const content = fs.readFileSync(path.join(dest, file), 'utf8');
@@ -30,4 +36,4 @@ for (const file of fs.readdirSync(dest).filter(name => /\.(html|css)$/.test(name
     if (!fs.existsSync(path.join(dest, asset))) throw new Error(`Missing public asset in ${file}: ${asset}`);
   }
 }
-console.log('Public marketing staging ready. Referenced assets verified. Downloads and private environment/signing files excluded.');
+console.log('Public marketing staging ready. Referenced assets and public APK releases included. Private environment/signing files excluded.');
