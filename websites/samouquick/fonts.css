@@ -2,34 +2,34 @@
   font-family: "Tajawal";
   font-style: normal;
   font-weight: 400;
-  font-display: swap;
+  font-display: optional;
   src: url(/assets/tajawal-0.woff2) format("woff2");
 }
 @font-face {
   font-family: "Tajawal";
   font-style: normal;
   font-weight: 500;
-  font-display: swap;
+  font-display: optional;
   src: url(/assets/tajawal-1.woff2) format("woff2");
 }
 @font-face {
   font-family: "Tajawal";
   font-style: normal;
   font-weight: 700;
-  font-display: swap;
+  font-display: optional;
   src: url(/assets/tajawal-2.woff2) format("woff2");
 }
 @font-face {
   font-family: "Tajawal";
   font-style: normal;
   font-weight: 800;
-  font-display: swap;
+  font-display: optional;
   src: url(/assets/tajawal-3.woff2) format("woff2");
 }
 @font-face {
   font-family: "Tajawal";
   font-style: normal;
   font-weight: 900;
-  font-display: swap;
+  font-display: optional;
   src: url(/assets/tajawal-4.woff2) format("woff2");
 }
