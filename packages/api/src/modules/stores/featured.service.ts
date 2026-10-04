@@ -41,7 +41,7 @@ export async function listFeaturedProducts() {
     });
     const ids = mixCatalogue(candidates, dailyCatalogueSeed(), 2).slice(0, 24).map(item => item.id);
     const automatic = await prisma.product.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, isAvailable: true, store: { isActive: true, isApproved: true, isAcceptingOrders: true, storeStatus: { not: 'CLOSED' } } },
       include: { store: { select: { nameAr: true, logoUrl: true } }, optionGroups: { orderBy: { sortOrder: 'asc' }, include: { items: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } } } },
     });
     automatic.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));

@@ -625,7 +625,7 @@ export async function getPopularProducts(limit = 12, storeId?: string): Promise<
     by: ['productId'],
     where: {
       order: { status: 'DELIVERED', createdAt: { gt: since } },
-      product: { ...(storeId ? { storeId } : {}), isAvailable: true, store: { isActive: true, isApproved: true } },
+      product: { ...(storeId ? { storeId } : {}), isAvailable: true, store: { isActive: true, isApproved: true, isAcceptingOrders: true, storeStatus: { not: 'CLOSED' } } },
     },
     _sum: { quantity: true },
     orderBy: [{ _sum: { quantity: 'desc' } }, { productId: 'asc' }],
@@ -634,7 +634,7 @@ export async function getPopularProducts(limit = 12, storeId?: string): Promise<
   const ids = rows.flatMap(row => row.productId ? [row.productId] : []);
   if (!ids.length) return [];
   const products = await prisma.product.findMany({
-    where: { id: { in: ids }, isAvailable: true, store: { isActive: true, isApproved: true } },
+    where: { id: { in: ids }, isAvailable: true, store: { isActive: true, isApproved: true, isAcceptingOrders: true, storeStatus: { not: 'CLOSED' } } },
     include: {
       store: { select: { nameAr: true, logoUrl: true } },
       optionGroups: { orderBy: { sortOrder: 'asc' }, include: { items: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } } },
@@ -680,7 +680,7 @@ async function listDiscoveryStores(query: StoreListQuery, where: Prisma.StoreWhe
 
 export async function getNewProducts(limit: number, dishesOnly = false, section: 'discovery' | 'featured' = 'discovery'): Promise<import('@samou-go/shared-types').DiscoveryProduct[]> {
   const since = recentSince();
-  const where: Prisma.ProductWhereInput = { ...(dishesOnly ? { id: { in: await dishProductIds(section) }, imageUrl: { not: null }, NOT: { imageUrl: "" } } : {}), isAvailable: true, store: { isActive: true, isApproved: true, storeStatus: { not: 'CLOSED' } } };
+  const where: Prisma.ProductWhereInput = { ...(dishesOnly ? { id: { in: await dishProductIds(section) }, imageUrl: { not: null }, NOT: { imageUrl: "" } } : {}), isAvailable: true, store: { isActive: true, isApproved: true, isAcceptingOrders: true, storeStatus: { not: 'CLOSED' } } };
   const recent = await prisma.product.findMany({ where: { ...where, createdAt: { gte: since } }, select: { id: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], take: limit });
   const popular = recent.length < limit ? await prisma.orderItem.groupBy({ by: ['productId'], where: { product: where, order: { status: 'DELIVERED' } }, _sum: { quantity: true }, orderBy: [{ _sum: { quantity: 'desc' } }, { productId: 'asc' }], take: limit }) : [];
   const remaining = recent.length < limit ? await prisma.product.findMany({ where, select: { id: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], take: limit }) : [];
@@ -705,7 +705,7 @@ export async function searchProducts(search: string, page: number, dishesOnly = 
     ...(foodStoresOnly ? { storeId: { in: (await dishStoreIds()).filter(id => !storeId || id === storeId) } } : storeId ? { storeId } : {}),
     ...(dishesOnly ? { id: { in: await dishProductIds(section) } } : {}),
     isAvailable: true,
-    store: { isActive: true, isApproved: true, storeStatus: { not: 'CLOSED' } },
+    store: { isActive: true, isApproved: true, isAcceptingOrders: true, storeStatus: { not: 'CLOSED' } },
     ...(search ? { nameAr: caseInsensitiveContains(search) } : {}),
   };
   const total = await prisma.product.count({ where });

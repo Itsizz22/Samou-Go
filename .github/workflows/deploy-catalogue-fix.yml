@@ -1,0 +1,47 @@
+name: Deploy catalogue availability fix
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace @samou-go/shared-types
+      - run: npm run build --workspace @samou-go/api
+      - run: npx vitest run --configLoader runner src/modules/stores/catalogue-mix.test.ts src/modules/stores/product-discount.test.ts src/modules/stores/product-delete.test.ts
+        working-directory: packages/api
+      - name: Deploy API only and wait for healthy release
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          node <<'NODE'
+          const base = `https://api.render.com/v1/services/${process.env.RENDER_SERVICE_ID}/deploys`;
+          const headers = { Authorization: `Bearer ${process.env.RENDER_API_KEY}`, 'Content-Type': 'application/json' };
+          async function request(url, options = {}) {
+            const r = await fetch(url, { ...options, headers });
+            if (!r.ok) throw new Error(`Render HTTP ${r.status}`);
+            return r.json();
+          }
+          const deploy = await request(base, { method: 'POST', body: JSON.stringify({commitId: process.env.GITHUB_SHA}) });
+          console.log('Deployment', deploy.id, 'commit', process.env.GITHUB_SHA);
+          for (let i = 0; i < 80; i++) {
+            const result = await request(`${base}/${deploy.id}`);
+            console.log(result.status);
+            if (result.status === 'live') process.exit(0);
+            if (['build_failed','update_failed','pre_deploy_failed','canceled','deactivated'].includes(result.status)) process.exit(1);
+            await new Promise(resolve => setTimeout(resolve, 15000));
+          }
+          throw new Error('Deployment timed out');
+          NODE
