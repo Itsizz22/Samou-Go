@@ -32,9 +32,19 @@ jobs:
           async function request(url, options = {}) {
             const r = await fetch(url, { ...options, headers });
             if (!r.ok) throw new Error(`Render HTTP ${r.status}`);
-            return r.json();
+            const text = await r.text();
+            console.log('Render response', r.status, text ? 'JSON body' : 'empty body');
+            return text ? JSON.parse(text) : null;
           }
-          const deploy = await request(base, { method: 'POST', body: JSON.stringify({commitId: process.env.GITHUB_SHA}) });
+          const previous = await request(`${base}?limit=10`);
+          let deploy = previous?.map(entry => entry.deploy).find(entry => entry.commit?.id === process.env.GITHUB_SHA && !['build_failed','update_failed','canceled','deactivated'].includes(entry.status));
+          if (!deploy) deploy = await request(base, { method: 'POST', body: JSON.stringify({commitId: process.env.GITHUB_SHA}) });
+          if (!deploy) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            const list = await request(`${base}?limit=10`);
+            deploy = list?.map(entry => entry.deploy).find(entry => entry.commit?.id === process.env.GITHUB_SHA);
+          }
+          if (!deploy?.id) throw new Error('Render did not return a verifiable deployment');
           console.log('Deployment', deploy.id, 'commit', process.env.GITHUB_SHA);
           for (let i = 0; i < 80; i++) {
             const result = await request(`${base}/${deploy.id}`);
