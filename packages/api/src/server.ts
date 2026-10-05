@@ -1,4 +1,5 @@
 import { startPreparationReminderScheduler } from './modules/orders/preparation-reminders';
+import { startDailyOrderingScheduler } from './modules/stores/daily-ordering-scheduler';
 import type { Server } from 'node:http';
 import { createApp } from './app';
 import { env } from './config/env';
@@ -42,6 +43,7 @@ const server: Server = app.listen(env.port, '0.0.0.0', () => {
 });
 attachRealtime(server);
 const stopPreparationReminders = startPreparationReminderScheduler();
+const stopDailyOrdering = startDailyOrderingScheduler();
 
 /**
  * Graceful shutdown: stop accepting connections, let in-flight requests finish,
@@ -62,7 +64,7 @@ async function shutdown(signal: string): Promise<void> {
   }, 10_000);
   forceExit.unref();
 
-  const schedulerStopped = stopPreparationReminders();
+  const schedulerStopped = Promise.all([stopPreparationReminders(), stopDailyOrdering()]);
   server.close(async closeError => {
     if (closeError) {
       // eslint-disable-next-line no-console

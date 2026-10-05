@@ -1,0 +1,40 @@
+import { afterEach, expect, it, vi } from 'vitest';
+vi.mock('../../lib/prisma', () => ({ isPostgresProvider: false, prisma: {} }));
+import { startDailyOrderingScheduler } from './daily-ordering-scheduler';
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+it('synchronizes at boot, every 30 seconds, and stops cleanly', async () => {
+  vi.useFakeTimers();
+  const sync = vi.fn().mockResolvedValue(undefined);
+  const stop = startDailyOrderingScheduler(sync, true);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(sync).toHaveBeenCalledTimes(1);
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(sync).toHaveBeenCalledTimes(3);
+  await stop();
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(sync).toHaveBeenCalledTimes(3);
+});
+it('does not overlap runs and waits for an active run on shutdown', async () => {
+  vi.useFakeTimers();
+  let finish!: () => void;
+  const sync = vi.fn(() => new Promise<void>(resolve => { finish = resolve; }));
+  const stop = startDailyOrderingScheduler(sync, true);
+  await vi.advanceTimersByTimeAsync(90_000);
+  expect(sync).toHaveBeenCalledTimes(1);
+  const stopped = stop();
+  finish();
+  await stopped;
+});
+it('retries a failed sync and skips SQLite', async () => {
+  vi.useFakeTimers();
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const sync = vi.fn().mockRejectedValueOnce(new Error('unavailable')).mockResolvedValue(undefined);
+  const stop = startDailyOrderingScheduler(sync, true);
+  await vi.advanceTimersByTimeAsync(30_000);
+  expect(sync).toHaveBeenCalledTimes(2);
+  await stop();
+  const disabled = startDailyOrderingScheduler(sync, false);
+  await vi.advanceTimersByTimeAsync(30_000);
+  expect(sync).toHaveBeenCalledTimes(2);
+  await disabled();
+});
