@@ -12,9 +12,9 @@ workflows:
       # Codemagic initializes the keychain and imports these uploaded files.
       ios_signing:
         certificates:
-          - samou-quick-app-store-distribution
+          - samou-quick-distribution-20261007
         provisioning_profiles:
-          - profile: samou-quick-app-store-profile
+          - profile: samou-quick-profile-20261007
             environment_variable: SAMOU_IOS_PROFILE_PATH
       vars: &ios_release_vars
         BUNDLE_ID: com.samougo.customer
