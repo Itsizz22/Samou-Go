@@ -50,3 +50,7 @@ export { StoreCaptainContact } from './StoreCaptainContact';
 export { AppToaster } from './AppToaster';
 
 export { setNativeCaptainTracker } from './native-captain-tracker';
+
+export { HandoffQr, HandoffScanner } from './HandoffQr';
+
+export { OrderAmounts, OrderRecord, StoreOrderHistory } from './OrderRecord';

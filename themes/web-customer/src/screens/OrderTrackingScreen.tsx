@@ -11,7 +11,7 @@ import { OrderRatingForm } from '@/components/OrderRatingForm';
 import { ZoneLandmarkTrackingView } from '@samou-go/ui';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
 import { normalizeSelectedOptions } from '@samou-go/shared-types';
-import { DeliveryPin } from '@/components/MotionFeedback';
+import { HandoffQr } from '@samou-go/api-client';
 /**
  * `/orders/:orderId` — live order tracking.
  *
@@ -217,8 +217,8 @@ export function OrderTrackingScreen() {
               </section>
 
               {/* Delivery PIN — shown only when the captain is on the way */}
-              {!pickup && order.data.status === OrderStatus.ON_THE_WAY && order.data.deliveryPin && (
-                <DeliveryPin pin={order.data.deliveryPin} />
+              {!pickup && order.data.status === OrderStatus.ON_THE_WAY && order.data.deliveryQr && (
+                <HandoffQr value={order.data.deliveryQr} title="رمز استلام طلبك من الكابتن" />
               )}
 
               {/* Store + delivery model */}

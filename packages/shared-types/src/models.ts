@@ -56,6 +56,7 @@ export interface PublicUser {
 
 export interface Store {
   busyUntil?: string | null;
+  autoReadyOnPrepTimeout?: boolean;
   busyExtraMinutes?: number;
   acceptsScheduledOrders?: boolean;
   deliveryZoneId?: string | null;
@@ -349,6 +350,8 @@ export interface Order {
   preparationStartedAt?: string | null;
   preparedAt?: string | null;
   /** 4-digit PIN the customer shares with the captain on delivery. */
+  pickupQr?: string;
+  deliveryQr?: string;
   deliveryPin: string | null;
   /**
    * 4-digit code the store shares with the captain to verify pickup handoff.
@@ -407,6 +410,7 @@ export interface OrderDetail extends Order {
 
 /** The condensed row used in list views. */
 export interface OrderSummary {
+  pickupQr?: string;
   scheduledFor?: string | null;
   storeContact?: { name: string; phone: string; whatsappNumber?: string | null } | null;
   /** Kitchen lines, included for store managers and admins. */

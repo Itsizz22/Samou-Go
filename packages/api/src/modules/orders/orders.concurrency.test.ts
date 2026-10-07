@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrderStatus, UserRole } from '@samou-go/shared-types';
 import { createOrder, updateOrderStatus } from './orders.service';
+import { handoffQrToken } from './handoff-qr';
 import { HttpError } from '../../lib/http-error';
 
 /**
@@ -35,6 +36,7 @@ const h = vi.hoisted(() => {
       totalAmount: 30,
       voucherId: null,
       paymentMethod: 'COD',
+      fulfillmentType: 'DELIVERY',
       captainHandoffCode: null,
       handoffCodeAttempts: 0,
       createdAt: new Date(),
@@ -205,7 +207,7 @@ vi.mock('../../lib/prisma', () => ({
 }));
 
 vi.mock('../../config/env', () => ({
-    env: { deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' } },
+    env: { jwt: { secret: 'unit-test-only-handoff-key' }, deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' } },
   }));
 
 beforeEach(() => {
@@ -270,8 +272,8 @@ describe('captain claim race', () => {
     h.state.order = h.buildOrder({ status: OrderStatus.READY_FOR_PICKUP });
 
     const [winner, loser] = await Promise.allSettled([
-      updateOrderStatus(captain1, 'order-1', { status: OrderStatus.ON_THE_WAY }),
-      updateOrderStatus(captain2, 'order-1', { status: OrderStatus.ON_THE_WAY }),
+      updateOrderStatus(captain1, 'order-1', { status: OrderStatus.ON_THE_WAY, qrToken: handoffQrToken(h.state.order, 'pickup') }),
+      updateOrderStatus(captain2, 'order-1', { status: OrderStatus.ON_THE_WAY, qrToken: handoffQrToken(h.state.order, 'pickup') }),
     ]);
 
     const won = winner.status === 'fulfilled' ? winner : loser;
@@ -294,8 +296,8 @@ describe('captain claim race', () => {
     h.state.order = h.buildOrder({ status: OrderStatus.READY_FOR_PICKUP });
 
     const [first, second] = await Promise.allSettled([
-      updateOrderStatus(captain1, 'order-1', { status: OrderStatus.ON_THE_WAY }),
-      updateOrderStatus(captain1, 'order-1', { status: OrderStatus.ON_THE_WAY }),
+      updateOrderStatus(captain1, 'order-1', { status: OrderStatus.ON_THE_WAY, qrToken: handoffQrToken(h.state.order, 'pickup') }),
+      updateOrderStatus(captain1, 'order-1', { status: OrderStatus.ON_THE_WAY, qrToken: handoffQrToken(h.state.order, 'pickup') }),
     ]);
 
     expect(first.status).toBe('fulfilled');

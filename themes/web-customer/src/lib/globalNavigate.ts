@@ -13,18 +13,22 @@
 import type { NavigateFunction, NavigateOptions, To } from 'react-router-dom';
 
 let _navigate: NavigateFunction | null = null;
+let pending: { to: To; options?: NavigateOptions } | null = null;
 
 /** Called once by the root <App> component. */
 export function setGlobalNavigate(fn: NavigateFunction): void {
   _navigate = fn;
+  const queued = pending; pending = null;
+  if (queued) fn(queued.to, queued.options);
 }
 
-/** Navigate to a path via SPA router. Returns false if the router isn't wired yet. */
+/** Queue cold-start notification taps until the router is mounted. */
 export function globalNavigate(to: To, options?: NavigateOptions): boolean {
   if (_navigate) {
     _navigate(to, options);
     return true;
   }
+  pending = { to, options };
   return false;
 }
 

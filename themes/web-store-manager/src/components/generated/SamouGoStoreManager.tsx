@@ -1,3 +1,5 @@
+import { StoreOrderHistory } from '@samou-go/api-client';
+import { HandoffQr } from '@samou-go/api-client';
 import { StoreLocationEditor } from '@samou-go/ui/map';
 import { AppSelect } from '@samou-go/ui';
 import { StoreCaptainContact } from '@samou-go/api-client';
@@ -294,7 +296,7 @@ export function SamouGoStoreManager() {
           id: `incoming:${order.id}`,
           ar: `طلب جديد ${order.orderNumber} — ${order.storeNameAr}`,
           en: 'New incoming order',
-          caption: `${when.ar} · ₪${order.totalAmount.toFixed(2)}`,
+          caption: `${when.ar} · ₪${Math.max(0, order.totalAmount - order.deliveryFee).toFixed(2)}`,
           tone: 'brand',
         };
       }),
@@ -874,6 +876,7 @@ export function SamouGoStoreManager() {
               ))}
             </div>
           )}
+          {managedStoreId && <StoreOrderHistory key={managedStoreId} storeId={managedStoreId} />}
         </section>
       )}
 
@@ -1246,7 +1249,7 @@ function OrderRow({ order, customerPhone, customerName, pending, onAccept, onSta
             </p>
           </div>
           <p dir="ltr" className="text-base font-extrabold text-ink">
-            ₪{order.totalAmount.toFixed(2)}
+            ₪{Math.max(0, order.totalAmount - order.deliveryFee).toFixed(2)}
           </p>
         </div>
         {order.items && order.items.length > 0 && (
@@ -1330,29 +1333,7 @@ function OrderRow({ order, customerPhone, customerName, pending, onAccept, onSta
             <ChevronRight size={14} className="shrink-0 rtl:rotate-180" />
             <span>{t('جاهز — بانتظار كابتن التوصيل', 'Waiting for a captain')}</span>
           </p>
-          {order.captainHandoffCode && (
-            <div className="rounded-xl border border-brand/30 bg-brand-surface px-3 py-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5 text-[11px] font-extrabold text-brand-dark">
-                  <KeyRound size={14} className="shrink-0" />
-                  {t('رمز تسليم الطلب للكابتن', 'Captain handoff code')}
-                </span>
-                <span className="flex gap-1" dir="ltr">
-                  {order.captainHandoffCode.split('').map((digit, i) => (
-                    <span
-                      key={i}
-                      className="flex h-7 w-6 items-center justify-center rounded-md bg-brand text-sm font-black text-white shadow-sm"
-                    >
-                      {digit}
-                    </span>
-                  ))}
-                </span>
-              </div>
-              <p className="mt-1 text-[10px] font-semibold text-ink-soft">
-                {t('أعطِ هذا الرمز للكابتن عند استلام الطلب', 'Give this code to the captain at pickup')}
-              </p>
-            </div>
-          )}
+          {order.pickupQr && <HandoffQr value={order.pickupQr} title="رمز تسليم الطلب للكابتن" />}
         </div>
       )}
 

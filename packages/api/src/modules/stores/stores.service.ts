@@ -348,6 +348,7 @@ export async function updateStore(storeId: string, body: UpdateStoreBody): Promi
       ...(body.isAcceptingOrders !== undefined ? { isAcceptingOrders: body.isAcceptingOrders } : {}),
       ...(body.storeStatus !== undefined ? { storeStatus: body.storeStatus, busyUntil: null, busyExtraMinutes: 0 } : {}),
       ...(body.busyUntil !== undefined ? { busyUntil: body.busyUntil ? new Date(body.busyUntil) : null } : {}),
+      ...(body.autoReadyOnPrepTimeout !== undefined ? { autoReadyOnPrepTimeout: body.autoReadyOnPrepTimeout } : {}),
       ...(body.busyExtraMinutes !== undefined ? { busyExtraMinutes: body.busyExtraMinutes } : {}),
       ...(body.acceptsScheduledOrders !== undefined ? { acceptsScheduledOrders: body.acceptsScheduledOrders } : {}),
       ...(body.storeType !== undefined ? { storeType: body.storeType } : {}),

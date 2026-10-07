@@ -253,6 +253,7 @@ model Store {
   /// Three-state availability: OPEN = accepting, BUSY = prep delay, CLOSED = not accepting.
   storeStatus StoreStatus @default(OPEN)
   busyUntil DateTime?
+  autoReadyOnPrepTimeout Boolean @default(false)
   busyExtraMinutes Int @default(0)
   acceptsScheduledOrders Boolean @default(false)
   /// Store category — drives the customer home filter bar.

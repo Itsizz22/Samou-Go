@@ -113,6 +113,7 @@ export const quoteOrderSchema = createOrderSchema.pick({
 });
 
 export const updateOrderStatusSchema = z.object({
+  qrToken: z.string().min(1).max(300).optional(),
   status: z.nativeEnum(OrderStatus),
   note: z.string().trim().max(500).optional(),
   estimatedPrepMinutes: z.number().int().min(5).max(180).optional(),

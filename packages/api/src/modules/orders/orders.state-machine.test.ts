@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrderStatus, UserRole } from '@samou-go/shared-types';
 import { updateOrderStatus } from './orders.service';
+import { handoffQrToken } from './handoff-qr';
 import { HttpError } from '../../lib/http-error';
 
 /**
@@ -30,6 +31,7 @@ const h = vi.hoisted(() => {
       totalAmount: 30,
       voucherId: null,
       paymentMethod: 'COD',
+      fulfillmentType: 'DELIVERY',
       deliveryPin: '1234',
       deliveryPinAttempts: 0,
       captainHandoffCode: null,
@@ -100,7 +102,7 @@ vi.mock('../../lib/prisma', () => ({
 }));
 
 vi.mock('../../config/env', () => ({
-  env: { deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' } },
+  env: { jwt: { secret: 'unit-test-only-handoff-key' }, deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' } },
 }));
 
 // The DELIVERED transition triggers the wallet credit path; those credits are
@@ -177,7 +179,7 @@ describe('legal transitions', () => {
   it('captain claims an unassigned READY_FOR_PICKUP job and is auto-assigned', async () => {
     h.state.order = h.buildOrder({ status: OrderStatus.READY_FOR_PICKUP });
 
-    const result = await set(captain, OrderStatus.ON_THE_WAY);
+    const result = await updateOrderStatus(captain, 'order-1', { status: OrderStatus.ON_THE_WAY, qrToken: handoffQrToken(h.state.order, 'pickup') });
 
     expect(result.status).toBe(OrderStatus.ON_THE_WAY);
     expect(result.captainId).toBe('captain-1');
@@ -189,7 +191,7 @@ describe('legal transitions', () => {
   it('assigned captain may deliver ON_THE_WAY -> DELIVERED', async () => {
     h.state.order = h.buildOrder({ status: OrderStatus.ON_THE_WAY, captainId: 'captain-1' });
 
-    const result = await updateOrderStatus(captain, 'order-1', { status: OrderStatus.DELIVERED, deliveryPin: '1234' });
+    const result = await updateOrderStatus(captain, 'order-1', { status: OrderStatus.DELIVERED, qrToken: handoffQrToken(h.state.order, 'delivery') });
     expect(result.status).toBe(OrderStatus.DELIVERED);
   });
 

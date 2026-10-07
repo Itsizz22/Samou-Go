@@ -1,4 +1,5 @@
 import { effectiveProductAvailability } from './availability';
+import { isWithinStoreHours } from './operating-hours';
 import { sizeOptionPriceDelta } from '@samou-go/shared-types';
 import type {
   Prisma,
@@ -18,8 +19,10 @@ import type {
 import { decimalToNumber } from '../../lib/decimal';
 
 export function toStore(store: PrismaStore): Store {
+  const withinHours = isWithinStoreHours(store);
   return {
     busyUntil: store.busyUntil?.toISOString() ?? null,
+    autoReadyOnPrepTimeout: store.autoReadyOnPrepTimeout,
     busyExtraMinutes: store.storeStatus === 'BUSY' && (!store.busyUntil || store.busyUntil > new Date()) ? store.busyExtraMinutes : 0,
     acceptsScheduledOrders: store.acceptsScheduledOrders,
     id: store.id,
@@ -34,8 +37,8 @@ export function toStore(store: PrismaStore): Store {
     whatsappNumber: store.whatsappNumber ?? null,
     isActive: store.isActive,
     isApproved: store.isApproved,
-    isAcceptingOrders: store.isAcceptingOrders,
-    storeStatus: (store.storeStatus === 'BUSY' && store.busyUntil && store.busyUntil <= new Date() ? 'OPEN' : store.storeStatus) as StoreStatus,
+    isAcceptingOrders: store.isAcceptingOrders && withinHours,
+    storeStatus: (!withinHours ? 'CLOSED' : store.storeStatus === 'BUSY' && store.busyUntil && store.busyUntil <= new Date() ? 'OPEN' : store.storeStatus) as StoreStatus,
     storeType: (store.storeType as StoreType) ?? null,
     openingTime: store.openingTime ?? null,
     closingTime: store.closingTime ?? null,

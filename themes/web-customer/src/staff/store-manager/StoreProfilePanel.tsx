@@ -39,6 +39,7 @@ interface FormState {
   isActive: boolean;
   openingTime: string;
   closingTime: string;
+  autoReadyOnPrepTimeout: boolean;
 }
 
 function formFromStore(s: StoreType): FormState {
@@ -49,6 +50,7 @@ function formFromStore(s: StoreType): FormState {
     phone: s.phone,
     isActive: s.isActive,
     openingTime: s.openingTime ?? "",
+    autoReadyOnPrepTimeout: s.autoReadyOnPrepTimeout ?? false,
     closingTime: s.closingTime ?? "",
   };
 }
@@ -86,6 +88,7 @@ export function StoreProfilePanel({ storeId }: Props) {
     isActive: true,
     openingTime: "",
     closingTime: "",
+    autoReadyOnPrepTimeout: false,
   });
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -120,6 +123,7 @@ export function StoreProfilePanel({ storeId }: Props) {
         phone: form.phone.trim() ? form.phone.trim() : undefined,
         isActive: form.isActive,
         openingTime: form.openingTime || null,
+        autoReadyOnPrepTimeout: form.autoReadyOnPrepTimeout,
         closingTime: form.closingTime || null,
       });
       setDirty(false);
@@ -304,6 +308,7 @@ export function StoreProfilePanel({ storeId }: Props) {
             <h3 className="mb-3 font-bold">مواعيد العمل</h3>
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">موعد الفتح<input type="time" dir="ltr" value={form.openingTime} onChange={e => update('openingTime', e.target.value)} className="input-field mt-2 w-full" /></label>
+              <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={form.autoReadyOnPrepTimeout} onChange={e => update('autoReadyOnPrepTimeout', e.target.checked)} /><span>جاهز للتسليم تلقائيًا عند انتهاء وقت التحضير<span className="mt-1 block text-ink-muted">يشمل الطلبات المقبولة وقيد التحضير، ويعمل حتى عند إغلاق التطبيق.</span></span></label>
               <label className="text-sm">موعد الإغلاق<input type="time" dir="ltr" value={form.closingTime} onChange={e => update('closingTime', e.target.value)} className="input-field mt-2 w-full" /></label>
             </div>
             <p className="mt-3 text-xs leading-6 text-ink-muted">تظهر هذه المواعيد للعملاء. حالة «مفتوح / مغلق» تُدار يدويًا؛ حفظ الوقت لا يغلق المتجر تلقائيًا.</p>

@@ -1,0 +1,1 @@
+ALTER TABLE "Store" ADD COLUMN "autoReadyOnPrepTimeout" BOOLEAN NOT NULL DEFAULT false;

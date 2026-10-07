@@ -1,3 +1,5 @@
+import { handoffQrToken } from './handoff-qr';
+import { dispatchAutomaticReady } from './automatic-ready';
 import { dispatchAvailableOrders, dispatchDistance } from './automatic-dispatch';
 import { expireAvailabilityTimers } from '../stores/availability';
 import { dispatchScheduledReminders } from './preparation-reminders';
@@ -128,25 +130,26 @@ it('delivers an order with server pricing, role gates, handoff codes, PIN and ex
     expect(result.data.status).toBe(status);
   }
   const manager = await request<OrderDetail>('GET', route, 'STORE_MANAGER');
-  expect(manager.data.captainHandoffCode).toMatch(/^\d{4}$/);
+  expect(manager.data.captainHandoffCode).toBeNull();
+  expect(manager.data.requiresHandoffCode).toBe(false);
   expect(manager.data.deliveryPin).toBeNull();
   const customer = await request<OrderDetail>('GET', route, 'CUSTOMER');
   expect(customer.data.captainHandoffCode).toBeNull();
   expect((await request('GET', `${route}/pin`, 'CAPTAIN')).status).toBe(403);
-  const claimed = await request<OrderDetail>('POST', `${route}/claim`, 'CAPTAIN', { handoffCode: manager.data.captainHandoffCode });
+  const claimed = await request<OrderDetail>('POST', `${route}/claim`, 'CAPTAIN', { qrToken: manager.data.pickupQr });
   expect(claimed.status, JSON.stringify(claimed.error)).toBe(200);
   expect(claimed.data.status).toBe('ON_THE_WAY');
   expect(claimed.data.deliveryPin).toBeNull();
-  const incorrectPin = customer.data.deliveryPin === '0000' ? '0001' : '0000';
-  expect((await request('PATCH', `${route}/status`, 'CAPTAIN', { status: 'DELIVERED', deliveryPin: incorrectPin })).status).toBe(400);
-  const delivered = await request<OrderDetail>('PATCH', `${route}/status`, 'CAPTAIN', { status: 'DELIVERED', deliveryPin: customer.data.deliveryPin });
+  expect(customer.data.deliveryPin).toBeNull();
+  const deliveryQr = (await request<OrderDetail>('GET', route, 'CUSTOMER')).data.deliveryQr;
+  const delivered = await request<OrderDetail>('PATCH', `${route}/status`, 'CAPTAIN', { status: 'DELIVERED', qrToken: deliveryQr });
   expect(delivered.status, JSON.stringify(delivered.error)).toBe(200);
   const tracked = await request<OrderDetail>('GET', route, 'CUSTOMER');
   expect(tracked.data.status).toBe('DELIVERED');
   expect(tracked.data.totalAmount).toBe(32);
   const ledgerCount = await fixture.db.ledgerEntry.count();
   expect(ledgerCount).toBeGreaterThan(0);
-  await request('PATCH', `${route}/status`, 'CAPTAIN', { status: 'DELIVERED', deliveryPin: customer.data.deliveryPin });
+  await request('PATCH', `${route}/status`, 'CAPTAIN', { status: 'DELIVERED' });
   expect(await fixture.db.ledgerEntry.count()).toBe(ledgerCount);
 }, 20_000);
 
@@ -482,7 +485,7 @@ it('restricts a captain to multiple stores across profile, pool, reservation, as
   }
   const ready = await request<OrderDetail>('PATCH', `/orders/${orders[1]}/status`, 'ADMIN', { status: 'READY_FOR_PICKUP' });
   expect(ready.status).toBe(200);
-  expect((await request('POST', `/orders/${orders[1]}/claim`, 'CAPTAIN', { handoffCode: ready.data.captainHandoffCode })).status).toBe(200);
+  expect((await request('POST', `/orders/${orders[1]}/claim`, 'CAPTAIN', { qrToken: handoffQrToken(await fixture.db.order.findUniqueOrThrow({ where: { id: orders[1] } }), 'pickup') })).status).toBe(200);
   expect((await request('PATCH', '/users/CAPTAIN', 'CUSTOMER', { assignedStoreIds: [] })).status).toBe(403);
   expect((await request('PATCH', '/users/CUSTOMER', 'ADMIN', { assignedStoreIds: ['store'] })).status).toBe(422);
   expect((await request('PATCH', '/users/CAPTAIN', 'ADMIN', { assignedStoreIds: ['missing-store'] })).status).toBe(404);
@@ -767,7 +770,7 @@ it('serves video byte ranges after a missing disk cache and rejects invalid rang
   const { storage } = await import('../../uploads/storage');
   const bytes = Buffer.from('0123456789');
   const read = vi.spyOn(storage, 'readFinal').mockResolvedValue(bytes);
-  const url = `${base}/uploads/video/admin/${randomUUID()}.mp4`;
+  const url = `${base}/uploads/video/ADMIN/${randomUUID()}.mp4`;
   try {
     const response = await fetch(url, { headers: { Range: 'bytes=2-5' } });
     expect(response.status).toBe(206);
@@ -1565,4 +1568,81 @@ it('caps automatic featured dishes at two per store and protects featured-store 
   expect(stores.data.items.every(store => store.isRecommended)).toBe(true);
   await request('PATCH', `/stores/${id}/recommend`, 'ADMIN', { isRecommended: false });
   expect((await request<{ items: { id: string }[] }>('GET', '/stores?recommendedOnly=true')).data.items.some(store => store.id === id)).toBe(false);
+});
+
+it('auto-ready honors the store setting, ignores future/cancelled orders, and records transitions only once', async () => {
+  const now = new Date();
+  const expired = await preparationOrder();
+  const future = await preparationOrder();
+  const cancelled = await preparationOrder();
+  const accepted = await preparationOrder();
+  await fixture.db.order.updateMany({ where: { id: { in: [expired.id, cancelled.id, accepted.id] } }, data: { estimatedReadyAt: new Date(now.getTime() - 1000) } });
+  await fixture.db.order.update({ where: { id: cancelled.id }, data: { status: 'CANCELLED' } });
+  await fixture.db.order.update({ where: { id: accepted.id }, data: { status: 'ACCEPTED' } });
+  await fixture.db.store.update({ where: { id: 'store' }, data: { autoReadyOnPrepTimeout: false } });
+  await dispatchAutomaticReady(now);
+  expect((await fixture.db.order.findUniqueOrThrow({ where: { id: expired.id } })).status).toBe('PREPARING');
+  const settings = await request('PATCH', '/stores/store', 'STORE_MANAGER', { autoReadyOnPrepTimeout: true });
+  expect(settings.status).toBe(200);
+  try {
+    await dispatchAutomaticReady(now); await dispatchAutomaticReady(now);
+    expect((await fixture.db.order.findUniqueOrThrow({ where: { id: expired.id } })).status).toBe('READY_FOR_PICKUP');
+    expect((await fixture.db.order.findUniqueOrThrow({ where: { id: future.id } })).status).toBe('PREPARING');
+    expect((await fixture.db.order.findUniqueOrThrow({ where: { id: cancelled.id } })).status).toBe('CANCELLED');
+    expect(await fixture.db.orderStatusHistory.count({ where: { orderId: expired.id, status: 'READY_FOR_PICKUP' } })).toBe(1);
+    expect(await fixture.db.orderStatusHistory.count({ where: { orderId: accepted.id } })).toBe(2);
+    const customer = await request<OrderDetail>('GET', `/orders/${expired.id}`, 'CUSTOMER');
+    expect(customer.data.pickupQr).toBeUndefined();
+    const manager = await request<OrderDetail>('GET', `/orders/${expired.id}`, 'STORE_MANAGER');
+    expect(manager.data.pickupQr).toBeTruthy();
+  } finally { await fixture.db.store.update({ where: { id: 'store' }, data: { autoReadyOnPrepTimeout: false } }); }
+});
+
+it('QR handovers reject invalid/wrong-stage proofs and cannot be replayed', async () => {
+  const order = await preparationOrder();
+  await fixture.db.order.update({ where: { id: order.id }, data: { status: 'READY_FOR_PICKUP', captainId: 'CAPTAIN' } });
+  const route = `/orders/${order.id}`;
+  const manager = await request<OrderDetail>('GET', route, 'STORE_MANAGER');
+  const captain = await request<OrderDetail>('GET', route, 'CAPTAIN');
+  expect(captain.data.pickupQr).toBeUndefined();
+  expect((await request('POST', `${route}/claim`, 'CAPTAIN', { qrToken: 'invalid' })).status).toBe(400);
+  expect((await request('POST', `${route}/claim`, 'CAPTAIN', { qrToken: manager.data.pickupQr })).status).toBe(200);
+  const customer = await request<OrderDetail>('GET', route, 'CUSTOMER');
+  expect(customer.data.deliveryQr).toBeTruthy();
+  expect((await request('PATCH', `${route}/status`, 'CAPTAIN', { status: 'DELIVERED', qrToken: manager.data.pickupQr })).status).toBe(400);
+  const delivery = { status: 'DELIVERED', qrToken: customer.data.deliveryQr };
+  expect((await request('PATCH', `${route}/status`, 'CAPTAIN', delivery)).status).toBe(200);
+  expect((await request('PATCH', `${route}/status`, 'CAPTAIN', delivery)).status).toBe(400);
+  expect(await fixture.db.orderStatusHistory.count({ where: { orderId: order.id, status: 'DELIVERED' } })).toBe(1);
+});
+
+it('store history includes active, cancelled and completed orders with details and excludes other stores', async () => {
+  const ids: string[] = [];
+  for (const status of ['PREPARING', 'CANCELLED', 'DELIVERED'] as const) {
+    const created = await preparationOrder(); ids.push(created.id);
+    await fixture.db.order.update({ where: { id: created.id }, data: { status, orderNote: 'History note', subtotal: 30, discount: 5, deliveryFee: 7, totalAmount: 32 } });
+    await fixture.db.orderStatusHistory.create({ data: { orderId: created.id, status, note: 'History transition', changedByUserId: 'STORE_MANAGER' } });
+    const list = await request<{ items: { id: string }[] }>('GET', `/orders?storeId=store&status=${status}&pageSize=100`, 'STORE_MANAGER');
+    expect(list.status).toBe(200); expect(list.data.items.some(item => item.id === created.id)).toBe(true);
+    const detail = await request<OrderDetail>('GET', `/orders/${created.id}`, 'STORE_MANAGER');
+    expect(detail.status).toBe(200); expect(detail.data.orderNote).toBe('History note');
+    expect(detail.data.totalAmount - detail.data.deliveryFee).toBe(25);
+    expect(detail.data.statusHistory.some(entry => entry.note === 'History transition')).toBe(true);
+  }
+  const all = await request<{ items: { id: string }[] }>('GET', '/orders?storeId=store&pageSize=100', 'STORE_MANAGER');
+  expect(ids.every(id => all.data.items.some(item => item.id === id))).toBe(true);
+  await fixture.db.store.create({ data: { id: 'history-other-store', managerId: 'ADMIN', nameAr: 'Other', nameEn: 'Other', phone: '0599000000' } });
+  const hidden = await preparationOrder();
+  await fixture.db.order.update({ where: { id: hidden.id }, data: { storeId: 'history-other-store' } });
+  expect((await request('GET', `/orders/${hidden.id}`, 'STORE_MANAGER')).status).toBe(403);
+  const scoped = await request<{ items: { id: string }[] }>('GET', '/orders?storeId=store&pageSize=100', 'STORE_MANAGER');
+  expect(scoped.data.items.some(item => item.id === hidden.id)).toBe(false);
+});
+
+it('keeps legacy captain pickup and delivery working during the QR rollout', async () => {
+ const order = await preparationOrder();
+ await fixture.db.order.update({ where: { id: order.id }, data: { status: 'READY_FOR_PICKUP', captainId: 'CAPTAIN' } });
+ const route = '/orders/' + order.id;
+ expect((await request('POST', route + '/claim', 'CAPTAIN', {})).status).toBe(200);
+ expect((await request('PATCH', route + '/status', 'CAPTAIN', {status: 'DELIVERED'})).status).toBe(200);
 });

@@ -1,3 +1,5 @@
+import { OrderAmounts } from '@samou-go/api-client';
+import { HandoffScanner } from '@samou-go/api-client';
 import { MAX_ACTIVE_CAPTAIN_ORDERS } from '@samou-go/shared-types';
 import { AppSelect } from '@samou-go/ui';
 import { requestOtp, normalizeLoginPhone } from '@samou-go/api-client';
@@ -270,170 +272,30 @@ export function SamouGoCaptain() {
 
   interface TransitionInput { orderId: string; status: OrderStatus; deliveryPin?: string; handoffCode?: string }
 
-  const acceptMutation = useMutation<TransitionInput, OrderDetail>(
-    (input, signal) => updateOrderStatus(input.orderId, { status: input.status, ...(input.handoffCode ? { handoffCode: input.handoffCode } : {}) }, signal)
-  );
-
-  const deliverMutation = useMutation<TransitionInput, OrderDetail>(
-    (input, signal) => updateOrderStatus(input.orderId, { status: input.status, ...(input.deliveryPin ? { deliveryPin: input.deliveryPin } : {}) }, signal)
-  );
-
   const cancelMutation = useMutation<TransitionInput, OrderDetail>(
     (input, signal) => updateOrderStatus(input.orderId, { status: input.status }, signal)
   );
-
-  const handleAccept = async (orderId: string) => {
-    // Check if dynamic fee mode is enabled
-    const zonesEnabled = platformSettings.data?.enableDeliveryZones;
-    const order = availableItems.find((o) => o.id === orderId);
-    if (!zonesEnabled && !order?.autoPriced) {
-      // Open the dynamic fee modal instead of directly accepting
-      setDynamicFeeOrderId(orderId);
-      setDynamicFeeValue('');
-      return;
-    }
-    // A coded order requires the pickup handoff code the store employee shares
-    // with the captain at handover. Open the code entry modal before claiming.
-    if (order?.requiresHandoffCode) {
-      setHandoffOrderId(orderId);
-      setHandoffInput('');
-      setHandoffAttemptMessage(null);
-      setHandoffCodeLoading(false);
-      return;
-    }
-    // Normal acceptance flow
-    const result = await acceptMutation.run({ orderId, status: OrderStatus.ON_THE_WAY });
-    if (result) {
-      toast.success('تم استلام الطلب للتوصيل', 'Order picked up — heading to the customer');
-      void availableOrders.reload();
-      void activeOrders.reload();
-    } else if (acceptMutation.error) {
-      // 409 = another captain claimed it first (optimistic lock)
-      if (acceptMutation.error.status === 409) {
-        toast.error('سبقك كابتن آخر إلى هذا الطلب', 'Another captain just claimed this order');
-      } else {
-        toast.error('تعذّر قبول الطلب', acceptMutation.error.localizedMessage, { duration: 5_000 });
-      }
-      // Refresh the pool so the claimed order disappears immediately.
-      void availableOrders.reload();
-    }
-  };
-
-  // Captain pickup-handoff flow state. The code is the shared secret between
-  // the store (which visibly prints it) and the captain who must recite it
-  // back to verify the handover when claiming a READY_FOR_PICKUP order.
   const [handoffOrderId, setHandoffOrderId] = useState<string | null>(null);
-  const [handoffInput, setHandoffInput] = useState('');
-  const [handoffAttemptMessage, setHandoffAttemptMessage] = useState<{ ar: string; en: string } | null>(null);
-  const [handoffCodeLoading, setHandoffCodeLoading] = useState(false);
-  // Pending delivery fee to apply after a coded order is claimed via handoff.
-  const [pendingDeliveryFee, setPendingDeliveryFee] = useState<{ orderId: string; fee: number } | null>(null);
-
-  const handleAcceptWithHandoff = async () => {
-    if (!handoffOrderId || handoffInput.length !== 4 || handoffCodeLoading) return;
-    setHandoffCodeLoading(true);
-    setHandoffAttemptMessage(null);
-    const result = await acceptMutation.run({ orderId: handoffOrderId, status: OrderStatus.ON_THE_WAY, handoffCode: handoffInput });
-    if (result) {
-      // Apply any pending delivery fee that was set before the handoff modal.
-      if (pendingDeliveryFee && pendingDeliveryFee.orderId === handoffOrderId) {
-        try {
-          await setOrderDeliveryFee(handoffOrderId, pendingDeliveryFee.fee);
-        } catch {
-          // Fee set is best-effort; the order is already claimed.
-          toast.error('تم قبول الطلب لكن تعذّر تحديد رسوم التوصيل', 'Order claimed but fee could not be set');
-        }
-        setPendingDeliveryFee(null);
-      }
-      toast.success('تم استلام الطلب للتوصيل', 'Order picked up — heading to the customer');
-      setHandoffOrderId(null);
-      setHandoffInput('');
-      void availableOrders.reload();
-      void activeOrders.reload();
-    } else if (acceptMutation.error) {
-      if (acceptMutation.error.status === 409) {
-        toast.error('سبقك كابتن آخر إلى هذا الطلب', 'Another captain just claimed this order');
-        setHandoffOrderId(null);
-        setHandoffInput('');
-        setPendingDeliveryFee(null);
-      } else if (acceptMutation.error.status === 400) {
-        // INVALID_HANDOFF_CODE: surface the server's remaining-attempts notice.
-        setHandoffAttemptMessage({
-          ar: acceptMutation.error.localizedMessage,
-          en: acceptMutation.error.localizedMessage,
-        });
-        setHandoffInput('');
-      } else {
-        toast.error('تعذّر قبول الطلب', acceptMutation.error.localizedMessage, { duration: 5_000 });
-        setHandoffOrderId(null);
-        setHandoffInput('');
-        setPendingDeliveryFee(null);
-      }
-      void availableOrders.reload();
-    }
-    setHandoffCodeLoading(false);
-  };
-
-  const handleDynamicFeeAccept = async () => {
-    if (!dynamicFeeOrderId || dynamicFeeLoading) return;
-    const fee = Number(dynamicFeeValue);
-    if (!Number.isFinite(fee) || fee < 0 || fee > 1000) {
-      toast.error('أدخل رسوم توصيل صحيحة بين 0 و 1000 ₪', 'Enter a valid delivery fee between 0 and 1000 ₪');
-      return;
-    }
-    setDynamicFeeLoading(true);
-    try {
-      // Coded orders must go through the handoff-code modal first — the
-      // fee will be set after the captain successfully claims the order.
-      const order = availableItems.find((o) => o.id === dynamicFeeOrderId);
-      if (order?.requiresHandoffCode) {
-        // Store the pending fee so it can be applied after the handoff claim.
-        setPendingDeliveryFee({ orderId: dynamicFeeOrderId, fee });
-        setDynamicFeeLoading(false);
-        setHandoffOrderId(dynamicFeeOrderId);
-        setHandoffInput('');
-        setHandoffAttemptMessage(null);
-        setHandoffCodeLoading(false);
-        return;
-      }
-      // Non-coded: claim the order FIRST (assigns captainId), THEN set the
-      // delivery fee. Calling /set-delivery-fee before claiming triggers 403
-      // because the server requires order.captainId === actor.sub.
-      const result = await acceptMutation.run({ orderId: dynamicFeeOrderId, status: OrderStatus.ON_THE_WAY });
-      if (result) {
-        await setOrderDeliveryFee(dynamicFeeOrderId, fee);
-        toast.success('تم استلام الطلب للتوصيل', 'Order picked up — heading to the customer');
-        void availableOrders.reload();
-        void activeOrders.reload();
-      } else if (acceptMutation.error) {
-        if (acceptMutation.error.status === 409) {
-          toast.error('سبقك كابتن آخر إلى هذا الطلب', 'Another captain just claimed this order');
-        } else {
-          toast.error('تعذّر قبول الطلب', acceptMutation.error.localizedMessage, { duration: 5_000 });
-        }
-        void availableOrders.reload();
-      }
-    } catch (err) {
-      toast.error('تعذّر تحديد الرسوم', err instanceof Error ? err.message : 'Failed to set fee');
-    } finally {
-      setDynamicFeeLoading(false);
-      setDynamicFeeOrderId(null);
-      setDynamicFeeValue('');
-    }
-  };
-
   const [pinModalOrderId, setPinModalOrderId] = useState<string | null>(null);
-  const [pinInput, setPinInput] = useState('');
-
-  const handleDeliver = async (orderId: string, pin: string) => {
-    const result = await deliverMutation.run({ orderId, status: OrderStatus.DELIVERED, deliveryPin: pin });
-    if (result) {
-      toast.success('تم توصيل الطلب بنجاح', 'Order delivered successfully');
-    } else if (deliverMutation.error) {
-      toast.error('تعذّر تأكيد التوصيل', deliverMutation.error.localizedMessage, { duration: 5_000 });
+  const handleAccept = async (orderId: string) => { if (!platformSettings.data?.enableDeliveryZones && !availableItems.find(order => order.id === orderId)?.autoPriced) {
+      setDynamicFeeOrderId(orderId); setDynamicFeeValue(''); return;
+    } setHandoffOrderId(orderId); };
+  const [pendingDeliveryFee, setPendingDeliveryFee] = useState<{ orderId: string; fee: number } | null>(null);
+  const handleDynamicFeeAccept = async () => {
+    const fee = Number(dynamicFeeValue);
+    if (!dynamicFeeOrderId || !Number.isFinite(fee) || fee < 0 || fee > 1000) { toast.error('أدخل رسوم توصيل صحيحة', 'Enter a valid delivery fee'); return; }
+    setPendingDeliveryFee({ orderId: dynamicFeeOrderId, fee }); setHandoffOrderId(dynamicFeeOrderId); setDynamicFeeOrderId(null);
+  };
+  const confirmHandoff = async (orderId: string, stage: 'pickup' | 'delivery', qrToken: string) => {
+    await updateOrderStatus(orderId, { status: stage === 'pickup' ? OrderStatus.ON_THE_WAY : OrderStatus.DELIVERED, qrToken });
+    if (stage === 'pickup' && pendingDeliveryFee?.orderId === orderId) {
+      try { await setOrderDeliveryFee(orderId, pendingDeliveryFee.fee); }
+      catch { toast.error('تم الاستلام، لكن تعذر حفظ رسوم التوصيل. راجع تفاصيل الطلب.', 'Picked up; delivery fee could not be saved.'); }
+      setPendingDeliveryFee(null);
     }
-    void activeOrders.reload();
-    void completedOrders.reload();
+    setHandoffOrderId(null); setPinModalOrderId(null);
+    toast.success(stage === 'pickup' ? 'تم استلام الطلب من المتجر' : 'تم تسليم الطلب للزبون', 'Handoff confirmed');
+    void availableOrders.reload(); void activeOrders.reload(); void completedOrders.reload();
   };
 
   // A captain may cancel a ready order already assigned to them (server gate:
@@ -682,7 +544,8 @@ export function SamouGoCaptain() {
                         )}
                       </p>
                     )}
-                    <OrderCustomerDetails order={order} showDestination />
+                    <OrderAmounts order={order} />
+                      <OrderCustomerDetails order={order} showDestination />
                     {order.customerContact && <OrderChat orderId={order.id} />}
                     <PreparationCountdown order={order} />
                     <CaptainReservation order={order} captainId={auth.user?.id} onReserved={() => { void availableOrders.reload(); }} />
@@ -698,10 +561,10 @@ export function SamouGoCaptain() {
                         <button
                           type="button"
                           onClick={() => handleAccept(order.id)}
-                          disabled={acceptMutation.pending}
+                          disabled={handoffOrderId !== null}
                           className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand py-2.5 text-[11px] font-extrabold text-white transition hover:bg-brand-dark disabled:opacity-60"
                         >
-                          {acceptMutation.pending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                          {handoffOrderId !== null ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                           <span>{t('استلام من المتجر', 'Pick up from store')}</span>
                         </button>
                         {order.captainId === auth.user?.id &&
@@ -949,6 +812,7 @@ export function SamouGoCaptain() {
                               ))}
                           </div>
                         )}
+                      <OrderAmounts order={order} />
                       <OrderCustomerDetails order={order} showDestination />
                     {order.customerContact && <OrderChat orderId={order.id} />}
                     <PreparationCountdown order={order} />
@@ -1024,11 +888,11 @@ export function SamouGoCaptain() {
                         )}
                         <button
                           type="button"
-                          disabled={deliverMutation.pending}
-                          onClick={() => { setPinModalOrderId(order.id); setPinInput(''); }}
+                          disabled={pinModalOrderId !== null}
+                          onClick={() => { setPinModalOrderId(order.id); }}
                           className="col-span-2 flex items-center justify-center gap-1.5 rounded-xl bg-brand py-2.5 text-[11px] font-bold text-white transition hover:bg-brand-dark disabled:opacity-60"
                         >
-                          {deliverMutation.pending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                          {pinModalOrderId !== null ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                           <span>{t('تم التوصيل', 'Delivered')}</span>
                         </button>
                       </div>
@@ -1169,113 +1033,8 @@ export function SamouGoCaptain() {
           })}
         </div>
       </nav>
-      {/* Captain pickup handoff modal — captain recites the code the store gave
-          them at handover to claim the order. */}
-      {handoffOrderId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-5">
-          <div className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-raised">
-            <h3 className="flex items-center justify-center gap-1.5 text-center text-sm font-extrabold">
-              <KeyRound size={16} className="text-brand" />
-              {t('أدخل رمز الاستلام', 'Enter handoff code')}
-            </h3>
-            <p className="mt-1 text-center text-[11px] text-ink-muted">
-              {t('اطلب رمز الاستلام من كاشير المتجر', 'Ask the store cashier for the handoff code')}
-            </p>
-            <div className="mt-4 flex justify-center gap-2" dir="ltr">
-              {[0, 1, 2, 3].map((i) => (
-                <input
-                  key={i}
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={1}
-                  autoFocus={i === 0}
-                  value={handoffInput[i] ?? ''}
-                  onChange={(e) => {
-                    const digit = e.target.value.replace(/\D/g, '').slice(0, 1);
-                    const next = (handoffInput.slice(0, i) + digit + handoffInput.slice(i + 1)).slice(0, 4);
-                    setHandoffInput(next);
-                    setHandoffAttemptMessage(null);
-                    // Focus the next empty cell.
-                    const nextEmpty = next.length < 4 ? next.length : -1;
-                    if (nextEmpty >= 0) {
-                      document.querySelector<HTMLInputElement>(`[data-handoff-cell="${nextEmpty}"]`)?.focus();
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Backspace' && !handoffInput[i]) {
-                      e.preventDefault();
-                      setHandoffInput(handoffInput.slice(0, i));
-                      document.querySelector<HTMLInputElement>(`[data-handoff-cell="${Math.max(0, i - 1)}"]`)?.focus();
-                    }
-                  }}
-                  data-handoff-cell={i}
-                  className="h-14 w-12 rounded-xl border border-line bg-canvas text-center text-2xl font-black text-ink outline-none focus:border-brand"
-                />
-              ))}
-            </div>
-            {handoffAttemptMessage && (
-              <p className="mt-3 rounded-lg bg-danger-tint px-3 py-2 text-center text-[11px] font-bold text-danger-ink" role="alert">
-                {t(handoffAttemptMessage.ar, handoffAttemptMessage.en)}
-              </p>
-            )}
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => { setHandoffOrderId(null); setHandoffInput(''); setHandoffAttemptMessage(null); setPendingDeliveryFee(null); }}
-                className="rounded-xl border border-line py-2.5 text-xs font-bold text-ink-soft transition hover:bg-canvas"
-              >
-                {t('إلغاء', 'Cancel')}
-              </button>
-              <button
-                type="button"
-                disabled={handoffInput.length !== 4 || handoffCodeLoading}
-                onClick={() => { void handleAcceptWithHandoff(); }}
-                className="rounded-xl bg-brand py-2.5 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
-              >
-                {handoffCodeLoading ? <Loader2 size={14} className="mx-auto animate-spin" /> : t('تأكيد الاستلام', 'Confirm pickup')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Delivery PIN modal */}
-      {pinModalOrderId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-5">
-          <div className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-raised">
-            <h3 className="text-center text-sm font-extrabold">{t('أدخل رمز التوصيل', 'Enter delivery PIN')}</h3>
-            <p className="mt-1 text-center text-[11px] text-ink-muted">
-              {t('اطلب الرمز من العميل', 'Ask the customer for the code')}
-            </p>
-            <input
-              type="tel"
-              inputMode="numeric"
-              maxLength={4}
-              autoFocus
-              value={pinInput}
-              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              className="mx-auto mt-4 block w-32 rounded-xl border border-line bg-canvas py-3 text-center text-2xl font-black tracking-[0.3em] text-ink outline-none focus:border-brand"
-              placeholder="----"
-            />
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => { setPinModalOrderId(null); setPinInput(''); }}
-                className="rounded-xl border border-line py-2.5 text-xs font-bold text-ink-soft transition hover:bg-canvas"
-              >
-                {t('إلغاء', 'Cancel')}
-              </button>
-              <button
-                type="button"
-                disabled={pinInput.length !== 4 || deliverMutation.pending}
-                onClick={() => { void handleDeliver(pinModalOrderId, pinInput); setPinModalOrderId(null); setPinInput(''); }}
-                className="rounded-xl bg-brand py-2.5 text-xs font-bold text-white transition hover:bg-brand-dark disabled:opacity-50"
-              >
-                {deliverMutation.pending ? <Loader2 size={14} className="mx-auto animate-spin" /> : t('تأكيد التسليم', 'Confirm delivery')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {handoffOrderId && <HandoffScanner orderId={handoffOrderId} stage="pickup" onClose={() => setHandoffOrderId(null)} onScan={token => confirmHandoff(handoffOrderId, 'pickup', token)} />}
+      {pinModalOrderId && <HandoffScanner orderId={pinModalOrderId} stage="delivery" onClose={() => setPinModalOrderId(null)} onScan={token => confirmHandoff(pinModalOrderId, 'delivery', token)} />}
       <SupportWhatsAppButton />
       {/* Dynamic Fee Modal */}
       {dynamicFeeOrderId && (

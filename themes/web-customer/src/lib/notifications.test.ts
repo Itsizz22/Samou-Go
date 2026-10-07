@@ -63,7 +63,7 @@ it('uses the current account when a delayed token event arrives after switching 
   expect(mocks.fetch.mock.calls[0]?.[1].headers.Authorization).toBe('Bearer account-b');
 });
 
-it('iOS dismissal never opens an order, and taps open the incoming-order screen', async () => {
+it('iOS dismissal never opens an order, and taps open order details directly', async () => {
   mocks.platform = 'ios';
   const { registerForPushNotifications } = await import('./notifications');
   await registerForPushNotifications('account-a');
@@ -75,7 +75,8 @@ it('iOS dismissal never opens an order, and taps open the incoming-order screen'
   expect(mocks.navigate).toHaveBeenLastCalledWith('/orders/order');
   Reflect.apply(action, null, [{ actionId: 'tap', notification }]);
   const incoming = await import('./incomingOrder');
-  expect(incoming.getIncomingOrder()).toEqual({ orderId: 'order', title: 'طلب جديد', body: 'متجر الاختبار' });
+  expect(incoming.getIncomingOrder()).toBeNull();
+  expect(mocks.navigate).toHaveBeenLastCalledWith('/orders/order');
   Reflect.apply(action, null, [{ actionId: 'SAMOU_DISMISS', notification }]);
   expect(incoming.getIncomingOrder()).toBeNull();
   expect(incoming.presentIncomingOrder({ data: { type: 'ORDER_STATUS', orderId: 'order' } })).toBe(false);

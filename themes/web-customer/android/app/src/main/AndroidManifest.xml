@@ -30,7 +30,7 @@
         </activity>
 
         <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="orders_high_priority" />
+            android:value="customer_updates_v1" />
 
         <!-- One FCM service owns delivery; it forwards bridge events to Capacitor. -->
         <service android:name="com.capacitorjs.plugins.pushnotifications.MessagingService" tools:node="remove" />
@@ -84,6 +84,8 @@
 
     <!-- Permissions -->
 
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Requested by Capacitor only when the user enables audio or records a note. -->

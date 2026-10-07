@@ -47,6 +47,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
     private static final String TAG = "FirebaseMessaging";
 
     /** Channel for ringing notifications (ringtone + vibration). */
+    public static final String CHANNEL_UPDATES = "customer_updates_v1";
     public static final String CHANNEL_FOREGROUND = "orders_in_app_v1";
     public static final String CHANNEL_PREPARATION = "preparation_updates_v1";
     public static final String CHANNEL_ALERT = "orders_alert_channel";
@@ -90,11 +91,11 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
         }
 
         if ("custom-requests".equals(data.get("screen"))) {
-            showNotification(title, body, null, MainActivity.isUserActive(this) ? CHANNEL_FOREGROUND : "orders_high_priority", data.get("notificationLogId"), data.get("customRequestId"), data.get("audience"), data.get("storeId"));
+            showNotification(title, body, null, CHANNEL_UPDATES, data.get("notificationLogId"), data.get("customRequestId"), data.get("audience"), data.get("storeId"));
             return;
         }
         if ("CHAT_MESSAGE".equals(type)) {
-            showNotification(title, body, orderId, MainActivity.isUserActive(this) ? CHANNEL_FOREGROUND : "orders_high_priority", data.get("notificationLogId"), null, null, null, data.get("senderId"));
+            showNotification(title, body, orderId, CHANNEL_UPDATES, data.get("notificationLogId"), null, null, null, data.get("senderId"));
             return;
         }
         boolean isCaptainOrStoreNotification =
@@ -103,7 +104,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
 
         // Customer updates must also show a banner in foreground.
         if (!isCaptainOrStoreNotification) {
-            showNotification(title, body, orderId, MainActivity.isUserActive(this) ? CHANNEL_FOREGROUND : "orders_high_priority", data.get("notificationLogId"));
+            showNotification(title, body, orderId, CHANNEL_UPDATES, data.get("notificationLogId"));
             return;
         }
 
@@ -249,14 +250,22 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
         }
     }
 
-    /**
-     * Ensure both notification channels exist. Called on every notification
-     * but only creates channels if they don't already exist (idempotent).
-     *
-     * Android notification channels are IMMUTABLE once created — if a channel
-     * already exists, these calls are no-ops. To change channel properties,
-     * the user must uninstall/reinstall the app or clear app data.
-     */
+    /** Separate ID avoids retaining the alarm sound of an existing channel. */
+    public static void ensureUpdateChannel(Context context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        NotificationManager nm = context.getSystemService(NotificationManager.class);
+        if (nm == null || nm.getNotificationChannel(CHANNEL_UPDATES) != null) return;
+        NotificationChannel channel = new NotificationChannel(CHANNEL_UPDATES,
+            "تحديثات الطلبات والمحادثات", NotificationManager.IMPORTANCE_HIGH);
+        channel.setDescription("إشعارات عادية بصوت الجهاز دون رنين طلب جديد");
+        channel.setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI,
+            new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+        channel.enableVibration(true);
+        nm.createNotificationChannel(channel);
+    }
+
+    /** Create missing channels without overriding the user's sound preferences. */
     private void ensureChannelsExist(Context context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -281,12 +290,7 @@ public class FirebaseMyMessagingService extends FirebaseMessagingService {
             preparation.enableVibration(true);
             nm.createNotificationChannel(preparation);
         }
-        if (nm.getNotificationChannel("orders_high_priority") == null) {
-            NotificationChannel updates = new NotificationChannel("orders_high_priority",
-                "تنبيهات الطلبات", NotificationManager.IMPORTANCE_HIGH);
-            updates.enableVibration(true);
-            nm.createNotificationChannel(updates);
-        }
+        ensureUpdateChannel(context);
 
         // Alert channel: HIGH importance, custom ringtone, vibration
         if (nm.getNotificationChannel(CHANNEL_ALERT) == null) {

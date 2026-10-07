@@ -16,6 +16,7 @@ import type {
   OrderSummary,
 } from '@samou-go/shared-types';
 import { UserRole, normalizeSelectedOptions } from '@samou-go/shared-types';
+import { visibleHandoffQr } from './handoff-qr';
 import { decimalToNumber } from '../../lib/decimal';
 
 /**
@@ -76,9 +77,9 @@ export function toOrder(order: PrismaOrder): Order {
     dispatchExpiresAt: order.captainId ? null : order.dispatchExpiresAt?.toISOString() ?? null,
     preparationStartedAt: order.preparationStartedAt?.toISOString() ?? null,
     preparedAt: order.preparedAt?.toISOString() ?? null,
-    deliveryPin: order.deliveryPin ?? null,
-    captainHandoffCode: order.captainHandoffCode ?? null,
-    requiresHandoffCode: order.captainHandoffCode !== null,
+    deliveryPin: null,
+    captainHandoffCode: null,
+    requiresHandoffCode: false,
     voiceNoteUrl: order.voiceNoteUrl ?? null,
     voiceNoteDuration: order.voiceNoteDuration ?? null,
     subtotal: decimalToNumber(order.subtotal),
@@ -142,6 +143,7 @@ export function toOrderDetail(order: OrderWithRelations, viewerRole?: string, vi
     changeProposal: restricted ? null : order.changeProposal,
 
     ...base,
+    ...visibleHandoffQr(order, viewerRole),
     deliveryPin: viewerRole === 'CUSTOMER' ? base.deliveryPin : null,
     captainHandoffCode: canViewCaptainHandoffCode(viewerRole) ? base.captainHandoffCode : null,
     items: order.items.map(item => ({ ...toOrderItem(item), ...(restricted ? { note: null } : {}) })),
@@ -194,6 +196,7 @@ export function toOrderSummary(order: OrderForSummary, viewerRole?: string, view
   const restricted = viewerRole === UserRole.CAPTAIN && (!viewerId || order.captainId !== viewerId);
   const staff = viewerRole === UserRole.STORE_MANAGER || (viewerRole === UserRole.CAPTAIN && !restricted) || viewerRole === UserRole.ADMIN;
   return {
+    ...visibleHandoffQr(order, viewerRole),
     scheduledFor: order.scheduledFor?.toISOString() ?? null,
     id: order.id,
     orderNumber: order.orderNumber,
@@ -227,10 +230,8 @@ export function toOrderSummary(order: OrderForSummary, viewerRole?: string, view
     dispatchExpiresAt: order.captainId ? null : order.dispatchExpiresAt?.toISOString() ?? null,
     preparationStartedAt: order.preparationStartedAt?.toISOString() ?? null,
     preparedAt: order.preparedAt?.toISOString() ?? null,
-    captainHandoffCode: canViewCaptainHandoffCode(viewerRole)
-      ? (order.captainHandoffCode ?? null)
-      : null,
-    requiresHandoffCode: order.captainHandoffCode !== null,
+    captainHandoffCode: null,
+    requiresHandoffCode: false,
     itemNotes: (restricted ? [] : order.items)
       .filter((item) => item.note)
       .map((item) => ({

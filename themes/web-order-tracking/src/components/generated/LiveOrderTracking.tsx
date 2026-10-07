@@ -1,4 +1,4 @@
-import { OrderChat } from '@samou-go/api-client';
+import { HandoffQr, OrderAmounts, OrderChat } from '@samou-go/api-client';
 import { OrderContactCard } from '@samou-go/ui';
 import { FEATURE_FLAGS, getLiveOrderTracking } from '@samou-go/api-client';
 import { LiveTrackingCard, PickupDirections } from '@samou-go/ui/map';
@@ -381,6 +381,9 @@ export const LiveOrderTracking = () => {
               date={formatStamp(detail.createdAt)}
             />
           )}
+
+          {detail && <OrderAmounts order={detail} />}
+          {detail?.status === OrderStatus.ON_THE_WAY && detail.deliveryQr && <HandoffQr value={detail.deliveryQr} title="رمز تسليم الطلب للزبون" />}
 
           {/* Delivered celebration card */}
           {detail && detail.status === OrderStatus.DELIVERED && (

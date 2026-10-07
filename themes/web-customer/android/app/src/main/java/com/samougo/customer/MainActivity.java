@@ -105,6 +105,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void createNotificationChannels() {
+        FirebaseMyMessagingService.ensureUpdateChannel(this);
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (nm == null) return;
