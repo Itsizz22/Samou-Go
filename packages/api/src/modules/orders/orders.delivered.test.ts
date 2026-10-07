@@ -110,8 +110,8 @@ describe('updateOrderStatus → DELIVERED wallet credits (P0-2)', () => {
     expect(creditDeliveredOrder).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects legacy digits without a QR proof', async () => {
-    await expect(updateOrderStatus(captain, 'order-1', { status: OrderStatus.DELIVERED, deliveryPin: '0000' })).rejects.toThrow();
+  it('rejects an invalid supplied QR proof', async () => {
+    await expect(updateOrderStatus(captain, 'order-1', { status: OrderStatus.DELIVERED, qrToken: '0000' })).rejects.toThrow();
     expect(creditDeliveredOrder).not.toHaveBeenCalled();
   });
 
