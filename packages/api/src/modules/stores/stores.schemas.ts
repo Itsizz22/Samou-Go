@@ -108,7 +108,8 @@ export const updateProductSchema = createProductSchema
 export const updateStoreSchema = z
   .object({
     busyUntil: z.string().datetime().nullable().optional(),
-    busyExtraMinutes: z.number().int().min(0).max(120).optional(),
+    autoReadyOnPrepTimeout: z.boolean().optional(),
+  busyExtraMinutes: z.number().int().min(0).max(120).optional(),
     acceptsScheduledOrders: z.boolean().optional(),
     whatsappNumber: whatsappNumberSchema,
     deliveryZoneId: z.string().min(1).max(100).nullable().optional(),

@@ -8,6 +8,8 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  // Keep legacy handovers available until native app rollout is complete.
+  HANDOFF_QR_REQUIRED: z.enum(['true', 'false']).default('false'),
   OSRM_BASE_URL: z.string().url().optional(),
   PORT: z.coerce.number().int().positive().default(4000),
 
@@ -185,6 +187,7 @@ export function parseDurationMs(value: string): number {
 }
 
 export const env = {
+  handoffQrRequired: raw.HANDOFF_QR_REQUIRED === 'true',
   nodeEnv: raw.NODE_ENV,
   isProduction: raw.NODE_ENV === 'production',
   isDevelopment: raw.NODE_ENV === 'development',

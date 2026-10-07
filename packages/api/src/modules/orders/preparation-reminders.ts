@@ -1,3 +1,4 @@
+import { dispatchAutomaticReady } from './automatic-ready';
 import { withJobLease } from '../../lib/job-lease';
 import { cleanupSharedRateLimits } from '../../lib/shared-rate-limit';
 import { env } from '../../config/env';
@@ -78,6 +79,8 @@ export function startPreparationReminderScheduler(): () => Promise<void> {
           await dispatchScheduledReminders(new Date(), assertActive);
           assertActive();
           await dispatchAvailableOrders(new Date(), assertActive);
+          assertActive();
+          await dispatchAutomaticReady(new Date(), assertActive);
           assertActive();
           await dispatchPreparationReminders(new Date(), assertActive);
           assertActive();

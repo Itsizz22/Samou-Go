@@ -1,3 +1,4 @@
+import { handoffQrToken } from './handoff-qr';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrderStatus, UserRole } from '@samou-go/shared-types';
 import { updateOrderStatus } from './orders.service';
@@ -19,6 +20,7 @@ const h = vi.hoisted(() => {
       storeId: 'store-1',
       captainId: 'captain-1',
       status: 'ON_THE_WAY',
+      fulfillmentType: 'DELIVERY',
       customerAddressText: 'حارة الرأس، بجانب المسجد',
       addressNote: null,
       subtotal: 100,
@@ -89,7 +91,7 @@ vi.mock('../../modules/platform/platform.service', () => ({
 // orders.service reads `env.deliveryFeeConfig`; the real env module throws in
 // the test environment (no JWT_SECRET), so stub it like the other suites do.
 vi.mock('../../config/env', () => ({
-  env: { isProduction: false, deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' } },
+  env: { jwt: { secret: 'unit-test-secret' }, isProduction: false, deliveryFeeConfig: { baseFee: 0, bulkFee: 0, bulkThreshold: 5, currency: 'ILS' } },
 }));
 
 beforeEach(() => {
@@ -100,8 +102,26 @@ beforeEach(() => {
 describe('updateOrderStatus → DELIVERED wallet credits (P0-2)', () => {
   const captain = { sub: 'captain-1', role: UserRole.CAPTAIN };
 
+  it('delivers with QR even when a legacy order exhausted PIN attempts', async () => {
+    h.state.order = h.buildOrder({ deliveryPinAttempts: 5 });
+    const result = await updateOrderStatus(captain, 'order-1', { status: OrderStatus.DELIVERED, qrToken: handoffQrToken(h.state.order, 'delivery') });
+    expect(result.status).toBe(OrderStatus.DELIVERED);
+    expect(result.deliveryPin).toBeNull();
+    expect(creditDeliveredOrder).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects an invalid supplied QR proof', async () => {
+    await expect(updateOrderStatus(captain, 'order-1', { status: OrderStatus.DELIVERED, qrToken: '0000' })).rejects.toThrow();
+    expect(creditDeliveredOrder).not.toHaveBeenCalled();
+  });
+
+  it('still rejects a different captain', async () => {
+    await expect(updateOrderStatus({ sub: 'another-captain', role: UserRole.CAPTAIN }, 'order-1', { status: OrderStatus.DELIVERED })).rejects.toThrow();
+    expect(creditDeliveredOrder).not.toHaveBeenCalled();
+  });
+
   it('credits both wallets inside the same transaction as the status change', async () => {
-    const result = await updateOrderStatus(captain, 'order-1', { status: OrderStatus.DELIVERED, deliveryPin: '1234' });
+    const result = await updateOrderStatus(captain, 'order-1', { status: OrderStatus.DELIVERED, qrToken: handoffQrToken(h.state.order, 'delivery') });
 
     expect(result.status).toBe(OrderStatus.DELIVERED);
     expect(h.tx.order.update).toHaveBeenCalledTimes(1);

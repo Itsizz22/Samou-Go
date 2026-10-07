@@ -1,3 +1,4 @@
+import { notifyStatusChange } from './status-notifications';
 import { verifyLiveAccessToken } from '../../lib/live-session';
 import { preparationTimeSchema, releaseReservationSchema } from './orders.schemas';
 import { isReplayedSubmission } from '../../lib/order-submission';
@@ -211,10 +212,11 @@ export async function reorderOrderHandler(req: Request, res: Response): Promise<
 export async function claimOrderHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);
   const { orderId } = parseWith(orderIdParamsSchema, req.params);
-  const body = parseWith(updateOrderStatusSchema.pick({ handoffCode: true }), req.body);
+  const body = parseWith(updateOrderStatusSchema.pick({ handoffCode: true, qrToken: true }), req.body);
   const result = await ordersService.updateOrderStatus(auth, orderId, {
     status: OrderStatus.ON_THE_WAY,
     ...(body.handoffCode !== undefined ? { handoffCode: body.handoffCode } : {}),
+    qrToken: body.qrToken,
   });
   emitOrderStatus(orderId, { status: result.status, orderId, timestamp: new Date().toISOString() });
   void notifyStatusChange(result, orderId, result.status);
@@ -233,7 +235,7 @@ export async function getOrderPinHandler(req: Request, res: Response): Promise<v
   if (auth.role !== UserRole.CUSTOMER || order.customerId !== auth.sub) {
     throw forbidden('فقط العميل يمكنه رؤية رمز التوصيل / Only the customer may view the delivery PIN');
   }
-  ok(res, { deliveryPin: order.deliveryPin ?? null });
+  ok(res, { deliveryPin: null });
 }
 
 /** PATCH /api/v1/orders/:orderId/status */
@@ -305,101 +307,6 @@ export async function setOrderDeliveryFeeHandler(req: Request, res: Response): P
  * Send a push notification to the relevant party after an order status change.
  * Fire-and-forget — push failure must never break the API response.
  */
-async function notifyStatusChange(
-  order: OrderDetail,
-  orderId: string,
-  newStatus: string
-): Promise<void> {
-  try {
-    const labels = ORDER_STATUS_LABELS[newStatus as OrderStatus];
-    if (!labels) return;
-
-    switch (newStatus) {
-      case OrderStatus.ACCEPTED: {
-        // Store accepted → notify the customer.
-        await sendPushToUser(order.customerId, {
-          title: 'تم قبول الطلب ✅',
-          body: `قبل متجر ${order.store.nameAr} طلبك #${order.orderNumber}`,
-          data: { orderId, type: 'ORDER_STATUS', status: newStatus, screen: 'tracking' },
-        });
-        break;
-      }
-      case OrderStatus.PREPARING: {
-        // Store is preparing → notify the customer.
-        await sendPushToUser(order.customerId, {
-          title: 'جاري التحضير 👨‍🍳',
-          body: `طلبك #${order.orderNumber} قيد التحضير`,
-          data: { orderId, type: 'ORDER_STATUS', status: newStatus, screen: 'tracking' },
-        });
-        break;
-      }
-      case OrderStatus.READY_FOR_PICKUP: {
-        // Ready → notify the customer + all available captains.
-        await sendPushToUser(order.customerId, {
-          title: 'جاهز للاستلام 📦',
-          body: order.fulfillmentType === 'PICKUP' ? `طلبك #${order.orderNumber} جاهز لاستلامه من المتجر` : `طلبك #${order.orderNumber} جاهز — في انتظار الكابتن`,
-          data: { orderId, type: 'ORDER_STATUS', status: newStatus, screen: 'tracking' },
-        });
-        // Notify the assigned captain; unassigned orders use the exclusive dispatcher.
-        // Uses data-only payloads so Android can route to the correct
-        // notification channel based on the captain's ring preference.
-        const availableCaptains = order.fulfillmentType === 'PICKUP' ? [] : order.captainId ? [order.captainId] : [];
-        if (availableCaptains.length > 0) {
-          await sendPushToMany(
-            availableCaptains,
-            {
-              title: 'طلب جاهز للاستلام 📦',
-              body: `طلب #${order.orderNumber} من ${order.store.nameAr} جاهز للاستلام`,
-              data: { orderId, type: 'NEW_ORDER', storeId: order.storeId, screen: 'order' },
-            },
-            { dataOnly: true }
-          );
-        }
-        break;
-      }
-      case OrderStatus.ON_THE_WAY: {
-        // Captain picked up → notify the customer.
-        if (order.customerId) {
-          await sendPushToUser(order.customerId, {
-            title: 'في الطريق إليك 🚗',
-            body: `طلبك #${order.orderNumber} في الطريق — الكابتن في الطريق`,
-            data: { orderId, type: 'ORDER_STATUS', status: newStatus, screen: 'tracking' },
-          });
-        }
-        break;
-      }
-      case OrderStatus.DELIVERED: {
-        // Delivered → notify the customer.
-        await sendPushToUser(order.customerId, {
-          title: order.fulfillmentType === 'PICKUP' ? 'تم استلام الطلب ✅' : 'تم التوصيل 🎉',
-          body: `طلبك #${order.orderNumber} مكتمل — بالعافية!`,
-          data: { orderId, type: 'ORDER_STATUS', status: newStatus, screen: 'tracking' },
-        });
-        break;
-      }
-      case OrderStatus.CANCELLED: {
-        await sendPushToUser(order.customerId, {
-          title: 'تم إلغاء الطلب ❌',
-          body: `طلب #${order.orderNumber} تم إلغاؤه`,
-          data: { orderId, type: 'ORDER_STATUS', status: newStatus, screen: 'tracking' },
-        });
-        // Cancelled → notify the other party.
-        // If customer cancelled, notify store manager. If store cancelled, notify customer.
-        if (order.captainId) {
-          await sendPushToUser(order.captainId, {
-            title: 'تم إلغاء الطلب ❌',
-            body: `طلب #${order.orderNumber} تم إلغاؤه`,
-            data: { orderId, screen: 'order' },
-          });
-        }
-        break;
-      }
-    }
-  } catch {
-    // Push failure must never break the status update response.
-  }
-}
-
 /** PATCH /api/v1/orders/:orderId/review — sets a rating and comment for the order. */
 export async function setOrderReviewHandler(req: Request, res: Response): Promise<void> {
   const auth = requireAuth(req);

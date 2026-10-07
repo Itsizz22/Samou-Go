@@ -251,6 +251,7 @@ export interface UpdateOrderStatusInput {
   deliveryPin?: string;
   /** 4-digit pickup handoff code the store shared — captain supplies on ON_THE_WAY. */
   handoffCode?: string;
+  qrToken?: string;
 }
 
 export interface AssignCaptainInput {
@@ -381,6 +382,7 @@ export interface UpdateCategoryInput {
 
 export interface UpdateStoreInput {
   busyUntil?: string | null;
+  autoReadyOnPrepTimeout?: boolean;
   busyExtraMinutes?: number;
   acceptsScheduledOrders?: boolean;
   deliveryZoneId?: string | null;

@@ -107,6 +107,7 @@ it.each(['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'ON_THE_WAY', 'DELIVERED',
   expect(message.apns.headers).toMatchObject({ 'apns-push-type': 'alert', 'apns-priority': '10' });
   expect(message.apns.payload.aps).toMatchObject({ alert: { title: 'Order update', body: status }, sound: 'default' });
   expect(message.notification).toBeDefined(); expect(message.android.priority).toBe('high');
+  expect(message.android.notification).toEqual({ channelId: 'customer_updates_v1', defaultSound: true });
 });
 it('chat remains an audible APNs alert while Android renders its own conversation notification', async () => {
   await sendPushToUser('recipient', { title: 'Chat', body: 'New message', data: { type: 'CHAT_MESSAGE', senderId: 'sender', orderId: 'order' } }, { dataOnly: true });
@@ -114,4 +115,11 @@ it('chat remains an audible APNs alert while Android renders its own conversatio
   expect(message.apns.payload.aps).toMatchObject({ sound: 'default', alert: { title: 'Chat', body: 'New message' } });
   expect(message).not.toHaveProperty('notification');
   expect(message.data).toMatchObject({ type: 'CHAT_MESSAGE', senderId: 'sender', orderId: 'order' });
+});
+
+it('uses a normal Android sound for display chat messages and keeps staff alarms', async () => {
+  await sendPushToUser('customer', { title: 'Chat', body: 'Message', data: { type: 'CHAT_MESSAGE' } });
+  expect(mocks.send.mock.calls.at(-1)?.[0].android.notification).toEqual({ channelId: 'customer_updates_v1', defaultSound: true });
+  await sendPushToUser('store', { title: 'New order', body: 'Order', data: { type: 'NEW_ORDER' } });
+  expect(mocks.send.mock.calls.at(-1)?.[0].android.notification).toEqual({ channelId: 'orders_high_priority', sound: 'order_alarm' });
 });

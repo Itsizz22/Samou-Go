@@ -39,6 +39,9 @@ import { hashPassword } from '../../lib/password';
 import { toOrderDetail, toOrderSummary } from './orders.mapper';
 import { toProduct } from '../stores/stores.mapper';
 import { creditDeliveredOrder } from '../platform/platform.service';
+import { acceptsHandoffQr } from './handoff-qr';
+import { DELIVERY_CODES_REQUIRED } from './delivery-codes';
+import { isWithinStoreHours } from '../stores/operating-hours';
 import type {
   AssignCaptainBody,
   CheckoutBody,
@@ -195,13 +198,17 @@ async function resolveVoucher(db: OrderDb, code: string, subtotal: number): Prom
 async function priceBasket(
   db: OrderDb,
   storeId: string,
-  items: readonly { productId: string; quantity: number; note?: string; isOfferItem?: boolean; offerId?: string; offerTitle?: string; selectedOptions?: { groupId: string; optionId: string }[] }[]
+  items: readonly { productId: string; quantity: number; note?: string; isOfferItem?: boolean; offerId?: string; offerTitle?: string; selectedOptions?: { groupId: string; optionId: string }[] }[],
+  checkOperatingHours = true,
 ): Promise<PricedLine[]> {
   const store = await db.store.findUnique({
     where: { id: storeId },
-    select: { id: true, isActive: true, isApproved: true, isAcceptingOrders: true, storeStatus: true },
+    select: { id: true, isActive: true, isApproved: true, isAcceptingOrders: true, storeStatus: true, openingTime: true, closingTime: true },
   });
   if (!store) throw notFound('المتجر غير موجود / Store not found');
+  if (checkOperatingHours && !isWithinStoreHours(store)) {
+    throw unprocessable('STORE_CLOSED', 'انتهى دوام المتجر، يمكنك الطلب خلال ساعات العمل / Store is outside operating hours');
+  }
   if (!store.isActive) {
     throw unprocessable('STORE_CLOSED', 'المتجر مغلق حالياً / This store is currently closed');
   }
@@ -425,7 +432,7 @@ export async function createOrder(
     //   resolve the voucher, then write order + items + status history.
     // If any step throws, the whole unit rolls back — no order, no items,
     // no voucher redemption, no partial financials.
-    const lines = await priceBasket(tx, body.storeId, body.items);
+    const lines = await priceBasket(tx, body.storeId, body.items, !body.scheduledFor);
     const scheduledFor = body.scheduledFor ? validateScheduledStart(body.scheduledFor, await tx.store.findUniqueOrThrow({ where: { id: body.storeId } })) : null;
     const region = body.deliveryRegion ?? undefined;
     const totals = calculateOrderTotals(lines, env.deliveryFeeConfig, region);
@@ -520,7 +527,7 @@ export async function createOrder(
           : roundMoney(totals.subtotal + deliveryFee - discount),
         voucherId: voucher?.id ?? null,
         paymentMethod: PaymentMethod.COD,
-        deliveryPin: body.fulfillmentType === 'PICKUP' ? null : generateDeliveryPin(),
+        deliveryPin: DELIVERY_CODES_REQUIRED && body.fulfillmentType !== 'PICKUP' ? generateDeliveryPin() : null,
         voiceNoteUrl: body.voiceNoteUrl ?? null,
         voiceNoteDuration: body.voiceNoteDuration ?? null,
         items: {
@@ -670,7 +677,7 @@ export async function createCheckoutOrders(
             : roundMoney(totals.subtotal + pricing.deliveryFee),
           voucherId: null,
           paymentMethod: PaymentMethod.COD,
-          deliveryPin: storeGroup.fulfillmentType === 'PICKUP' ? null : generateDeliveryPin(),
+          deliveryPin: DELIVERY_CODES_REQUIRED && storeGroup.fulfillmentType !== 'PICKUP' ? generateDeliveryPin() : null,
           items: {
             create: lines.map(line => {
               const itemSource = storeGroup.items[line.sourceIndex ?? 0];
@@ -1026,6 +1033,12 @@ export async function updateOrderStatus(
 
   if (isClaimAttempt && !await prisma.order.findFirst({ where: { AND: [{ id: orderId }, await captainPoolScope(actor.sub)] }, select: { id: true } })) throw forbidden('الطلب غير متاح لك / Order is not available to you');
   const assignCaptainOnClaim = isClaimAttempt;
+  if (actor.role === UserRole.CAPTAIN && (next === OrderStatus.ON_THE_WAY || next === OrderStatus.DELIVERED)) {
+    const stage = next === OrderStatus.ON_THE_WAY ? 'pickup' : 'delivery';
+    if (!acceptsHandoffQr(order, stage, body.qrToken)) throw badState('HANDOFF_QR_INVALID', stage === 'pickup'
+      ? 'امسح رمز QR الحالي من شاشة المتجر لهذا الطلب'
+      : 'امسح رمز QR الحالي من شاشة الزبون لهذا الطلب');
+  }
 
   // PICKUP orders cannot be claimed by captains — the store manager handles them.
   if (assignCaptainOnClaim && order.fulfillmentType === 'PICKUP') {
@@ -1038,6 +1051,7 @@ export async function updateOrderStatus(
   // counter. PICKUP orders (customer walks in) and orders that already carry a
   // code (a store re-marking ready) keep their generated code stable.
   const mintsHandoffCode =
+    DELIVERY_CODES_REQUIRED &&
     next === OrderStatus.READY_FOR_PICKUP &&
     order.fulfillmentType !== 'PICKUP' &&
     order.captainHandoffCode === null;
@@ -1045,7 +1059,7 @@ export async function updateOrderStatus(
   // Delivery PIN validation: when a captain transitions to DELIVERED,
   // they must provide the correct 4-digit PIN that the customer shares.
   // Rate-limited to 5 attempts per order to prevent brute-force.
-  if (actor.role === UserRole.CAPTAIN && next === OrderStatus.DELIVERED) {
+  if (DELIVERY_CODES_REQUIRED && actor.role === UserRole.CAPTAIN && next === OrderStatus.DELIVERED) {
     const MAX_PIN_ATTEMPTS = 5;
     if ((order.deliveryPinAttempts ?? 0) >= MAX_PIN_ATTEMPTS) {
       throw badState(
@@ -1075,7 +1089,7 @@ export async function updateOrderStatus(
   // prevent brute-forcing the handoff secret. Orders without a code (PICKUP,
   // legacy) skip this gate entirely.
   if (
-    actor.role === UserRole.CAPTAIN &&
+    DELIVERY_CODES_REQUIRED && actor.role === UserRole.CAPTAIN &&
     next === OrderStatus.ON_THE_WAY &&
     order.captainHandoffCode !== null
   ) {
@@ -1634,7 +1648,7 @@ export async function proposeOrderChange(actor: { sub: string; role: UserRole },
   const updated = await deliveryTransaction(async tx => {
     const lock = await tx.order.updateMany({ where: { id: orderId, status: OrderStatus.PENDING, updatedAt: new Date(body.updatedAt) }, data: { updatedAt: new Date() } });
     if (!lock.count) throw conflict('تغير الطلب؛ حدّث الصفحة / Order changed');
-    const lines = await priceBasket(tx, existing.storeId, body.items);
+    const lines = await priceBasket(tx, existing.storeId, body.items, false);
     const subtotal = Math.round(lines.reduce((sum,line)=>sum+line.unitPrice*line.quantity,0)*100)/100;
     const voucher = existing.voucher;
     const discount = voucher ? calculateVoucherDiscount(subtotal, { type: voucher.discountType, value: decimalToNumber(voucher.discountValue), minSubtotal: voucher.minSubtotal === null ? undefined : decimalToNumber(voucher.minSubtotal), maxDiscount: voucher.maxDiscount === null ? undefined : decimalToNumber(voucher.maxDiscount) }) : 0;
@@ -1655,7 +1669,7 @@ export async function decideOrderChange(customerId: string, orderId: string, upd
     const raw: unknown = JSON.parse(order.changeProposal!);
     if (!raw || typeof raw !== 'object' || !('input' in raw) || !('lines' in raw)) throw badRequest('مقترح غير صالح / Invalid proposal');
     const parsed = orderProposalSchema.parse({ updatedAt, items: raw.input });
-    const lines = await priceBasket(tx, order.storeId, parsed.items);
+    const lines = await priceBasket(tx, order.storeId, parsed.items, false);
     if (JSON.stringify(lines) !== JSON.stringify(raw.lines)) throw conflict('تغير السعر أو التوفر؛ اطلب مقترحاً محدثاً / Price or availability changed');
     const subtotal = Math.round(lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0) * 100) / 100;
     const voucher = order.voucher;

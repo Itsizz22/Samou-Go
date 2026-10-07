@@ -138,6 +138,7 @@ async function deliverPushToUser(
   const expiry = Number(payload.data?.expiresAt);
   const ttl = Number.isFinite(expiry) && expiry > 0 ? Math.max(0, expiry - Date.now()) : undefined;
   if (ttl === 0) return { sent: 0, failed: 0, skipped: "EXPIRED" };
+  const isOrderAlarm = ['NEW_ORDER', 'NEW_ORDER_ALERT', 'CAPTAIN_ASSIGN'].includes(payload.data?.type ?? '');
   const multicast: MulticastMessage = {
     tokens: tokens.map((t: { token: string }) => t.token),
     ...(options?.dataOnly
@@ -153,17 +154,16 @@ async function deliverPushToUser(
       body: payload.body,
       ...(payload.data ?? {}),
     },
-    // Android: use the "orders_high_priority" channel for urgent order alerts.
-    // IMPORTANCE_HIGH + custom ringtone ensures the alarm plays even when the
-    // app is killed, with heads-up display on lockscreen.
+    // Keep customer updates and chat on a normal notification sound.
+    // Only staff new-order/assignment alerts use the alarm channel.
     android: {
       priority: 'high' as const,
       ...(ttl !== undefined ? { ttl } : {}),
       // Android notification metadata also turns a send into a display message.
       // Omit it for data-only staff alerts so the native service owns rendering.
       ...(!options?.dataOnly ? { notification: {
-        channelId: 'orders_high_priority',
-        sound: 'order_alarm',
+        channelId: isOrderAlarm ? 'orders_high_priority' : 'customer_updates_v1',
+        ...(isOrderAlarm ? { sound: 'order_alarm' } : { defaultSound: true }),
       } } : {}),
     },
     // iOS needs a visible APNs alert even for Android data-only staff messages.
