@@ -136,6 +136,7 @@ jobs:
           node scripts/recover-dish-category-migration.cjs
           node scripts/recover-product-discount-migration.cjs
           node scripts/recover-session-version-migration.cjs
+          node scripts/recover-auto-ready-migration.cjs
           npx prisma migrate deploy --schema=prisma/schema.prisma
 
       # ============================================================
