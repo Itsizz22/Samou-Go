@@ -8,6 +8,7 @@ import { CaptainStoreAssignment, assignedIds } from '../StoreAssignmentPicker';
 import { NotificationAuditPanel } from '../NotificationAuditPanel';
 import { SupportDesk } from '@samou-go/api-client';
 import { OverdueOrdersPanel } from '../OverdueOrdersPanel';
+import { OrderDetailsDialog } from '../OrderDetailsDialog';
 import { AppAppearancePanel } from '../AppAppearancePanel';
 import { PricingSettings } from '../PricingSettings';
 import { FEATURE_FLAGS } from '@samou-go/api-client';
@@ -995,6 +996,7 @@ function StatusKpi({
  * ------------------------------------------------------------------------- */
 
 function OrdersPanel() {
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [trackingId, setTrackingId] = useState<string | null>(null);
   const toast = useToast();
   const { t } = useLanguage();
@@ -1092,6 +1094,7 @@ function OrdersPanel() {
         </div>
       }
     >
+      {detailId && <OrderDetailsDialog key={detailId} orderId={detailId} onClose={() => setDetailId(null)} />}
       {trackingId && <div className="mb-4"><button type="button" onClick={() => setTrackingId(null)} className="mb-2 rounded-xl border border-line p-2">إغلاق التتبع</button><LiveTrackingCard orderId={trackingId} load={getLiveOrderTracking} /></div>}
       <div className="overflow-x-auto">
         <table className="w-full min-w-180 text-start">
@@ -1122,7 +1125,7 @@ function OrdersPanel() {
                   return (
                     <tr key={order.id} className="text-xs hover:bg-canvas">
                       <td className="px-5 py-3 font-bold text-brand-deep" dir="ltr">
-                        {order.orderNumber}
+                        <button type="button" onClick={() => setDetailId(order.id)} className="rounded-lg text-start underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"><span dir="ltr">{order.orderNumber}</span><span className="mt-1 block text-xs" dir="rtl">تفاصيل الطلب</span></button>
                         {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && <button type="button" className="block rounded-xl border border-line p-2 text-brand" onClick={() => setTrackingId(order.id)}>تتبع الطلب</button>}
                       </td>
                       <td className="px-3 py-3 text-ink-muted">{order.storeNameAr}</td>
