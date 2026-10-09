@@ -1646,3 +1646,39 @@ it('keeps legacy captain pickup and delivery working during the QR rollout', asy
  expect((await request('POST', route + '/claim', 'CAPTAIN', {})).status).toBe(200);
  expect((await request('PATCH', route + '/status', 'CAPTAIN', {status: 'DELIVERED'})).status).toBe(200);
 });
+
+it('manual handoff requires the assigned captain, valid stage and records one settlement even with QR enforcement', async () => {
+  const { env } = await import('../../config/env');
+  const previous = env.handoffQrRequired; env.handoffQrRequired = true;
+  try {
+    const order = await preparationOrder();
+    const route = '/orders/' + order.id + '/status';
+    const pickup = { status: 'ON_THE_WAY', manualHandoff: true };
+    expect((await request('PATCH', route, undefined, pickup)).status).toBe(401);
+    expect([400,403]).toContain((await request('PATCH', route, 'CUSTOMER', pickup)).status);
+    expect([400,403]).toContain((await request('PATCH', route, 'STORE_MANAGER', pickup)).status);
+    expect((await request('PATCH', route, 'CAPTAIN', pickup)).status).not.toBe(200);
+    await fixture.db.order.update({where:{id:order.id},data:{status:'READY_FOR_PICKUP',captainId:null}});
+    expect((await request('PATCH', route, 'CAPTAIN', pickup)).status).toBe(403);
+    await fixture.db.order.update({where:{id:order.id},data:{captainId:'ADMIN'}});
+    expect((await request('PATCH', route, 'CAPTAIN', pickup)).status).toBe(403);
+    await fixture.db.order.update({where:{id:order.id},data:{captainId:'CAPTAIN'}});
+    expect((await request('PATCH', route, 'CAPTAIN', {status:'ON_THE_WAY'})).status).toBe(400);
+    expect((await request('PATCH', route, 'CAPTAIN', {...pickup,qrToken:'invalid'})).status).toBe(400);
+    expect((await request('PATCH', route, 'CAPTAIN', {status:'DELIVERED',manualHandoff:true})).status).toBe(400);
+    expect((await request('PATCH', route, 'CAPTAIN', pickup)).status).toBe(200);
+    expect((await request('PATCH', route, 'CAPTAIN', pickup)).status).toBe(400);
+    expect((await request('PATCH', route, 'CAPTAIN', {status:'DELIVERED'})).status).toBe(400);
+    const delivery = {status:'DELIVERED',manualHandoff:true};
+    const results = await Promise.all([request('PATCH', route, 'CAPTAIN', delivery), request('PATCH', route, 'CAPTAIN', delivery)]);
+    expect(results.filter(x=>x.status===200)).toHaveLength(1);
+    const count = await fixture.db.ledgerEntry.count();
+    expect((await request('PATCH', route, 'CAPTAIN', delivery)).status).not.toBe(200);
+    expect(await fixture.db.ledgerEntry.count()).toBe(count);
+    const history = await fixture.db.orderStatusHistory.findMany({where:{orderId:order.id,status:{in:['ON_THE_WAY','DELIVERED']}}});
+    expect(history).toHaveLength(2);
+    expect(history.every(x=>x.changedByUserId==='CAPTAIN' && x.note?.includes('دون رمز'))).toBe(true);
+    expect((await request<OrderDetail>('GET','/orders/'+order.id,'CUSTOMER')).data.status).toBe('DELIVERED');
+    expect((await request<OrderDetail>('GET','/orders/'+order.id,'STORE_MANAGER')).data.status).toBe('DELIVERED');
+  } finally { env.handoffQrRequired = previous; }
+}, 20000);

@@ -243,6 +243,8 @@ export interface CreateOrderInput {
 }
 
 export interface UpdateOrderStatusInput {
+  /** Explicit confirmation by the already assigned captain, without a scanned proof. */
+  manualHandoff?: true;
   status: OrderStatus;
   note?: string;
   /** STORE_MANAGER supplies this together with PENDING → ACCEPTED. */

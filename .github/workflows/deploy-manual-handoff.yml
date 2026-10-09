@@ -1,0 +1,82 @@
+name: Deploy captain manual handoff
+on:
+  push:
+    branches: [codex/manual-handoff]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace @samou-go/shared-types
+      - run: npm run build --workspace @samou-go/api
+      - run: npx vitest run --configLoader runner src/modules/orders/orders.lifecycle.test.ts src/modules/orders/orders.concurrency.test.ts src/modules/orders/orders.delivered.test.ts src/modules/orders/handoff-qr.test.ts
+        working-directory: packages/api
+      - name: Deploy API only and wait for healthy release
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          node <<'NODE'
+          const base = `https://api.render.com/v1/services/${process.env.RENDER_SERVICE_ID}/deploys`;
+          const headers = { Authorization: `Bearer ${process.env.RENDER_API_KEY}`, 'Content-Type': 'application/json' };
+          async function request(url, options = {}) {
+            const r = await fetch(url, { ...options, headers });
+            if (!r.ok) throw new Error(`Render HTTP ${r.status}`);
+            const text = await r.text();
+            console.log('Render response', r.status, text ? 'JSON body' : 'empty body');
+            return text ? JSON.parse(text) : null;
+          }
+          const previous = await request(`${base}?limit=10`);
+          let deploy = previous?.map(entry => entry.deploy).find(entry => entry.commit?.id === process.env.GITHUB_SHA && !['build_failed','update_failed','canceled','deactivated'].includes(entry.status));
+          if (!deploy) deploy = await request(base, { method: 'POST', body: JSON.stringify({commitId: process.env.GITHUB_SHA}) });
+          if (!deploy) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            const list = await request(`${base}?limit=10`);
+            deploy = list?.map(entry => entry.deploy).find(entry => entry.commit?.id === process.env.GITHUB_SHA);
+          }
+          if (!deploy?.id) throw new Error('Render did not return a verifiable deployment');
+          console.log('Deployment', deploy.id, 'commit', process.env.GITHUB_SHA);
+          for (let i = 0; i < 80; i++) {
+            const result = await request(`${base}/${deploy.id}`);
+            console.log(result.status);
+            if (result.status === 'live') process.exit(0);
+            if (['build_failed','update_failed','pre_deploy_failed','canceled','deactivated'].includes(result.status)) process.exit(1);
+            await new Promise(resolve => setTimeout(resolve, 15000));
+          }
+          throw new Error('Deployment timed out');
+          NODE
+
+      - run: npm run build --workspace @samou-go/ui
+      - run: npm run build --workspace @samou-go/web-captain
+        env:
+          VITE_API_URL: ${{ secrets.PROD_API_URL }}
+          VITE_MAPBOX_ACCESS_TOKEN: ${{ vars.VITE_MAPBOX_ACCESS_TOKEN }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_VAPID_KEY: ${{ vars.VITE_FIREBASE_VAPID_KEY }}
+      - name: Publish captain confirmation page
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB_CAPTAIN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npx --yes vercel@59.11.7 pull --yes --environment=production --token "$VERCEL_TOKEN"
+          mkdir -p .vercel/output/static
+          cp -r themes/web-captain/dist/. .vercel/output/static/
+          node scripts/write-vercel-output-config.mjs web-captain
+          npx --yes vercel@59.11.7 deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN"

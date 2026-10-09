@@ -1033,9 +1033,12 @@ export async function updateOrderStatus(
 
   if (isClaimAttempt && !await prisma.order.findFirst({ where: { AND: [{ id: orderId }, await captainPoolScope(actor.sub)] }, select: { id: true } })) throw forbidden('الطلب غير متاح لك / Order is not available to you');
   const assignCaptainOnClaim = isClaimAttempt;
+  if (body.manualHandoff && (actor.role !== UserRole.CAPTAIN || order.captainId !== actor.sub || order.fulfillmentType !== 'DELIVERY' || (next !== OrderStatus.ON_THE_WAY && next !== OrderStatus.DELIVERED))) {
+    throw forbidden('التأكيد اليدوي متاح للكابتن المعيّن للطلب فقط / Manual handoff requires the assigned captain');
+  }
   if (actor.role === UserRole.CAPTAIN && (next === OrderStatus.ON_THE_WAY || next === OrderStatus.DELIVERED)) {
     const stage = next === OrderStatus.ON_THE_WAY ? 'pickup' : 'delivery';
-    if (!acceptsHandoffQr(order, stage, body.qrToken)) throw badState('HANDOFF_QR_INVALID', stage === 'pickup'
+    if (!(body.manualHandoff && body.qrToken === undefined) && !acceptsHandoffQr(order, stage, body.qrToken)) throw badState('HANDOFF_QR_INVALID', stage === 'pickup'
       ? 'امسح رمز QR الحالي من شاشة المتجر لهذا الطلب'
       : 'امسح رمز QR الحالي من شاشة الزبون لهذا الطلب');
   }
@@ -1159,7 +1162,7 @@ export async function updateOrderStatus(
             create: {
               status: next,
               changedByUserId: actor.sub,
-              note: body.note ?? null,
+              note: body.manualHandoff ? (next === OrderStatus.ON_THE_WAY ? 'تأكيد الكابتن استلام الطلب من المتجر دون رمز' : 'تأكيد الكابتن تسليم الطلب وتحصيل المبلغ دون رمز') : body.note ?? null,
             },
           },
         },

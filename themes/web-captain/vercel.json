@@ -39,5 +39,15 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/handoff",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/handoff/",
+      "destination": "/index.html"
+    }
   ]
 }
