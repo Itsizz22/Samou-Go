@@ -32,3 +32,32 @@
 .dark .admin-captain-control .text-brand {
   color: var(--color-emerald-300, #6ee7b7);
 }
+
+/* Dense lists keep long editors out of the normal scanning path. */
+.sq-admin table td { padding-block: 10px; padding-inline: 12px; }
+.sq-admin table th { padding-block: 11px; padding-inline: 12px; }
+.sq-admin table { font-variant-numeric: tabular-nums; }
+.sq-admin details.admin-row-actions { margin: 0; min-inline-size: 110px; max-inline-size: 320px; }
+.sq-admin .admin-row-actions > div { padding-block-start: 12px; }
+.sq-admin .admin-assignment-dialog details { margin-block: 8px 0; }
+.sq-admin .admin-assignment-dialog fieldset > p { max-inline-size: none; }
+.sq-admin .admin-assignment-dialog button { min-block-size: 40px; }
+
+@media (max-width: 640px) {
+  .sq-admin .admin-captains-table { display: block; min-inline-size: 0; }
+  .sq-admin .admin-captains-table thead { display: none; }
+  .sq-admin .admin-captains-table tbody { display: block; }
+  .sq-admin .admin-captains-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 8px; }
+  .sq-admin .admin-captains-table td { display: block; padding: 6px; border: 0; min-inline-size: 0; }
+  .sq-admin .admin-captains-table td:first-child { grid-column: 1 / -1; }
+  .sq-admin .admin-captains-table td[data-label]::before { content: attr(data-label); display: block; font-size: 11px; color: var(--color-ink-muted); margin-block-end: 4px; }
+  .sq-admin .admin-captains-table td:last-child > div { justify-content: flex-start; }
+}
+
+@media (max-width: 640px) {
+  .sq-admin .admin-panel-header:has(.admin-captain-tools) { display: grid; grid-template-columns: 1fr auto; padding: 12px; }
+  .sq-admin .admin-panel-header:has(.admin-captain-tools) > div:last-child { display: contents; }
+  .sq-admin .admin-panel-header:has(.admin-captain-tools) > div:last-child > button { grid-column: 2; grid-row: 1; }
+  .sq-admin .admin-captain-tools { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
+  .sq-admin .admin-captain-tools label { grid-column: 1 / -1; grid-row: 2; }
+}

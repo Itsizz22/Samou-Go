@@ -1215,7 +1215,6 @@ function UsersPanel() {
     ...(debounced ? { search: debounced } : {}),
   });
   const rows = users.data?.items ?? [];
-  const stores = useStores({ activeOnly: false, page: 1, pageSize: 100 }, undefined, true);
 
   const pendingIdRef = useRef<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -1388,7 +1387,7 @@ function UsersPanel() {
         </div>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-190 text-start">
+        <table className="w-full min-w-160 text-start">
           <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
             <tr>
               <th className="px-3 py-3">
@@ -1400,19 +1399,18 @@ function UsersPanel() {
                   aria-label="Select all users on this page"
                 />
               </th>
-              <th className="px-5 py-3">User</th>
-              <th className="px-3 py-3">Phone</th>
-              <th className="px-3 py-3">Role</th>
-              <th className="px-3 py-3">Captain store</th>
-              <th className="px-3 py-3">Status</th>
-              <th className="px-5 py-3 text-end">Actions</th>
+              <th className="px-5 py-3">{t('المستخدم', 'User')}</th>
+              <th className="px-3 py-3">{t('الهاتف', 'Phone')}</th>
+              <th className="px-3 py-3">{t('الدور', 'Role')}</th>
+              <th className="px-3 py-3">{t('الحالة', 'Status')}</th>
+              <th className="px-5 py-3 text-end">{t('الإجراءات', 'Actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line-soft">
             {users.loading && rows.length === 0
               ? [0, 1, 2, 3, 4, 5, 6].map(i => (
                   <tr key={i} aria-hidden="true">
-                    {[0, 1, 2, 3, 4, 5, 6].map(j => (
+                    {[0, 1, 2, 3, 4, 5].map(j => (
                       <td key={j} className="px-5 py-4">
                         <div className="h-3 animate-pulse rounded bg-line-soft" />
                       </td>
@@ -1459,14 +1457,7 @@ function UsersPanel() {
                           ))}
                         </AppSelect>
                       </td>
-                      <td className="px-3 py-3">
-                        {user.role === UserRole.CAPTAIN ? (
-                          <CaptainStoreAssignment user={user} stores={stores.data?.items ?? []} disabled={busy || stores.loading}
-                            onSave={(ids, blockedIds) => runUpdate(user.id, { assignedStoreIds: ids, blockedStoreIds: blockedIds }, 'تم تحديث المتاجر المخصصة', 'Dedicated stores updated')} />
-                        ) : (
-                          <span className="text-ink-subtle">—</span>
-                        )}
-                      </td>
+
                       <td className="px-3 py-3">
                         <span
                           className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-micro font-bold ${
@@ -1829,7 +1820,7 @@ function StoresPanel() {
         })}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-225 text-start">
+        <table className="w-full min-w-170 text-start">
           <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
             <tr>
               <th className="px-3 py-3">
@@ -1845,10 +1836,10 @@ function StoresPanel() {
                   aria-label="Select all stores on this page"
                 />
               </th>
-              <th className="px-5 py-3">Store</th>
-              <th className="px-3 py-3">Approval</th>
-              <th className="px-3 py-3">Status</th>
-              <th className="px-5 py-3 text-end">Actions</th>
+              <th className="px-5 py-3">{t('المتجر', 'Store')}</th>
+              <th className="px-3 py-3">{t('الموافقة', 'Approval')}</th>
+              <th className="px-3 py-3">{t('الحالة', 'Status')}</th>
+              <th className="px-5 py-3 text-end">{t('الإجراءات', 'Actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line-soft">
@@ -1882,9 +1873,7 @@ function StoresPanel() {
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2.5">
                             <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-tint text-micro font-extrabold text-brand-deep">
-                              <p className="max-w-64 whitespace-normal text-xs text-ink-muted">
-                              السائقون المخصصون: {(captains.data?.items ?? []).filter(captain => assignedIds(captain).includes(store.id)).map(captain => captain.name).join('، ') || 'لا يوجد — يستقبل طلباته السائقون العامون'}
-                            </p>
+
                             {store.logoUrl ? (
                                 <img
                                   src={store.logoUrl}
@@ -1908,7 +1897,10 @@ function StoresPanel() {
                               <span className="block text-micro text-ink-muted" dir="ltr">
                                 {store.publicCode ? `${store.publicCode} · ` : ""}{store.nameEn}
                               </span>
-                              <StoreTypeEditor storeId={store.id} storeType={store.storeType ?? null} onSaved={stores.reload} />
+                              <p className="max-w-64 line-clamp-1 text-xs text-ink-muted">
+                              السائقون المخصصون: {(captains.data?.items ?? []).filter(captain => assignedIds(captain).includes(store.id)).map(captain => captain.name).join('، ') || 'لا يوجد — يستقبل طلباته السائقون العامون'}
+                            </p>
+
                             </div>
                           </div>
                         </td>
@@ -1955,6 +1947,8 @@ function StoresPanel() {
                           </span>
                         </td>
                         <td className="px-5 py-3">
+                          <details className="admin-row-actions"><summary className="cursor-pointer rounded-lg border border-line px-3 py-2 text-sm font-semibold">إدارة المتجر</summary>
+                              <StoreTypeEditor storeId={store.id} storeType={store.storeType ?? null} onSaved={stores.reload} />
                           <div className="flex flex-wrap items-center justify-end gap-2">
                             {!store.isApproved && (
                               <button
@@ -2129,7 +2123,7 @@ function StoresPanel() {
                               {store.isActive ? <Ban size={12} /> : <RotateCcw size={12} />}
                               <span className="hidden sm:inline">{store.isActive ? 'تعطيل' : 'تفعيل'}</span>
                             </button>
-                          </div>
+                          </div></details>
                         </td>
                       </tr>
                       {expanded && (
@@ -2334,7 +2328,7 @@ function CaptainsPanel() {
       refreshing={captains.refreshing}
       onRefresh={() => void captains.reload()}
       headerActions={
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="admin-captain-tools flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
@@ -2348,7 +2342,7 @@ function CaptainsPanel() {
               value={search}
               onChange={event => setSearch(event.target.value)}
               className="w-full bg-transparent text-xs outline-none placeholder:text-ink-subtle"
-              placeholder="Captain name or phone…"
+              placeholder={t("اسم السائق أو رقم الهاتف…", "Captain name or phone…")}
               aria-label="Search captains"
             />
           </label>
@@ -2358,9 +2352,9 @@ function CaptainsPanel() {
             className="h-9 rounded-xl border border-line bg-canvas px-2 text-xs font-semibold text-ink outline-none focus:border-brand"
             aria-label="Filter captain availability"
           >
-            <option value="ALL">All availability</option>
-            <option value="ONLINE">Online</option>
-            <option value="OFFLINE">Offline</option>
+            <option value="ALL">{t('كل السائقين', 'All availability')}</option>
+            <option value="ONLINE">{t('متاح', 'Online')}</option>
+            <option value="OFFLINE">{t('غير متاح', 'Offline')}</option>
           </AppSelect>
         </div>
       }
@@ -2371,14 +2365,14 @@ function CaptainsPanel() {
         onCreated={() => void captains.reload()}
       />
       <div className="overflow-x-auto">
-        <table className="w-full min-w-170 text-start">
+        <table className="admin-captains-table w-full min-w-170 text-start">
           <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
             <tr>
-              <th className="px-5 py-3">Captain</th>
-              <th className="px-3 py-3">Verification</th>
-              <th className="px-3 py-3">Availability</th>
-              <th className="px-3 py-3">Dedicated store</th>
-              <th className="px-5 py-3 text-end">Actions</th>
+              <th className="px-5 py-3">{t('السائق', 'Captain')}</th>
+              <th className="px-3 py-3">{t('التوثيق', 'Verification')}</th>
+              <th className="px-3 py-3">{t('المتاجر', 'Stores')}</th>
+              <th className="px-3 py-3">{t('التوفر', 'Availability')}</th>
+              <th className="px-5 py-3 text-end">{t('الإجراءات', 'Actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line-soft">
@@ -2409,7 +2403,7 @@ function CaptainsPanel() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-3 py-3">
+                      <td data-label="التوثيق" className="px-3 py-3">
                         {captain.isVerified ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-brand-tint px-2.5 py-1 text-micro font-bold text-brand-deep">
                             <BadgeCheck size={12} /> موثّق
@@ -2420,11 +2414,11 @@ function CaptainsPanel() {
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-3 text-[11px] font-semibold text-ink-soft">
+                      <td data-label="المتاجر" className="px-3 py-3 text-[11px] font-semibold text-ink-soft">
                         <CaptainStoreAssignment user={captain} stores={stores.data?.items ?? []} disabled={busy || stores.loading}
                           onSave={(ids, blockedIds) => runAction(captain.id, () => updateMutation.run({ assignedStoreIds: ids, blockedStoreIds: blockedIds }), 'تم تحديث متاجر الكابتن', 'Captain stores updated')} />
                       </td>
-                      <td className="px-3 py-3">
+                      <td data-label="التوفر" className="px-3 py-3">
                         <span
                           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-micro font-bold ${
                             !captain.isActive
@@ -2444,7 +2438,7 @@ function CaptainsPanel() {
                           {!captain.isActive ? 'معطل' : captain.isAvailable ? 'متاح' : 'غير متاح'}
                         </span>
                       </td>
-                      <td className="px-5 py-3">
+                      <td data-label="الإجراءات" className="px-5 py-3">
                         <div className="flex items-center justify-end gap-2">
                           {!captain.isVerified && (
                             <button
@@ -3009,7 +3003,7 @@ function PanelShell({
 
   return (
     <article className="overflow-hidden rounded-xl border border-line bg-surface shadow-card">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft px-5 py-5">
+      <div className="admin-panel-header flex flex-wrap items-center justify-between gap-3 border-b border-line-soft px-5 py-3">
         <div>
           <h2 className="text-[15px] font-extrabold">{t(title, en)}</h2>
         </div>
