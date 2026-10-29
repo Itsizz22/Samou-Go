@@ -1234,7 +1234,7 @@ export async function assignCaptain(
 
   const captain = await prisma.user.findUnique({
     where: { id: body.captainId },
-    select: { id: true, role: true, isActive: true, isVerified: true, assignedStoreId: true, ...assignedStoresInclude },
+    select: { id: true, name: true, role: true, isActive: true, isVerified: true, assignedStoreId: true, ...assignedStoresInclude },
   });
 
   if (!captain || captain.role !== UserRole.CAPTAIN) {
@@ -1254,6 +1254,9 @@ export async function assignCaptain(
     throw unprocessable('CAPTAIN_STORE_MISMATCH', 'الكابتن مخصص لمتجر آخر / Captain is dedicated to another store');
   }
 
+  if (body.expectedCaptainId !== undefined && body.expectedCaptainId !== order.captainId) {
+    throw conflict('تغير الشوفير المعيّن؛ حدّث تفاصيل الطلب وحاول مجددًا / Assigned captain changed');
+  }
   if (order.captainId === captain.id) return toOrderDetail(order, actor.role, actor.sub);
   if (!PREPARATION_POOL_STATUSES.some(status => status === order.status) || order.fulfillmentType !== 'DELIVERY' || order.changeProposal) throw conflict('اعتمد الفاتورة قبل إسناد التوصيل / Approve the final order before assigning delivery');
   const updated = await deliveryTransaction(async tx => {
@@ -1261,7 +1264,7 @@ export async function assignCaptain(
     if (!(await eligibleCaptainIds(order.storeId, tx)).includes(captain.id)) throw forbidden('الكابتن غير مؤهل لهذا المتجر / Captain is not eligible for this store');
     const changed = await tx.order.updateMany({ where: { id: orderId, captainId: order.captainId, status: order.status, updatedAt: order.updatedAt, changeProposal: null }, data: { captainId: captain.id, dispatchCaptainId: null, dispatchExpiresAt: null, prepReminderSentAt: null, prepReminderLeaseUntil: null } });
     if (!changed.count) throw conflict('تغير الطلب؛ حدّث الصفحة / Order changed');
-    await tx.orderStatusHistory.create({ data: { orderId, status: order.status, changedByUserId: actor.sub, note: `تم إسناد الطلب للكابتن ${captain.id}` } });
+    await tx.orderStatusHistory.create({ data: { orderId, status: order.status, changedByUserId: actor.sub, note: order.captainId ? `تم نقل الطلب من الكابتن ${order.captain?.name ?? order.captainId} (${order.captainId}) إلى الكابتن ${captain.name} (${captain.id})` : `تم إسناد الطلب للكابتن ${captain.name} (${captain.id})` } });
     return tx.order.findUniqueOrThrow({ where: { id: orderId }, include: DETAIL_INCLUDE });
   });
 

@@ -59,12 +59,12 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
   const { t } = useLanguage();
   return (
     <aside
-      className={`sq-admin-sidebar fixed inset-y-0 start-0 z-30 flex-col bg-slate-900 px-4 py-6 text-white transition-transform duration-200 ${
+      className={`sq-admin-sidebar fixed inset-y-0 start-0 z-30 flex-col bg-slate-900 px-4 py-4 text-white transition-transform duration-200 ${
         open ? 'flex translate-x-0' : 'hidden translate-x-full md:flex md:translate-x-0'
       }`}
       aria-label={t('قائمة الإدارة', 'Admin sidebar')}
     >
-      <div className="flex items-center gap-3 px-3 pb-9" dir="ltr">
+      <div className="flex items-center gap-3 px-3 pb-5" dir="ltr">
         <BrandLogo size={40} />
         <span>
           <strong className="block text-[18px] tracking-[-0.03em]">Samou Quick</strong>
@@ -80,16 +80,19 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
         </button>
       </div>
 
-      <nav className="flex-1" aria-label="Primary navigation">
+      <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4" aria-label="Primary navigation">
         <p className="mb-3 px-3 text-micro font-bold uppercase tracking-[0.18em] text-white/55">
-          {t('العمل', 'Workspace')}
+          {t('التشغيل والإدارة', 'Operations & management')}
         </p>
         <ul className="space-y-1">
-          {ADMIN_NAV_ITEMS.map((item) => {
+          {['Dashboard', 'Orders', 'Captains', 'Stores', 'Users', 'Zones', 'Financials', 'Offers', 'AppAppearance', 'Support', 'NotificationLog', 'Settings'].map(id => {
+            const item = ADMIN_NAV_ITEMS.find(item => item.id === id);
+            if (!item) return null;
             const Icon = item.icon;
             const active = activeNav === item.id;
             return (
               <li key={item.id}>
+                {['Stores', 'Offers', 'Support'].includes(item.id) && <p className="mb-2 mt-5 px-3 text-xs font-semibold text-white/55">{item.id === 'Stores' ? t('شبكة المتاجر والحسابات', 'Network & accounts') : item.id === 'Offers' ? t('التسويق والمحتوى', 'Marketing & content') : t('المتابعة والإعدادات', 'Support & settings')}</p>}
                 <button
                   type="button"
                   aria-current={active ? 'page' : undefined}
@@ -107,7 +110,7 @@ export function AdminSidebar({ userName, activeNav, open, onNavigate, onClose, o
         </ul>
       </nav>
 
-      <div className="border-t border-white/10 pt-5">
+      <div className="shrink-0 border-t border-white/10 pt-3">
         <div className="flex items-center gap-3 rounded-xl px-2 py-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-tint text-sm font-extrabold text-brand-deep">
             {userName.slice(0, 2).toUpperCase()}

@@ -10,3 +10,25 @@
    ========================================================================== */
 
 @import '@samou-go/ui/styles';
+
+/* Scoped to the admin dashboard. */
+.sq-admin-content > div { margin-inline: auto; }
+.sq-admin .sq-status-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.sq-admin .sq-status-grid > :last-child { grid-column: auto; }
+.sq-admin details { margin-block: 24px 0; }
+.sq-admin summary::marker { color: var(--color-brand); }
+.sq-admin table thead th { white-space: nowrap; font-size: 12px; letter-spacing: normal; }
+.sq-admin :where(button, a, select, input):focus-visible,
+.admin-captain-control :where(button, select):focus-visible {
+  outline: 2px solid var(--color-brand); outline-offset: 3px;
+}
+.sq-admin-sidebar nav {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-muted) transparent;
+}
+.dark .sq-admin :is(.text-brand, .text-brand-deep) {
+  color: var(--color-emerald-300, #6ee7b7);
+}
+.dark .admin-captain-control .text-brand {
+  color: var(--color-emerald-300, #6ee7b7);
+}

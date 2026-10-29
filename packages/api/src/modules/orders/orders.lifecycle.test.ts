@@ -1682,3 +1682,26 @@ it('manual handoff requires the assigned captain, valid stage and records one se
     expect((await request<OrderDetail>('GET','/orders/'+order.id,'STORE_MANAGER')).data.status).toBe('DELIVERED');
   } finally { env.handoffQrRequired = previous; }
 }, 20000);
+
+it('transfers a reserved order through admin controls and rejects stale or forbidden transfers', async () => {
+  for (const [id, phone] of [['transfer-old', '0599960001'], ['transfer-new', '0599960002']]) {
+    await fixture.db.user.create({ data: { id, phone, role: 'CAPTAIN', name: id, passwordHash: 'unused', isActive: true, isVerified: true, isAvailable: true } });
+    tokens[id!] = signAccessToken({ userId: id!, role: UserRole.CAPTAIN, phone: phone! }).accessToken;
+  }
+  const order = await preparationOrder();
+  await fixture.db.order.update({ where: { id: order.id }, data: { captainId: 'transfer-old' } });
+  const route = `/orders/${order.id}/captain`;
+  const body = { captainId: 'transfer-new', expectedCaptainId: 'transfer-old' };
+  expect((await request('PATCH', route, 'CUSTOMER', body)).status).toBe(403);
+  expect((await request('PATCH', route, 'transfer-old', body)).status).toBe(403);
+  const changed = await request<OrderDetail>('PATCH', route, 'ADMIN', body);
+  expect(changed.status, JSON.stringify(changed.error)).toBe(200);
+  expect(changed.data).toMatchObject({ captainId: 'transfer-new', status: 'PREPARING', totalAmount: 10, deliveryFee: 0 });
+  expect(changed.data.statusHistory.some(entry => entry.note?.includes('transfer-old') && entry.note.includes('transfer-new'))).toBe(true);
+  expect((await request('PATCH', route, 'ADMIN', { captainId: 'transfer-old', expectedCaptainId: 'transfer-old' })).status).toBe(409);
+  expect((await request('POST', `/orders/${order.id}/release`, 'transfer-old', { reason: 'test' })).status).toBe(403);
+  expect((await request<OrderDetail>('GET', `/orders/${order.id}`, 'transfer-new')).data.captainId).toBe('transfer-new');
+  await fixture.db.order.update({ where: { id: order.id }, data: { status: 'ON_THE_WAY' } });
+  expect((await request('PATCH', route, 'ADMIN', { captainId: 'transfer-old', expectedCaptainId: 'transfer-new' })).status).toBe(409);
+  expect((await fixture.db.order.findUniqueOrThrow({ where: { id: order.id } })).captainId).toBe('transfer-new');
+});

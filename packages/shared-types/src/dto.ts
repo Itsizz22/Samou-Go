@@ -257,6 +257,7 @@ export interface UpdateOrderStatusInput {
 }
 
 export interface AssignCaptainInput {
+  expectedCaptainId?: string | null;
   captainId: string;
 }
 

@@ -660,7 +660,7 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
     <>
       <section aria-labelledby="overview-title">
         <div className="mb-5">
-          <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-brand">Overview</p>
+          <p className="mb-3 text-xs font-bold text-brand">{t("مركز العمليات", "Operations overview")}</p>
           <OverdueOrdersPanel />
           <h2 id="overview-title" className="mt-1 text-[20px] font-extrabold tracking-tight">
             {t('نظرة عامة', 'Overview')}
@@ -692,27 +692,6 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
             </span>
           </div>
         </div>
-        {ENABLE_LOCATION && (
-        <section
-          className="mb-8 overflow-hidden rounded-2xl border border-line bg-surface shadow-card"
-          aria-label={t('خريطة التشغيل', 'Operations map')}
-        >
-          <div className="flex items-center justify-between border-b border-line-soft px-5 py-3">
-            <p className="text-xs font-extrabold text-ink">
-              {t('منطقة التشغيل — السموع', "Operations map · Samou', Hebron")}
-            </p>
-          </div>
-          <div className="h-80">
-            {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && (<LeafletMap
-              center={[31.3971, 35.0716]}
-              zoom={13}
-              className="h-full w-full z-0"
-              markers={[{ position: [31.3971, 35.0716], label: "Samou Quick — منطقة التشغيل" }]}
-            />)}
-          </div>
-        </section>
-        )}
-
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {kpis.map(kpi => {
             const Icon = kpi.icon;
@@ -777,6 +756,27 @@ function DashboardTab({ stats, loading, error, onRetry }: DashboardTabProps) {
             tone="brand"
           />
         </div>
+        {ENABLE_LOCATION && (
+        <details
+          className="mb-8 overflow-hidden rounded-2xl border border-line bg-surface shadow-card"
+          aria-label={t('خريطة التشغيل', 'Operations map')}
+        >
+          <summary className="cursor-pointer px-5 py-3 text-sm font-bold text-ink">
+            <span>
+              {t('منطقة التشغيل — السموع', "Operations map · Samou', Hebron")}
+            </span>
+          </summary>
+          <div className="h-80">
+            {FEATURE_FLAGS.ENABLE_LIVE_GPS_TRACKING && (<LeafletMap
+              center={[31.3971, 35.0716]}
+              zoom={13}
+              className="h-full w-full z-0"
+              markers={[{ position: [31.3971, 35.0716], label: "Samou Quick — منطقة التشغيل" }]}
+            />)}
+          </div>
+        </details>
+        )}
+
       </section>
 
       {error && (
@@ -1043,7 +1043,7 @@ function OrdersPanel() {
     if (result) {
       toast.success(
         `تم تغيير حالة ${result.orderNumber}`,
-        `Order ${result.orderNumber} moved to ${ORDER_STATUS_LABELS[status].en}`
+        `Order ${result.orderNumber} moved to ${t(ORDER_STATUS_LABELS[status].ar, ORDER_STATUS_LABELS[status].en)}`
       );
       void orders.reload();
     } else if (transition.error) {
@@ -1067,8 +1067,8 @@ function OrdersPanel() {
               value={search}
               onChange={event => setSearch(event.target.value)}
               className="w-full bg-transparent text-xs outline-none placeholder:text-ink-subtle"
-              placeholder="Order or store…"
-              aria-label="Search orders"
+              placeholder={t("ابحث برقم الطلب أو المتجر…", "Order or store…")}
+              aria-label={t("البحث في الطلبات", "Search orders")}
             />
           </label>
           <AppSelect
@@ -1077,10 +1077,10 @@ function OrdersPanel() {
             className="h-9 rounded-xl border border-line bg-canvas px-2 text-xs font-semibold text-ink outline-none focus:border-brand"
             aria-label="Filter order status"
           >
-            <option value="ALL">All statuses</option>
+            <option value="ALL">{t('كل الحالات', 'All statuses')}</option>
             {Object.values(OrderStatus).map(status => (
               <option key={status} value={status}>
-                {ORDER_STATUS_LABELS[status].en}
+                {t(ORDER_STATUS_LABELS[status].ar, ORDER_STATUS_LABELS[status].en)}
               </option>
             ))}
           </AppSelect>
@@ -1089,29 +1089,30 @@ function OrdersPanel() {
             onClick={() => setSortBy(value => (value === 'newest' ? 'amount' : 'newest'))}
             className="inline-flex h-9 items-center gap-1 rounded-xl border border-line bg-canvas px-3 text-xs font-bold text-ink-soft hover:border-brand"
           >
-            <ArrowUpDown size={14} /> {sortBy === 'newest' ? 'Newest' : 'Amount'}
+            <ArrowUpDown size={14} /> {sortBy === 'newest' ? t('الأحدث أولًا', 'Newest') : t('الأعلى قيمة', 'Amount')}
           </button>
         </div>
       }
     >
-      {detailId && <OrderDetailsDialog key={detailId} orderId={detailId} onClose={() => setDetailId(null)} />}
+      {detailId && <OrderDetailsDialog key={detailId} orderId={detailId} onClose={() => setDetailId(null)} onUpdated={() => void orders.reload()} />}
       {trackingId && <div className="mb-4"><button type="button" onClick={() => setTrackingId(null)} className="mb-2 rounded-xl border border-line p-2">إغلاق التتبع</button><LiveTrackingCard orderId={trackingId} load={getLiveOrderTracking} /></div>}
       <div className="overflow-x-auto">
         <table className="w-full min-w-180 text-start">
           <thead className="bg-canvas text-micro font-bold uppercase tracking-[0.06em] text-ink-muted">
             <tr>
-              <th className="px-5 py-3">Order ID</th>
-              <th className="px-3 py-3">Store</th>
-              <th className="px-3 py-3">Status</th>
-              <th className="px-3 py-3">Override</th>
-              <th className="px-5 py-3 text-end">Amount</th>
+              <th className="px-5 py-3">{t('الطلب', 'Order ID')}</th>
+              <th className="px-3 py-3">{t('المتجر', 'Store')}</th>
+              <th className="px-3 py-3">{t('الحالة', 'Status')}</th>
+              <th className="px-3 py-3">{t('تحديث الحالة', 'Override')}</th>
+              <th className="px-3 py-3">{t('الشوفير', 'Captain')}</th>
+              <th className="px-5 py-3 text-end">{t('المبلغ', 'Amount')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line-soft">
             {orders.loading && rows.length === 0
               ? [0, 1, 2, 3, 4].map(i => (
                   <tr key={i} aria-hidden="true">
-                    {[0, 1, 2, 3, 4].map(j => (
+                    {[0, 1, 2, 3, 4, 5].map(j => (
                       <td key={j} className="px-5 py-4">
                         <div className="h-3 animate-pulse rounded bg-line-soft" />
                       </td>
@@ -1159,6 +1160,7 @@ function OrdersPanel() {
                           </AppSelect>
                         )}
                       </td>
+                      <td className="px-5 py-3"><button type="button" onClick={() => setDetailId(order.id)} className="whitespace-nowrap rounded-lg border border-line px-3 py-2 text-xs font-bold text-brand hover:border-brand" aria-label={`إدارة شوفير الطلب ${order.orderNumber}`}>{order.fulfillmentType === 'DELIVERY' && [OrderStatus.ACCEPTED, OrderStatus.PREPARING, OrderStatus.READY_FOR_PICKUP].some(status => status === order.status) ? order.captainId ? t('تغيير الشوفير', 'Change captain') : t('تعيين شوفير', 'Assign captain') : t('التفاصيل', 'Details')}</button></td>
                       <td className="px-5 py-3 text-end font-extrabold text-brand-deep" dir="ltr">
                         {formatILS(order.totalAmount)}
                       </td>
@@ -3011,7 +3013,7 @@ function PanelShell({
         <div>
           <h2 className="text-[15px] font-extrabold">{t(title, en)}</h2>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {headerActions}
           <button
             type="button"
@@ -3020,7 +3022,7 @@ function PanelShell({
             className="flex items-center gap-1.5 text-xs font-bold text-brand hover:text-brand-dark disabled:opacity-60"
           >
             {refreshing ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-            Refresh
+            {t('تحديث', 'Refresh')}
           </button>
         </div>
       </div>

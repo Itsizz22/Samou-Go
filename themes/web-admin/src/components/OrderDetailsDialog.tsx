@@ -1,3 +1,4 @@
+import { OrderCaptainControl } from './OrderCaptainControl';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useOrder } from '@/hooks/useApi';
 import { ORDER_STATUS_LABELS, type OrderDetail } from '@samou-go/shared-types';
@@ -57,7 +58,7 @@ export function OrderDetailsContent({ order }: { order: OrderDetail }) {
   </div>;
 }
 
-export function OrderDetailsDialog({ orderId, onClose }: { orderId: string; onClose: () => void }) {
+export function OrderDetailsDialog({ orderId, onClose, onUpdated }: { orderId: string; onClose: () => void; onUpdated?: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const order = useOrder(orderId, { pollMs: 10000 });
   useEffect(() => { const dialog = ref.current; const active = document.activeElement; dialog?.showModal(); const old = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { dialog?.close(); document.body.style.overflow = old; if (active instanceof HTMLElement) active.focus(); }; }, []);
@@ -65,6 +66,6 @@ export function OrderDetailsDialog({ orderId, onClose }: { orderId: string; onCl
     <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-surface p-4"><h2 id="order-detail-title" className="font-extrabold">تفاصيل الطلب <bdi dir="ltr">{order.data?.orderNumber}</bdi></h2><button type="button" onClick={onClose} className="rounded-lg border border-line px-3 py-2">إغلاق</button></header>
     {order.loading && !order.data && <p role="status" className="p-6">جارٍ تحميل تفاصيل الطلب…</p>}
     {order.error && <div role="alert" className="p-4"><p>تعذّر تحديث تفاصيل الطلب: {order.error.message}</p><button type="button" className="mt-2 text-brand underline" onClick={() => void order.reload()}>إعادة المحاولة</button></div>}
-    {order.data && <OrderDetailsContent order={order.data} />}
+    {order.data && <><OrderCaptainControl order={order.data} onAssigned={() => { void order.reload(); onUpdated?.(); }} /><OrderDetailsContent order={order.data} /></>}
   </dialog>;
 }

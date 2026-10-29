@@ -131,6 +131,7 @@ export const reviewSchema = z.object({
 });
 
 export const assignCaptainSchema = z.object({
+  expectedCaptainId: z.string().min(1).nullable().optional(),
   captainId: z.string().min(1, 'معرّف الكابتن مطلوب / captainId is required'),
 });
 

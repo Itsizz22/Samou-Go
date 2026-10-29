@@ -2328,3 +2328,8 @@ export const getPilotOrderDiagnostics = (orderId: string, signal?: AbortSignal) 
 export function permanentlyDeleteProduct(storeId: string, productId: string): Promise<void> {
   return request<void>('DELETE', `/stores/${encodeURIComponent(storeId)}/products/${encodeURIComponent(productId)}/permanent`, { auth: true });
 }
+
+/** Assign or transfer a delivery reservation to a captain. */
+export function assignOrderCaptain(orderId: string, input: import('@samou-go/shared-types').AssignCaptainInput, signal?: AbortSignal): Promise<OrderDetail> {
+  return request<OrderDetail>('PATCH', `/orders/${encodeURIComponent(orderId)}/captain`, { body: input, auth: true, signal });
+}
