@@ -69,7 +69,12 @@ export function BannerSettings() {
       <p>الصيغ المقبولة: JPEG وPNG وWebP، بحد أقصى 8 ميغابايت. نضغط الصورة تلقائيًا. اترك هامشًا حول الكتابة والشعار واضبط موضع القص من المعاينة.</p>
     </div>
     {storesError && <button type="button" onClick={() => void loadStores()} className="min-h-11 text-danger-ink">تعذر تحميل المتاجر — إعادة المحاولة</button>}
-    {!ready ? <button type="button" onClick={load} className="min-h-11 text-brand">إعادة تحميل البانرات</button> : <form onSubmit={async event => {
+    {!ready ? <button type="button" onClick={load} className="min-h-11 text-brand">إعادة تحميل البانرات</button> : <form onInvalidCapture={event => {
+      if (event.target instanceof HTMLElement) {
+        const card = event.target.closest('details');
+        if (card) card.open = true;
+      }
+    }} onSubmit={async event => {
       event.preventDefault(); if (locked) return;
       if (items.some(item => !item.imageUrl)) { setMessage('أرفق صورة لكل بانر قبل الحفظ.'); return; }
       setBusy(true); setMessage('');
@@ -81,7 +86,13 @@ export function BannerSettings() {
     }}>
       <fieldset disabled={locked} className="mt-4 space-y-4">
         {items.length === 0 && <p className="py-4 text-center text-ink-muted">لا توجد بانرات. أضف بانرًا وارفع صورته لتبدأ.</p>}
-        {items.map((item, index) => <div key={item.id} className="rounded-xl border border-line p-3">
+        {items.map((item, index) => <details key={item.id} className="appearance-banner-card rounded-xl border border-line p-3">
+          <summary className="flex cursor-pointer items-center gap-3">
+            {item.imageUrl && <img src={item.imageUrl} alt="" className="h-14 w-20 shrink-0 rounded-lg object-cover" />}
+            <span className="min-w-0 flex-1"><strong className="block text-sm">{item.title || 'بانر جديد — أضف الصورة والعنوان'}</strong><span className="text-xs text-ink-muted">{item.enabled ? 'مفعّل' : 'مخفي'} · {item.kind === 'product' ? 'إعلان منتج' : 'إعلان التطبيق'} · ترتيب {index + 1}</span></span>
+            <span className="text-xs font-bold text-brand">تعديل</span>
+          </summary>
+          <div className="pt-4">
           <div className="mx-auto mb-3 max-w-md overflow-hidden rounded-2xl border border-line bg-surface">
             {item.imageUrl ? <img src={item.imageUrl} alt={item.title || 'معاينة البانر'} className={`w-full ${item.kind === 'product' ? 'aspect-video' : 'aspect-[3/2]'}`} style={{ objectFit: 'cover', objectPosition: `50% ${item.positionY}%` }} />
               : <div className="flex aspect-video items-center justify-center p-6 text-sm text-ink-muted">أرفق صورة لعرض المعاينة</div>}
@@ -106,7 +117,8 @@ export function BannerSettings() {
             <button type="button" disabled={index === items.length - 1} onClick={() => move(index, 1)} className="min-h-11 px-2 text-brand disabled:opacity-40">تأخير</button>
             <button type="button" onClick={() => setItems(current => current.filter(banner => banner.id !== item.id))} className="min-h-11 px-2 text-danger-ink">حذف</button>
           </div>
-        </div>)}
+          </div>
+        </details>)}
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={() => setItems(current => [...current, { id: crypto.randomUUID(), title: '', imageUrl: '', enabled: true, fit: 'cover', positionY: 50 }])} className="min-h-11 rounded-xl border border-brand px-4 font-bold text-brand">إضافة بانر</button>
           <button type="button" onClick={() => setItems(current => [...current, { id: crypto.randomUUID(), kind: 'product', title: '', imageUrl: '', enabled: true, fit: 'cover', positionY: 50 }])} className="min-h-11 rounded-xl border border-brand px-4 font-bold text-brand">إضافة إعلان منتج</button>
